@@ -235,7 +235,7 @@ function newBattle() {
   const P = new Ship(pSpec, 0, 0, 0, "us", modern ? {} : profile.upg[id]); P.isPlayer = true; P.name = pSpec.short; P.nav = []; P.lv = 3; P.lastLv = 3; if (modern) { P.nation = natUs; mArm(P); }
   const anchored = mission === "raid";
   const C = modern ? null : new Ship(CARRIER, anchored ? -2600 : -1700, anchored ? 300 : -900, 0, "us"); if (C) { C.speed = anchored ? 0 : C.vmax * 0.6; C.name = "렉싱턴"; }
-  const allies = modern ? [(() => { const st = [-700, 900]; const [x, z] = placeAt(0, 0, 0, ...st); const s = new Ship(MODERN[NATIONS[natUs].ships[1]], x, z, 0, "us"); s.station = st; s.br = mkBrain(14); s.name = s.spec.short; s.nation = natUs; mArm(s); return s; })()]
+  const allies = modern ? [[-700, 900], ...(rk >= 3 ? [[-700, -900]] : [])].map((st, i) => { const [x, z] = placeAt(0, 0, 0, ...st); const s = new Ship(MODERN[NATIONS[natUs].ships[1]], x, z, 0, "us"); s.station = st; s.br = mkBrain(14 + i * 3); s.name = s.spec.short + (i ? " 2" : ""); s.nation = natUs; mArm(s); return s; }) // a second escort at higher rank, like the enemy's
     : ALLY_POOL.slice(0, escortsFor(rk)).map((k, i) => { const st = ALLY_ST[i]; const [x, z] = placeAt(0, 0, 0, ...st); const s = new Ship(SHIPS[k], x, z, 0, "us"); s.station = st; s.br = mkBrain(14 + i * 4); s.name = SHIPS[k].short; return s; });
   uniq(allies);
   G.ships = [P, ...allies, ...(C ? [C] : [])]; G.player = P; G.allies = allies; G.carrier = C;
@@ -244,7 +244,7 @@ function newBattle() {
     for (let k = 0; k < 16 && landAt(Math.cos(b) * r, Math.sin(b) * r, 4500); k++) b = wrap(b + 0.4); // open water for the enemy group
     const eh = wrap(PI + b + (rnd() - 0.5) * 0.8), N = NATIONS[natFoe];
     const keys = [N.ships[0], N.ships[1], ...(rk >= 3 ? [N.ships[1]] : [])];
-    const out = keys.map((k, i) => { const [x, z] = placeAt(Math.cos(b) * r, Math.sin(b) * r, eh, ...STATIONS[i]); const s = new Ship(MODERN[k], x, z, eh, "foe"); s.prefRange = [7000, 11000]; s.station = STATIONS[i]; s.br = mkBrain(16 + i * 5); s.nation = natFoe; mArm(s); return s; });
+    const out = keys.map((k, i) => { const [x, z] = placeAt(Math.cos(b) * r, Math.sin(b) * r, eh, ...STATIONS[i]); const s = new Ship(MODERN[k], x, z, eh, "foe"); s.prefRange = [5000, 8000]; s.station = STATIONS[i]; s.br = mkBrain(16 + i * 5); s.nation = natFoe; mArm(s); return s; });
     for (const s of out) s.group = out;
     const fcv = N.cv; if (fcv) { const [x, z] = placeAt(Math.cos(b) * r, Math.sin(b) * r, eh, 3500, 0); const c = new Ship(MODERN[fcv], x, z, eh, "foe"); c.isCarrier = true; c.br = mkBrain(30); c.nation = natFoe; c.group = out; mArm(c); out.push(c); }
     G.enemies.push(...out); G.ships.push(...out);
@@ -1362,15 +1362,18 @@ function modernStep(dt) {
   // offence: every modern ship with anti-ship missiles fires salvos at a seen enemy inside range (the player's only with AUTO or in auto battle)
   for (const S of G.ships) {
     if (!S.alive || !S.spec.modern || !S.mag) continue; if (S.isPlayer && !G.auto && !autoFire) continue;
-    const k = asmKey(S), kb = S.spec.vls.B?.[0]; S.asmCd = (S.asmCd ?? 10 + rnd() * 12) - dt; if (S.asmCd > 0) continue;
-    const foes = G.ships.filter((o) => o.alive && o.side !== S.side && o.spec.modern && (S.side === "foe" ? o.seenByFoe || o.revealT > 0 : o.root.visible));
-    const T = foes.sort((a, b) => d2(a.pos, S.pos) - d2(b.pos, S.pos))[0]; if (!T) { S.asmCd = 3; continue; }
+    const k = asmKey(S), kb = S.spec.vls.B?.[0];
+    if (S.side === "foe" && S.prefRange && !(S.mag[k] > 0) && !(kb && S.mag[kb] > 0)) S.prefRange = [3000, 5000]; // out of missiles: close to gun range
+    S.asmCd = (S.asmCd ?? 10 + rnd() * 12) - dt; if (S.asmCd > 0) continue;
+    const foes = G.ships.filter((o) => o.alive && o.side !== S.side && o.spec.modern && (S.side === "foe" ? o.seenByFoe || o.revealT > 0 : goodCt(o))); // both sides fire at estimated contacts too
+    const T = S.side === "foe" ? pickFoe(S, foes) : foes.sort((a, b) => d2(a.pos, S.pos) - d2(b.pos, S.pos))[0]; if (!T) { S.asmCd = 3; continue; } // enemy salvos spread over our ships too
     const d = d2(T.pos, S.pos), use = kb && S.mag[kb] > 0 && d < WPN[kb].range * 0.95 && rnd() < 0.35 ? kb : k;
     if (!use || !(S.mag[use] > 0) || d > WPN[use].range * 0.95) { S.asmCd = 4; continue; }
-    const n = Math.min(S.mag[use], use === kb ? 1 : S.side === "foe" ? 2 + ((rnd() * 2) | 0) : 2);
-    const est = S.side === "foe" && T.foeErr && !(T.revealT > 0) ? T.pos.clone().add(new THREE.Vector3(gauss(), 0, gauss()).multiplyScalar(d * T.foeErr * 0.6)) : null; // ESM-only fix: aim at a guess
+    const n = Math.min(S.mag[use], use === kb ? 1 : 2 + ((rnd() * 2) | 0)); // same salvo rules both sides
+    const uct = S.side === "us" ? G.cts.get(T) : null;
+    const est = S.side === "foe" ? (T.foeErr && !(T.revealT > 0) ? T.pos.clone().add(new THREE.Vector3(gauss(), 0, gauss()).multiplyScalar(d * T.foeErr * 0.6)) : null) : uct && uct.q < 0.6 ? new THREE.Vector3(uct.x, 0, uct.z) : null; // ESM-only fix: aim at a guess
     for (let i = 0; i < n; i++) md.q.push({ t: i * 0.7, S, k: use, T, est });
-    S.mag[use] -= n; S.asmCd = (S.side === "foe" ? 26 : 38) + rnd() * 18;
+    S.mag[use] -= n; S.asmCd = 26 + rnd() * 18;
     if (S.side === "foe") { log(`적 ${S.name} 대함미사일 ${n}발 발사 탐지!`, "bad"); sfx.alarm(); } else log(`${S.name} ${WPN[use].name} ${n}발 발사`, "hit");
   }
 }

@@ -149,7 +149,7 @@ function impact(m, S, lx, onHit) {
   for (let i = 0; i < 30; i++) spark.spawn({ x: p.x, y: p.y + 2, z: p.z, vx: gauss() * 25, vy: 10 + rnd() * 30, vz: gauss() * 25, g: 9.8, life: 2.4, s0: 2.6, s1: 0.8, a: 1, c: 0xffa040 });
   for (let i = 0; i < 6; i++) smoke.spawn({ x: p.x + gauss() * 3, y: p.y + 3, z: p.z + gauss() * 3, vy: 6, life: 10, s0: 8, s1: 30, a: 0.75, c: 0x1e1e1e });
   const d = p.distanceTo(camera.position); at(d, () => sfx.explode(d)); if (S.isPlayer) G.shake = 2;
-  const n = W.dmg * (0.85 + rnd() * 0.3); S.fires.push(40); if (rnd() < 0.5) { S.flooding += 1; S.listSide = S.listSide || (lx >= 0 ? 1 : -1); }
+  const n = W.dmg * (0.85 + rnd() * 0.3) * (W.cls === "hyp" ? 1 : 1.5); // x1.5: three or four hits sink a destroyer, so battles end S.fires.push(40); if (rnd() < 0.5) { S.flooding += 1; S.listSide = S.listSide || (lx >= 0 ? 1 : -1); }
   onHit?.(S, m, n); S.damage(n);
 }
 // ── defence: each modern ship engages incoming missiles aimed at its side, inside its own envelope ──
