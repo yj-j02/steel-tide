@@ -711,8 +711,8 @@ export class Ship {
       if (this.sinking === 0 && this.root.visible) for (const fl of this.funnels) { const w = this.tilt.localToWorld(new THREE.Vector3(...fl)); smoke.spawn({ x: w.x, y: w.y, z: w.z, vx: 2.5, vy: 3.2, vz: 1, life: 9, s0: 5, s1: 30, a: 0.24, c: 0x3a3a3a }); }
       for (let i = 0; i < Math.min(this.fires.length, 3); i++) {
         const lx = ((i * 37 + this.phase * 20) % (sp.L * 0.47)) - sp.L * 0.23, w = this.tilt.localToWorld(new THREE.Vector3(lx, sp.fb + 6, 0));
-        smoke.spawn({ x: w.x, y: w.y, z: w.z, vx: 3, vy: 6, vz: 1.2, life: 12, s0: 9, s1: 52, a: 0.7, c: 0x121212 });
-        if (rnd() < 0.6) flash.spawn({ x: w.x, y: w.y - 2, z: w.z, vy: 2, life: 0.7, s0: 9, s1: 4, a: 0.9, c: 0xff7a22 });
+        for (let k = 0; k < 2; k++) smoke.spawn({ x: w.x + gauss() * 2, y: w.y + k * 4, z: w.z + gauss() * 2, vx: 3 + rnd() * 2, vy: 13 + rnd() * 5, vz: 1.2, drag: 0.06, life: 16 + rnd() * 6, s0: 8, s1: 70 + rnd() * 30, a: 0.75, fade: 0.8, c: k ? 0x2a2622 : 0x141210 }); // tall, drifting column
+        flash.spawn({ x: w.x + gauss(), y: w.y - 1.5, z: w.z + gauss(), vy: 3, life: 0.6 + rnd() * 0.4, s0: 10 + rnd() * 6, s1: 5, a: 0.95, c: rnd() < 0.5 ? 0xff6a1a : 0xffa030 });
       }
       if (this.sinking > 0 && this.sinking < 30) { const w = this.tilt.localToWorld(new THREE.Vector3((rnd() - 0.5) * sp.L * 0.6, sp.fb, 0)); smoke.spawn({ x: w.x, y: Math.max(w.y, 2), z: w.z, vx: 2, vy: 5, vz: 1, life: 14, s0: 14, s1: 60, a: 0.6, c: 0x161616 }); }
     }

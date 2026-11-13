@@ -309,8 +309,12 @@ export const WEAR = canvasTex(256, (x) => {
 WEAR.anisotropy = 4;
 export const SOFT = canvasTex(64, (x) => { const g = x.createRadialGradient(32, 32, 0, 32, 32, 32); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.5, "rgba(255,255,255,.55)"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0, 0, 64, 64); });
 /** Billowing cloud puff (several lumps) for smoke and spray. */
-export const PUFF = canvasTex(128, (x) => { for (let i = 0; i < 9; i++) { const cx = 64 + (Math.random() - 0.5) * 50, cy = 64 + (Math.random() - 0.5) * 50, r = 22 + Math.random() * 22, g = x.createRadialGradient(cx, cy, 0, cx, cy, r);
-  g.addColorStop(0, "rgba(255,255,255,.55)"); g.addColorStop(0.6, "rgba(255,255,255,.25)"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0, 0, 128, 128); } });
+// billowy cloud puff: many lobes of different sizes, falling off toward the rim so sprites never show a hard disc
+export const PUFF = canvasTex(256, (x) => { for (let i = 0; i < 34; i++) { const a = Math.random() * 6.283, d = Math.random() * Math.random() * 70, cx = 128 + Math.cos(a) * d, cy = 128 + Math.sin(a) * d, r = 18 + Math.random() * (52 - d * 0.4), g = x.createRadialGradient(cx, cy, 0, cx, cy, r);
+  g.addColorStop(0, "rgba(255,255,255,.42)"); g.addColorStop(0.55, "rgba(255,255,255,.2)"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0, 0, 256, 256); } });
+// fireball: hot core with ragged tongues, for muzzle blasts, hits and burning decks
+export const FLAME = canvasTex(128, (x) => { const g = x.createRadialGradient(64, 64, 0, 64, 64, 64); g.addColorStop(0, "rgba(255,255,255,1)"); g.addColorStop(0.25, "rgba(255,255,255,.85)"); g.addColorStop(0.6, "rgba(255,255,255,.25)"); g.addColorStop(1, "rgba(255,255,255,0)"); x.fillStyle = g; x.fillRect(0, 0, 128, 128);
+  x.globalCompositeOperation = "lighter"; for (let i = 0; i < 14; i++) { const a = Math.random() * 6.283, l = 30 + Math.random() * 30; x.strokeStyle = `rgba(255,255,255,${0.12 + Math.random() * 0.15})`; x.lineWidth = 4 + Math.random() * 8; x.beginPath(); x.moveTo(64, 64); x.lineTo(64 + Math.cos(a) * l, 64 + Math.sin(a) * l); x.stroke(); } });
 export const FOAM = canvasTex(256, (x) => { x.clearRect(0, 0, 256, 256);
   for (let i = 0; i < 900; i++) { const px = Math.random() * 256, py = Math.random() * 256, d = Math.hypot(px - 128, py - 128) / 128; if (d > 1) continue; const r = 2 + Math.random() * 9 * (1 - d);
     x.fillStyle = `rgba(255,255,255,${(0.25 + Math.random() * 0.45) * (1 - d * d)})`; x.beginPath(); x.arc(px, py, r, 0, TAU); x.fill(); } });
@@ -462,7 +466,7 @@ export class Pool {
   spawn(o) {
     const p = this.items[this.next]; this.next = (this.next + 1) % this.items.length;
     Object.assign(p, { vx: 0, vy: 0, vz: 0, g: 0, drag: 0, s0: 5, s1: 10, a: 1, fade: 1 }, o, { max: o.life });
-    p.s.position.set(o.x, o.y, o.z); p.s.material.color.setHex(o.c ?? 0xffffff); p.s.material.rotation = rnd() * TAU; p.s.visible = true;
+    p.s.position.set(o.x, o.y, o.z); p.s.material.color.setHex(o.c ?? 0xffffff); p.s.material.rotation = rnd() * TAU; p.spin = (rnd() - 0.5) * 0.5; p.s.visible = true;
   }
   update(dt) {
     for (const p of this.items) {
@@ -472,7 +476,7 @@ export class Pool {
       p.vy -= p.g * dt; if (p.drag) { const f = Math.exp(-p.drag * dt); p.vx *= f; p.vy *= f; p.vz *= f; }
       p.s.position.x += p.vx * dt; p.s.position.y += p.vy * dt; p.s.position.z += p.vz * dt;
       if (p.g && p.s.position.y < 0) { p.life = Math.min(p.life, 0.3); p.s.position.y = 0; }
-      const sz = p.s0 + (p.s1 - p.s0) * Math.sqrt(k); p.s.scale.set(sz, sz, 1);
+      const sz = p.s0 + (p.s1 - p.s0) * Math.sqrt(k); p.s.scale.set(sz, sz, 1); p.s.material.rotation += p.spin * dt; // slow roll keeps puffs alive
       // fade out puffs that envelop the camera (avoids full-screen overdraw and grey-outs in first person)
       const dc = p.s.position.distanceTo(camera.position), frac = sz / (Math.max(dc, 0.1) * camera.fov * DEG), nk = clamp((dc - sz * 0.2) / (sz * 0.7), 0, 1) * clamp((2.2 - frac) / 1.2, 0, 1);
       p.s.visible = nk > 0.02;
@@ -481,7 +485,7 @@ export class Pool {
   }
   clear() { for (const p of this.items) { p.life = 0; p.s.visible = false; } }
 }
-export const smoke = new Pool(560, { map: PUFF }), flash = new Pool(110, { additive: true }), spray = new Pool(520, { map: PUFF }), spark = new Pool(320, { additive: true });
+export const smoke = new Pool(900, { map: PUFF }), flash = new Pool(110, { additive: true, map: FLAME }), spray = new Pool(520, { map: PUFF }), spark = new Pool(320, { additive: true });
 
 /** Flat decals on the water: foam rings, foam patches, pressure rings, wake. */
 class Decals {
