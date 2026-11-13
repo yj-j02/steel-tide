@@ -55,7 +55,7 @@ function mesh(W, side, sc) {
   const fl = new THREE.Mesh(FLAME, MATS.fire); fl.position.x = -2.7; fl.scale.set(1.8, 0.8, 0.8); g.add(fl); g.userData.fl = fl;
   g.scale.setScalar(sc); scene.add(g); return g;
 }
-const X = new THREE.Vector3(1, 0, 0), tmp = new THREE.Vector3();
+const X = new THREE.Vector3(1, 0, 0), tmp = new THREE.Vector3(), _dq = new THREE.Quaternion(), _eu = new THREE.Euler();
 /** world position of a VLS hatch on the ship (fore or aft grid) */
 function hatch(S) { const v = S.funnels && S.root.userData; void v; S.tilt.updateWorldMatrix(true, false); const xs = S.vlsX || [S.spec.L * 0.26, -S.spec.L * 0.32]; return S.tilt.localToWorld(new THREE.Vector3(xs[rnd() < 0.5 ? 0 : 1] + gauss() * 1.5, S.spec.fb + 1.2, gauss() * 1.2)); }
 export function launch(S, key, target) {
@@ -128,7 +128,7 @@ export function stepMissiles(dt, onHit) {
         if (!T || !T.alive) { m.lost = (m.lost || 0) + dt; if (m.lost > 1.2) { kill(m, "air"); continue; } }
         else {
           steer(m, lead(m, T, m.vel.length()).clone(), dt, 5);
-          if (m.pos.distanceTo(T.pos) < 32) { const ok = rnd() < (W.pk[T.W.cls] ?? (T.isJet ? 0.35 : 0.55)) * (T.isJet ? 1 : 0.45); T.engaged = Math.max(0, T.engaged - 1); kill(m, "air"); if (ok) { T.killedBy = m.owner; kill(T, "boom"); } continue; } // jets jink and jam; no layer is a sure kill
+          if (m.pos.distanceTo(T.pos) < 32) { const ok = rnd() < (T.isJet ? (W.pk.jet ? W.pk.jet * 0.45 : 0.2) * (T.flareT > 0 ? 0.25 : 1) : (W.pk[T.W.cls] ?? 0.55) * 0.45); T.engaged = Math.max(0, T.engaged - 1); kill(m, "air"); if (ok) { T.killedBy = m.owner; kill(T, "boom"); } continue; } // jets jink and jam; no layer is a sure kill
         }
       }
     }
@@ -251,7 +251,7 @@ export function launchJet(S, role, cv, pos) {
   const mesh = jetMesh(S.side === "foe"); mesh.scale.setScalar(1.4); scene.add(mesh);
   const p = pos ? pos.clone() : S.pos.clone().setY((S.spec?.fb || 0) + 14), h = S.heading ?? 0;
   const j = { isJet: true, side: S.side, owner: S, role, name: cv.type, W: { cls: "jet", alt: "high", name: cv.type }, pos: p, vel: new THREE.Vector3(Math.cos(h) * 120, 25, Math.sin(h) * 120), t: 0, endur: 260, home: false, alive: true, engaged: 0, mesh,
-    asm: role !== "cap" ? 2 : 0, asmKey: cv.asm, aam: 4, aamKey: cv.aam, aamCd: 2, trail: [] };
+    asm: role !== "cap" ? 2 : 0, asmKey: cv.asm, aam: 4, aamKey: cv.aam, aamCd: 2, trail: [], flares: 8, flareT: 0, flareCd: 0, hp: 4, gun: 400, gunCd: 0 };
   M.jets.push(j); return j;
 }
 /** know(side) → [{ ship, pos, firm }] enemy surface contacts that side can target. onEvent(j, kind, extra). */
@@ -259,12 +259,14 @@ export function stepJets(dt, know, onEvent) {
   for (let i = M.jets.length - 1; i >= 0; i--) {
     const j = M.jets[i];
     if (!j.alive) { if (!j.gone) onEvent?.(j, "lost", j.killedBy); M.jets.splice(i, 1); continue; }
-    j.t += dt; j.aamCd -= dt;
+    j.t += dt; j.aamCd -= dt; j.flareT = Math.max(0, j.flareT - dt); j.flareCd = Math.max(0, j.flareCd - dt);
+    if (!j.pilot && j.flares > 0 && j.flareCd <= 0 && M.list.some((m) => m.alive && m.target === j && m.pos.distanceTo(j.pos) < 3500)) dropJetFlare(j); // AI pilots flare against incoming missiles
     if (j.pilot) { // flown by the player: fly where the stick points
-      const p = j.ppitch, want = new THREE.Vector3(Math.cos(j.pyaw) * Math.cos(p), Math.sin(p), Math.sin(j.pyaw) * Math.cos(p)).multiplyScalar(j.thr);
-      j.vel.lerp(want, Math.min(1, dt * 2.2)); j.pos.addScaledVector(j.vel, dt); j.W.alt = j.pos.y < 300 ? "skim" : "high";
+      const I = j.inp || { p: 0, r: 0, mp: 0, my: 0 }; // body axes: x nose, y up, z right wing — roll on x, yaw on y, pitch on z
+      j.q.multiply(_dq.setFromEuler(_eu.set(I.r * 2.6 * dt, I.my, I.p * 1.5 * dt + I.mp, "XYZ"))).normalize(); I.mp = I.my = 0;
+      j.vel.lerp(tmp.set(1, 0, 0).applyQuaternion(j.q).multiplyScalar(j.thr), Math.min(1, dt * 3)); j.pos.addScaledVector(j.vel, dt); j.W.alt = j.pos.y < 300 ? "skim" : "high";
       if (j.pos.y < 8) { j.killedBy = null; kill(j, "boom"); continue; }
-      j.mesh.position.copy(j.pos); j.mesh.quaternion.setFromUnitVectors(X, tmp.copy(j.vel).normalize()); continue;
+      j.mesh.position.copy(j.pos); j.mesh.quaternion.copy(j.q); continue;
     }
     if (j.t > j.endur || !j.owner.alive || (j.role === "multi" && !j.asm && !j.aam)) j.home = true; j.W.alt = j.pos.y < 300 ? "skim" : "high"; // low flyers stay under the radar horizon longer
     let goal = null, alt = j.role === "strike" ? 160 : 1800, spd = 240;
@@ -289,6 +291,15 @@ export function stepJets(dt, know, onEvent) {
     if (rnd() < dt * 6) smoke.spawn({ x: j.pos.x, y: j.pos.y, z: j.pos.z, life: 1.2, s0: 1.5, s1: 5, a: 0.18, c: 0xcfcfcf });
   }
 }
+/** Flare burst behind a jet: spoils missile shots at it for a few seconds and breaks some locks outright. */
+export function dropJetFlare(j) {
+  if (!(j.flares > 0) || j.flareCd > 0) return false; j.flares--; j.flareT = 4; j.flareCd = 1.2;
+  for (let i = 0; i < 6; i++) flash.spawn({ x: j.pos.x, y: j.pos.y - 2, z: j.pos.z, vx: j.vel.x * 0.25 + gauss() * 25, vy: -12 + gauss() * 8, vz: j.vel.z * 0.25 + gauss() * 25, life: 2.6 + rnd(), s0: 7, s1: 3, a: 1, c: 0xfff2c8 });
+  for (const m of M.list) if (m.alive && m.target === j && m.pos.distanceTo(j.pos) < 6000 && rnd() < 0.5) { m.target = null; j.engaged = Math.max(0, j.engaged - 1); }
+  return true;
+}
+/** Cannon or other direct kill of an aircraft or missile. */
+export function shootDown(t, by) { t.killedBy = by; kill(t, "boom"); }
 export function clearMissiles() { for (const j of M.jets) scene.remove(j.mesh); M.jets.length = 0; for (const h of M.helos) scene.remove(h.mesh); M.helos.length = 0; for (const m of M.list) scene.remove(m.mesh); M.list.length = 0; M.decoys.length = 0; M.cam = null; trGeo.setDrawRange(0, 0); }
 /** fill a ship's magazine from its spec */
 export function arm(S) { S.mag = {}; for (const e of Object.values(S.spec.vls || {})) S.mag[e[0]] = (S.mag[e[0]] || 0) + e[1]; if (S.spec.pd) S.mag[S.spec.pd[0]] = S.spec.pd[1]; S.vlsX = S.tilt?.userData?.vls || null; }

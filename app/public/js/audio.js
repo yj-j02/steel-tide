@@ -107,16 +107,17 @@ export const sfx = {
 export function updateAudio(dt, ctx = {}) {
   for (let i = A.later.length - 1; i >= 0; i--) { A.later[i].t -= dt; if (A.later[i].t <= 0) { const f = A.later[i].fn; A.later.splice(i, 1); f(); } }
   if (!A.ctx) return;
-  const p = G.player, pl = G.plane, flying = !!(pl && !pl.crashed && G.state !== "menu");
+  const p = G.player, pl = G.plane, jet = ctx.jet, flying = !!(pl && !pl.crashed && G.state !== "menu") || !!jet, spd = jet ? jet.vel.length() : pl ? pl.speed : 0;
   const onDeck = !flying && p && G.state !== "menu", near = ctx.nearShip ?? 1;
   const set = (g, v) => g && g.gain.setTargetAtTime(v, A.ctx.currentTime, 0.25);
   set(A.hum, onDeck ? (0.03 + 0.07 * Math.abs(p.speed) / p.vmax) * near : 0);
   set(A.amb.hull, onDeck ? 0.06 * clamp(Math.abs(p.speed) / p.vmax, 0, 1) * near : 0);
   set(A.amb.swell, flying ? 0.05 : 0.16); set(A.amb.crest, flying ? 0.004 : 0.018);
-  set(A.amb.rush, flying ? clamp((pl.speed - 30) / 120, 0, 1) * (ctx.cockpit ? 0.05 : 0.09) : 0);
+  set(A.amb.rush, flying ? clamp((spd - 30) / 120, 0, 1) * (ctx.cockpit ? 0.05 : 0.09) : 0);
   if (flying && !A.eng && A.buf.engine) A.eng = play("engine", { loop: true, vol: 0 });
   if (A.eng) {
     if (!flying) { A.eng.src.stop(); A.eng = null; }
+    else if (jet) { const t = clamp((jet.thr - 110) / 220, 0, 1); A.eng.src.playbackRate.value = 1.15 + 0.6 * t; A.eng.g.gain.value = (0.3 + 0.35 * t) * (ctx.cockpit ? 1.2 : 1); } // jet: higher whine with throttle
     else { A.eng.src.playbackRate.value = 0.72 + 0.42 * pl.throttle + 0.1 * clamp((pl.speed - 60) / 90, 0, 1); A.eng.g.gain.value = (0.25 + 0.3 * pl.throttle) * (ctx.cockpit ? 1.25 : 1); }
   }
 }
