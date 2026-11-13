@@ -1730,8 +1730,9 @@ function step(dt) {
   if (!altDown()) { const k = 1 - Math.exp(-dt * 7); freeYaw -= freeYaw * k; freePitch -= freePitch * k; }
   updateAudio(dt, { cockpit: fp === "cockpit", nearShip: fp === "command" ? clamp(1 - effDist() / 4000, 0.3, 1) : 0.35 });
 }
-function loop() {
-  const dt = Math.min(clock.getDelta(), 0.05);
+function loop() { frameOnce(Math.min(clock.getDelta(), 0.05)); requestAnimationFrame(loop); }
+/** One full frame (sim, camera, HUD, render); also driven directly by tests while the tab is hidden. */
+function frameOnce(dt) {
   G.frames = (G.frames || 0) + 1; if (!paused) step(dt); fp = updateCamera(dt); updateOverlays(paused ? 0 : dt); updateBombLines();
   if (cinema) { for (const o of [gunLines, arcLine, maxRing, navLine, fanLines, bombLines, mapGrid, ...navRings]) o.visible = false; for (const k of markers) k.m.visible = false; }
   else bombLines.visible = true;
@@ -1752,10 +1753,9 @@ function loop() {
   }
   const ov = cockpit.visible || aaGun.visible || garandVM.visible || mgVM.visible; if (ov) { ovCam.fov = camera.fov; ovCam.updateProjectionMatrix(); }
   renderFrame(ov);
-  requestAnimationFrame(loop);
 }
 
-window.__st = { takeJet, releaseFly, flyFire, flyStrike, get flyLock() { return md.flyLock; }, know, sortieJets, myAir, landAt, setSel, get sel() { return sel; }, get lock() { return lock; }, setLock: (v) => { lock = v; }, sensorStep, bestContact, SR, WPN, G, air, cam, aa, MSL, md, fireSalvo, modernKey, setNat: (a, b) => { natUs = a; natFoe = b; }, toAuto, takeOver, setTheater: (t) => { theater = t; }, get cmdr() { return cmdr; }, toggleAA, cap, startBoard, toggleCapFps, canBoard, lockShip: (s) => lockShip(s), setRole, setSortieRole: (r) => { sortieRole = r; }, renderAirPanel, fc, get profile() { return profile; }, start, step, frame: (dt) => { step(dt); updateCamera(dt); }, tryFire, sortie, openYard, openMenu, act, setPause, forfeit,
+window.__st = { frameOnce, takeJet, releaseFly, flyFire, flyStrike, get flyLock() { return md.flyLock; }, know, sortieJets, myAir, landAt, setSel, get sel() { return sel; }, get lock() { return lock; }, setLock: (v) => { lock = v; }, sensorStep, bestContact, SR, WPN, G, air, cam, aa, MSL, md, fireSalvo, modernKey, setNat: (a, b) => { natUs = a; natFoe = b; }, toAuto, takeOver, setTheater: (t) => { theater = t; }, get cmdr() { return cmdr; }, toggleAA, cap, startBoard, toggleCapFps, canBoard, lockShip: (s) => lockShip(s), setRole, setSortieRole: (r) => { sortieRole = r; }, renderAirPanel, fc, get profile() { return profile; }, start, step, frame: (dt) => { step(dt); updateCamera(dt); }, tryFire, sortie, openYard, openMenu, act, setPause, forfeit,
   moveOrder, aimAtPoint, lockShip, setSpeed, cycleCam, enterFlight, pick, useRepair, setMission: (m) => { mission = m; }, get lock() { return lock; }, get weapon() { return weapon; }, setWeapon: (w) => { weapon = w; },
   get paused() { return paused; }, get torpThreat() { return torpThreat; }, get radioSub() { return radioSub; }, keys, fireTorps, intercept, leadPoint, myRank, steer, setLockOn: (t) => { lockOn = t; }, get lockOn() { return lockOn; }, help: (v) => { helpOn = v; } };
 loadModels(); showcase(profile.ship); refreshMenus(); connect();

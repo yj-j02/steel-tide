@@ -120,24 +120,32 @@ const SEA_FRAG = `uniform float uPatch; varying vec3 vW; ${SKY_GLSL} ${SHIP_GLSL
   void main(){
     if (uPatch < 0.5 && distance(vW.xz, cameraPosition.xz) < 1320.0) discard;
     vec3 V = cameraPosition - vW; float dist = length(V); V /= dist;
-    vec2 p = vW.xz; vec2 g = vec2(0.0);
-    float f1 = 1.0 - smoothstep(250.0, 2200.0, dist);
+    vec2 p0 = vW.xz, p = p0 + (vec2(noise(p0*0.0035), noise(p0*0.0035 + 7.3)) - 0.5) * 70.0; vec2 g = vec2(0.0); // domain warp: no endless parallel crests
     float f2 = 1.0 - smoothstep(1500.0, 9000.0, dist);
     float f3 = 1.0 - smoothstep(7000.0, 45000.0, dist);
-    g += wv(p, vec2(1.0,0.3), 6.0, 0.07, 3.0) * f1;
-    g += wv(p, vec2(-0.4,1.0), 9.5, 0.10, 3.8) * f1;
-    g += wv(p, vec2(0.8,-0.6), 17.0, 0.20, 5.0) * f1;
-    g += wv(p, vec2(-0.9,-0.2), 29.0, 0.32, 6.5) * f1;
-    g += wv(p, vec2(0.6,0.8), 53.0, 0.55, 9.0) * f2;
-    g += wv(p, vec2(-0.9,0.35), 89.0, 0.80, 11.0) * f2;
-    g += wv(p, vec2(0.2,-1.0), 160.0, 1.20, 15.0) * f3;
-    g += wv(p, vec2(1.0,0.15), 290.0, 1.70, 20.0) * f3;
+    // anti-aliasing: fade every wave whose wavelength gets close to the pixel footprint (this caused the striped moire far off)
+    float fp = max(length(dFdx(p0)), length(dFdy(p0))) + 1e-3;
+    #define AA(len) (1.0 - smoothstep(len*0.12, len*0.45, fp))
+    g += wv(p, vec2(1.0,0.3), 6.0, 0.07, 3.0) * AA(6.0);
+    g += wv(p, vec2(-0.4,1.0), 9.5, 0.10, 3.8) * AA(9.5);
+    g += wv(p, vec2(0.8,-0.6), 17.0, 0.20, 5.0) * AA(17.0);
+    g += wv(p, vec2(-0.9,-0.2), 29.0, 0.32, 6.5) * AA(29.0);
+    g += wv(p, vec2(0.6,0.8), 53.0, 0.55, 9.0) * AA(53.0);
+    g += wv(p, vec2(-0.9,0.35), 89.0, 0.80, 11.0) * AA(89.0);
+    g += wv(p, vec2(0.2,-1.0), 160.0, 1.20, 15.0) * AA(160.0);
+    g += wv(p, vec2(1.0,0.15), 290.0, 1.70, 20.0) * AA(290.0);
+    g += wv(p, vec2(0.35,0.94), 41.0, 0.30, 8.0) * AA(41.0);
+    g += wv(p, vec2(-0.7,-0.7), 23.0, 0.18, 6.0) * AA(23.0);
+    g += wv(p, vec2(0.95,-0.3), 71.0, 0.42, 10.0) * AA(71.0);
+    g += wv(p, vec2(-0.2,0.98), 120.0, 0.6, 13.0) * AA(120.0);
     float n1 = noise(p*0.9 + time*vec2(0.3,0.2)), n2 = noise(p*0.9 + vec2(5.2,1.3) - time*vec2(0.2,0.35));
-    g += (vec2(n1,n2) - 0.5) * 0.34 * (1.0 - smoothstep(80.0, 650.0, dist));
+    g += (vec2(n1,n2) - 0.5) * 0.34 * AA(2.0);
+    // the finest ripples alias first: keep distant water a little rough so the sky reflection stays soft, not mirror-flat
+    g += (vec2(noise(p*0.012 + time*0.02), noise(p*0.012 + 3.1)) - 0.5) * 0.18 * (1.0 - AA(60.0));
     vec3 N = normalize(vec3(-g.x, 1.0, -g.y));
     float fres = 0.025 + 0.975 * pow(1.0 - max(dot(N,V),0.0), 5.0);
     vec3 R = reflect(-V, N); R.y = abs(R.y);
-    vec3 deep = vec3(0.008,0.065,0.135) * seaTint, lit = vec3(0.02,0.25,0.31) * seaTint;
+    vec3 deep = vec3(0.010,0.052,0.095) * seaTint, lit = vec3(0.030,0.180,0.215) * seaTint; // a deeper, less candy-coloured ocean
     float sss = clamp(0.5 + dot(N.xz, sunDir.xz)*2.2, 0.0, 1.0) * (0.55 + 0.45*clamp(vW.y*0.3 + 0.5, 0.0, 1.0));
     vec3 col = mix(mix(deep, lit, sss), skyBase(R), fres);
     float rs = max(dot(R,sunDir),0.0);
@@ -190,7 +198,7 @@ export function addIsland(x, z, r, h) { const m = islandMesh(r, h); m.position.s
 /** Each theatre has its own weather and light so they read differently at a glance (stylised, not a weather record). */
 export const MAPS = {
   arch: { n: "남태평양 군도", d: "섬이 흩어진 기본 전장 · 한낮", sky: [1, 1, 1], sea: [1, 1, 1], fog: 0xc4cfd4, sun: [0.55, 0.34, -0.76], light: [0xffecd0, 3.0], hemi: 0xcfe2ee, fogK: 0.00004, cloud: 0, pal: [0xb8a986, 0x46603c, 0x6e6a5c] },
-  pearl: { n: "진주만 · 하와이", d: "오아후 섬 남쪽 앞바다 · 맑은 아침, 청록빛 바다", sky: [1.0, 1.05, 1.12], sea: [0.62, 1.55, 1.4], fog: 0xd4e6ee, sun: [-0.78, 0.24, -0.42], light: [0xffdcb0, 3.1], hemi: 0xd8f0fa, fogK: 0.000026, cloud: -0.1, pal: [0xe6dab4, 0x2c6e34, 0x5a6a4e] },
+  pearl: { n: "진주만 · 하와이", d: "오아후 섬 남쪽 앞바다 · 맑은 아침, 청록빛 바다", sky: [1.0, 1.05, 1.12], sea: [0.72, 1.32, 1.22], fog: 0xd4e6ee, sun: [-0.78, 0.24, -0.42], light: [0xffdcb0, 3.1], hemi: 0xd8f0fa, fogK: 0.000026, cloud: -0.1, pal: [0xe6dab4, 0x2c6e34, 0x5a6a4e] },
   okinawa: { n: "오키나와", d: "오키나와 본섬 서쪽 앞바다 · 잔뜩 흐린 장마 하늘", sky: [0.7, 0.75, 0.8], sea: [0.62, 0.95, 0.9], fog: 0x939fa4, sun: [0.3, 0.6, -0.45], light: [0xd6dde2, 1.5], hemi: 0xa9b6be, fogK: 0.00006, cloud: 0.26, pal: [0xcfc7a8, 0x37573a, 0x585e58] },
   uswest: { n: "미국 서해안", d: "샌디에이고 앞바다 · 짙은 해무, 마른 황금빛 언덕", sky: [0.9, 0.94, 0.99], sea: [0.74, 0.86, 0.98], fog: 0xb2bcc4, sun: [0.2, 0.45, 0.86], light: [0xf0eee8, 1.9], hemi: 0xc4ced8, fogK: 0.00007, cloud: 0.12, pal: [0xcdb88c, 0x9a8448, 0x7c6a54] },
   jeju: { n: "제주도 근해", d: "한라산과 우도·마라도 · 해 질 녘 노을, 검은 현무암", sky: [1.2, 0.9, 0.74], sea: [0.82, 0.86, 1.08], fog: 0xd9b49a, sun: [-0.84, 0.11, 0.53], light: [0xffa860, 2.7], hemi: 0xe4c0a4, fogK: 0.000045, cloud: 0.05, pal: [0x5c5856, 0x3c5a34, 0x34322f] },
