@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "steel-tide",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["tools/serve.py", "8820"],
+      "port": 8820
+    }
+  ]
+}

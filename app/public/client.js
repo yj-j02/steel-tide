@@ -1228,10 +1228,10 @@ window.addEventListener("keydown", (e) => {
     return;
   }
   if (G.auto) return;
+  if (G.modern && G.state === "playing" && !G.plane && !cap.fps && modernKey(e.code)) return; // modern keys first: G = jets, I = fly, B = jet's anti-ship missiles
   if (e.code === "KeyB" && !G.plane && G.state === "playing") { startBoard(); return; }
   if (e.code === "KeyV" && !G.plane && cap.phase) { toggleCapFps(); return; }
-  if (e.code === "KeyG" && !G.plane) { toggleAA(); return; }
-  if (G.modern && G.state === "playing" && !G.plane && !cap.fps && modernKey(e.code)) return;
+  if (e.code === "KeyG" && !G.plane && !G.modern) { toggleAA(); return; }
   if (e.code === "KeyF") { if (aa.on) toggleAA(false); sortie(); return; }
   if (G.plane) {
     if (e.code === "Space") air.firing = true;
@@ -1385,7 +1385,7 @@ function takeJet() {
   if (!j && C && C.jetsReady > 0) { C.jetsReady--; j = launchJet(C, "multi", C.cv); }
   if (!j) { sfx.deny(); toast("조종할 전투기 없음"); return; }
   md.fly = j; j.pilot = true; j.home = false; j.pyaw = Math.atan2(j.vel.z, j.vel.x); j.ppitch = 0.12; j.thr = 240; lockPointer(); sfx.click();
-  toast(`${j.name} 조종 — 마우스: 방향 · W/S: 추력 · 좌클릭/Space: 공대공 · B: 대함 미사일 · U: 자동 복귀`, 5);
+  toast(`${j.name} 조종 — 마우스: 방향 · W/S: 추력 · 좌클릭/Space: 공대공 · B: 대함 미사일 · I: 자동 복귀`, 5);
 }
 function releaseFly() { if (md.fly) { md.fly.pilot = false; md.fly = null; } if (document.pointerLockElement) document.exitPointerLock(); toast("자동 조종 — 함대 지휘로 복귀"); }
 function flyLockOn() {
@@ -1411,7 +1411,7 @@ function drawFlyHUD() {
   const T = md.flyLock; if (T) { const q = proj(T.pos); if (q && q.on) { hx.strokeStyle = "#ff3b30"; hx.lineWidth = 2; hx.strokeRect(q.x - 14, q.y - 14, 28, 28); txt(`LOCK ${T.isJet ? T.name : T.W.name} ${(T.pos.distanceTo(j.pos) / 1000).toFixed(1)} km`, q.x, q.y - 24, "#ff6b5e", "bold 11px 'Noto Sans KR', sans-serif", "center"); } }
   panel(W / 2 - 230, H - 150, 460, 46);
   txt(`${j.name} · ${(j.vel.length() * 3.6).toFixed(0)} km/h · 고도 ${j.pos.y.toFixed(0)} m · 공대공 ${j.aam} · 대함 ${j.asm} · 연료 ${Math.max(0, Math.ceil(j.endur + 120 - j.t))}초`, W / 2, H - 136, "#fff", "bold 12px 'Noto Sans KR', sans-serif", "center");
-  txt("마우스 방향 · W/S 추력 · 좌클릭/Space 공대공 · B 대함 · U 자동 복귀", W / 2, H - 116, "#cfe7ff", "11px 'Noto Sans KR', sans-serif", "center");
+  txt("마우스 방향 · W/S 추력 · 좌클릭/Space 공대공 · B 대함 · I 자동 복귀", W / 2, H - 116, "#cfe7ff", "11px 'Noto Sans KR', sans-serif", "center");
 }
 G.onIntercept = (m) => { if (m.side === "foe") { md.icpt = { t: 1.6, n: m.isJet ? `적 ${m.name} 격추` : `${m.W.name || "적 미사일"} 요격` }; G.stats.icpt = (G.stats.icpt || 0) + 1; } };
 function sortieJets(S, role) {
@@ -1441,23 +1441,23 @@ function manualSam() {
 function modernBar() {
   const P = G.player, k = asmKey(P), v = P.spec.vls, cnt = (e) => (e ? `${e[0]} ${P.mag[e[0]] ?? 0}` : "");
   const sam = ["L", "M", "S"].map((t) => cnt(v[t])).filter(Boolean).join(" · ");
-  return `<button class="slot main g" data-key="KeyF"><span class="t">F · 대함 ${md.salvo}발</span><span class="v">${k ? `${WPN[k].name} ${P.mag[k]}발 · ${(WPN[k].range / 1000).toFixed(0)}km` : "없음"}</span><span class="ln${k && P.mag[k] ? " ok" : ""}"></span></button>`
+  return `<button class="slot main g" data-key="KeyF"><span class="t">F · 대함 미사일</span><span class="v">${k ? `${WPN[k].name} ${P.mag[k]}발 · ${(WPN[k].range / 1000).toFixed(0)}km` : "없음"}</span><span class="ln${k && P.mag[k] ? " ok" : ""}"></span></button>`
     + `<button class="slot g${P.radarOn === false ? " on" : ""}" data-key="KeyO"><span class="t">O · 레이더</span><span class="v">${P.radarOn === false ? "방사 통제" : "방사 중"}</span><span class="ln${P.radarOn === false ? "" : " ok"}"></span></button>`
-    + (() => { const h = MSL.helos.find((x) => x.alive && x.owner === P); return `<button class="slot g${h ? " on" : ""}" data-key="KeyY"><span class="t">Y · 정찰 헬기 (수평선 너머 탐지)</span><span class="v">${h ? `비행 ${Math.max(0, Math.ceil(h.endur - h.t))}초` : P.heloCd > 0 ? `정비 ${Math.ceil(P.heloCd)}초` : "출격 가능"}</span><span class="ln${h || !(P.heloCd > 0) ? " ok" : ""}"></span></button>`; })()
-    + (() => { const C = myAir(); if (!C) return ""; const up = MSL.jets.filter((j) => j.alive && j.side === "us").length; return `<button class="slot g" data-key="KeyG"><span class="t">G · 전투기 2기 출격</span><span class="v">${C.cv.type} 대기 ${C.jetsReady} · 비행 ${up}</span><span class="ln${C.jetsReady ? " ok" : ""}"></span></button><button class="slot g${md.fly ? " on" : ""}" data-key="KeyU"><span class="t">U · 전투기 직접 조종</span><span class="v">${md.fly ? "조종 중 (U: 복귀)" : up ? "비행 중인 기체 조종" : "출격 후 조종"}</span><span class="ln ok"></span></button>`; })()
-    + `<button class="slot g${MSL.cam ? " on" : ""}" data-key="KeyT"><span class="t">T · 미사일 추적</span><span class="v">${MSL.cam ? "추적 중" : "카메라"}</span><span class="ln ok"></span></button>`
+    + (() => { const h = MSL.helos.find((x) => x.alive && x.owner === P); return `<button class="slot g${h ? " on" : ""}" data-key="KeyY"><span class="t">Y · 정찰 헬기</span><span class="v">${h ? `비행 ${Math.max(0, Math.ceil(h.endur - h.t))}초` : P.heloCd > 0 ? `정비 ${Math.ceil(P.heloCd)}초` : "출격 가능"}</span><span class="ln${h || !(P.heloCd > 0) ? " ok" : ""}"></span></button>`; })()
+    + (() => { const C = myAir(); if (!C) return ""; const up = MSL.jets.filter((j) => j.alive && j.side === "us").length; return `<button class="slot g" data-key="KeyG"><span class="t">G · 전투기</span><span class="v">대기 ${C.jetsReady} · 비행 ${up}</span><span class="ln${C.jetsReady ? " ok" : ""}"></span></button><button class="slot g${md.fly ? " on" : ""}" data-key="KeyI"><span class="t">I · 직접 조종</span><span class="v">${md.fly ? "조종 중 · I 복귀" : up ? "비행기 조종" : "출격해 조종"}</span><span class="ln ok"></span></button>`; })()
+    + `<button class="slot g${MSL.cam ? " on" : ""}" data-key="KeyT"><span class="t">T · 추적</span><span class="v">${MSL.cam ? "추적 중" : "카메라"}</span><span class="ln ok"></span></button>`
     + `<button class="slot auto g${autoFire ? " on" : ""}" data-key="KeyZ"><span class="t">Z · AUTO</span><span class="v">${autoFire ? "함포·대함 자동" : "OFF"}</span><span class="ln${autoFire ? " ok" : ""}"></span></button>`;
 }
 function modernKey(code) {
   if (code === "KeyF") { fireSalvo(); return true; }
-  if (md.fly) { if (code === "KeyU") { releaseFly(); return true; } if (code === "Space") { flyFire(); return true; } if (code === "KeyB") { flyStrike(); return true; } if (code === "KeyW" || code === "KeyS") return true; }
-  if (code === "KeyU") { takeJet(); return true; }
+  if (md.fly) { if (code === "KeyI") { releaseFly(); return true; } if (code === "Space") { flyFire(); return true; } if (code === "KeyB") { flyStrike(); return true; } if (code === "KeyW" || code === "KeyS") return true; }
+  if (code === "KeyI") { takeJet(); return true; }
   if (false) { md.salvo = md.salvo === 1 ? 2 : md.salvo === 2 ? 4 : 1; sfx.click(); toast(`일제사격 ${md.salvo}발 단위`); return true; }
   // (KeyK removed: handled automatically)
   // (KeyE removed: handled automatically)
   if (code === "KeyG") { const C = myAir(); if (!C) { sfx.deny(); toast("탑재 전투기 없음"); return true; } if (C.jetsReady < 1) { sfx.deny(); toast(`출격 가능 기체 없음 — 재무장 중 ${C.rearm.length}기`); return true; }
     sortieJets(C, "multi"); sfx.click();
-    toast(`전투기 출격 — 적기·미사일이 오면 공대공 미사일로 요격하고, 적함이 탐지되면 ${WPN[C.cv.asm].name}로 공격한 뒤 귀환 (U: 직접 조종)`, 5); return true; }
+    toast(`전투기 출격 — 적기·미사일이 오면 공대공 미사일로 요격하고, 적함이 탐지되면 ${WPN[C.cv.asm].name}로 공격한 뒤 귀환 (I: 직접 조종)`, 5); return true; }
   if (code === "KeyO") { const on = G.player.radarOn === false; for (const s of ours()) if (s.spec.modern) s.radarOn = on; sfx.click();
     toast(on ? `레이더 방사 — 수상 ${SR.surf / 1000} km 탐지·미사일 조기 경보. 대신 적 ESM에 ${SR.esm / 1000} km 밖에서도 잡힘` : `방사 통제(EMCON) — 적 ESM에 안 잡힘. 대신 적함은 ESM·헬기로만, 미사일은 ${SR.eo / 1000} km 안에서만 탐지`); return true; }
   if (code === "KeyY") { const P = G.player, h = MSL.helos.find((x) => x.alive && x.owner === P);
@@ -1484,12 +1484,14 @@ function drawModernHUD() {
   for (const m of MSL.list) { if (!m.alive) continue; const vis = m.side === "us" || mSeen(m, "us"); if (!vis) continue; const q = proj(m.pos); if (!q || !q.on) continue;
     if (m.side === "foe") { hx.strokeStyle = "#ff5a4e"; hx.lineWidth = 2; hx.beginPath(); hx.moveTo(q.x, q.y - 7); hx.lineTo(q.x + 7, q.y); hx.lineTo(q.x, q.y + 7); hx.lineTo(q.x - 7, q.y); hx.closePath(); hx.stroke(); txt(`${m.W.name} ${fmt(d2(m.pos, P.pos))}m`, q.x + 10, q.y, "#ff8a7a", "bold 10.5px 'Noto Sans KR', sans-serif"); }
     else { hx.fillStyle = m.W.role === "asm" ? "#ffffff" : "#7cc4ff"; hx.beginPath(); hx.arc(q.x, q.y, 2.5, 0, TAU); hx.fill(); } }
-  { const n = [...G.cts.values()].length, firm = [...G.cts.values()].filter((c) => c.q >= 0.6).length, w = 420, x = W / 2 - w / 2; panel(x, 100, w, 24);
-    txt(`레이더 ${P.radarOn === false ? "방사 통제" : "방사 중"} · ${P.seenByFoe ? (P.foeErr ? "적 ESM에 탐지됨" : "적에게 추적당함") : "적 미탐지"} · 접촉 ${n} (확실 ${firm})`, W / 2, 112, P.seenByFoe ? "#ffb347" : "#8ef07a", "bold 11.5px 'Noto Sans KR', sans-serif", "center"); }
+  { // situation panel, top-left: sensors, contacts, air
+    const cts = [...G.cts.values()], firm = cts.filter((c) => c.q >= 0.6).length, mine = MSL.jets.filter((j) => j.alive && j.side === "us").length, foeJ = MSL.jets.filter((j) => j.alive && j.side === "foe" && mSeen(j, "us")).length, C = myAir(), h = MSL.helos.find((x) => x.alive && x.side === "us");
+    panel(14, 14, 318, 70); const F = "12px 'Noto Sans KR', sans-serif";
+    txt(`레이더 ${P.radarOn === false ? "끔 (방사 통제)" : "켬"} · ${P.seenByFoe ? (P.foeErr ? "적이 우리 전파를 포착" : "적에게 추적당함") : "적에게 안 잡힘"}`, 26, 31, P.seenByFoe ? "#ffb347" : "#8ef07a", "bold " + F);
+    txt(`적함 ${cts.length}척 탐지 (정확 ${firm}) · 적기 ${foeJ}기`, 26, 50, "#e8f0f2", F);
+    txt(`아군 전투기 비행 ${mine}${C ? ` · 대기 ${C.jetsReady}` : ""} · 헬기 ${h ? "정찰 중" : "대기"}`, 26, 69, "#cfe7ff", F); }
   for (const j of MSL.jets) { if (!j.alive || (j.side === "foe" && !mSeen(j, "us"))) continue; const q = proj(j.pos); if (!q || !q.on) continue; const col = j.side === "foe" ? "#ff8a7a" : "#cfe7ff"; ntds(hx, q.x, q.y, 7, j.side === "foe", col, false, true); txt(`${j.side === "foe" ? "적 " : ""}${j.name}`, q.x, q.y + 14, col, "10px 'Noto Sans KR', sans-serif", "center"); }
   if (md.icpt && md.icpt.t > 0) { md.icpt.t -= 1 / 60; hx.globalAlpha = clamp(md.icpt.t, 0, 1); txt(`요격! ${md.icpt.n}`, W / 2, 200, "#8ef07a", "bold 20px 'Noto Sans KR', sans-serif", "center"); hx.globalAlpha = 1; }
-  { const mine = MSL.jets.filter((j) => j.alive && j.side === "us"), foeJ = MSL.jets.filter((j) => j.alive && j.side === "foe" && mSeen(j, "us")).length;
-    if (mine.length || foeJ) txt(`아군기: 초계 ${mine.filter((j) => j.role === "cap").length} · 공격 ${mine.filter((j) => j.role === "strike").length}${foeJ ? ` · 적기 탐지 ${foeJ}` : ""}`, W / 2, 132 + (MSL.list.some((m) => m.alive && m.side === "foe") ? 34 : 0), "#cfe7ff", "bold 11.5px 'Noto Sans KR', sans-serif", "center"); }
   if (!cam.map) for (const [e, ct] of G.cts) { if (!e.alive || ct.q >= 0.6) continue; const q = proj(new THREE.Vector3(ct.x, 30, ct.z)); if (!q || !q.on) continue;
     hx.globalAlpha = clamp(ct.q + 0.45, 0.45, 1); ntds(hx, q.x, q.y, 10, true, "#ff8a7a", true); txt(`${e.name} · ${ct.src === "ESM" ? "ESM 추정" : "마지막 추정"} ${(d2(P.pos, ct) / 1000).toFixed(0)} km`, q.x, q.y + 20, "#ff8a7a", "10.5px 'Noto Sans KR', sans-serif", "center"); hx.globalAlpha = 1; }
   if (th.length) { const t = Math.min(...th.map((m) => d2(m.pos, P.pos) / Math.max(m.vel.length(), 1))), w = 380, x = W / 2 - w / 2; panel(x, 130, w, 30);
@@ -1565,7 +1567,7 @@ function drawCommandHUD(mode) {
   ribbons.forEach((r, i) => { const x = cx + (i - (ribbons.length - 1) / 2) * 104, y = H - 104; hx.globalAlpha = clamp(r.t, 0, 1);
     rr(x - 48, y - 13, 96, 26, 4); hx.fillStyle = /격침|격추/.test(r.k) ? "rgba(180,40,30,.9)" : r.k === "도탄" ? "rgba(60,70,80,.85)" : "rgba(30,60,90,.88)"; hx.fill();
     txt(r.n > 1 ? `${r.k} ×${r.n}` : r.k, x, y, "#fff", "bold 12px 'Noto Sans KR', sans-serif", "center"); hx.globalAlpha = 1; });
-  if (hintT > 0 && mode !== "watch") { hx.globalAlpha = clamp(hintT, 0, 1); txt("좌클릭 끌기: 시점 이동 · Alt+끌기/클릭: 함선 선택 · 우클릭: 이동 · 더블클릭: 조준/적함 고정 · A/D·W/S 사선 · Space 발사 · M 지도 · H 조작법", cx, 104, "#e8f0f2", "bold 13px 'Noto Sans KR', sans-serif", "center"); hx.globalAlpha = 1; }
+  if (hintT > 0 && mode !== "watch") { hx.globalAlpha = clamp(hintT, 0, 1); txt(G.modern ? "우클릭: 이동 · 더블클릭: 적함 고정 · F 대함 미사일 · G 전투기 · I 직접 조종 · Y 헬기 · O 레이더 · M 지도 · H 조작법" : "좌클릭 끌기: 시점 이동 · Alt+끌기/클릭: 함선 선택 · 우클릭: 이동 · 더블클릭: 조준/적함 고정 · A/D·W/S 사선 · Space 발사 · M 지도 · H 조작법", cx, 104, "#e8f0f2", "bold 13px 'Noto Sans KR', sans-serif", "center"); hx.globalAlpha = 1; }
 }
 function drawWatchCaption(p) {
   const W = hud.width, cx = W / 2, B = p.bandit && p.mode === "dogfight" ? ` — ${p.bandit.callsign} 추격` : "";
@@ -1617,7 +1619,7 @@ function drawAlerts(dt) {
   if (torpThreat && Math.floor(G.time * 4) % 2 === 0) txt(`어뢰 접근! ${torpThreat.toFixed(0)}초`, cx, 150, "#ff3b30", "bold 22px 'Noto Sans KR', sans-serif", "center");
   if (radioSub) { radioSub.t -= dt; if (radioSub.t <= 0) radioSub = null; else { hx.globalAlpha = clamp(radioSub.t, 0, 1); rr(cx - 140, 168, 280, 26, 4); hx.fillStyle = "rgba(10,30,20,.75)"; hx.fill(); txt(`[무전] ${radioSub.text}`, cx, 181, "#b8ffb0", "bold 13px 'Noto Sans KR', sans-serif", "center"); hx.globalAlpha = 1; } }
 }
-const HELP = [["O / Y (현대전)", "레이더 방사 켜기·끄기(EMCON) / 정찰 헬기 출격·귀환"], ["G / U (현대전)", "전투기 2기 출격 (요격·대함 자동) / 전투기 직접 조종 — 조종 중: 마우스 방향, W/S 추력, 클릭 공대공, B 대함"], ["F / T (현대전)", "대함 미사일 발사 / 미사일·전투기 추적 카메라 — 방공·기만체는 자동"], ["우클릭", "그 지점으로 이동 (Shift: 경유지 추가 · 기함 위: 정지)"], ["1 / 2 / 3 · 0", "속력: 미속 / 반속 / 전속 · 정지"], ["A / D", "사선(포 방향) 좌우 회전 — Shift: 미세"], ["W / S", "사거리 늘리기 / 줄이기"], ["더블클릭", "그 지점 조준 · 적함 더블클릭: 표적 고정 (리드 자동)"], ["좌클릭 끌기", "카메라 자유 이동 (C: 기함으로 복귀)"], ["Alt + 끌기 · Alt + 클릭", "아군 함선 선택 (Shift: 추가) → 우클릭: 선택한 함선 이동 · 기함 우클릭: 호위 복귀"], ["M", "지도 시점 — 위에서 전장 전체 보기 (휠: 축척)"], ["Space", "발사 (누르고 있으면 장전되는 대로 연사)"], ["Z", "자동 공격 켜기/끄기 — 주포 자동 조준·발사 + 어뢰 탑재함은 어뢰 자동 발사"], ["Q", "주포 ↔ 어뢰 (구축함)"], ["R", "수리반 — 화재·침수 진압 + 선체 복구"], ["F", "전투기 출격 (최대 9기) — 오른쪽 항공대 패널에서 기체별 임무: 요격 / 함대 공격 / 자동"], ["Tab", "카메라 대상: 기함 → 전투기 → 항모 → 표적"], ["Enter", "보고 있는 전투기 직접 조종 / 자동 조종 복귀"], ["우클릭 끌기 · 휠", "카메라 회전 · 확대/축소 (방향키도 가능)"], ["V (비행 중)", "조종석 1인칭 ↔ 추적 시점"], ["G", "대공 사수 1인칭 — 40mm 기관포로 적기 직접 사격"], ["미니맵", "우클릭: 이동 · 좌클릭: 조준 · 휠: 축척"], ["U", "화면 표시 모두 끄기 — 전투 장면만 보기 (다시 U)"], ["P", "메뉴 (계속 · 전투 포기 · 소리 설정)"]];
+const HELP = [["O / Y (현대전)", "레이더 방사 켜기·끄기(EMCON) / 정찰 헬기 출격·귀환"], ["G / I (현대전)", "전투기 2기 출격 (요격·대함 자동) / 전투기 직접 조종 — 조종 중: 마우스 방향, W/S 추력, 클릭 공대공, B 대함"], ["F / T (현대전)", "대함 미사일 발사 / 미사일·전투기 추적 카메라 — 방공·기만체는 자동"], ["우클릭", "그 지점으로 이동 (Shift: 경유지 추가 · 기함 위: 정지)"], ["1 / 2 / 3 · 0", "속력: 미속 / 반속 / 전속 · 정지"], ["A / D", "사선(포 방향) 좌우 회전 — Shift: 미세"], ["W / S", "사거리 늘리기 / 줄이기"], ["더블클릭", "그 지점 조준 · 적함 더블클릭: 표적 고정 (리드 자동)"], ["좌클릭 끌기", "카메라 자유 이동 (C: 기함으로 복귀)"], ["Alt + 끌기 · Alt + 클릭", "아군 함선 선택 (Shift: 추가) → 우클릭: 선택한 함선 이동 · 기함 우클릭: 호위 복귀"], ["M", "지도 시점 — 위에서 전장 전체 보기 (휠: 축척)"], ["Space", "발사 (누르고 있으면 장전되는 대로 연사)"], ["Z", "자동 공격 켜기/끄기 — 주포 자동 조준·발사 + 어뢰 탑재함은 어뢰 자동 발사"], ["Q", "주포 ↔ 어뢰 (구축함)"], ["R", "수리반 — 화재·침수 진압 + 선체 복구"], ["F", "전투기 출격 (최대 9기) — 오른쪽 항공대 패널에서 기체별 임무: 요격 / 함대 공격 / 자동"], ["Tab", "카메라 대상: 기함 → 전투기 → 항모 → 표적"], ["Enter", "보고 있는 전투기 직접 조종 / 자동 조종 복귀"], ["우클릭 끌기 · 휠", "카메라 회전 · 확대/축소 (방향키도 가능)"], ["V (비행 중)", "조종석 1인칭 ↔ 추적 시점"], ["G", "대공 사수 1인칭 — 40mm 기관포로 적기 직접 사격"], ["미니맵", "우클릭: 이동 · 좌클릭: 조준 · 휠: 축척"], ["U", "화면 표시 모두 끄기 — 전투 장면만 보기 (다시 U)"], ["P", "메뉴 (계속 · 전투 포기 · 소리 설정)"]];
 function drawHelp() {
   const x = 14, y = 70, w = 470, h = HELP.length * 20 + 40; panel(x, y, w, h); txt("조작법 (H: 닫기)", x + 14, y + 18, "#ffd166", "bold 13px 'Noto Sans KR', sans-serif");
   HELP.forEach(([k, v], i) => { txt(k, x + 14, y + 42 + i * 20, "#ffc857", "bold 12px 'Noto Sans KR', sans-serif"); txt(v, x + 140, y + 42 + i * 20, "#dfe8ec", "12px 'Noto Sans KR', sans-serif"); });
