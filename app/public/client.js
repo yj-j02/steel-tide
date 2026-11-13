@@ -1634,7 +1634,7 @@ function drawHelp() {
 }
 
 // ── minimap (rotates with the camera; hidden enemies at their last known spot) ──
-const plot = $("#plot"), pctx = plot.getContext("2d"); let plotZoom = 1, plotSc = 1, plotCss = 230;
+const plot = $("#plot"), pctx = plot.getContext("2d"); let radarSweep = 0; let plotZoom = 1, plotSc = 1, plotCss = 230;
 function updateMap() { try { updateMapIn(); } finally { pctx.restore(); } if (G.modern) mapMissiles(); }
 function mapJets(M, c) { for (const j of MSL.jets) { if (!j.alive || (j.side === "foe" && !mSeen(j, "us"))) continue; const [x, y] = M(j.pos.x, j.pos.z); ntds(pctx, x, y, 8, j.side === "foe", j.side === "foe" ? "#ff8a7a" : "#cfe7ff", false, true); } void c; }
 function mapMissiles() {
@@ -1650,13 +1650,22 @@ function updateMapIn() {
   let far = 9000; for (const e of G.enemies) if (e.alive && e.root.visible) far = Math.max(far, d2(P.pos, e.pos)); if (G.goal) far = Math.max(far, d2(P.pos, G.goal)); if (G.modern) for (const ct of G.cts.values()) far = Math.max(far, d2(P.pos, ct));
   plotSc = c / (clamp(far * 1.15, 9000, G.modern ? 50000 : 30000) / plotZoom);
   const M = (x, z) => { const dx = x - P.pos.x, dz = z - P.pos.z; return [c + (dz * cy - dx * sy) * plotSc, c - (dx * cy + dz * sy) * plotSc]; };
-  pctx.clearRect(0, 0, W, W); pctx.save(); pctx.beginPath(); pctx.arc(c, c, c - 1, 0, TAU); pctx.clip(); pctx.fillStyle = "rgba(20,32,36,.28)"; pctx.fillRect(0, 0, W, W);
-  pctx.strokeStyle = "rgba(170,200,210,.18)"; pctx.lineWidth = 1.5; for (const r of [5000, 10000, 15000, 20000]) if (r * plotSc < c * 1.4) { pctx.beginPath(); pctx.arc(c, c, r * plotSc, 0, TAU); pctx.stroke(); }
+  pctx.clearRect(0, 0, W, W); pctx.save(); pctx.beginPath(); pctx.arc(c, c, c - 1, 0, TAU); pctx.clip();
+  { // radar scope: phosphor-green face, range rings with labels, bearing ticks, rotating sweep with afterglow
+    const bg = pctx.createRadialGradient(c, c, 0, c, c, c); bg.addColorStop(0, "rgba(10,38,26,.86)"); bg.addColorStop(1, "rgba(4,16,12,.92)"); pctx.fillStyle = bg; pctx.fillRect(0, 0, W, W);
+    const sw = (G.time * 1.3) % TAU; radarSweep = sw;
+    if (pctx.createConicGradient) { const cg = pctx.createConicGradient(sw - 1.2, c, c); cg.addColorStop(0, "rgba(90,255,140,0)"); cg.addColorStop(0.19, "rgba(90,255,140,.16)"); cg.addColorStop(0.191, "rgba(90,255,140,0)"); cg.addColorStop(1, "rgba(90,255,140,0)"); pctx.fillStyle = cg; pctx.fillRect(0, 0, W, W); }
+    pctx.strokeStyle = "rgba(150,255,170,.55)"; pctx.lineWidth = 2; pctx.beginPath(); pctx.moveTo(c, c); pctx.lineTo(c + Math.cos(sw) * c, c + Math.sin(sw) * c); pctx.stroke();
+    pctx.strokeStyle = "rgba(110,220,140,.22)"; pctx.lineWidth = 1.5; pctx.font = "15px 'Noto Sans KR', sans-serif"; pctx.fillStyle = "rgba(140,230,160,.55)"; pctx.textAlign = "left"; pctx.textBaseline = "bottom";
+    const step = plotSc * 5000 > c * 0.18 ? 5000 : 10000; for (let r = step; r * plotSc < c * 1.4; r += step) { pctx.beginPath(); pctx.arc(c, c, r * plotSc, 0, TAU); pctx.stroke(); pctx.fillText(`${r / 1000}`, c + 4, c - r * plotSc - 2); }
+    pctx.strokeStyle = "rgba(110,220,140,.35)"; for (let d = 0; d < 36; d++) { const a = (d / 36) * TAU - cam.yaw - PI / 2, r0 = c - (d % 9 === 0 ? 18 : 9); pctx.beginPath(); pctx.moveTo(c + Math.cos(a) * r0, c + Math.sin(a) * r0); pctx.lineTo(c + Math.cos(a) * (c - 2), c + Math.sin(a) * (c - 2)); pctx.stroke(); }
+    pctx.strokeStyle = "rgba(110,220,140,.18)"; pctx.beginPath(); pctx.moveTo(c - c, c); pctx.lineTo(c + c, c); pctx.moveTo(c, 0); pctx.lineTo(c, W); pctx.stroke();
+  }
   pctx.setLineDash([8, 8]); pctx.strokeStyle = "rgba(255,255,255,.35)"; pctx.beginPath(); pctx.arc(c, c, P.tb.max * plotSc, 0, TAU); pctx.stroke();
   pctx.strokeStyle = P.seenByFoe ? "rgba(255,110,90,.5)" : "rgba(140,240,120,.35)"; pctx.beginPath(); pctx.arc(c, c, conceal(P) * plotSc, 0, TAU); pctx.stroke(); pctx.setLineDash([]);
   { const nx = c - sy * 0 , n = M(P.pos.x + 1, P.pos.z); void nx; const a = Math.atan2(n[1] - c, n[0] - c); pctx.fillStyle = "rgba(200,220,230,.7)"; pctx.font = "bold 20px 'Noto Sans KR', sans-serif"; pctx.textAlign = "center"; pctx.textBaseline = "middle"; pctx.fillText("N", c + Math.cos(a) * (c - 16), c + Math.sin(a) * (c - 16)); }
   const tri = (x, z, h, color, s = 13) => { const [px, py] = M(x, z); pctx.save(); pctx.translate(px, py); pctx.rotate(h - cam.yaw); pctx.fillStyle = color; pctx.beginPath(); pctx.moveTo(0, -s); pctx.lineTo(s * 0.46, s * 0.7); pctx.lineTo(-s * 0.46, s * 0.7); pctx.closePath(); pctx.fill(); pctx.restore(); };
-  pctx.fillStyle = "rgba(120,140,100,.75)"; for (const isl of G.islands) { if (isl.poly) { pctx.beginPath(); isl.poly.forEach(([px, pz], i) => { const [x, y] = M(px, pz); i ? pctx.lineTo(x, y) : pctx.moveTo(x, y); }); pctx.closePath(); pctx.fill(); continue; } const [x, y] = M(isl.x, isl.z), r = isl.r * plotSc; if (x + r < 0 || y + r < 0 || x - r > W || y - r > W) continue; pctx.beginPath(); pctx.arc(x, y, Math.max(r, 1.5), 0, TAU); pctx.fill(); }
+  pctx.fillStyle = "rgba(48,78,44,.62)"; pctx.strokeStyle = "rgba(150,230,140,.6)"; pctx.lineWidth = 2; for (const isl of G.islands) { if (isl.poly) { pctx.beginPath(); isl.poly.forEach(([px, pz], i) => { const [x, y] = M(px, pz); i ? pctx.lineTo(x, y) : pctx.moveTo(x, y); }); pctx.closePath(); pctx.fill(); pctx.stroke(); continue; } /* land: dark fill, bright coastline echo */ const [x, y] = M(isl.x, isl.z), r = isl.r * plotSc; if (x + r < 0 || y + r < 0 || x - r > W || y - r > W) continue; pctx.beginPath(); pctx.arc(x, y, Math.max(r, 1.5), 0, TAU); pctx.fill(); }
   if (G.goal) { const [gx, gy] = M(G.goal.x, G.goal.z); pctx.strokeStyle = "#7ff0e0"; pctx.lineWidth = 2; pctx.strokeRect(gx - 9, gy - 9, 18, 18); pctx.fillStyle = "#7ff0e0"; pctx.font = "16px 'Noto Sans KR', sans-serif"; pctx.fillText("집결지", gx, gy - 20); }
   if (P.nav.length) { pctx.strokeStyle = "#8ef07a"; pctx.setLineDash([6, 6]); pctx.lineWidth = 2; pctx.beginPath(); pctx.moveTo(c, c); for (const w of P.nav) pctx.lineTo(...M(w.x, w.z)); pctx.stroke(); pctx.setLineDash([]); }
   if (P.alive && !G.plane) { const tp = weapon === "torp" && P.spec.torp ? { x: P.pos.x + Math.cos(torpB) * P.spec.torp.range, z: P.pos.z + Math.sin(torpB) * P.spec.torp.range } : P.aimPoint(), [ax, ay] = M(tp.x, tp.z); pctx.strokeStyle = weapon === "torp" ? "#9be06a" : "#fff2c4"; pctx.lineWidth = 1.5; pctx.beginPath(); pctx.moveTo(c, c); pctx.lineTo(ax, ay); pctx.stroke(); pctx.beginPath(); pctx.arc(ax, ay, 6, 0, TAU); pctx.stroke(); }
