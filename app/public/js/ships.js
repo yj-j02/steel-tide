@@ -191,6 +191,10 @@ function applyModel(ship) {
 
 // ── hull ────────────────────────────────────────────────────────────────────
 export function halfBeam(spec, t) {
+  if (spec.modern && spec.style !== "mcarrier") { // broad transom stern, long fine entry like a modern destroyer
+    const s = t < 0.12 ? 0.82 + 0.18 * Math.sin((t / 0.12) * PI / 2) : 1, w = t > 0.5 ? Math.pow(Math.cos(((t - 0.5) / 0.5) * PI / 2), 0.95) : 1;
+    return Math.max((spec.B / 2) * s * w, 0.3);
+  }
   const s = t < 0.22 ? 0.5 + 0.5 * Math.sin((t / 0.22) * PI / 2) : 1;
   const w = t > 0.6 ? Math.pow(Math.cos(((t - 0.6) / 0.4) * PI / 2), 0.75) : 1;
   return Math.max((spec.B / 2) * s * w, 0.3);
@@ -230,7 +234,7 @@ function hullNumber(g, spec) {
   for (const s of [1, -1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(w, h), m); p.position.set(x, freeboard(spec, t) * 0.55 + 0.6, s * (hb + 0.06)); p.rotation.y = s > 0 ? Math.atan(dh) : PI - Math.atan(dh); g.add(p); }
 }
 function hullDetails(g, spec) {
-  const L = spec.L, xs = [], rows = spec.L > 150 ? [spec.fb - 2.1, spec.fb - 4.3] : [spec.fb - 1.8];
+  const L = spec.L, xs = [], rows = spec.modern ? [] : spec.L > 150 ? [spec.fb - 2.1, spec.fb - 4.3] : [spec.fb - 1.8]; // no porthole rows on modern hulls
   for (let x = -L * 0.37; x <= L * 0.38; x += L > 150 ? 4.2 : 3.2) xs.push(x);
   const inst = new THREE.InstancedMesh(new THREE.BoxGeometry(0.55, 0.55, 0.25), new THREE.MeshBasicMaterial({ color: 0x0b0d0f }), xs.length * 2 * rows.length), m = new THREE.Matrix4(); let n = 0;
   for (const x of xs) { const hb = halfBeam(spec, (x + L / 2) / L); for (const s of [1, -1]) for (const yy of rows) { m.makeTranslation(x, yy, s * (hb * 0.997 + 0.03)); inst.setMatrixAt(n++, m); } }
@@ -484,48 +488,97 @@ function vlsGrid(g, x, y, rows, cols) {
 function array4(g, pts, r) { for (const [x, y, z, a] of pts) { const m = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.35, 8), mat(0x56606a))); m.geometry.rotateZ(PI / 2); m.position.set(x, y, z); m.rotation.y = -a; g.add(m); } }
 function ciws(g, x, y, z) { cyl(g, 0.9, 1.1, 1.6, 0x9aa2a6, x, y, z, 10); const d = cyl(g, 0.8, 0.8, 1.4, 0xe9ecec, x, y + 1.6, z, 12); d.scale.z = 0.9; }
 function cans(g, x, y, n) { for (const s of [1, -1]) for (let i = 0; i < n; i++) { const c = shadowed(new THREE.Mesh(new THREE.BoxGeometry(5.5, 0.7, 0.7), mat(0x7f888c))); c.position.set(x, y + 1.2 + (i % 2) * 0.75, s * (1.4 + Math.floor(i / 2) * 0.75)); c.rotation.z = 0.32; c.rotation.y = s * 0.5; g.add(c); } }
-/** Arleigh Burke / KDX-III / Maya: Aegis deckhouse with four octagonal SPY faces. */
+// ── modern warships: stealth-shaped deckhouses, SPY faces, integrated masts, stacks, hangar and flight deck ──
+/** Box whose top is narrower (stealth slope): wTop/lenTop are the top face's width/length. */
+function slab(g, len, h, w, wTop, lenTop, c, x, y, z, tx = 0) {
+  const geo = new THREE.BoxGeometry(len, h, w), p = geo.attributes.position;
+  for (let i = 0; i < p.count; i++) if (p.getY(i) > 0) { p.setZ(i, (p.getZ(i) * wTop) / w); p.setX(i, (p.getX(i) * lenTop) / len + tx); }
+  geo.computeVertexNormals(); const m = shadowed(new THREE.Mesh(geo, mat(c))); m.position.set(x, y + h / 2, z); g.add(m); return m;
+}
+/** Octagonal phased-array face, tilted back, with a frame. */
+function spyFace(g, x, y, z, yaw, r) {
+  const f = new THREE.Group(); f.position.set(x, y, z); f.rotation.y = -yaw; g.add(f);
+  const plate = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.25, 8), mat(0x2c3338))); plate.rotation.z = PI / 2; plate.rotation.x = PI / 8; f.add(plate);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(r * 0.98, 0.12, 4, 8), mat(0x6c757b)); rim.rotation.y = PI / 2; rim.rotation.z = PI / 8; rim.position.x = 0.14; f.add(rim);
+  f.rotation.z = -0.22; // arrays lean back about 12-15 degrees
+}
+/** Pyramid lattice-look mast with yards, radomes and whips. */
+function pyramidMast(g, x, y, h, base, U) {
+  const m = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(base * 0.18, base, h, 4), mat(U))); m.rotation.y = PI / 4; m.position.set(x, y + h / 2, 0); g.add(m);
+  for (const [yy, w] of [[0.62, base * 2.6], [0.82, base * 1.8]]) box(g, 0.35, 0.35, w, 0x5a6268, x, y + h * yy, 0);
+  cyl(g, 0.25, 0.3, 6, 0x5a6268, x, y + h, 0, 6);
+  for (const [dx, dz, r] of [[0, 0, 1.1], [0.6, base * 0.9, 0.7], [0.6, -base * 0.9, 0.7]]) { const d = shadowed(new THREE.Mesh(new THREE.SphereGeometry(r, 12, 8), mat(0xe6e8e8))); d.position.set(x + dx, y + h * (dz ? 0.82 : 1) + r + (dz ? 0.3 : 6), dz); g.add(d); }
+  for (const s of [1, -1]) { const w = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.08, 7, 4), mat(0x3a4045)); w.position.set(x - 1, y + h * 0.7 + 3.5, s * base * 1.2); w.rotation.x = s * 0.25; g.add(w); }
+}
+/** Raked funnel with a dark exhaust cap. */
+function stack(g, x, y, len, w, h, U) { slab(g, len, h, w, w * 0.75, len * 0.7, U, x, y, 0, -len * 0.08); box(g, len * 0.62, 0.5, w * 0.7, 0x16191b, x - len * 0.1, y + h, 0); }
+/** Ship's boat on davits. */
+function boat(g, x, y, z) { const b = shadowed(new THREE.Mesh(new THREE.CapsuleGeometry(0.9, 5.2, 4, 10), mat(0xd9692e))); b.rotation.z = PI / 2; b.position.set(x, y + 1.2, z); b.scale.set(1, 1, 0.8); g.add(b); box(g, 0.25, 2.2, 0.25, 0x5a6268, x + 2, y, z * 0.92); box(g, 0.25, 2.2, 0.25, 0x5a6268, x - 2, y, z * 0.92); }
+/** Hangar with doors and a marked flight deck behind it. */
+function hangarDeck(g, spec, x, len, w, h, U) {
+  const y = spec.fb; slab(g, len, h, w, w * 0.9, len * 0.95, U, x, y, 0);
+  const fx = x - len / 2; box(g, 0.2, h * 0.75, w * 0.36, 0x262b2f, fx - 0.05, y, w * 0.2); box(g, 0.2, h * 0.75, w * 0.36, 0x262b2f, fx - 0.05, y, -w * 0.2);
+  const dl = spec.L / 2 + fx, dx = fx - dl / 2, dy = deckY(spec, dx) + 0.04, white = new THREE.MeshBasicMaterial({ color: 0xd8dcd8 });
+  const ring = new THREE.Mesh(new THREE.RingGeometry(3.6, 4.0, 32), white); ring.rotation.x = -PI / 2; ring.position.set(dx, dy, 0); g.add(ring);
+  const cl = new THREE.Mesh(new THREE.PlaneGeometry(dl * 0.85, 0.3), white); cl.rotation.x = -PI / 2; cl.position.set(dx, dy, 0); g.add(cl);
+}
+/** Arleigh Burke / KDX-III / Maya: two-tier Aegis deckhouse with four octagonal SPY faces, pyramid mast, two raked stacks, hangar aft. */
 function aegis(g, spec) {
   const U = spec.upper, y = spec.fb, B = spec.B, k = spec.L / 155;
-  vlsGrid(g, 40 * k, deckY(spec, 40 * k), 4, 8);
-  box(g, 34 * k, 8, B * 0.78, U, 8 * k, y, 0); box(g, 21 * k, 4.2, B * 0.6, U, 13 * k, y + 8, 0);
-  box(g, 4 * k, 1.3, B * 0.88, U, 21 * k, y + 10.2, 0); box(g, 7 * k, 1.1, B * 0.52, 0x1c2227, 23.6 * k, y + 10.6, 0);
-  array4(g, [[19 * k, y + 9.2, B * 0.3, PI / 4], [19 * k, y + 9.2, -B * 0.3, -PI / 4], [-6 * k, y + 6, B * 0.38, PI * 0.75], [-6 * k, y + 6, -B * 0.38, -PI * 0.75]], 2.3 * k);
-  cyl(g, 0.3, 0.55, 15, 0x5f676c, 7 * k, y + 12.2, 0, 6); box(g, 0.3, 0.3, 9, 0x4f575c, 7 * k, y + 22, 0); box(g, 1.6, 1.2, 1.6, 0x6b7378, 7 * k, y + 27.2, 0);
-  for (const x of [-9 * k, -23 * k]) { box(g, 5 * k, 9.5, B * 0.3, U, x, y, 0); box(g, 5.1 * k, 0.6, B * 0.31, 0x1c1e20, x, y + 9.5, 0); }
-  if (spec.cans) cans(g, -16 * k, y, spec.cans);
-  box(g, 19 * k, 6.4, B * 0.8, U, -36 * k, y, 0);
-  vlsGrid(g, -51 * k, deckY(spec, -51 * k), 8, 8);
-  ciws(g, 25 * k, y + 8, 0); ciws(g, -30 * k, y + 6.4, 0);
-  lines(g, [7 * k, y + 27, 0, 70 * k, deckY(spec, 70 * k) + 2, 0, 7 * k, y + 27, 0, -70 * k, y + 2, 0]);
-  g.userData.bridge = [23 * k, y + 10.6, 0]; g.userData.vls = [40 * k, -51 * k];
+  vlsGrid(g, 44 * k, deckY(spec, 44 * k), 4, 8);
+  slab(g, 30 * k, 7.6, B * 0.82, B * 0.7, 27 * k, U, 13 * k, y, 0);                 // main deckhouse, sides sloped inward
+  slab(g, 17 * k, 6.4, B * 0.62, B * 0.46, 14 * k, U, 14 * k, y + 7.6, 0);            // bridge tier carrying the arrays
+  box(g, 0.6, 1.2, B * 0.44, 0x141a1f, 21.9 * k, y + 11.2, 0);                       // bridge windows
+  box(g, 3.2 * k, 0.5, B * 0.86, U, 20.5 * k, y + 10.4, 0);                          // bridge wings
+  const fx = 21.2 * k, ax = 7.2 * k, hy = y + 10.6, hz = B * 0.25, r = 2.3 * k;
+  spyFace(g, fx, hy, hz, PI / 4, r); spyFace(g, fx, hy, -hz, -PI / 4, r); spyFace(g, ax, hy, hz, PI * 0.75, r); spyFace(g, ax, hy, -hz, -PI * 0.75, r);
+  pyramidMast(g, 11 * k, y + 14, 15, 2.4, U);
+  stack(g, -5 * k, y, 8 * k, B * 0.32, 10, U); stack(g, -22 * k, y, 8 * k, B * 0.32, 10, U);
+  slab(g, 26 * k, 3.2, B * 0.6, B * 0.56, 26 * k, U, -13 * k, y, 0);                // midships deckhouse joining the stacks
+  if (spec.cans) cans(g, -13 * k, y + 3.2, spec.cans);
+  for (const s of [1, -1]) boat(g, -13 * k, y + 3.2, s * B * 0.4);
+  vlsGrid(g, -31 * k, deckY(spec, -31 * k), 8, 8);
+  hangarDeck(g, spec, -42 * k, 14 * k, B * 0.86, 6.4, U);
+  ciws(g, 24 * k, y + 7.6, 0); ciws(g, -42 * k, y + 6.4, 0);
+  lines(g, [11 * k, y + 35, 0, 70 * k, deckY(spec, 70 * k) + 2, 0, 11 * k, y + 35, 0, -70 * k, y + 2, 0]);
+  g.userData.bridge = [21.5 * k, y + 11.6, 0]; g.userData.vls = [44 * k, -31 * k];
   return [];
 }
-/** Type 055: tall integrated mast with flat arrays, one big stack, 64 + 48 VLS. */
+/** Type 055: tall enclosed integrated mast carrying four flat arrays, one large stack, 64 + 48 cells, hangar aft. */
 function pla(g, spec) {
   const U = spec.upper, y = spec.fb, B = spec.B, k = spec.L / 180;
-  vlsGrid(g, 44 * k, deckY(spec, 44 * k), 8, 8);
-  box(g, 30 * k, 9, B * 0.78, U, 14 * k, y, 0); box(g, 15 * k, 11, B * 0.5, U, 15 * k, y + 9, 0); box(g, 8 * k, 6, B * 0.34, U, 15 * k, y + 20, 0);
-  box(g, 6 * k, 1.1, B * 0.6, 0x1c2227, 22.8 * k, y + 10.5, 0);
-  array4(g, [[22.6 * k, y + 15, B * 0.18, PI / 5], [22.6 * k, y + 15, -B * 0.18, -PI / 5], [7.4 * k, y + 15, B * 0.18, PI * 0.8], [7.4 * k, y + 15, -B * 0.18, -PI * 0.8]], 2.4 * k);
-  cyl(g, 0.3, 0.5, 9, 0x5f676c, 15 * k, y + 26, 0, 6);
-  box(g, 10 * k, 9, B * 0.42, U, -6 * k, y, 0); box(g, 10.2 * k, 0.7, B * 0.43, 0x1c1e20, -6 * k, y + 9, 0);
-  vlsGrid(g, -24 * k, deckY(spec, -24 * k), 6, 8);
-  box(g, 20 * k, 6.5, B * 0.8, U, -44 * k, y, 0); ciws(g, 26 * k, y + 9, 0); ciws(g, -36 * k, y + 6.5, 0);
-  lines(g, [15 * k, y + 30, 0, 80 * k, deckY(spec, 80 * k) + 2, 0, 15 * k, y + 30, 0, -80 * k, y + 2, 0]);
-  g.userData.bridge = [23 * k, y + 10.5, 0]; g.userData.vls = [44 * k, -24 * k];
+  vlsGrid(g, 46 * k, deckY(spec, 46 * k), 8, 8);
+  slab(g, 32 * k, 8.5, B * 0.82, B * 0.72, 29 * k, U, 14 * k, y, 0);
+  slab(g, 16 * k, 9, B * 0.6, B * 0.42, 12 * k, U, 15 * k, y + 8.5, 0);              // tower carrying the arrays
+  slab(g, 9 * k, 7, B * 0.4, B * 0.22, 6 * k, U, 15 * k, y + 17.5, 0);              // integrated mast top
+  box(g, 0.6, 1.2, B * 0.5, 0x141a1f, 22.6 * k, y + 10.4, 0);
+  const r = 2.2 * k, hy = y + 13.5;
+  for (const [x, z, a] of [[21.6 * k, B * 0.2, PI / 4], [21.6 * k, -B * 0.2, -PI / 4], [8.4 * k, B * 0.2, PI * 0.75], [8.4 * k, -B * 0.2, -PI * 0.75]]) { const f = box(g, 0.3, r * 1.9, r * 1.6, 0x2c3338, x, hy - r, z); f.rotation.y = -a; f.rotation.z = -0.2; }
+  cyl(g, 0.3, 0.5, 7, 0x5a6268, 15 * k, y + 24.5, 0, 6); const d = shadowed(new THREE.Mesh(new THREE.SphereGeometry(1.2, 12, 8), mat(0xe6e8e8))); d.position.set(15 * k, y + 32, 0); g.add(d);
+  stack(g, -8 * k, y, 14 * k, B * 0.46, 11, U);
+  slab(g, 20 * k, 3.4, B * 0.62, B * 0.58, 20 * k, U, -8 * k, y, 0);
+  for (const s of [1, -1]) boat(g, -6 * k, y + 3.4, s * B * 0.42);
+  vlsGrid(g, -27 * k, deckY(spec, -27 * k), 6, 8);
+  hangarDeck(g, spec, -44 * k, 18 * k, B * 0.86, 7, U);
+  ciws(g, 26 * k, y + 8.5, 0); ciws(g, -44 * k, y + 7, 0);
+  lines(g, [15 * k, y + 33, 0, 80 * k, deckY(spec, 80 * k) + 2, 0, 15 * k, y + 33, 0, -80 * k, y + 2, 0]);
+  g.userData.bridge = [22.5 * k, y + 10.8, 0]; g.userData.vls = [46 * k, -27 * k];
   return [];
 }
-/** Choe Hyon: compact hull, pyramid mast, 24 + 64 cells, gun + point defence. */
+/** Choe Hyon: compact stealth deckhouse, pyramid mast with small arrays, one stack, 24 + 64 cells. */
 function kpn(g, spec) {
   const U = spec.upper, y = spec.fb, B = spec.B, k = spec.L / 144;
-  vlsGrid(g, 36 * k, deckY(spec, 36 * k), 3, 8);
-  box(g, 24 * k, 7.5, B * 0.8, U, 12 * k, y, 0); box(g, 13 * k, 5, B * 0.56, U, 14 * k, y + 7.5, 0); box(g, 6 * k, 5, B * 0.3, U, 13 * k, y + 12.5, 0);
-  box(g, 5 * k, 1, B * 0.6, 0x1c2227, 20.4 * k, y + 9.5, 0);
-  array4(g, [[19 * k, y + 13, B * 0.12, PI / 4], [19 * k, y + 13, -B * 0.12, -PI / 4]], 1.6 * k); cyl(g, 0.25, 0.45, 8, 0x5f676c, 13 * k, y + 17.5, 0, 6);
-  box(g, 8 * k, 7, B * 0.36, U, -4 * k, y, 0); box(g, 8.2 * k, 0.6, B * 0.37, 0x1c1e20, -4 * k, y + 7, 0);
-  vlsGrid(g, -20 * k, deckY(spec, -20 * k), 8, 8); box(g, 14 * k, 5.5, B * 0.74, U, -36 * k, y, 0); ciws(g, -30 * k, y + 5.5, 0);
-  lines(g, [13 * k, y + 21, 0, 64 * k, deckY(spec, 64 * k) + 2, 0, 13 * k, y + 21, 0, -64 * k, y + 2, 0]);
+  vlsGrid(g, 37 * k, deckY(spec, 37 * k), 3, 8);
+  slab(g, 26 * k, 7.5, B * 0.82, B * 0.7, 23 * k, U, 12 * k, y, 0);
+  slab(g, 13 * k, 5.5, B * 0.6, B * 0.42, 10 * k, U, 13 * k, y + 7.5, 0);
+  box(g, 0.6, 1.1, B * 0.42, 0x141a1f, 18.9 * k, y + 10.6, 0);
+  const r = 1.6 * k; for (const s of [1, -1]) spyFace(g, 18.5 * k, y + 11, s * B * 0.17, s * PI / 4, r);
+  pyramidMast(g, 10 * k, y + 13, 12, 2, U);
+  stack(g, -6 * k, y, 9 * k, B * 0.36, 8.5, U);
+  vlsGrid(g, -20 * k, deckY(spec, -20 * k), 8, 8);
+  hangarDeck(g, spec, -33 * k, 12 * k, B * 0.8, 5.6, U);
+  ciws(g, -33 * k, y + 5.6, 0);
+  lines(g, [10 * k, y + 31, 0, 64 * k, deckY(spec, 64 * k) + 2, 0, 10 * k, y + 31, 0, -64 * k, y + 2, 0]);
   g.userData.bridge = [20 * k, y + 9.5, 0]; g.userData.vls = [36 * k, -20 * k];
   return [];
 }
@@ -537,7 +590,8 @@ function buildTurret(ship, t, i) {
   cyl(ship.tilt, tw * 0.46, tw * 0.46, t.up + 1.2, spec.upper, t.x, y, 0, 18);
   cyl(ship.tilt, tw * 0.48, tw * 0.48, 0.4, 0x5a6266, t.x, y + t.up + 0.8, 0, 18);
   const grp = new THREE.Group(); grp.position.set(t.x, y + t.up + 1.2, 0); ship.tilt.add(grp);
-  box(grp, tw, th, td, spec.upper, -tw * 0.1, 0, 0); box(grp, tw * 0.9, 0.22, td * 0.92, 0x5a6266, -tw * 0.1, th, 0);
+  if (spec.modern) slab(grp, tw * 1.25, th * 1.05, td * 1.15, td * 0.5, tw * 0.55, spec.upper, -tw * 0.05, 0, 0, -tw * 0.2); // faceted stealth gun shield
+  else { box(grp, tw, th, td, spec.upper, -tw * 0.1, 0, 0); box(grp, tw * 0.9, 0.22, td * 0.92, 0x5a6266, -tw * 0.1, th, 0); }
   if (cal >= 200) box(grp, 1.2, 0.9, td * 1.25, spec.upper, -tw * 0.45, th * 0.55, 0);
   const pivot = new THREE.Group(); pivot.position.set(tw * 0.38, th * 0.5, 0); grp.add(pivot);
   const r = (cal / 1000) * 0.95, spc = t.n === 1 ? 0 : tw * (t.n === 3 ? 0.27 : 0.3);

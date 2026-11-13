@@ -326,6 +326,11 @@ export const SCHEMES = {
 };
 function seeded(n) { let a = n >>> 0; return () => { a = (a + 0x6d2b79f5) >>> 0; let t = a; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 const strSeed = (s) => { let h = 2166136261; for (const ch of s) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0; return h; };
+/** Faint plate seams and a few soft streaks: modern paint, not WWII rust. */
+function panels(x, W, H, R, a) {
+  x.fillStyle = `rgba(0,0,0,${a})`; for (let i = 0; i < W; i += 64) x.fillRect(i, 0, 1, H); for (let j = 0; j < H; j += 48) x.fillRect(0, j, W, 1);
+  for (let i = 0; i < W / 40; i++) { const px = R() * W, y0 = R() * H * 0.5, len = 10 + R() * H * 0.4, g = x.createLinearGradient(0, y0, 0, y0 + len); g.addColorStop(0, `rgba(30,32,34,${a * 1.4})`); g.addColorStop(1, "rgba(0,0,0,0)"); x.fillStyle = g; x.fillRect(px, y0, 1 + R() * 2, len); }
+}
 function grime(x, W, H, R) {
   for (let i = 0; i < W * H / 90; i++) { const v = (180 + R() * 75) | 0; x.fillStyle = `rgba(${v},${v},${v},0.06)`; x.fillRect(R() * W, R() * H, 2, 2); }
   for (let i = 0; i < W / 9; i++) { const px = R() * W, len = 14 + R() * H * 0.6, y0 = R() * H * 0.6, g = x.createLinearGradient(0, y0, 0, y0 + len);
@@ -348,13 +353,14 @@ export function hullTexture(spec) {
     x.canvas.height = H;
     if (S.dazzle) dazzle(x, W, H, S.hull, R, true); else { x.fillStyle = S.hull[0]; x.fillRect(0, 0, W, H); }
     if (spec.paint === "ms22") { x.fillStyle = S.upper; x.fillRect(0, 0, W, vy(spec.fb)); }
-    grime(x, W, H, R);
+    if (spec.modern) panels(x, W, H, R, 0.05); else grime(x, W, H, R); // modern haze grey stays clean: faint plating seams only
     x.fillStyle = "#18191a"; x.fillRect(0, vy(1.0), W, vy(-0.4) - vy(1.0));
     x.fillStyle = "#6b2420"; x.fillRect(0, vy(-0.4), W, H - vy(-0.4));
   });
 }
 /** Repeating camouflage for superstructure and turrets (dazzle schemes only). */
 export function upperTexture(spec) {
+  if (spec.modern) { const c = "#" + new THREE.Color(spec.upper).getHexString(), R = seeded(strSeed(spec.id + ":m")); return canvasTex(256, (x) => { x.fillStyle = c; x.fillRect(0, 0, 256, 256); panels(x, 256, 256, R, 0.06); }, true); }
   const S = SCHEMES[spec.paint]; if (!S || !S.dazzle) return null;
   const R = seeded(strSeed(spec.id + ":u"));
   const t = canvasTex(256, (x) => { dazzle(x, 256, 256, S.hull, R, false); grime(x, 256, 256, R); }, true); return t;
