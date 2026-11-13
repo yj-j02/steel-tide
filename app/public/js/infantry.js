@@ -30,9 +30,9 @@ export function soldier(side) {
   const us = side === "us", body = us ? MAT.us : MAT.jp, dark = us ? MAT.usDark : MAT.jpDark, root = new THREE.Group();
   const hips = new THREE.Group(); hips.position.y = 0.94; root.add(hips);
   const legs = [0.1, -0.1].map((z) => { const up = limb(0.46, 0.078, body); up.position.z = z; const sh = limb(0.44, 0.064, us ? dark : MAT.web); sh.position.y = -0.46; up.add(sh);
-    const bt = box(0.24, 0.09, 0.11, MAT.boot, 0.05, -0.44, 0); sh.add(bt); hips.add(up); return { up, sh }; });
+    const bt = new THREE.Mesh(new THREE.CapsuleGeometry(0.05, 0.15, 4, 8), MAT.boot); bt.rotation.z = PI / 2; bt.position.set(0.05, -0.45, 0); bt.scale.z = 1.1; sh.add(bt); hips.add(up); return { up, sh }; });
   const torso = new THREE.Group(); hips.add(torso);
-  torso.add(box(0.25, 0.56, 0.4, body, 0, 0.3, 0));
+  { const t = new THREE.Mesh(new THREE.CapsuleGeometry(0.15, 0.28, 6, 12), body); t.position.y = 0.32; t.scale.set(0.85, 1, 1.35); torso.add(t); } // rounded chest and shoulders
   torso.add(box(0.27, 0.07, 0.42, MAT.web, 0, 0.04, 0));
   if (us) { torso.add(box(0.14, 0.3, 0.3, MAT.web, -0.19, 0.36, 0)); for (const z of [-0.12, 0.12]) torso.add(box(0.06, 0.06, 0.07, MAT.web, 0.14, 0.06, z)); }
   else torso.add(box(0.05, 0.4, 0.06, MAT.web, 0.13, 0.32, 0.08));
@@ -44,7 +44,7 @@ export function soldier(side) {
     const rim = cyl(0.14, 0.145, 0.016, MAT.helmJP, 16); rim.position.y = 0.79; torso.add(rim); torso.add(box(0.012, 0.03, 0.03, M(0xd8b13a), 0.135, 0.84, 0));
     const flap = box(0.02, 0.12, 0.24, MAT.cloth, -0.12, 0.7, 0); torso.add(flap); }
   const arms = [0.24, -0.24].map((z) => { const up = limb(0.29, 0.062, body); up.position.set(0.02, 0.54, z); const fo = limb(0.27, 0.052, body); fo.position.y = -0.29; up.add(fo);
-    const hand = box(0.08, 0.08, 0.06, MAT.skin, 0, -0.29, 0); fo.add(hand); torso.add(up); return { up, fo }; });
+    const hand = new THREE.Mesh(new THREE.SphereGeometry(0.045, 10, 8), MAT.skin); hand.position.y = -0.29; hand.scale.set(1, 1.1, 0.8); fo.add(hand); torso.add(up); return { up, fo }; });
   const gun = rifle(!us); gun.position.set(0.24, 0.42, -0.02); torso.add(gun);
   const fl = new THREE.Mesh(new THREE.PlaneGeometry(0.35, 0.22), MAT.flash); fl.visible = false; gun.userData.muzzle.add(fl); fl.rotation.y = PI / 2;
   const s = { root, hips, torso, legs, arms, gun, flash: fl, t: Math.random() * 10, kick: 0, fl: 0 };
@@ -70,17 +70,20 @@ export function fireSoldier(s) { s.kick = 1; s.fl = 0.06; }
 export const garandVM = new THREE.Group(); garandVM.visible = false; ovScene.add(garandVM);
 {
   const g = new THREE.Group(); garandVM.add(g); garandVM.userData.gun = g;
-  g.add(box(0.06, 0.075, 0.62, MAT.wood, 0, -0.02, -0.12));
-  g.add(box(0.055, 0.12, 0.16, MAT.wood, 0, -0.06, 0.25));
-  g.add(box(0.05, 0.05, 0.2, MAT.steel, 0, 0.03, -0.05));
+  // stock cut from a side profile (butt, comb, pistol-grip wrist, long forend), bevelled so it reads as wood, not a plank
+  const sp = new THREE.Shape(); [[0.36, 0], [0.36, -0.13], [0.2, -0.085], [0.1, -0.075], [0.05, -0.035], [-0.53, -0.03], [-0.53, 0.004], [0.0, 0.012], [0.13, 0.024]].forEach(([z, y], i) => (i ? sp.lineTo(z, y) : sp.moveTo(z, y))); sp.closePath();
+  const stock = new THREE.Mesh(new THREE.ExtrudeGeometry(sp, { depth: 0.044, bevelEnabled: true, bevelThickness: 0.008, bevelSize: 0.008, bevelSegments: 2, curveSegments: 4 }), MAT.wood);
+  stock.rotation.y = -PI / 2; stock.position.x = 0.022; g.add(stock);
+  const rec = cyl(0.026, 0.026, 0.22, MAT.steel, 14); rec.rotation.x = PI / 2; rec.position.set(0, 0.032, -0.03); g.add(rec);
   const bar = cyl(0.011, 0.011, 0.55, MAT.steel, 10); bar.rotation.x = PI / 2; bar.position.set(0, 0.035, -0.6); g.add(bar);
-  g.add(box(0.05, 0.025, 0.3, MAT.wood, 0, 0.035, -0.38));
+  const hg = cyl(0.026, 0.028, 0.3, MAT.wood, 12); hg.rotation.x = PI / 2; hg.position.set(0, 0.04, -0.38); hg.scale.x = 0.85; g.add(hg); // rounded handguard
   const fs = box(0.006, 0.03, 0.006, MAT.steel, 0, 0.065, -0.86); g.add(fs);
   const rr = new THREE.Mesh(new THREE.TorusGeometry(0.012, 0.005, 6, 16), MAT.steel); rr.position.set(0, 0.07, 0.03); g.add(rr);
   g.add(box(0.014, 0.03, 0.02, MAT.steel, 0, 0.05, 0.03));
   const sleeve = M(0x56603f);
-  const rh = new THREE.Group(); rh.add(box(0.07, 0.06, 0.11, MAT.skin, 0, -0.06, 0.12)); const ra = cyl(0.05, 0.055, 0.35, sleeve, 8); ra.rotation.x = PI / 2.4; ra.position.set(0.03, -0.14, 0.3); rh.add(ra); g.add(rh);
-  const lh = new THREE.Group(); lh.add(box(0.075, 0.05, 0.12, MAT.skin, -0.005, -0.04, -0.38)); const la = cyl(0.05, 0.055, 0.45, sleeve, 8); la.rotation.set(PI / 2.6, 0, -0.5); la.position.set(-0.12, -0.18, -0.2); lh.add(la); g.add(lh);
+  const fist = () => { const f = new THREE.Mesh(new THREE.SphereGeometry(0.05, 12, 10), MAT.skin); f.scale.set(0.8, 0.75, 1.25); return f; };
+  const rh = new THREE.Group(); { const f = fist(); f.position.set(0, -0.06, 0.12); rh.add(f); } const ra = cyl(0.05, 0.055, 0.35, sleeve, 8); ra.rotation.x = PI / 2.4; ra.position.set(0.03, -0.14, 0.3); rh.add(ra); g.add(rh);
+  const lh = new THREE.Group(); { const f = fist(); f.position.set(-0.005, -0.03, -0.38); lh.add(f); } const la = cyl(0.05, 0.055, 0.45, sleeve, 8); la.rotation.set(PI / 2.6, 0, -0.5); la.position.set(-0.12, -0.18, -0.2); lh.add(la); g.add(lh);
   const fl = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.16), MAT.flash); fl.position.set(0, 0.035, -0.9); g.add(fl); garandVM.userData.flash = fl;
   const fl2 = fl.clone(); fl2.rotation.y = PI / 2; fl.add(fl2);
 }
