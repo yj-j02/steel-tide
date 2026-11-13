@@ -207,7 +207,7 @@ const ALLY_POOL = ["fletcher", "cleveland", "fletcher", "baltimore"], ALLY_ST = 
 const placeAt = (lx, lz, h, back, side) => [lx - Math.cos(h) * back + Math.sin(h) * side, lz - Math.sin(h) * back - Math.cos(h) * side];
 function disposeAll() {
   for (const s of G.ships) s.dispose(); G.ships = []; G.player = G.enemy = G.carrier = G.foeCarrier = null; G.enemies = []; G.allies = []; G.convoy = []; G.events = []; G.cts.clear();
-  clearMissiles(); G.modern = false; if (typeof md !== "undefined") md.q.length = 0; clearTorps(); show = null; showId = null; clearShells(); clearAir(); clearFx(); for (const k of markers) { k.t = 0; k.m.visible = false; } lock = null;
+  clearMissiles(); G.modern = false; if (typeof md !== "undefined") { md.q.length = 0; md.aimPt = null; md.flyFP = false; } clearTorps(); show = null; showId = null; clearShells(); clearAir(); clearFx(); for (const k of markers) { k.t = 0; k.m.visible = false; } lock = null;
 }
 function showcase(id) {
   if (showId === id && show) return;
@@ -975,8 +975,9 @@ function moveOrder(x, z, add) {
   if (!P.lv) P.lv = P.lastLv || 3; sfx.click();
   if (!add) log(`이동 명령 — ${(d2(P.pos, { x, z }) / 1000).toFixed(1)} km, 방위 ${brg(Math.atan2(z - P.pos.z, x - P.pos.x))}`);
 }
-function aimAtPoint(x, z) { const P = G.player; lock = null; corrR = corrB = 0; if (weapon === "torp") { torpB = Math.atan2(z - P.pos.z, x - P.pos.x); return; } P.aimB = Math.atan2(z - P.pos.z, x - P.pos.x); P.aimR = clamp(Math.hypot(x - P.pos.x, z - P.pos.z), P.tb.min, P.tb.max); }
+function aimAtPoint(x, z) { const P = G.player; lock = null; corrR = corrB = 0; md.aimPt = G.modern ? { x, z } : null; if (G.modern) toast("미사일 목표: 지정 지점 — F 발사 시 이곳으로 날아가 근처 적함을 탐색 (적함 더블클릭: 고정)"); if (weapon === "torp") { torpB = Math.atan2(z - P.pos.z, x - P.pos.x); return; } P.aimB = Math.atan2(z - P.pos.z, x - P.pos.x); P.aimR = clamp(Math.hypot(x - P.pos.x, z - P.pos.z), P.tb.min, P.tb.max); }
 function lockShip(T) {
+  md.aimPt = null;
   if (lock === T) { lock = null; corrR = corrB = 0; sfx.click(); toast("표적 고정 해제"); return; }
   lock = T; corrR = corrB = 0; sfx.click(); toast(`표적 고정: ${T.name} — 사격통제가 리드를 자동 계산 (W/S·A/D: 보정)`);
 }
@@ -1343,9 +1344,9 @@ const TCOL = { dead: "#ff5a4e", reload: "#7f8b92", arc: "#ffb347", turn: "#ffd16
 const md = { salvo: 2, mode: "auto", decoyCd: 0, fireCd: 0, eCd: 0, q: [] };
 const asmKey = (S) => S.spec.vls.A?.[0];
 function modernStep(dt) {
-  for (let i = md.q.length - 1; i >= 0; i--) { const o = md.q[i]; o.t -= dt; if (o.t <= 0 && o.jet) { md.q.splice(i, 1); if (o.S.alive && G.state === "playing") launchJet(o.S, o.role, o.S.cv, o.S.isBase ? o.S.pos.clone().setY(300) : null); continue; } if (o.t <= 0) { md.q.splice(i, 1); if (o.S.alive && o.T.alive && G.state === "playing") { const m = mLaunch(o.S, o.k, o.T); if (m && o.est) m.est = o.est.clone(); if (o.cam && m) MSL.last = m; } } }
+  for (let i = md.q.length - 1; i >= 0; i--) { const o = md.q[i]; o.t -= dt; if (o.t <= 0 && o.jet) { md.q.splice(i, 1); if (o.S.alive && G.state === "playing") launchJet(o.S, o.role, o.S.cv, o.S.isBase ? o.S.pos.clone().setY(300) : null); continue; } if (o.t <= 0) { md.q.splice(i, 1); if (o.S.alive && (!o.T || o.T.alive) && G.state === "playing") { const m = mLaunch(o.S, o.k, o.T); if (m && o.est) m.est = o.est.clone(); if (o.cam && m) MSL.last = m; } } }
   md.mode = "auto"; md.salvo = 2; // air defence, decoys and salvo size are automatic
-  if (md.fly) { const j = md.fly; if (!j.alive || G.state !== "playing") { md.fly = null; if (document.pointerLockElement) document.exitPointerLock(); if (!j.alive) toast("격추당했습니다 — 함대 지휘로 복귀", 3); }
+  if (md.fly) { const j = md.fly; if (!j.alive || G.state !== "playing") { md.fly = null; document.body.classList.remove("jetfly"); if (document.pointerLockElement) document.exitPointerLock(); if (!j.alive) toast("격추당했습니다 — 함대 지휘로 복귀", 3); }
     else { j.thr = clamp(j.thr + ((keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0)) * 120 * dt, 110, 330); j.aamCd -= 0; md.flyLock = flyLockOn(); if (j.t > j.endur + 120) { releaseFly(); j.home = true; toast("연료 부족 — 자동 귀환"); } } }
   md.decoyCd = Math.max(0, md.decoyCd - dt); md.fireCd = Math.max(0, md.fireCd - dt); md.eCd = Math.max(0, md.eCd - dt);
   stepMissiles(dt, (S, m, n) => {
@@ -1392,10 +1393,10 @@ function takeJet() {
   let j = MSL.jets.find((x) => x.alive && x.side === "us" && !x.home); const C = myAir();
   if (!j && C && C.jetsReady > 0) { C.jetsReady--; j = launchJet(C, "multi", C.cv); }
   if (!j) { sfx.deny(); toast("조종할 전투기 없음"); return; }
-  md.fly = j; j.pilot = true; j.home = false; j.pyaw = Math.atan2(j.vel.z, j.vel.x); j.ppitch = 0.12; j.thr = 240; lockPointer(); sfx.click();
+  md.fly = j; document.body.classList.add("jetfly"); j.pilot = true; j.home = false; j.pyaw = Math.atan2(j.vel.z, j.vel.x); j.ppitch = 0.12; j.thr = 240; lockPointer(); sfx.click();
   toast(`${j.name} 조종 — 마우스: 방향 · W/S: 추력 · 좌클릭/Space: 공대공 · B: 대함 미사일 · I: 자동 복귀`, 5);
 }
-function releaseFly() { if (md.fly) { md.fly.pilot = false; md.fly = null; } if (document.pointerLockElement) document.exitPointerLock(); toast("자동 조종 — 함대 지휘로 복귀"); }
+function releaseFly() { document.body.classList.remove("jetfly"); if (md.fly) { md.fly.mesh.visible = true; md.fly.pilot = false; md.fly = null; } if (document.pointerLockElement) document.exitPointerLock(); toast("자동 조종 — 함대 지휘로 복귀"); }
 function flyLockOn() {
   const j = md.fly; if (!j) return null; const f = dirFrom(j.pyaw, j.ppitch); let best = null, bs = Infinity;
   for (const o of [...MSL.jets.filter((x) => x.alive && x.side === "foe"), ...MSL.list.filter((m) => m.alive && m.side === "foe" && m.W.role === "asm")]) {
@@ -1410,16 +1411,25 @@ function flyStrike() {
   for (let k = 0; k < j.asm; k++) { const m = mLaunch(j, j.asmKey, c.ship); if (m && !c.firm) m.est = c.pos.clone(); } log(`${j.name} ${WPN[j.asmKey].name} ${j.asm}발 발사 → ${c.ship.name}`, "hit"); j.asm = 0; sfx.click();
 }
 function flyCamera(dt) {
-  const j = md.fly, v = j.vel.clone().normalize(), f = dirFrom(j.pyaw, j.ppitch); setNear(1); camera.fov = 62; camera.updateProjectionMatrix(); camera.up.set(0, 1, 0);
+  const j = md.fly, v = j.vel.clone().normalize(), f = dirFrom(j.pyaw, j.ppitch); j.mesh.visible = !md.flyFP;
+  if (md.flyFP) { setNear(0.5); camera.fov = 72; camera.updateProjectionMatrix(); camera.up.set(0, 1, 0); camera.position.copy(j.pos).addScaledVector(v, 5).add(new THREE.Vector3(0, 1.3, 0)); camera.lookAt(camera.position.clone().addScaledVector(f, 200)); return; }
+  setNear(1); camera.fov = 62; camera.updateProjectionMatrix(); camera.up.set(0, 1, 0);
   camera.position.lerp(j.pos.clone().addScaledVector(v, -42).add(new THREE.Vector3(0, 9, 0)), Math.min(1, dt * 7)); camera.lookAt(j.pos.clone().addScaledVector(f, 160));
 }
 function drawFlyHUD() {
   const j = md.fly, W = hud.width, H = hud.height; if (!j) return; hx.textBaseline = "middle";
+  if (md.flyFP) { // canopy frame and instrument coaming
+    hx.fillStyle = "rgba(18,22,26,.96)"; hx.beginPath(); hx.moveTo(0, H); hx.lineTo(0, H * 0.78); hx.quadraticCurveTo(W / 2, H * 0.66, W, H * 0.78); hx.lineTo(W, H); hx.closePath(); hx.fill();
+    hx.strokeStyle = "rgba(24,28,32,.95)"; hx.lineWidth = 16; hx.beginPath(); hx.moveTo(W * 0.2, H * 0.74); hx.quadraticCurveTo(W * 0.08, H * 0.3, W * 0.02, 0); hx.moveTo(W * 0.8, H * 0.74); hx.quadraticCurveTo(W * 0.92, H * 0.3, W * 0.98, 0); hx.stroke();
+    hx.lineWidth = 9; hx.beginPath(); hx.moveTo(W * 0.06, H * 0.12); hx.quadraticCurveTo(W / 2, -H * 0.05, W * 0.94, H * 0.12); hx.stroke();
+    txt(`${(j.vel.length() * 3.6).toFixed(0)}`, W * 0.32, H * 0.86, "#8ef07a", "bold 20px monospace", "center"); txt("KM/H", W * 0.32, H * 0.9, "#6fbf60", "11px monospace", "center");
+    txt(`${j.pos.y.toFixed(0)}`, W * 0.68, H * 0.86, "#8ef07a", "bold 20px monospace", "center"); txt("ALT M", W * 0.68, H * 0.9, "#6fbf60", "11px monospace", "center");
+  }
   const aim = proj(j.pos.clone().addScaledVector(dirFrom(j.pyaw, j.ppitch), 800)); if (aim) { hx.strokeStyle = "#9be06a"; hx.lineWidth = 1.6; hx.beginPath(); hx.arc(aim.x, aim.y, 46, 0, TAU); hx.stroke(); hx.beginPath(); hx.arc(aim.x, aim.y, 3, 0, TAU); hx.stroke(); }
   const T = md.flyLock; if (T) { const q = proj(T.pos); if (q && q.on) { hx.strokeStyle = "#ff3b30"; hx.lineWidth = 2; hx.strokeRect(q.x - 14, q.y - 14, 28, 28); txt(`LOCK ${T.isJet ? T.name : T.W.name} ${(T.pos.distanceTo(j.pos) / 1000).toFixed(1)} km`, q.x, q.y - 24, "#ff6b5e", "bold 11px 'Noto Sans KR', sans-serif", "center"); } }
   panel(W / 2 - 230, H - 150, 460, 46);
   txt(`${j.name} · ${(j.vel.length() * 3.6).toFixed(0)} km/h · 고도 ${j.pos.y.toFixed(0)} m · 공대공 ${j.aam} · 대함 ${j.asm} · 연료 ${Math.max(0, Math.ceil(j.endur + 120 - j.t))}초`, W / 2, H - 136, "#fff", "bold 12px 'Noto Sans KR', sans-serif", "center");
-  txt("마우스 방향 · W/S 추력 · 좌클릭/Space 공대공 · B 대함 · I 자동 복귀", W / 2, H - 116, "#cfe7ff", "11px 'Noto Sans KR', sans-serif", "center");
+  txt("마우스 방향 · W/S 추력 · 좌클릭/Space 공대공 · B 대함 · V 조종석/외부 · I 자동 복귀", W / 2, H - 116, "#cfe7ff", "11px 'Noto Sans KR', sans-serif", "center");
 }
 G.onIntercept = (m) => { if (m.side === "foe") { md.icpt = { t: 1.6, n: m.isJet ? `적 ${m.name} 격추` : `${m.W.name || "적 미사일"} 요격` }; G.stats.icpt = (G.stats.icpt || 0) + 1; } };
 function sortieJets(S, role) {
@@ -1429,15 +1439,16 @@ function sortieJets(S, role) {
 }
 const myAir = () => G.ships.find((s) => s.alive && s.side === "us" && s.cv) || (G.bases || []).find((b) => b.side === "us");
 function fireSalvo() {
-  const P = G.player, k = asmKey(P), T = (goodCt(lock) && lock) || (goodCt(G.enemy) && G.enemy) || bestContact();
+  // target, like the guns: a locked ship, else a sea point you double-clicked, else the nearest contact (auto)
+  const P = G.player, k = asmKey(P), pt = md.aimPt, T = (goodCt(lock) && lock) || (pt ? null : (goodCt(G.enemy) && G.enemy) || bestContact());
   if (!k || !(P.mag[k] > 0)) { sfx.deny(); toast("대함미사일 소진"); return; }
-  if (!T) { sfx.deny(); toast("표적 없음 — 레이더·ESM·헬기(Y)로 먼저 탐지하세요"); return; }
-  const ct = G.cts.get(T), est = ct.q < 0.6 ? new THREE.Vector3(ct.x, 0, ct.z) : null; // not a firm track: shoot at the estimate, the seeker finds the ship
+  if (!T && !pt) { sfx.deny(); toast("표적 없음 — 레이더·ESM·헬기(Y)로 탐지하거나, 바다를 더블클릭해 목표 지점을 지정하세요"); return; }
+  const ct = T && G.cts.get(T), est = !T ? new THREE.Vector3(pt.x, 0, pt.z) : ct.q < 0.6 ? new THREE.Vector3(ct.x, 0, ct.z) : null; // not a firm track: shoot at the estimate, the seeker finds the ship
   const d = d2(P.pos, est || T.pos); if (d > WPN[k].range * 0.95) { sfx.deny(); toast(`사거리 밖 — ${WPN[k].name} 최대 ${(WPN[k].range / 1000).toFixed(0)} km (게임 축척)`); return; }
   if (md.fireCd > 0) { sfx.deny(); return; }
   const n = Math.min(md.salvo, P.mag[k]); P.mag[k] -= n; md.fireCd = 2.5;
   for (let i = 0; i < n; i++) md.q.push({ t: i * 0.6, S: P, k, T, cam: i === 0, est });
-  G.stats.shots += n; log(`${WPN[k].name} ${n}발 발사 → ${T.name} (${(d / 1000).toFixed(1)} km)${est ? ` · ${ct.src} 추정 위치 사격 (오차 ±${(ct.err / 1000).toFixed(1)} km, 종말 탐색기)` : ""}`, "hit"); G.radio?.("torp_launch");
+  G.stats.shots += n; log(`${WPN[k].name} ${n}발 발사 → ${T ? T.name : "지정 지점"} (${(d / 1000).toFixed(1)} km)${!T ? " · 도착 후 탐색기로 근처 적함 포착" : est ? ` · ${ct.src} 추정 위치 사격 (오차 ±${(ct.err / 1000).toFixed(1)} km, 종말 탐색기)` : ""}`, "hit"); G.radio?.("torp_launch");
 }
 function manualSam() {
   const P = G.player; if (md.eCd > 0) return;
@@ -1458,7 +1469,7 @@ function modernBar() {
 }
 function modernKey(code) {
   if (code === "KeyF") { fireSalvo(); return true; }
-  if (md.fly) { if (code === "KeyI") { releaseFly(); return true; } if (code === "Space") { flyFire(); return true; } if (code === "KeyB") { flyStrike(); return true; } if (code === "KeyW" || code === "KeyS") return true; }
+  if (md.fly) { if (code === "KeyI") { releaseFly(); return true; } if (code === "KeyV") { md.flyFP = !md.flyFP; sfx.click(); toast(md.flyFP ? "조종석 시점 (V: 외부)" : "외부 시점 (V: 조종석)"); return true; } if (code === "Space") { flyFire(); return true; } if (code === "KeyB") { flyStrike(); return true; } if (code === "KeyW" || code === "KeyS") return true; }
   if (code === "KeyI") { takeJet(); return true; }
   if (false) { md.salvo = md.salvo === 1 ? 2 : md.salvo === 2 ? 4 : 1; sfx.click(); toast(`일제사격 ${md.salvo}발 단위`); return true; }
   // (KeyK removed: handled automatically)
@@ -1494,12 +1505,14 @@ function drawModernHUD() {
     else { hx.fillStyle = m.W.role === "asm" ? "#ffffff" : "#7cc4ff"; hx.beginPath(); hx.arc(q.x, q.y, 2.5, 0, TAU); hx.fill(); } }
   { // situation panel, top-left: sensors, contacts, air
     const cts = [...G.cts.values()], firm = cts.filter((c) => c.q >= 0.6).length, mine = MSL.jets.filter((j) => j.alive && j.side === "us").length, foeJ = MSL.jets.filter((j) => j.alive && j.side === "foe" && mSeen(j, "us")).length, C = myAir(), h = MSL.helos.find((x) => x.alive && x.side === "us");
-    panel(14, 14, 318, 70); const F = "12px 'Noto Sans KR', sans-serif";
+    panel(14, 14, 318, 88); const F = "12px 'Noto Sans KR', sans-serif";
     txt(`레이더 ${P.radarOn === false ? "끔 (방사 통제)" : "켬"} · ${P.seenByFoe ? (P.foeErr ? "적이 우리 전파를 포착" : "적에게 추적당함") : "적에게 안 잡힘"}`, 26, 31, P.seenByFoe ? "#ffb347" : "#8ef07a", "bold " + F);
     txt(`적함 ${cts.length}척 탐지 (정확 ${firm}) · 적기 ${foeJ}기`, 26, 50, "#e8f0f2", F);
     txt(`아군 전투기 비행 ${mine}${C ? ` · 대기 ${C.jetsReady}` : ""} · 헬기 ${h ? "정찰 중" : "대기"}`, 26, 69, "#cfe7ff", F); }
   for (const j of MSL.jets) { if (!j.alive || (j.side === "foe" && !mSeen(j, "us"))) continue; const q = proj(j.pos); if (!q || !q.on) continue; const col = j.side === "foe" ? "#ff8a7a" : "#cfe7ff"; ntds(hx, q.x, q.y, 7, j.side === "foe", col, false, true); txt(`${j.side === "foe" ? "적 " : ""}${j.name}`, q.x, q.y + 14, col, "10px 'Noto Sans KR', sans-serif", "center"); }
   if (md.icpt && md.icpt.t > 0) { md.icpt.t -= 1 / 60; hx.globalAlpha = clamp(md.icpt.t, 0, 1); txt(`요격! ${md.icpt.n}`, W / 2, 200, "#8ef07a", "bold 20px 'Noto Sans KR', sans-serif", "center"); hx.globalAlpha = 1; }
+  { const tg = lock && lock.alive ? `고정: ${lock.name}` : md.aimPt ? "지정 지점" : "자동 (가장 가까운 적)"; txt(`F 미사일 목표: ${tg}`, 26, 88, "#ffd166", "bold 12px 'Noto Sans KR', sans-serif"); }
+  if (md.aimPt) { const q = proj(new THREE.Vector3(md.aimPt.x, 2, md.aimPt.z)); if (q && q.on) { hx.strokeStyle = "#ffd166"; hx.lineWidth = 2; hx.beginPath(); hx.arc(q.x, q.y, 14, 0, TAU); hx.moveTo(q.x - 22, q.y); hx.lineTo(q.x + 22, q.y); hx.moveTo(q.x, q.y - 22); hx.lineTo(q.x, q.y + 22); hx.stroke(); txt("미사일 목표", q.x, q.y + 30, "#ffd166", "bold 11px 'Noto Sans KR', sans-serif", "center"); } }
   if (!cam.map) for (const [e, ct] of G.cts) { if (!e.alive || ct.q >= 0.6) continue; const q = proj(new THREE.Vector3(ct.x, 30, ct.z)); if (!q || !q.on) continue;
     hx.globalAlpha = clamp(ct.q + 0.45, 0.45, 1); ntds(hx, q.x, q.y, 10, true, "#ff8a7a", true); txt(`${e.name} · ${ct.src === "ESM" ? "ESM 추정" : "마지막 추정"} ${(d2(P.pos, ct) / 1000).toFixed(0)} km`, q.x, q.y + 20, "#ff8a7a", "10.5px 'Noto Sans KR', sans-serif", "center"); hx.globalAlpha = 1; }
   if (th.length) { const t = Math.min(...th.map((m) => d2(m.pos, P.pos) / Math.max(m.vel.length(), 1))), w = 380, x = W / 2 - w / 2; panel(x, 130, w, 30);

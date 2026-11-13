@@ -140,6 +140,7 @@
       button { font-family:inherit; }
       /* battle panels */
       #shipCard { position:fixed; left:14px; bottom:14px; width:340px; padding:11px 14px; box-sizing:border-box; display:none; flex-direction:column; gap:6px; pointer-events:auto; }
+      body.jetfly #shipCard, body.jetfly #wpnBar, body.jetfly #tgtCard, body.jetfly #log, body.jetfly #airP { display:none !important; }
       body.playing #shipCard { display:flex; } body.flying #shipCard, body.flying #wpnBar, body.flying #tgtCard, body.aamode #wpnBar, body.aamode #tgtCard, body.aamode #shipCard, body.aamode #airP, body.aamode #log, body.auto #wpnBar { display:none !important; }
       #shipCard .row, #tgtCard .row { display:flex; align-items:center; gap:8px; } #shipCard .sub, #tgtCard .sub { font-size:11.5px; color:var(--cream2); }
       .pct { margin-left:auto; font:700 15px "Special Elite",monospace; } .pct.ok { color:var(--ok); } .pct.warn { color:var(--warn); } .pct.bad { color:var(--bad); }
