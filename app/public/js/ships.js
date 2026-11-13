@@ -48,7 +48,7 @@ export function solve(tb, range) {
 
 // ── catalogue ───────────────────────────────────────────────────────────────
 const US = { hull: 0x7a848b, deck: 0xa58b62, upper: 0x86909a };
-const FOE = { hull: 0x474f54, deck: 0x6a6e69, upper: 0x535b60 };
+const FOE = { hull: 0x56606a, deck: 0x6f736c, upper: 0x66707a }; // lighter: the old one read as black at range
 const T1 = (x, up, rest) => ({ x, up, rest, n: 1 }), T2 = (x, up, rest) => ({ x, up, rest, n: 2 }), T3 = (x, up, rest) => ({ x, up, rest, n: 3 });
 export const SHIPS = {
   fletcher: { id: "fletcher", name: "USS 플레처 (DD-445)", short: "플레처", cls: "구축함", tier: 1, L: 114.8, B: 12, D: 4.2, fb: 5.4, sheer: 2.6, vmax: 36.5, turn: 7, hp: 55, belt: 19,
@@ -582,6 +582,24 @@ function kpn(g, spec) {
   g.userData.bridge = [20 * k, y + 9.5, 0]; g.userData.vls = [36 * k, -20 * k];
   return [];
 }
+// ── WWII deck clutter for the procedural ships: twin AA mounts along the deck edge, boats, searchlights ──
+const AA_GEO = { base: new THREE.CylinderGeometry(0.75, 0.85, 0.5, 8), shield: new THREE.BoxGeometry(0.25, 0.9, 1.6), barrel: new THREE.CylinderGeometry(0.06, 0.07, 2.4, 6) };
+AA_GEO.barrel.rotateZ(-PI / 2); AA_GEO.barrel.translate(1.2, 0, 0);
+function aaMount(g, x, y, z, out) {
+  const m = new THREE.Group(); m.position.set(x, y, z); m.rotation.y = out > 0 ? -PI / 2 : PI / 2; g.add(m);
+  const b = shadowed(new THREE.Mesh(AA_GEO.base, mat(0x4f585e))); b.position.y = 0.25; m.add(b);
+  const sh = shadowed(new THREE.Mesh(AA_GEO.shield, mat(0x5e676d))); sh.position.set(0.5, 0.9, 0); m.add(sh);
+  for (const dz of [-0.28, 0.28]) { const br = new THREE.Mesh(AA_GEO.barrel, mat(0x2e3337)); br.position.set(0.3, 1.0, dz); br.rotation.z = 0.45; m.add(br); }
+}
+function dress(g, spec) {
+  if (spec.modern || ["carrier", "cargo", "mcarrier"].includes(spec.style) || MODELS[spec.id]) return;
+  const L = spec.L, busy = spec.turrets.map((t) => t.x), n = Math.max(2, Math.round(L / 30));
+  for (let i = 0; i < n; i++) {
+    const x = -L * 0.3 + (i / (n - 1)) * L * 0.58; if (busy.some((bx) => Math.abs(bx - x) < 10)) continue;
+    const t = (x + L / 2) / L, y = deckY(spec, x), hb = halfBeam(spec, t); for (const sd of [1, -1]) aaMount(g, x, y, sd * hb * 0.78, sd);
+  }
+  if (L > 100) for (const sd of [1, -1]) { const b = shadowed(new THREE.Mesh(new THREE.CapsuleGeometry(0.8, 4.2, 4, 8), mat(0x7a7f74))); b.rotation.z = PI / 2; b.position.set(-L * 0.04, deckY(spec, -L * 0.04) + 1.1, sd * halfBeam(spec, 0.46) * 0.55); g.add(b); }
+}
 const STYLE = { mcarrier, cage: colorado, tower, cruiser, dd, raider, carrier, foeDD, foeCL, pagoda, titan, cargo, aegis, pla, kpn };
 
 function buildTurret(ship, t, i) {
@@ -622,7 +640,7 @@ export class Ship {
     this.root = new THREE.Group(); this.tilt = new THREE.Group(); this.root.add(this.tilt);
     this.tilt.add(buildHull(spec)); hullDetails(this.tilt, spec); hullNumber(this.tilt, spec);
     paint.color = spec.upper; paint.map = upperTexture(spec);
-    this.funnels = STYLE[spec.style](this.tilt, spec);
+    this.funnels = STYLE[spec.style](this.tilt, spec); dress(this.tilt, spec);
     this.body = this.tilt.children.slice();
     this.turrets = spec.turrets.map((t, i) => buildTurret(this, t, i)); this.name = spec.short;
     this.torps = spec.torp ? spec.torp.mounts.map((x) => ({ x, reload: 6 + rnd() * 6 })) : [];

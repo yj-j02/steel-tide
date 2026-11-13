@@ -36,7 +36,7 @@ export const SUN = new THREE.Vector3(0.55, 0.34, -0.76).normalize();
 /** Interiors (ship's bridge, cockpit) live in camera space in their own scene, drawn over the world. */
 export const ovScene = new THREE.Scene(), ovCam = new THREE.PerspectiveCamera(60, 1, 0.02, 60);
 ovScene.add(new THREE.HemisphereLight(0xdfe9f0, 0x2a2622, 1.6)); { const d = new THREE.DirectionalLight(0xfff0dd, 1.6); d.position.set(0.4, 1, -0.6); ovScene.add(d); }
-export const hemi = new THREE.HemisphereLight(0xcfe2ee, 0x2c3a44, 1.05); scene.add(hemi);
+export const hemi = new THREE.HemisphereLight(0xcfe2ee, 0x3a4852, 1.55); scene.add(hemi); // strong sky fill so backlit ships keep their shape
 export const sunLight = new THREE.DirectionalLight(0xffecd0, 3.0); scene.add(sunLight, sunLight.target);
 sunLight.castShadow = true; sunLight.shadow.mapSize.set(2048, 2048);
 Object.assign(sunLight.shadow.camera, { left: -190, right: 190, top: 190, bottom: -190, near: 100, far: 1000 });
@@ -169,7 +169,7 @@ seaPatch.rotation.x = -PI / 2; seaPatch.frustumCulled = false; seaPatch.renderOr
 // sky reflections for every PBR material
 const pmrem = new THREE.PMREMGenerator(renderer), envScene = new THREE.Scene(); envScene.add(new THREE.Mesh(new THREE.SphereGeometry(50, 32, 16), skyMat));
 let envRT = null; function bakeEnv() { const old = envRT; envRT = pmrem.fromScene(envScene, 0, 0.1, 200); scene.environment = envRT.texture; old?.dispose(); }
-bakeEnv(); scene.environmentIntensity = 0.55;
+bakeEnv(); scene.environmentIntensity = 0.7;
 
 function resize() { const w = window.innerWidth, h = window.innerHeight; renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); ovCam.aspect = w / h; ovCam.updateProjectionMatrix(); }
 window.addEventListener("resize", resize); resize();
