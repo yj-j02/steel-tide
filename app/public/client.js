@@ -123,6 +123,9 @@ const MISSIONS = {
   modern: { n: "현대전 · 미사일 해전", d: "이지스함 대 적 구축함. 대함미사일과 다층 방공 — 1단계 (계급·크레딧 공유)" },
   raid: { n: "진주만 방어", d: "적 공습 3파와 수상 함대로부터 정박 함선을 지켜라. 2척을 잃으면 실패. (보상 +30%)" },
 };
+// who you can command and whom you fight: rank (index into ECON_RANKS) needed for each
+const SIDE_US = { kr: 0, us: 0, jp: 4 }, SIDE_FOE = { nk: 0, cn: 2 };
+function fixNations() { const rk = myRank(); if (!(SIDE_US[natUs] <= rk)) natUs = "kr"; if (!(SIDE_FOE[natFoe] <= rk)) natFoe = "nk"; }
 let natUs = "kr", natFoe = "nk"; try { const a = localStorage.getItem("steeltide:natUs"), b = localStorage.getItem("steeltide:natFoe"); if (NATIONS[a]) natUs = a; if (NATIONS[b]) natFoe = b; } catch {}
 let theater = "arch"; try { const m = localStorage.getItem("steeltide:map"); if (MAPS[m]) theater = m; } catch {}
 // ── commander (사령관): name + one of four portraits, kept in this browser ──
@@ -243,10 +246,11 @@ function newBattle() {
     let b = (25 + rnd() * 30) * DEG * (rnd() < 0.5 ? -1 : 1); const r = 16000 + rnd() * 2000;
     for (let k = 0; k < 16 && landAt(Math.cos(b) * r, Math.sin(b) * r, 4500); k++) b = wrap(b + 0.4); // open water for the enemy group
     const eh = wrap(PI + b + (rnd() - 0.5) * 0.8), N = NATIONS[natFoe];
-    const keys = [N.ships[0], N.ships[1], ...(rk >= 3 ? [N.ships[1]] : [])];
+    fixNations();
+    const keys = natFoe === "cn" && rk < 4 ? [N.ships[1], N.ships[1]] : [N.ships[0], N.ships[1], ...(rk >= 3 ? [N.ships[1]] : [])]; // the enemy grows with your rank
     const out = keys.map((k, i) => { const [x, z] = placeAt(Math.cos(b) * r, Math.sin(b) * r, eh, ...STATIONS[i]); const s = new Ship(MODERN[k], x, z, eh, "foe"); s.prefRange = [5000, 8000]; s.station = STATIONS[i]; s.br = mkBrain(16 + i * 5); s.nation = natFoe; mArm(s); return s; });
     for (const s of out) s.group = out;
-    const fcv = N.cv; if (fcv) { const [x, z] = placeAt(Math.cos(b) * r, Math.sin(b) * r, eh, 3500, 0); const c = new Ship(MODERN[fcv], x, z, eh, "foe"); c.isCarrier = true; c.br = mkBrain(30); c.nation = natFoe; c.group = out; mArm(c); out.push(c); }
+    const fcv = rk >= 4 ? N.cv : null; if (fcv) { const [x, z] = placeAt(Math.cos(b) * r, Math.sin(b) * r, eh, 3500, 0); const c = new Ship(MODERN[fcv], x, z, eh, "foe"); c.isCarrier = true; c.br = mkBrain(30); c.nation = natFoe; c.group = out; mArm(c); out.push(c); }
     G.enemies.push(...out); G.ships.push(...out);
     const ucv = NATIONS[natUs].cv; if (ucv) { const st = [3200, -900], [x, z] = placeAt(0, 0, 0, ...st); const c = new Ship(MODERN[ucv], x, z, 0, "us"); c.station = st; c.br = mkBrain(30); c.name = c.spec.short; c.nation = natUs; mArm(c); G.allies.push(c); G.ships.push(c); }
     G.bases = []; for (const [side, nat, x, z] of [["us", natUs, -26000, 0], ["foe", natFoe, Math.cos(b) * (r + 22000), Math.sin(b) * (r + 22000)]]) if (NATIONS[nat].base) G.bases.push({ side, alive: true, isBase: true, pos: new THREE.Vector3(x, 0, z), heading: 0, spec: { fb: 0 }, cv: NATIONS[nat].base, name: "지상 비행장" });
@@ -469,7 +473,8 @@ function refreshMenus() {
   renderRecord();
   $("#missions").innerHTML = Object.entries(MISSIONS).map(([k, m]) => `<button class="ms${k === mission ? " on" : ""}" data-m="${k}"><b>${m.n}</b><small>${m.d}</small></button>`).join("");
   $("#nations").style.display = mission === "modern" ? "" : "none";
-  if (mission === "modern") $("#nations").innerHTML = `<div class="ph"><span>FORCES</span><span>아군 / 적군 국가</span></div><div class="natrow"><span>아군</span>${Object.entries(NATIONS).map(([k, v]) => `<button class="nt${k === natUs ? " on" : ""}" data-nu="${k}"${k === natFoe ? " disabled" : ""}>${(FLAGSVG[k] || FLAG.us)(18)} ${v.n}</button>`).join("")}</div><div class="natrow"><span>적군</span>${Object.entries(NATIONS).map(([k, v]) => `<button class="nt${k === natFoe ? " on" : ""}" data-nf="${k}"${k === natUs ? " disabled" : ""}>${(FLAGSVG[k] || FLAG.us)(18)} ${v.n}</button>`).join("")}</div>`;
+  if (mission === "modern") { fixNations(); const rk = myRank(), btn = (k, side, on, need) => `<button class="nt${on ? " on" : ""}" data-n${side}="${k}"${need > rk ? ` disabled title="${ECON_RANKS[need]} 이상"` : ""}>${(FLAGSVG[k] || FLAG.us)(18)} ${NATIONS[k].n}${need > rk ? ` 🔒${ECON_RANKS[need]}` : ""}</button>`;
+    $("#nations").innerHTML = `<div class="ph"><span>FORCES</span><span>아군 / 적군 국가</span></div><div class="natrow"><span>아군</span>${Object.entries(SIDE_US).map(([k, need]) => btn(k, "u", k === natUs, need)).join("")}</div><div class="natrow"><span>적군</span>${Object.entries(SIDE_FOE).map(([k, need]) => btn(k, "f", k === natFoe, need)).join("")}</div><div class="natnote">${natFoe === "cn" ? (rk >= 4 ? "중국 해군 주력 — 055형 3척 + 항모 산둥 (최고 난이도)" : "중국 해군 — 055형 2척 (소장부터 항모 전단)") : `북한 해군 — 연안 전투함${rk >= 3 ? " 3척" : " 2척"} + 지상 발진 MiG-29`}</div>`; }
   $("#maps").innerHTML = Object.entries(MAPS).map(([k, m]) => `<button class="mp${(mission === "raid" ? "pearl" : theater) === k ? " on" : ""}" data-map="${k}"${mission === "raid" && k !== "pearl" ? " disabled" : ""}><b>${m.n}</b><small>${m.d}</small></button>`).join("") + (mission === "raid" ? `<div class="mpn">진주만 방어는 진주만 전장 고정</div>` : "");
   $("#cmdrFace").innerHTML = face(cmdr.face, 46); $("#cmdrName").textContent = `${ECON_RANKS[rl.r]} ${cmdr.name}`;
   if (screen === "yard") renderYard();
