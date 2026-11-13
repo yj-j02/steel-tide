@@ -121,6 +121,7 @@ const SEA_FRAG = `uniform float uPatch; varying vec3 vW; ${SKY_GLSL} ${SHIP_GLSL
     if (uPatch < 0.5 && distance(vW.xz, cameraPosition.xz) < 1320.0) discard;
     vec3 V = cameraPosition - vW; float dist = length(V); V /= dist;
     vec2 p0 = vW.xz, p = p0 + (vec2(noise(p0*0.0035), noise(p0*0.0035 + 7.3)) - 0.5) * 70.0; vec2 g = vec2(0.0); // domain warp: no endless parallel crests
+    vec2 pL = p + (vec2(noise(p0*0.0006 + 2.0), noise(p0*0.0006 + 9.1)) - 0.5) * 420.0; // swells get a much larger warp
     float f2 = 1.0 - smoothstep(1500.0, 9000.0, dist);
     float f3 = 1.0 - smoothstep(7000.0, 45000.0, dist);
     // anti-aliasing: fade every wave whose wavelength gets close to the pixel footprint (this caused the striped moire far off)
@@ -131,13 +132,13 @@ const SEA_FRAG = `uniform float uPatch; varying vec3 vW; ${SKY_GLSL} ${SHIP_GLSL
     g += wv(p, vec2(0.8,-0.6), 17.0, 0.20, 5.0) * AA(17.0);
     g += wv(p, vec2(-0.9,-0.2), 29.0, 0.32, 6.5) * AA(29.0);
     g += wv(p, vec2(0.6,0.8), 53.0, 0.55, 9.0) * AA(53.0);
-    g += wv(p, vec2(-0.9,0.35), 89.0, 0.80, 11.0) * AA(89.0);
-    g += wv(p, vec2(0.2,-1.0), 160.0, 1.20, 15.0) * AA(160.0);
-    g += wv(p, vec2(1.0,0.15), 290.0, 1.70, 20.0) * AA(290.0);
+    g += wv(pL, vec2(-0.9,0.35), 89.0, 0.80, 11.0) * AA(89.0);
+    g += wv(pL, vec2(0.2,-1.0), 160.0, 1.20, 15.0) * AA(160.0);
+    g += wv(pL, vec2(1.0,0.15), 290.0, 1.70, 20.0) * AA(290.0);
     g += wv(p, vec2(0.35,0.94), 41.0, 0.30, 8.0) * AA(41.0);
     g += wv(p, vec2(-0.7,-0.7), 23.0, 0.18, 6.0) * AA(23.0);
     g += wv(p, vec2(0.95,-0.3), 71.0, 0.42, 10.0) * AA(71.0);
-    g += wv(p, vec2(-0.2,0.98), 120.0, 0.6, 13.0) * AA(120.0);
+    g += wv(pL, vec2(-0.2,0.98), 120.0, 0.6, 13.0) * AA(120.0);
     float n1 = noise(p*0.9 + time*vec2(0.3,0.2)), n2 = noise(p*0.9 + vec2(5.2,1.3) - time*vec2(0.2,0.35));
     g += (vec2(n1,n2) - 0.5) * 0.34 * AA(2.0);
     // the finest ripples alias first: keep distant water a little rough so the sky reflection stays soft, not mirror-flat
@@ -239,22 +240,38 @@ export function landAt(x, z, pad = 0) {
   }
   return false;
 }
+/** smooth value noise and fbm for terrain relief */
+function vn2(x, z) { const xi = Math.floor(x), zi = Math.floor(z), fx = x - xi, fz = z - zi, u = fx * fx * (3 - 2 * fx), v = fz * fz * (3 - 2 * fz);
+  const a = vnoise(xi, zi), b = vnoise(xi + 1, zi), c = vnoise(xi, zi + 1), d = vnoise(xi + 1, zi + 1); return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v; }
+function fbm2(x, z) { let s = 0, a = 0.5; for (let i = 0; i < 5; i++) { s += a * vn2(x, z); x = x * 2.03 + 17; z = z * 2.03 + 9; a *= 0.5; } return s; }
+/** tiling ground detail (multiplied over vertex colours) */
+const GROUND = canvasTex(256, (x) => { const R = seeded(77); x.fillStyle = "#c8c8c8"; x.fillRect(0, 0, 256, 256);
+  for (let i = 0; i < 2600; i++) { const v = (150 + R() * 105) | 0; x.fillStyle = `rgba(${v},${v},${v},0.5)`; const r = 1 + R() * 3.5; x.beginPath(); x.arc(R() * 256, R() * 256, r, 0, 6.283); x.fill(); } }, true);
 function geoLand(g, L) {
   const k = Math.cos(g.lat0 * DEG), to = ([lo, la]) => [(la - g.lat0) * 110540 * g.S, (lo - g.lon0) * 111320 * k * g.S];
   const P = L.o.map(to), pk = L.p.map((q) => [...to(q), q[2] * Math.sqrt(g.S), q[3] * g.S]); // heights shrink less than distances so the skyline still reads
   let x0 = Infinity, x1 = -Infinity, z0 = Infinity, z1 = -Infinity; for (const [x, z] of P) { x0 = Math.min(x0, x); x1 = Math.max(x1, x); z0 = Math.min(z0, z); z1 = Math.max(z1, z); }
-  const cell = Math.max(60, Math.max(x1 - x0, z1 - z0) / 150); x0 -= cell * 2; z0 -= cell * 2; const nx = Math.ceil((x1 - x0) / cell) + 2, nz = Math.ceil((z1 - z0) / cell) + 2;
+  const cell = Math.max(60, Math.max(x1 - x0, z1 - z0) / 240); x0 -= cell * 2; z0 -= cell * 2; const nx = Math.ceil((x1 - x0) / cell) + 2, nz = Math.ceil((z1 - z0) / cell) + 2;
   const pos = [], col = [], idx = [], hs = [], sand = new THREE.Color(PAL[0]), grass = new THREE.Color(PAL[1]), rock = new THREE.Color(PAL[2]), c = new THREE.Color(), ramp = 900 * g.S, base = (L.base ?? 25) * g.S;
   let top = 1;
   for (let i = 0; i <= nx; i++) for (let j = 0; j <= nz; j++) {
     const x = x0 + i * cell, z = z0 + j * cell, inside = inPoly(P, x, z); let h = -25;
-    if (inside) { const e = Math.min(1, edgeDist(P, x, z) / ramp); h = 2 + base * e + (vnoise(x * 0.001, z * 0.001) - 0.5) * 18 * e; for (const [px, pz, H, R] of pk) h += H * Math.exp(-((x - px) ** 2 + (z - pz) ** 2) / (2 * R * R)) * Math.min(1, e * 2.5); }
+    if (inside) { const e = Math.min(1, edgeDist(P, x, z) / ramp); let pkh = 0; for (const [px, pz, H, R] of pk) pkh += H * Math.exp(-((x - px) ** 2 + (z - pz) ** 2) / (2 * R * R));
+      const relief = (fbm2(x / (1800 * g.S + 400), z / (1800 * g.S + 400)) - 0.42) * (130 * g.S + pkh * 0.45); // ridges and valleys, stronger on the high ground
+      h = 2 + base * e + Math.max(-base * 0.6, relief) * e + pkh * Math.min(1, e * 2.5); }
     hs.push(h); top = Math.max(top, h); pos.push(x, h, z);
   }
-  for (const h of hs) { const k2 = h / top, n = vnoise(h, top) * 0.18; c.copy(h < 7 ? sand : k2 < 0.55 ? grass : rock).lerp(k2 < 0.55 ? rock : grass, n); if (h < 0) c.copy(sand).multiplyScalar(0.6); col.push(c.r, c.g, c.b); }
+  const dirt = new THREE.Color(PAL[0]).lerp(new THREE.Color(PAL[2]), 0.5), forest = new THREE.Color(PAL[1]).multiplyScalar(0.72);
+  for (let i = 0; i <= nx; i++) for (let j = 0; j <= nz; j++) { // colour by height, slope and patchy noise: beach, forest, meadow, scrub, bare rock
+    const a = i * (nz + 1) + j, h = hs[a], hx = hs[Math.min(nx, i + 1) * (nz + 1) + j] - hs[Math.max(0, i - 1) * (nz + 1) + j], hz = hs[a + (j < nz ? 1 : 0)] - hs[a - (j > 0 ? 1 : 0)];
+    const slope = Math.hypot(hx, hz) / (2 * cell), k2 = h / top, patch = fbm2(pos[a * 3] / 900, pos[a * 3 + 2] / 900);
+    if (h < 0) c.copy(sand).multiplyScalar(0.55); else if (h < 6) c.copy(sand);
+    else { c.copy(patch > 0.52 ? forest : grass).lerp(dirt, Math.max(0, (patch - 0.62) * 2.5)); c.lerp(rock, Math.min(1, Math.max(0, (slope - 0.35) * 2.2) + Math.max(0, (k2 - 0.7) * 2.5))); }
+    col.push(c.r, c.g, c.b); }
+  const uv = []; for (let i = 0; i < pos.length; i += 3) uv.push(pos[i] / 160, pos[i + 2] / 160);
   for (let i = 0; i < nx; i++) for (let j = 0; j < nz; j++) { const a = i * (nz + 1) + j, b = a + nz + 1; if (hs[a] < 0 && hs[a + 1] < 0 && hs[b] < 0 && hs[b + 1] < 0) continue; idx.push(a, a + 1, b, b, a + 1, b + 1); }
-  const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); geo.setIndex(idx); geo.computeVertexNormals();
-  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1 })); m.receiveShadow = false; scene.add(m); islands.push(m);
+  const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3)); geo.setAttribute("color", new THREE.Float32BufferAttribute(col, 3)); geo.setAttribute("uv", new THREE.Float32BufferAttribute(uv, 2)); geo.setIndex(idx); geo.computeVertexNormals();
+  const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, map: GROUND, roughness: 1, envMapIntensity: 0.25 })); m.receiveShadow = false; scene.add(m); islands.push(m);
   let cx = 0, cz = 0; for (const [x, z] of P) { cx += x; cz += z; } G.islands.push({ x: cx / P.length, z: cz / P.length, r: 0, poly: P, bb: [x0, x1, z0, z1] });
 }
 export function makeIslands(id = "arch") {
