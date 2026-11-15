@@ -210,9 +210,23 @@
       .rstats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:18px; } .rstats div { border:1px solid var(--gline); padding:12px; display:flex; flex-direction:column; gap:4px; } .rstats span { font-size:12px; color:var(--cream2); } .rstats b { font:700 24px "Special Elite"; }
       .ladder { display:flex; flex-direction:column; gap:4px; } .ladder div { display:grid; grid-template-columns:40px 56px minmax(150px,1.3fr) 90px 1fr; align-items:center; gap:10px; padding:7px 10px; border:1px solid transparent; font-size:13px; } .ladder div.cur { border-color:var(--gold); background:rgba(232,196,90,.18); } .ladder div.done { color:var(--cream2); } .ladder .xp { font-family:"Special Elite"; }
       /* overlays */
-      .overlay { background:linear-gradient(rgba(10,14,12,.25),rgba(10,14,12,.6)); }
-      #pause .box { padding:26px 34px; display:flex; flex-direction:column; gap:14px; align-items:center; }
-      #pause h1, #pause h2 { font-family:"Stardos Stencil"; } .sens, .chk { color:var(--cream2) !important; }
+      .overlay { background:linear-gradient(rgba(10,14,12,.35),rgba(10,14,12,.72)); }
+      #pause { background:radial-gradient(ellipse at center,rgba(10,14,12,.74),rgba(6,10,8,.92)); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); z-index:60; }
+      #pause .box { width:min(760px,calc(100vw - 40px)); max-height:calc(100vh - 40px); overflow:auto; padding:20px 26px; box-sizing:border-box; display:flex; flex-direction:column; gap:12px; align-items:center; }
+      #pause h1, #pause h2 { font-family:"Stardos Stencil"; } #pause h1 { font-size:38px; line-height:1.1; } .sens, .chk { color:var(--cream2) !important; }
+      #pause input[type="range"], #pause input[type="checkbox"] { accent-color:var(--gold); cursor:pointer; }
+      .pset { width:100%; display:grid; grid-template-columns:1.15fr 1fr; gap:10px 22px; padding:12px 14px; border:1px solid var(--gline); background:rgba(12,15,11,.42); box-sizing:border-box; }
+      .pset-col { display:flex; flex-direction:column; gap:9px; justify-content:center; }
+      #pause .sens { width:100%; display:grid; grid-template-columns:132px 1fr auto; gap:8px; align-items:center; font-size:12.5px; text-align:left; }
+      #pause .sens input { width:100%; min-width:110px; margin:0; }
+      #sensV { min-width:38px; text-align:right; color:var(--gold); font:700 12.5px "Special Elite",monospace; padding:2px 5px; border:1px solid var(--gline); background:rgba(240,201,90,.12); }
+      #pause .chk { width:100%; justify-content:flex-start; font-size:12.5px; text-align:left; cursor:pointer; }
+      .pkeys { width:100%; display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; text-align:left; }
+      .pk-grp { border:1px solid var(--gline); background:rgba(12,15,11,.42); padding:9px 11px; display:flex; flex-direction:column; gap:5px; }
+      .pk-grp h3 { margin:0 0 2px; font:400 13px "Stardos Stencil","Noto Sans KR",sans-serif; letter-spacing:.06em; color:var(--gold); border-bottom:1px dashed var(--gline); padding-bottom:4px; }
+      .pk-row { display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:11.5px; color:var(--cream2); line-height:1.35; }
+      .pk-row kbd { flex:none; font:700 10.5px/1.2 "Special Elite","Noto Sans KR",monospace; color:#fbe9b0; background:rgba(28,30,24,.9); border:1px solid var(--gline); border-bottom:2px solid rgba(232,220,184,.55); padding:2px 5px; white-space:nowrap; }
+      .pk-row span { text-align:right; word-break:keep-all; }
       #pause .go, #end .go { border-radius:0; background:rgba(232,196,90,.3); border:1px solid var(--gold); color:#fbe9b0; font-family:"Stardos Stencil"; letter-spacing:.12em; } #pause .go.alt, #end .go.alt { background:transparent; border-color:rgba(232,220,184,.6); color:var(--cream); }
       #end { grid-auto-flow:column; gap:40px; align-items:center; }
       #end .report { width:600px; padding:30px 36px; box-sizing:border-box; display:flex; flex-direction:column; gap:12px; text-align:left; transform:rotate(-1deg); }
@@ -690,12 +704,50 @@
       <div class="box g">
         <h2>PAUSED</h2>
         <h1>일시정지</h1>
-        <label class="sens">효과음 <input id="vol_sfx" type="range" min="0" max="1" step="0.05" value="0.85" /></label>
-        <label class="sens">배경음악 <input id="vol_music" type="range" min="0" max="1" step="0.05" value="0.5" /></label>
-        <label class="chk"><input id="bgmOn" type="checkbox" checked /> 배경음악 켜기</label>
-        <label class="chk"><input id="glassOn" type="checkbox" checked /> 유리(흐림) 효과 — 느리면 끄세요</label>
-        <label class="chk"><input id="postOn" type="checkbox" checked /> 고급 그래픽 (블룸·필름 톤·안티에일리어싱) — 느리면 끄세요</label>
-        <label class="sens">전투기 마우스 감도 <input id="sens" type="range" min="0.2" max="1.5" step="0.05" value="0.6" /> <b id="sensV">0.60</b></label>
+        <div class="pset">
+          <div class="pset-col">
+            <label class="sens"><span>효과음</span><input id="vol_sfx" type="range" min="0" max="1" step="0.05" value="0.85" /><span></span></label>
+            <label class="sens"><span>배경음악</span><input id="vol_music" type="range" min="0" max="1" step="0.05" value="0.5" /><span></span></label>
+            <label class="sens"><span>전투기 마우스 감도</span><input id="sens" type="range" min="0.2" max="1.5" step="0.05" value="0.6" /><b id="sensV">0.60</b></label>
+          </div>
+          <div class="pset-col">
+            <label class="chk"><input id="bgmOn" type="checkbox" checked /> 배경음악 켜기</label>
+            <label class="chk"><input id="glassOn" type="checkbox" checked /> 유리(흐림) 효과 — 느리면 끄세요</label>
+            <label class="chk"><input id="postOn" type="checkbox" checked /> 고급 그래픽 (블룸·필름 톤·안티에일리어싱) — 느리면 끄세요</label>
+          </div>
+        </div>
+        <div class="pkeys" aria-label="조작키 요약">
+          <div class="pk-grp">
+            <h3>함선 · 공통</h3>
+            <div class="pk-row"><kbd>우클릭</kbd><span>이동 (Shift 경유지)</span></div>
+            <div class="pk-row"><kbd>0 · 1~3</kbd><span>정지 · 속력 단계</span></div>
+            <div class="pk-row"><kbd>더블클릭</kbd><span>조준 · 적함 고정</span></div>
+            <div class="pk-row"><kbd>Space</kbd><span>주포 · 어뢰 발사</span></div>
+            <div class="pk-row"><kbd>R / Z</kbd><span>응급 수리 / 자동 사격</span></div>
+            <div class="pk-row"><kbd>M / C / Tab</kbd><span>지도 / 기함 / 시점 전환</span></div>
+            <div class="pk-row"><kbd>J / H / U</kbd><span>자동전투 / 도움말 / HUD</span></div>
+          </div>
+          <div class="pk-grp">
+            <h3>2차대전 · 특수전</h3>
+            <div class="pk-row"><kbd>A·D / W·S</kbd><span>포 사선 · 사거리 보정</span></div>
+            <div class="pk-row"><kbd>Q</kbd><span>주포 ↔ 어뢰 전환</span></div>
+            <div class="pk-row"><kbd>F / Enter</kbd><span>함재기 출격 / 직접 조종</span></div>
+            <div class="pk-row"><kbd>G</kbd><span>대공 사수 (Q 탄종)</span></div>
+            <div class="pk-row"><kbd>B / V</kbd><span>적함 나포 / 상륙·갑판</span></div>
+            <div class="pk-row"><kbd>마우스·W/S</kbd><span>와일드캣 비행 · 스로틀</span></div>
+            <div class="pk-row"><kbd>Space·B·Q·V</kbd><span>기총·폭탄·락온·조종석</span></div>
+          </div>
+          <div class="pk-grp">
+            <h3>현대전 · 제트기</h3>
+            <div class="pk-row"><kbd>F / O / Y</kbd><span>대함미사일 / 레이더 / 헬기</span></div>
+            <div class="pk-row"><kbd>G / I / T</kbd><span>전투기 출격 / 조종 / 추적</span></div>
+            <div class="pk-row"><kbd>W·S / A·D</kbd><span>기수 상하 / 롤 (마우스 미세)</span></div>
+            <div class="pk-row"><kbd>Shift·E / Q</kbd><span>제트 가속 / 감속</span></div>
+            <div class="pk-row"><kbd>좌클릭 / Space</kbd><span>기관포 / 공대공 미사일</span></div>
+            <div class="pk-row"><kbd>B / X</kbd><span>대함 미사일 / 플레어</span></div>
+            <div class="pk-row"><kbd>Alt·휠 / V</kbd><span>둘러보기 / 조종석 시점</span></div>
+          </div>
+        </div>
         <div class="btns">
           <button id="resumeBtn" class="go">계속 (P)</button>
           <button id="quitYardBtn" class="go alt">전투 포기 → 조선소</button>
