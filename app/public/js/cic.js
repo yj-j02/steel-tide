@@ -231,7 +231,7 @@ function nearestSnap(x, z, maxD) {
     if (d < bd) { bd = d; best = { name: s.name, x: c.x, z: c.z }; }
   }
   for (const k of C.lastMarks || []) {
-    if (k.kind !== "ground") continue;
+    if (k.kind !== "ground" && k.kind !== "sub") continue;
     const d = Math.hypot(k.pos.x - x, k.pos.z - z);
     if (d < bd) { bd = d; best = { name: k.label, x: k.pos.x, z: k.pos.z }; }
   }
@@ -264,9 +264,10 @@ function updateTracks(P, marks) {
     }
   }
   for (const k of marks || []) {
-    if (k.kind !== "ground") continue;
+    if (k.kind !== "ground" && k.kind !== "sub") continue;
     const d = Math.hypot(k.pos.x - P.pos.x, k.pos.z - P.pos.z), b = brg(Math.atan2(k.pos.z - P.pos.z, k.pos.x - P.pos.x));
-    rows.push({ tn: `G${String(tn++).padStart(2, "0")}`, name: k.label, src: k.hp > 0 ? `지상 ${Math.round(k.hp * 100)}%` : "지상 목표", km: (d / 1000).toFixed(1), brg: b, x: k.pos.x, z: k.pos.z, esm: false });
+    const isSub = k.kind === "sub";
+    rows.push({ tn: `${isSub ? "S" : "G"}${String(tn++).padStart(2, "0")}`, name: k.label, src: isSub ? `대잠 ±${((k.r || 300) / 1000).toFixed(1)}k` : (k.hp > 0 ? `지상 ${Math.round(k.hp * 100)}%` : "지상 목표"), km: (d / 1000).toFixed(1), brg: b, x: k.pos.x, z: k.pos.z, esm: isSub });
   }
   C.trkList = rows;
   const pt = C.deps.md.supPt;
@@ -452,9 +453,17 @@ function drawMap(marks) {
     x.strokeStyle = "rgba(255,84,72,.82)"; x.lineWidth = 1.6; x.beginPath(); x.arc(wu, wv, pr, 0, TAU); x.stroke();
   }
   for (const k of marks || []) {
-    const [u, v] = S(k.pos); x.strokeStyle = x.fillStyle = k.c;
-    if (k.r) { x.setLineDash([4, 4]); x.beginPath(); x.arc(u, v, Math.max(5, k.r * sc), 0, TAU); x.stroke(); x.setLineDash([]); } else x.fillRect(u - 4, v - 4, 8, 8);
-    x.fillText(k.label, u + 8, v - 5);
+    const [u, v] = S(k.pos); x.strokeStyle = x.fillStyle = k.c; x.lineWidth = 1.6;
+    if (k.r) { x.save(); x.setLineDash([4, 4]); x.beginPath(); x.arc(u, v, Math.max(5, k.r * sc), 0, TAU); x.stroke(); x.restore(); }
+    if (k.kind === "sub") {
+      x.beginPath(); x.moveTo(u - 6, v - 2); x.lineTo(u - 6, v + 2); x.lineTo(u, v + 7); x.lineTo(u + 6, v + 2); x.lineTo(u + 6, v - 2); x.stroke();
+    } else if (k.kind === "boat") {
+      x.beginPath(); x.moveTo(u - 4, v - 3); x.lineTo(u + 5, v); x.lineTo(u - 4, v + 3); x.closePath(); x.fill();
+    } else if (!k.r) {
+      x.fillRect(u - 4, v - 4, 8, 8);
+      if (k.hp > 0) { x.fillStyle = "rgba(0,0,0,.65)"; x.fillRect(u - 9, v + 6, 18, 3); x.fillStyle = k.c; x.fillRect(u - 9, v + 6, 18 * clamp(k.hp, 0, 1), 3); }
+    }
+    placeLbl(k.label, u + 8, v - 4, k.c);
   }
   if (C.battery) {
     const [u, v] = S(C.battery.pos); x.fillStyle = "#f2b544"; x.fillRect(u - 5, v - 5, 10, 10);

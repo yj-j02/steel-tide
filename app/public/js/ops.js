@@ -2,7 +2,7 @@
 // ASW (submarines, sonobuoys, torpedoes), ballistic-missile defence, drone swarms, shore bombardment,
 // modern convoy escort and the EMCON night raid. Missiles and drones fly through modern.js's missile list,
 // so the fleet's existing air defence (SAMs, CIWS, saturation) handles them without special cases.
-import { THREE, PI, TAU, clamp, wrap, rnd, gauss, G, scene, camera, spray, smoke, flash, spawnSplash, landAt } from "./core.js";
+import { THREE, PI, TAU, clamp, wrap, rnd, gauss, G, scene, camera, spray, smoke, flash, spark, rings, spawnSplash, landAt } from "./core.js";
 import { sfx, at } from "./audio.js";
 import { M, WPN, launch, hooks } from "./modern.js";
 
@@ -73,6 +73,8 @@ export function droneMesh(kind = 1) {
   } else {
     const pod = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.13, 1.1, 10), dark); pod.rotation.z = PI / 2; pod.position.set(-0.75, 0.3, 0); g.add(pod);
     const glow = new THREE.Mesh(new THREE.CircleGeometry(0.12, 10), new THREE.MeshBasicMaterial({ color: 0xffa040 })); glow.rotation.y = -PI / 2; glow.position.set(-1.31, 0.3, 0); g.add(glow);
+    const jFl = new THREE.Mesh(new THREE.ConeGeometry(0.11, 0.78, 8), new THREE.MeshBasicMaterial({ color: 0xff9a3c, transparent: true, opacity: 0.85, blending: THREE.AdditiveBlending, depthWrite: false }));
+    jFl.rotation.z = PI / 2; jFl.position.set(-1.68, 0.3, 0); g.add(jFl);
   }
   g.userData = { fl: new THREE.Object3D(), prop, lights, drone: kind }; g.add(g.userData.fl);
   g.scale.setScalar(3.2); // game scale: a 3 m drone would vanish next to a 170 m destroyer
@@ -196,16 +198,30 @@ function dropBuoy(x, z) { const live = O.buoys.filter((b) => b.alive); if (live.
 function stepBuoys(dt) { for (const b of O.buoys) { if (!b.alive) continue; b.t += dt; b.mesh.userData.light.visible = Math.floor(b.t * 1.5) % 2 === 0; b.mesh.position.y = 0.6 + Math.sin(b.t * 1.7) * 0.4; if (b.t > 300) { b.alive = false; scene.remove(b.mesh); } } }
 /** ASW rocket (ASROC / Red Shark class): flies to the point, drops a lightweight torpedo that searches there. */
 export function aswRocket(S, pt, ctx) {
-  if (!(S.asw > 0)) return false; S.asw--; const g = new THREE.Group(); const b = new THREE.Mesh(new THREE.CylinderGeometry(0.5, 0.5, 6, 8), MAT(0xdedede)); b.rotation.z = PI / 2; g.add(b); g.scale.setScalar(2); add(g);
+  if (!(S.asw > 0)) return false; S.asw--; const g = new THREE.Group();
+  const b = new THREE.Mesh(new THREE.CylinderGeometry(0.45, 0.48, 5.6, 10), MAT(0xe6e8ea)); b.rotation.z = PI / 2; g.add(b);
+  const nose = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.8, 10), MAT(0xc83e32)); nose.rotation.z = -PI / 2; nose.position.x = 3.7; g.add(nose);
+  const finM = MAT(0x2a2e32);
+  for (const rx of [0, PI / 2]) { const fn = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.08, 1.7), finM); fn.position.x = -2.1; fn.rotation.x = rx; g.add(fn); }
+  const fl = new THREE.Mesh(new THREE.ConeGeometry(0.38, 2.8, 8), new THREE.MeshBasicMaterial({ color: 0xffa84c, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false }));
+  fl.rotation.z = PI / 2; fl.position.x = -4.2; g.add(fl);
+  g.scale.setScalar(2); add(g);
   const p0 = S.pos.clone().setY(S.spec.fb + 6), T = 7 + dist2(S.pos, pt) / 1400;
-  O.rockets.push({ p0, p1: pt.clone().setY(0), T, t: 0, mesh: g }); smoke.spawn({ x: p0.x, y: p0.y, z: p0.z, vy: 6, life: 3, s0: 6, s1: 18, a: 0.6, c: 0xe8e8e8 }); sfx.mslLaunch?.(p0.distanceTo(camera.position));
+  O.rockets.push({ p0, p1: pt.clone().setY(0), T, t: 0, mesh: g });
+  flash.spawn({ x: p0.x, y: p0.y + 2, z: p0.z, life: 0.32, s0: 6, s1: 18, a: 0.9, c: 0xffc470 });
+  rings.spawn({ x: p0.x, z: p0.z, w0: 5, l0: 5, w1: 38, l1: 38, life: 1.3, a: 0.45, c: 0xdff2fc, ease: 3 });
+  smoke.spawn({ x: p0.x, y: p0.y, z: p0.z, vy: 6, life: 3, s0: 6, s1: 18, a: 0.6, c: 0xe8e8e8 }); sfx.mslLaunch?.(p0.distanceTo(camera.position));
   ctx?.log?.(`${S.name} 대잠로켓 발사 → 추정 위치 (남은 ${S.asw})`, "hit"); return true;
 }
 function stepRockets(dt) {
   for (let i = O.rockets.length - 1; i >= 0; i--) { const r = O.rockets[i]; r.t += dt; const u = Math.min(1, r.t / r.T); const arc = (k) => { const p = r.p0.clone().lerp(r.p1, k); p.y = r.p0.y * (1 - k) + Math.sin(PI * k) * 900; return p; };
     const p = arc(u); r.mesh.position.copy(p); r.mesh.lookAt(arc(Math.min(1, u + 0.01))); r.mesh.rotateY(PI / 2);
     if (rnd() < dt * 20) smoke.spawn({ x: p.x, y: p.y, z: p.z, life: 2, s0: 3, s1: 10, a: 0.4, c: 0xdddddd });
-    if (u >= 1) { scene.remove(r.mesh); O.rockets.splice(i, 1); spawnSplash(r.p1.x, r.p1.z, 0.3); lightweight(r.p1, "us", 0.65); } }
+    if (u >= 1) {
+      scene.remove(r.mesh); O.rockets.splice(i, 1);
+      flash.spawn({ x: r.p1.x, y: 18, z: r.p1.z, life: 0.25, s0: 4, s1: 12, a: 0.85, c: 0xffd27a });
+      spawnSplash(r.p1.x, r.p1.z, 0.35); lightweight(r.p1, "us", 0.65);
+    } }
 }
 function lightweight(pos, side, pk) { O.lw.push({ pos: pos.clone(), t: 0, side, pk, sub: null }); }
 function stepLightweights(dt, ctx) {
@@ -249,7 +265,7 @@ function stepShore(dt, ctx) {
   for (const t of O.targets) { if (!t.alive) continue; if (t.mesh.userData.spin) t.mesh.userData.spin.rotation.y += dt * 1.2; t.cd -= dt;
     if (t.kind === "gun" && t.cd <= 0) { t.cd = 7 + rnd() * 4; const tgt = [...O.boats.filter((b) => b.alive && !b.landed && dist2(b.pos, t.pos) < 7000), ...usShips().filter((s) => dist2(s.pos, t.pos) < 14000)][0];
       if (tgt) { const hit = rnd() < (tgt.boat ? 0.28 : 0.22); const p = tgt.pos.clone().add(new THREE.Vector3(gauss() * (hit ? 10 : 90), 0, gauss() * (hit ? 10 : 90)));
-        flash.spawn({ x: t.pos.x, y: t.pos.y + 10, z: t.pos.z, life: 0.3, s0: 12, s1: 30, a: 1, c: 0xffc070 }); setTimeoutQ(dist2(p, t.pos) / 700, () => { spawnSplash(p.x, p.z, 0.45); if (hit) { if (tgt.boat) { tgt.hp -= 55; if (tgt.hp <= 0 && tgt.alive) { tgt.alive = false; O.lostBoats++; ctx.log("상륙정 피격 침몰!", "bad"); } } else tgt.damage(tgt.maxHp * 0.025); } }); } }
+        flash.spawn({ x: t.pos.x, y: t.pos.y + 10, z: t.pos.z, life: 0.3, s0: 12, s1: 30, a: 1, c: 0xffc070 }); smoke.spawn({ x: t.pos.x, y: t.pos.y + 9, z: t.pos.z, vy: 5, life: 4, s0: 6, s1: 20, a: 0.55, c: 0xc8c2b4 }); const gd = t.pos.distanceTo(camera.position); if (gd < 14000) at(gd, () => sfx.farGun?.(gd, 155)); setTimeoutQ(dist2(p, t.pos) / 700, () => { spawnSplash(p.x, p.z, 0.45); if (hit) { if (tgt.boat) { tgt.hp -= 55; if (tgt.hp <= 0 && tgt.alive) { tgt.alive = false; O.lostBoats++; ctx.log("상륙정 피격 침몰!", "bad"); } } else tgt.damage(tgt.maxHp * 0.025); } }); } }
     if (t.kind === "ssm" && t.cd <= 0 && O.t > 30) { t.cd = 80; const T = usShips().filter((s) => s.spec.modern).sort((a, b) => dist2(a.pos, t.pos) - dist2(b.pos, t.pos))[0]; if (T && dist2(T.pos, t.pos) < 28000) { for (let k = 0; k < 2; k++) setTimeoutQ(k * 1.5, () => launch(phantom("foe", t.pos.clone().setY(t.pos.y + 20), T.pos.clone().sub(t.pos).setY(0).normalize().multiplyScalar(200).setY(60)), "해안 대함", T)); ctx.log("해안 대함미사일 발사!", "bad"); sfx.alarm?.(); } } }
   if (O.t > 50 && !O.boats.length) { for (let i = 0; i < 3; i++) { const toB = new THREE.Vector3(O.beach.x - P.pos.x, 0, O.beach.z - P.pos.z), L = toB.length(); toB.normalize(); const p = new THREE.Vector3(O.beach.x, 0, O.beach.z).addScaledVector(toB, -Math.min(L, 6500)).add(new THREE.Vector3(-toB.z * (i - 1) * 300, 0, toB.x * (i - 1) * 300)); const mesh = add(boatMesh()); O.boats.push({ boat: true, name: `상륙정 ${i + 1}`, pos: p, hp: 100, alive: true, mesh, landed: false }); } ctx.toast("상륙정 3척 발진 — 해안포를 먼저 침묵시켜라", 4); ctx.log("상륙정 3척 해안으로 발진", "hit"); }
   for (const b of O.boats) { if (!b.alive) { if (b.mesh.position.y > -10) b.mesh.position.y -= dt * 2; continue; } if (b.landed) continue; const d = dist2(b.pos, O.beach);
@@ -261,7 +277,13 @@ function stepShore(dt, ctx) {
 export function opsShellLand(p, gun) {
   if (O.op !== "modern:shore") return false; let hit = false;
   for (const t of O.targets) { if (!t.alive) continue; const d = dist2(p, t.pos); if (d < 70) { hit = true; t.hp -= (d < 25 ? 34 : 18) * (gun?.cal ? Math.max(0.6, gun.cal / 127) : 1); if (t.hp <= 0) { t.alive = false; t.mesh.rotation.z = 0.5; t.mesh.position.y -= 6; for (let k = 0; k < 8; k++) smoke.spawn({ x: t.pos.x + gauss() * 10, y: t.pos.y, z: t.pos.z + gauss() * 10, vy: 8, life: 30, s0: 20, s1: 70, a: 0.5, c: 0x2a2826 }); O.msg = `${t.name} 파괴`; } } }
-  if (landAt(p.x, p.z) || hit) { flash.spawn({ x: p.x, y: 20, z: p.z, life: 0.4, s0: 14, s1: 40, a: 1, c: 0xffb060 }); smoke.spawn({ x: p.x, y: 20, z: p.z, vy: 6, life: 6, s0: 14, s1: 46, a: 0.6, c: 0x6b5a48 }); return true; }
+  if (landAt(p.x, p.z) || hit) {
+    flash.spawn({ x: p.x, y: 20, z: p.z, life: 0.4, s0: 14, s1: 40, a: 1, c: 0xffb060 });
+    smoke.spawn({ x: p.x, y: 20, z: p.z, vy: 6, life: 6, s0: 14, s1: 46, a: 0.6, c: 0x6b5a48 });
+    for (let k = 0; k < 10; k++) spark.spawn({ x: p.x, y: 21, z: p.z, vx: gauss() * 22, vy: 10 + rnd() * 22, vz: gauss() * 22, g: 9.8, life: 1.1 + rnd() * 0.6, s0: 1.8, s1: 0.5, a: 0.95, c: hit ? 0xffb858 : 0xc89658 });
+    const ld = p.distanceTo(camera.position); if (ld < 12000) at(ld, () => (hit ? sfx.explode(ld) : sfx.hit(ld, 0.8)));
+    return true;
+  }
   return false;
 }
 
