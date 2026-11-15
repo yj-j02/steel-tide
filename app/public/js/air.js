@@ -153,9 +153,16 @@ export class Plane {
         const g = GUNS6[this.gunI++ % 6], m = o.localToWorld(new THREE.Vector3(...g)), conv = o.position.clone().addScaledVector(f, 260);
         const dir = conv.sub(m).normalize(); dir.x += gauss() * 0.004; dir.y += gauss() * 0.004; dir.z += gauss() * 0.004;
         air.bullets.push({ p: m, v: f.clone().multiplyScalar(this.speed).addScaledVector(dir, 870), t: 0, side: this.side, by: this, own: this === G.plane });
-        if (this.gunI % 2 === 0) flash.spawn({ x: m.x, y: m.y, z: m.z, life: 0.055, s0: 1.25, s1: 0.7, a: 0.95, c: 0xffd27a });
+        if (this.gunI % 2 === 0) {
+          flash.spawn({ x: m.x, y: m.y, z: m.z, life: 0.055, s0: 1.25, s1: 0.7, a: 0.95, c: 0xffd27a });
+          const d = this === G.plane ? 0 : camera.position.distanceTo(o.position);
+          if (d < 80 && this.gunI % 4 === 0) {
+            const ej = o.localToWorld(new THREE.Vector3(g[0] * 0.96, g[1] - 0.14, g[2] - 0.45));
+            spark.spawn({ x: ej.x, y: ej.y, z: ej.z, vx: this.vel.x * 0.35 - f.x * 18 + gauss() * 3, vy: this.vel.y * 0.35 - 6 + gauss() * 2, vz: this.vel.z * 0.35 - f.z * 18 + gauss() * 3, life: 0.38, s0: 0.16, s1: 0.08, a: 0.95, c: 0xffcf68, g: 22, drag: 1.2 });
+          }
+          if (d < 30) sfx.mgShot(0); else if (this.gunI % 6 === 0) at(d, () => sfx.mgShot(d));
+        }
         if (this.gunI % 6 === 0) smoke.spawn({ x: m.x, y: m.y, z: m.z, vx: this.vel.x * 0.2 + gauss(), vy: this.vel.y * 0.2, vz: this.vel.z * 0.2 + gauss(), life: 0.45, s0: 0.9, s1: 2.6, a: 0.25, c: 0xd8d6cf });
-        if (this.gunI % 2 === 0) { const d = this === G.plane ? 0 : camera.position.distanceTo(o.position); if (d < 30) sfx.mgShot(0); else if (this.gunI % 6 === 0) at(d, () => sfx.mgShot(d)); }
       }
     } else this.fireT = 0;
     if (this.alive && this.throttle > 0.92 && rnd() < dt * 16) {
@@ -167,6 +174,7 @@ export class Plane {
     }
     this.smokeT -= dt;
     if (this.smokeT <= 0 && this.hp < 50) { this.smokeT = 0.06; const t = o.localToWorld(new THREE.Vector3(0, 0, -1)); smoke.spawn({ x: t.x, y: t.y, z: t.z, life: 4, s0: 1.5, s1: 9, a: this.alive ? 0.5 : 0.85, c: this.alive ? 0x555555 : 0x151515 });
+      if (this.hp < 35) spark.spawn({ x: t.x, y: t.y, z: t.z, vx: gauss() * 6, vy: 2 + rnd() * 4, vz: gauss() * 6, life: 0.55, s0: 0.45, s1: 0.1, a: 0.9, c: 0xff8a2b, g: 8 });
       if (!this.alive) flash.spawn({ x: t.x, y: t.y, z: t.z, life: 0.25, s0: 3, s1: 1.5, a: 1, c: 0xff7020 }); }
     const hit = o.position.y < 14 ? hullHit(o.position, null) : null;
     if (o.position.y < 1 || hit) {
@@ -301,6 +309,7 @@ function stepAA(dt) {
   for (let i = air.flak.length - 1; i >= 0; i--) {
     const f = air.flak[i]; f.t -= dt; if (f.t > 0) continue; air.flak.splice(i, 1);
     flash.spawn({ x: f.p.x, y: f.p.y, z: f.p.z, life: 0.12, s0: 6, s1: 10, a: 1, c: 0xffb060 });
+    for (let s = 0; s < 6; s++) spark.spawn({ x: f.p.x, y: f.p.y, z: f.p.z, vx: gauss() * 28, vy: gauss() * 22, vz: gauss() * 28, life: 0.32 + rnd() * 0.25, s0: 0.65, s1: 0.15, a: 0.95, c: 0xffa845, g: 14, drag: 1.5 });
     for (let k = 0; k < 3; k++) smoke.spawn({ x: f.p.x + gauss() * 2, y: f.p.y + gauss() * 2, z: f.p.z + gauss() * 2, vx: 0.6, vy: 0.2, life: 7, s0: 4, s1: 17, a: 0.9, c: 0x161616 });
     const d = camera.position.distanceTo(f.p); if (d < 3500) at(d, () => sfx.flak(d));
     const R = f.own ? 55 : 30; let hit = false;

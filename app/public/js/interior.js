@@ -205,10 +205,24 @@ function drawPanel(pl, dt) {
   compassStrip(x, 740, 380, 220, 56, hdg);
   { x.fillStyle = "#e8e4d4"; x.font = "bold 14px Arial"; x.textAlign = "center"; x.fillText("COMPASS", 740, 425); }
   // armament panel
-  const lamp = (cx, cy, on, col, label) => { x.fillStyle = on ? col : "#2a2a2a"; x.beginPath(); x.arc(cx, cy, 11, 0, TAU); x.fill(); x.strokeStyle = "#555"; x.lineWidth = 2; x.stroke(); x.fillStyle = "#cfcabb"; x.font = "bold 12px Arial"; x.textAlign = "center"; x.fillText(label, cx, cy + 24); };
+  const lamp = (cx, cy, on, col, label) => {
+    if (on) { x.fillStyle = col + "44"; x.beginPath(); x.arc(cx, cy, 16, 0, TAU); x.fill(); }
+    x.fillStyle = on ? col : "#2a2a2a"; x.beginPath(); x.arc(cx, cy, 10, 0, TAU); x.fill(); x.strokeStyle = "#555"; x.lineWidth = 2; x.stroke(); x.fillStyle = "#cfcabb"; x.font = "bold 11px Arial"; x.textAlign = "center"; x.fillText(label, cx, cy + 23);
+  };
   x.fillStyle = "#0b0d0e"; x.fillRect(890, 300, 120, 200);
-  lamp(925, 330, pl.ammo > 0, "#ffcf5a", "GUNS"); lamp(975, 330, pl.bombs > 0, "#ff8a3d", "BOMBS"); lamp(925, 395, pl.hp < 50, "#ff3b30", "DAMAGE"); lamp(975, 395, pl.flareT > 0, "#ffffff", "FLARE");
-  x.fillStyle = "#e8e4d4"; x.font = "bold 16px monospace"; x.fillText(`RDS ${String(pl.ammo).padStart(4, "0")}`, 950, 470);
+  x.strokeStyle = "#3c4246"; x.lineWidth = 2; x.strokeRect(890, 300, 120, 200);
+  if (pl.hp < 50 && Math.floor(performance.now() * 0.006) % 2 === 0) {
+    x.fillStyle = "rgba(255,59,48,0.22)"; x.fillRect(892, 302, 116, 18);
+    x.fillStyle = "#ff5b4d"; x.font = "bold 10px monospace"; x.textAlign = "center"; x.fillText("OIL PRESS LOW", 950, 314);
+  }
+  lamp(925, 340, pl.ammo > 0, "#ffcf5a", "GUNS"); lamp(975, 340, pl.bombs > 0, "#ff8a3d", "BOMBS"); lamp(925, 398, pl.hp < 50, "#ff3b30", "DAMAGE"); lamp(975, 398, pl.flareT > 0, "#ffffff", "FLARE");
+  const lowAmmo = pl.ammo > 0 && pl.ammo < 600 && Math.floor(performance.now() * 0.008) % 2 === 0;
+  x.fillStyle = pl.ammo <= 0 || lowAmmo ? "#ff5242" : "#e8e4d4"; x.font = "bold 15px monospace"; x.textAlign = "center"; x.fillText(`RDS ${String(pl.ammo).padStart(4, "0")}`, 950, 456);
+  const ratio = clamp((pl.ammo || 0) / 3600, 0, 1);
+  for (let b = 0; b < 6; b++) {
+    x.fillStyle = b / 6 < ratio ? (pl.ammo < 600 ? "#ff6a42" : "#ffcf5a") : "#222629";
+    x.fillRect(903 + b * 16, 470, 13, 12);
+  }
   panelTex.needsUpdate = true;
 }
 {
@@ -255,6 +269,24 @@ function drawPanel(pl, dt) {
   const glassM = new THREE.MeshBasicMaterial({ map: glassTex, transparent: true, opacity: 1, depthWrite: false, color: 0xdfeef2 });
   const pane = (w, h, x, y, z, ry, rx) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), glassM); m.position.set(x, y, z); m.rotation.set(rx, ry, 0, "YXZ"); g.add(m); };
   pane(0.36, 0.42, 0, 0.05, -0.56, 0, -0.32); for (const s of [1, -1]) pane(0.3, 0.42, s * 0.31, 0.05, -0.44, -s * 0.85, -0.25);
+  const dmgC = document.createElement("canvas"); dmgC.width = 256; dmgC.height = 256;
+  {
+    const dc = dmgC.getContext("2d");
+    const og = dc.createRadialGradient(128, 128, 86, 128, 128, 152);
+    og.addColorStop(0, "rgba(18,14,10,0)"); og.addColorStop(0.55, "rgba(22,16,10,0.48)"); og.addColorStop(1, "rgba(10,8,6,0.9)");
+    dc.fillStyle = og; dc.fillRect(0, 0, 256, 256);
+    dc.fillStyle = "rgba(14,11,8,0.78)";
+    for (let i = 0; i < 24; i++) {
+      const a = (i * 2.39996) % TAU, r = 92 + (i * 7) % 44;
+      dc.beginPath(); dc.ellipse(128 + Math.cos(a) * r, 128 + Math.sin(a) * r * 0.72, 2 + (i % 4), 5 + (i % 7), a, 0, TAU); dc.fill();
+    }
+    dc.strokeStyle = "rgba(230,242,248,0.55)"; dc.lineWidth = 1.1;
+    const cx = 196, cy = 54;
+    for (let k = 0; k < 8; k++) { const a = k * 0.78 + 0.2; dc.beginPath(); dc.moveTo(cx, cy); dc.lineTo(cx + Math.cos(a) * 38, cy + Math.sin(a) * 28); dc.stroke(); }
+  }
+  const dmgTex = new THREE.CanvasTexture(dmgC);
+  const dmgGlass = new THREE.Mesh(new THREE.PlaneGeometry(0.68, 0.36), new THREE.MeshBasicMaterial({ map: dmgTex, transparent: true, opacity: 0, depthWrite: false }));
+  dmgGlass.position.set(0, 0.05, -0.53); dmgGlass.rotation.x = -0.32; g.add(dmgGlass); cockpit.userData.dmgGlass = dmgGlass;
   const bar = (len, x, y, z, rx, rz, ry = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.012, len, 0.012), frameM); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); g.add(m); };
   for (const s of [1, -1]) {
     bar(0.46, s * 0.18, 0.05, -0.56, -0.32, 0); bar(0.46, s * 0.43, 0.05, -0.33, -0.25, s * 0.12);
@@ -310,6 +342,7 @@ export function updateCockpit(pl, dt) {
   if (cockpit.userData.panelGlow) cockpit.userData.panelGlow.material.opacity = fire ? 0.05 + Math.random() * 0.08 : 0;
   if (cockpit.userData.chargers) for (const ch of cockpit.userData.chargers) ch.position.z = fire ? -0.668 + (Math.random() - 0.5) * 0.016 : -0.67;
   if (cockpit.userData.refl) cockpit.userData.refl.position.x = clamp(-(pl.turnRate || 0) * 0.0022, -0.022, 0.022);
+  if (cockpit.userData.dmgGlass) cockpit.userData.dmgGlass.material.opacity = pl.hp < 65 ? clamp((65 - pl.hp) / 65, 0, 0.78) : 0;
 }
 
 // ── twin 40 mm Bofors mount, gunner's view (camera space) ──────────────────
