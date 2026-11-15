@@ -63,6 +63,8 @@ const MATS = { us: new THREE.MeshStandardMaterial({ color: 0xe9ecec, roughness: 
   core: new THREE.MeshBasicMaterial({ color: 0xfff8dc, transparent: true, opacity: 0.96, blending: THREE.AdditiveBlending, depthWrite: false }) };
 const FLAME = new THREE.ConeGeometry(0.32, 2.2, 10); FLAME.rotateZ(PI / 2); FLAME.translate(-1.1, 0, 0);
 const FLAME_CORE = new THREE.ConeGeometry(0.16, 1.25, 8); FLAME_CORE.rotateZ(PI / 2); FLAME_CORE.translate(-0.62, 0, 0);
+const SHOCK_RING = new THREE.TorusGeometry(0.14, 0.025, 6, 12); SHOCK_RING.rotateY(PI / 2);
+const TAIL_GLOW = new THREE.SphereGeometry(0.24, 8, 6);
 export const hooks = {}; // filled by ops.js (drone meshes) — avoids a circular import
 function mesh(W, side, sc) {
   if (W.drone && hooks.droneMesh) { const d = hooks.droneMesh(W.drone); scene.add(d); return d; }
@@ -71,6 +73,9 @@ function mesh(W, side, sc) {
   for (const r of [0, PI / 2]) { const f = new THREE.Mesh(FIN, m); f.position.x = -1.9; f.rotation.x = r; g.add(f); const c = new THREE.Mesh(CANARD, m); c.position.x = 0.6; c.rotation.x = r + PI / 4; g.add(c); }
   const fl = new THREE.Mesh(FLAME, MATS.fire); fl.position.x = -2.48; fl.scale.set(1.3, 0.9, 0.9); g.add(fl); g.userData.fl = fl;
   const flCore = new THREE.Mesh(FLAME_CORE, MATS.core); flCore.position.x = -2.48; flCore.scale.set(1.2, 0.85, 0.85); g.add(flCore); g.userData.flCore = flCore;
+  const tg = new THREE.Mesh(TAIL_GLOW, MATS.fire); tg.position.x = -2.52; g.add(tg);
+  const sd1 = new THREE.Mesh(SHOCK_RING, MATS.core); sd1.position.x = -2.85; sd1.scale.setScalar(1.0); g.add(sd1);
+  const sd2 = new THREE.Mesh(SHOCK_RING, MATS.core); sd2.position.x = -3.28; sd2.scale.setScalar(0.72); g.add(sd2);
   g.scale.setScalar(sc); scene.add(g); return g;
 }
 const X = new THREE.Vector3(1, 0, 0), tmp = new THREE.Vector3();
@@ -108,6 +113,10 @@ function kill(m, how) {
     for (let i = 0; i < 4; i++) flash.spawn({ x: p.x + gauss() * 4, y: p.y + gauss() * 3, z: p.z + gauss() * 4, life: 0.5 + i * 0.12, s0: 10 * big, s1: (34 + i * 8) * big, a: 1, c: i ? 0xff7a20 : 0xfff0c0 });
     for (let i = 0; i < 22; i++) spark.spawn({ x: p.x, y: p.y, z: p.z, vx: gauss() * 45, vy: gauss() * 30 + 10, vz: gauss() * 45, g: 9.8, life: 1.6 + rnd() * 1.4, s0: 2.4, s1: 0.7, a: 1, c: rnd() < 0.5 ? 0xffb050 : 0xff6a20 });
     for (let i = 0; i < 5; i++) smoke.spawn({ x: p.x + gauss() * 5, y: p.y + gauss() * 4, z: p.z + gauss() * 5, vy: 2, life: 8, s0: 10 * big, s1: 36 * big, a: 0.7, c: 0x2a2a2a });
+    if (p.y < 65) {
+      rings.spawn({ x: p.x, z: p.z, w0: 8, l0: 8, w1: 68 * big, l1: 68 * big, life: 1.6, a: 0.62, c: 0xdff4ff, ease: 3 });
+      if (p.y < 28) spawnSplash(p.x, p.z, 0.45 * big);
+    }
     const d = p.distanceTo(camera.position); at(d, () => (d < 9000 ? sfx.explode(d) : sfx.flak(d))); G.onIntercept?.(m);
   }
   else if (how === "sea") spawnSplash(m.pos.x, m.pos.z, 0.5);

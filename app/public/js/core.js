@@ -551,6 +551,13 @@ export function spawnSplash(x, z, sc = 1) {
   for (let i = 0; i < 3; i++) smoke.spawn({ x: x + gauss() * 4 * sc, y: (18 + rnd() * 26) * sc, z: z + gauss() * 4 * sc, vx: 2.2, vy: 0.8, vz: 0.7, life: 6 + rnd() * 3, s0: 10 * sc, s1: 42 * sc, a: 0.42, c: 0xeef2f3 });
   rings.spawn({ x, z, w0: 4 * sc, l0: 4 * sc, w1: 34 * sc, l1: 34 * sc, life: 3.6, a: 0.65 });
   patches.spawn({ x, z, w0: 10 * sc, l0: 10 * sc, w1: 42 * sc, l1: 42 * sc, life: 14, a: 0.5 });
+  if (sc >= 0.6) {
+    flash.spawn({ x, y: 1.5, z, life: 0.22, s0: 6 * sc, s1: 18 * sc, a: 0.55, c: 0xffd896 });
+    rings.spawn({ x, z, w0: 8 * sc, l0: 8 * sc, w1: 58 * sc, l1: 58 * sc, life: 2.2, a: 0.45, c: 0xd8eef8, ease: 3 });
+    for (let i = 0; i < 6; i++) {
+      spark.spawn({ x: x + gauss() * 2 * sc, y: 2 + rnd() * 2, z: z + gauss() * 2 * sc, vx: gauss() * 8 * k, vy: (18 + rnd() * 16) * k, vz: gauss() * 8 * k, g: GRAV, life: 0.9 + rnd() * 0.5, s0: 1.2 * k, s1: 0.3, a: 0.85, c: 0xe8f6ff });
+    }
+  }
 }
 export function spawnWake(x, z, heading, beam) { wakes.spawn({ x, z, rot: -heading + PI / 2, w0: beam * 0.9, l0: 16, w1: beam * 3.6, l1: 34, life: 70, a: 0.34, y: 0.35 }); }
 
