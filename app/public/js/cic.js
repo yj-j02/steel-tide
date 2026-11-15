@@ -240,14 +240,15 @@ function mapPick(e) {
   const tx = snap ? snap.x : p.x, tz = snap ? snap.z : p.z;
   return { x: tx, z: tz, snap: snap?.name, km: (Math.hypot(tx - P.pos.x, tz - P.pos.z) / 1000).toFixed(1), brg: brg(Math.atan2(tz - P.pos.z, tx - P.pos.x)) };
 }
-function updateTele(P, incoming, airborneJets) {
+function updateTele(P, incoming, airborneJets, etaSec = 0) {
   const tSec = Math.max(0, G.battleT | 0), mm = String((tSec / 60) | 0).padStart(2, "0"), ss = String(tSec % 60).padStart(2, "0");
   const cts = G.cts ? G.cts.size : 0, emcon = P.radarOn === false;
   const pt = C.deps.md.supPt, ptTxt = pt ? `${(Math.hypot(pt.x - P.pos.x, pt.z - P.pos.z) / 1000).toFixed(1)}km` : "미지정";
-  const sig = `${mm}:${ss}|${emcon}|${cts}|${incoming}|${airborneJets}|${ptTxt}|${C.zoom.toFixed(1)}`;
+  const sig = `${mm}:${ss}|${emcon}|${cts}|${incoming}|${etaSec}|${airborneJets}|${ptTxt}|${C.zoom.toFixed(1)}`;
   if (sig === C.tSig) return; C.tSig = sig;
   const el = $(".cic-tele"); if (!el) return;
-  el.innerHTML = `<span>T+<b>${mm}:${ss}</b></span><span>${emcon ? "<i>EMCON</i>" : "<b>RADAR</b>"}</span><span>표적 <b>${cts}</b></span><span>위협 ${incoming ? `<i>▲${incoming}</i>` : "0"}</span><span>편대 <b>${airborneJets}</b></span><span>목표 <b>${ptTxt}</b></span>`;
+  const thTxt = incoming ? `<i>▲${incoming}${etaSec > 0 ? ` (${etaSec}s)` : ""}</i>` : "0";
+  el.innerHTML = `<span>T+<b>${mm}:${ss}</b></span><span>${emcon ? "<i>EMCON</i>" : "<b>RADAR</b>"}</span><span>표적 <b>${cts}</b></span><span>위협 ${thTxt}</span><span>편대 <b>${airborneJets}</b></span><span>목표 <b>${ptTxt}</b></span>`;
 }
 function updateTracks(P, marks) {
   const rows = []; let tn = 1;
@@ -287,11 +288,12 @@ export function cicStep(dt, marks) {
   C.talkT -= dt; if (C.talkT <= 0) C.el.classList.remove("talk");
   const incList = M.list.filter((m) => m.alive && m.side === "foe" && m.W.role === "asm" && m.target?.side === "us" && m.pos.distanceTo(m.target.pos) < 9500);
   const incoming = incList.length;
+  const etaSec = incoming ? Math.max(1, Math.round(Math.min(...incList.map((m) => m.pos.distanceTo(m.target.pos) / Math.max(1, m.vel.length()))))) : 0;
   C.el.classList.toggle("alert", incoming > 0);
   C.warnT = Math.max(0, C.warnT - dt);
-  if (incoming > 0 && C.warnT <= 0 && !C.pend && C.talkT <= 0) { C.warnT = 15; say(`경보 — 적 대함·유도탄 ${incoming}발 근접 중 (${Math.min(...incList.map((m) => m.pos.distanceTo(m.target.pos) / 1000)).toFixed(1)} km)! 요격 대기.`); }
+  if (incoming > 0 && C.warnT <= 0 && !C.pend && C.talkT <= 0) { C.warnT = 15; say(`경보 — 적 대함·유도탄 ${incoming}발 근접 중 (${Math.min(...incList.map((m) => m.pos.distanceTo(m.target.pos) / 1000)).toFixed(1)} km · ${etaSec}초)! 요격 대기.`); }
   const airborneJets = M.jets.filter((j) => j.alive && j.side === "us").length;
-  updateTele(P, incoming, airborneJets);
+  updateTele(P, incoming, airborneJets, etaSec);
   updateTracks(P, marks);
   const pt = C.deps.md.supPt;
   const cards = assets().map((a) => {

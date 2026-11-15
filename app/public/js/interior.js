@@ -687,33 +687,58 @@ export function updateJetPit(j, dt, info = {}) {
   L.x.fillText(`ALT ${Math.round(altM)} m`, 14, 156);
   L.x.fillStyle = j.hit ? "#ff5a4e" : (ab ? "#ffd04d" : "#7ef07a");
   L.x.fillText(j.hit ? "WARN: AIRFRAME DMG" : (ab ? "AFTERBURNER ON" : "FCS NORMAL"), 14, 184);
-  // Center MFD: HSD B-Scope Tactical Radar with animated sweep
+  // Center MFD: HSD B-Scope Tactical Radar with sweep sector, range labels & lock cue
   bg(C, info.lock ? `HSD LOCK ${info.lock}` : "HSD SEARCH");
   const cw = C.c.width, ch = C.c.height, cx = cw / 2, cy = ch - 18, maxR = ch - 52;
   C.x.strokeStyle = "#226836"; C.x.lineWidth = 1.5;
   for (const r of [maxR * 0.33, maxR * 0.66, maxR]) { C.x.beginPath(); C.x.arc(cx, cy, r, PI, 0); C.x.stroke(); }
   C.x.beginPath(); C.x.moveTo(cx, cy); C.x.lineTo(cx - maxR * 0.72, cy - maxR * 0.72); C.x.moveTo(cx, cy); C.x.lineTo(cx + maxR * 0.72, cy - maxR * 0.72); C.x.stroke();
+  C.x.fillStyle = "#52b86a"; C.x.font = "10px monospace"; C.x.textAlign = "left";
+  C.x.fillText("10", cx - maxR * 0.56, cy - maxR * 0.45);
+  C.x.fillText("20", cx - maxR * 0.80, cy - maxR * 0.66);
   const sw = -PI / 2 + Math.sin(performance.now() * 0.0028) * 0.88;
-  C.x.strokeStyle = "rgba(126,240,122,0.55)"; C.x.lineWidth = 2; C.x.beginPath(); C.x.moveTo(cx, cy); C.x.lineTo(cx + Math.sin(sw) * maxR, cy - Math.cos(sw) * maxR); C.x.stroke();
+  C.x.fillStyle = "rgba(110,255,130,0.09)"; C.x.beginPath(); C.x.moveTo(cx, cy);
+  C.x.arc(cx, cy, maxR, sw - PI / 2 - 0.16, sw - PI / 2 + 0.16); C.x.closePath(); C.x.fill();
+  C.x.strokeStyle = "rgba(126,240,122,0.75)"; C.x.lineWidth = 2; C.x.beginPath(); C.x.moveTo(cx, cy); C.x.lineTo(cx + Math.sin(sw) * maxR, cy - Math.cos(sw) * maxR); C.x.stroke();
   for (const o of info.blips || []) {
     const bx = cx + o.x * maxR, by = cy - o.y * maxR;
     C.x.fillStyle = o.foe ? "#ff5a4e" : "#7cc4ff"; C.x.fillRect(bx - 3, by - 3, 6, 6);
+    C.x.strokeStyle = o.foe ? "#ff8a7a" : "#9ad6ff"; C.x.lineWidth = 1.2; C.x.beginPath(); C.x.moveTo(bx, by); C.x.lineTo(bx, by + 7); C.x.stroke();
     if (o.foe && info.lock) { C.x.strokeStyle = "#ffd04d"; C.x.strokeRect(bx - 6, by - 6, 12, 12); }
   }
-  // Right MFD: SMS Weapons Planform + RWR Threat Scope
-  bg(R, "SMS / RWR");
+  // Right MFD: SMS Weapons Planform + Active RWR Threat Scope
+  bg(R, info.lock ? "SMS ARMED" : "SMS / RWR");
   R.x.strokeStyle = "#2b7a42"; R.x.lineWidth = 1.6;
   R.x.beginPath(); R.x.moveTo(74, 48); R.x.lineTo(132, 92); R.x.lineTo(132, 108); R.x.lineTo(74, 86); R.x.lineTo(16, 108); R.x.lineTo(16, 92); R.x.closePath(); R.x.stroke();
+  // wingtip / internal bay stores pips on planform
+  for (const [px, has, col] of [[24, j.aam > 0, "#88ff88"], [124, j.aam > 1, "#88ff88"], [48, j.asm > 0, "#ffd04d"], [100, j.asm > 1, "#ffd04d"]]) {
+    R.x.fillStyle = has ? col : "#2a3c2f"; R.x.fillRect(px - 2, 96, 4, 12);
+  }
   const store = (sx, sy, lbl, n, col) => {
     R.x.fillStyle = n > 0 ? "rgba(30,90,46,0.45)" : "rgba(40,20,20,0.5)"; R.x.fillRect(sx, sy, 68, 28);
     R.x.strokeStyle = n > 0 ? col : "#5a3232"; R.x.strokeRect(sx, sy, 68, 28);
     R.x.fillStyle = n > 0 ? col : "#8e5858"; R.x.font = "bold 12px monospace"; R.x.fillText(`${lbl}:${n}`, sx + 6, sy + 18);
   };
-  store(16, 118, "AAM", j.aam, "#88ff88"); store(92, 118, "ASM", j.asm, "#ffd04d");
+  store(16, 118, "AAM", j.aam, info.lock ? "#ffd04d" : "#88ff88"); store(92, 118, "ASM", j.asm, "#ffd04d");
   store(16, 152, "GUN", Math.max(0, j.gun), "#88ff88"); store(92, 152, "FLR", j.flares, "#7cc4ff");
   const rx = 204, ry = 112, rr = 38;
   R.x.strokeStyle = info.rwr ? "#ff5a4e" : "#256d3a"; R.x.lineWidth = 2; R.x.beginPath(); R.x.arc(rx, ry, rr, 0, TAU); R.x.stroke();
   R.x.beginPath(); R.x.arc(rx, ry, rr * 0.45, 0, TAU); R.x.stroke();
+  R.x.strokeStyle = "#256d3a"; R.x.lineWidth = 1.2;
+  for (let k = 0; k < 4; k++) {
+    const a = (k * PI) / 2;
+    R.x.beginPath(); R.x.moveTo(rx + Math.cos(a) * (rr - 6), ry + Math.sin(a) * (rr - 6)); R.x.lineTo(rx + Math.cos(a) * rr, ry + Math.sin(a) * rr); R.x.stroke();
+  }
+  R.x.beginPath(); R.x.moveTo(rx - 5, ry); R.x.lineTo(rx + 5, ry); R.x.moveTo(rx, ry - 5); R.x.lineTo(rx, ry + 5); R.x.stroke();
+  if (info.rwr > 0) {
+    const cnt = Math.min(4, info.rwr), pulse = 0.6 + 0.4 * Math.sin(performance.now() * 0.015);
+    R.x.strokeStyle = `rgba(255,90,78,${pulse.toFixed(2)})`; R.x.fillStyle = "#ff5a4e";
+    for (let i = 0; i < cnt; i++) {
+      const thA = -PI / 2 + (i - (cnt - 1) / 2) * 0.72, tx = rx + Math.cos(thA) * (rr * 0.76), ty = ry + Math.sin(thA) * (rr * 0.76);
+      R.x.beginPath(); R.x.moveTo(rx + Math.cos(thA) * 8, ry + Math.sin(thA) * 8); R.x.lineTo(tx, ty); R.x.stroke();
+      R.x.beginPath(); R.x.moveTo(tx, ty - 5); R.x.lineTo(tx + 5, ty); R.x.lineTo(tx, ty + 5); R.x.lineTo(tx - 5, ty); R.x.closePath(); R.x.fill();
+    }
+  }
   R.x.fillStyle = info.rwr ? "#ff5a4e" : "#7ef07a"; R.x.font = "bold 12px monospace"; R.x.textAlign = "center";
   R.x.fillText(info.rwr ? `MSL ${info.rwr}` : "RWR CLR", rx, ry + 56);
   // Up-Front Controller scratchpad
