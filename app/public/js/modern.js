@@ -380,6 +380,21 @@ function updateJetFX(j, dt, spd) {
         if (rg.visible) { const sc = (1 - i * 0.22) * (0.75 + abK * 0.45 + (Math.random() - 0.5) * 0.12); rg.scale.setScalar(sc); }
       }
     }
+    if (ab.strobe) ab.strobe.visible = ((G.time + (j.t || 0)) % 1.15) < 0.08;
+    const mach = spd / 340;
+    const vcK = spd >= 304 && abK > 0.45 ? clamp((spd - 304) / 22, 0, 1) * (1 - clamp((mach - 1.03) / 0.06, 0, 1)) : 0;
+    if (ab.vCone) {
+      ab.vCone.visible = vcK > 0.04;
+      if (ab.vCone.visible) {
+        ab.vcMat.opacity = vcK * (0.16 + rnd() * 0.09);
+        ab.vCone.rotation.x += dt * 3.2;
+        ab.vCone.scale.set(0.95 + vcK * 0.18, 0.92 + rnd() * 0.12, 0.92 + rnd() * 0.12);
+      }
+    }
+    if (j.pilot && spd >= 312 && !j.machBoom) {
+      j.machBoom = true; sfx.sonicFlyby?.(0, true);
+      smoke.spawn({ x: j.pos.x, y: j.pos.y, z: j.pos.z, life: 0.75, s0: 3.5, s1: 12, a: 0.26, c: 0xeaf4fc });
+    } else if (spd < 292) j.machBoom = false;
   }
   if (abK > 0.25 && rnd() < dt * (18 + abK * 30)) {
     const s = rnd() < 0.5 ? 1 : -1;

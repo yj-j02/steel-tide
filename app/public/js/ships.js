@@ -389,6 +389,14 @@ function mcarrier(g, spec) {
   box(g, 30, 12, 8, U, ix, yd + 1.1, iz); box(g, 20, 6, 7, U, ix + 2, yd + 13.1, iz); box(g, 12, 4, 6, 0x1d2124, ix + 4, yd + 15, iz + 0.2);
   for (const s of [1, -1]) { const p = box(g, 0.3, 5, 4.2, 0x3f474c, ix + 7 + s * 0, yd + 13.5, iz + s * 3.2); p.rotation.x = s * 0.3; }
   cyl(g, 0.6, 0.9, 16, 0x50585d, ix - 3, yd + 19, iz, 8); box(g, 0.4, 0.4, 9, 0x3d4448, ix - 3, yd + 31, iz);
+  // Flight-deck stern threshold chevrons, optical landing "meatball" datum bar & navigation running lights
+  const deckAmber = new THREE.MeshBasicMaterial({ color: 0xffb830 }), deckGrn = new THREE.MeshBasicMaterial({ color: 0x3dff7a });
+  const meatball = new THREE.Mesh(new THREE.BoxGeometry(0.45, 0.6, 2.2), deckAmber); meatball.position.set(-L * 0.24, yd + 1.5, -W * 0.43); g.add(meatball);
+  const thrStripe = new THREE.Mesh(new THREE.PlaneGeometry(1.1, W * 0.32), new THREE.MeshBasicMaterial({ color: 0xffe484 }));
+  thrStripe.rotation.x = -PI / 2; thrStripe.position.set(-L * 0.41, yd + 1.12, spec.angled ? -W * 0.16 : 0); g.add(thrStripe);
+  for (const [lz, lm] of [[W * 0.49, deckGrn], [-W * 0.49, JM.navR]]) {
+    const nl = new THREE.Mesh(JG.nav, lm); nl.scale.setScalar(2.8); nl.position.set(ix + 10, yd + 15.2, lz); g.add(nl);
+  }
   const n = spec.jets ? Math.min(spec.jets.n, 6) : 0;
   for (let i = 0; i < n; i++) { const j = jetMesh(!!spec.foe); j.scale.setScalar(1); j.position.set(-L * 0.38 + (i % 3) * 17, yd + 2.2, (spec.angled ? W * 0.18 : 0) + (((i / 3) | 0) ? -9 : 9)); j.rotation.y = PI * 0.75; g.add(j); }
   g.userData.bridge = [ix + 8, yd + 15, iz];
@@ -415,13 +423,31 @@ const JG = (() => {
   const nozzle = new THREE.CylinderGeometry(0.42, 0.34, 1.15, 14); nozzle.rotateZ(-PI / 2);
   const rail = new THREE.BoxGeometry(2.4, 0.14, 0.14);
   const mslBody = new THREE.CylinderGeometry(0.08, 0.08, 2.9, 8); mslBody.rotateZ(-PI / 2);
+  const pylon = new THREE.BoxGeometry(1.15, 0.24, 0.09);
+  const dropTank = new THREE.CapsuleGeometry(0.22, 2.25, 4, 10); dropTank.rotateZ(-PI / 2);
   const nav = new THREE.SphereGeometry(0.11, 6, 6);
+  const strobe = new THREE.SphereGeometry(0.14, 6, 6);
   const seat = new THREE.BoxGeometry(0.45, 0.55, 0.42);
   const abGlow = new THREE.CircleGeometry(0.32, 14); abGlow.rotateY(-PI / 2);
   const abOuter = new THREE.ConeGeometry(0.36, 4.6, 14, 1, true); abOuter.rotateZ(PI / 2); abOuter.translate(-2.3, 0, 0);
   const abCore = new THREE.ConeGeometry(0.2, 2.9, 12); abCore.rotateZ(PI / 2); abCore.translate(-1.45, 0, 0);
   const abDiamond = new THREE.SphereGeometry(0.22, 10, 8); abDiamond.scale(1.9, 0.72, 0.72);
-  return { body, radome, pitot, lerx, wing, fin, stab, can, spine, intake, intakeHole, nozzle, rail, mslBody, nav, seat, abGlow, abOuter, abCore, abDiamond };
+  const vConeGeo = new THREE.CylinderGeometry(1.15, 3.4, 1.15, 24, 1, true); vConeGeo.rotateZ(PI / 2);
+  const vcCan = document.createElement("canvas"); vcCan.width = 128; vcCan.height = 64;
+  {
+    const vx = vcCan.getContext("2d");
+    for (let x = 0; x < 128; x += 2) {
+      const k = 0.45 + 0.55 * (0.5 + 0.5 * Math.sin(x * 0.28 + Math.cos(x * 0.11)));
+      const vg = vx.createLinearGradient(0, 0, 0, 64);
+      vg.addColorStop(0, "rgba(235,244,252,0)");
+      vg.addColorStop(0.32, `rgba(240,248,255,${(0.55 * k).toFixed(2)})`);
+      vg.addColorStop(0.68, `rgba(235,245,255,${(0.34 * k).toFixed(2)})`);
+      vg.addColorStop(1, "rgba(235,244,252,0)");
+      vx.fillStyle = vg; vx.fillRect(x, 0, 2, 64);
+    }
+  }
+  const vConeTex = new THREE.CanvasTexture(vcCan); vConeTex.wrapS = THREE.RepeatWrapping;
+  return { body, radome, pitot, lerx, wing, fin, stab, can, spine, intake, intakeHole, nozzle, rail, mslBody, pylon, dropTank, nav, strobe, seat, abGlow, abOuter, abCore, abDiamond, vConeGeo, vConeTex };
 })();
 const JM = {
   us: new THREE.MeshStandardMaterial({ color: 0x869098, roughness: 0.48, metalness: 0.32 }),
@@ -435,12 +461,14 @@ const JM = {
   glass: new THREE.MeshStandardMaterial({ color: 0x4b3b1c, roughness: 0.05, metalness: 0.94, envMapIntensity: 1.4 }),
   navR: new THREE.MeshBasicMaterial({ color: 0xff3b30 }),
   navG: new THREE.MeshBasicMaterial({ color: 0x3dff7a }),
+  strobeW: new THREE.MeshBasicMaterial({ color: 0xffece6 }),
 };
 export function jetMesh(foe) {
   const g = new THREE.Group(), m = foe ? JM.foe : JM.us, md = foe ? JM.foeDark : JM.usDark;
   const put = (geo, mm, x, y, z, sh = true) => { const o = new THREE.Mesh(geo, mm); o.position.set(x, y, z); if (sh) o.castShadow = true; g.add(o); return o; };
   put(JG.body, m, 0, 0, 0); put(JG.radome, JM.nose, 0, 0, 0); put(JG.pitot, JM.metal, 0, 0, 0, false);
   put(JG.spine, md, -0.3, 0.46, 0); put(JG.seat, JM.nose, 4.1, 0.56, 0, false); put(JG.can, JM.glass, 4.2, 0.48, 0, false);
+  put(JG.dropTank, md, -0.4, -0.52, 0);
   put(JG.wing, m, 0, -0.08, 0.58); const w2 = put(JG.wing, m, 0, -0.08, -0.58); w2.scale.z = -1;
   put(JG.lerx, md, 0, 0.02, 0.12); const l2 = put(JG.lerx, md, 0, 0.02, -0.12); l2.scale.z = -1;
   put(JG.stab, m, -5.3, -0.08, 0.52); const s2 = put(JG.stab, m, -5.3, -0.08, -0.52); s2.scale.z = -1;
@@ -450,10 +478,14 @@ export function jetMesh(foe) {
     put(JG.intakeHole, JM.voidM, 3.21, -0.14, s * 0.99, false);
     put(JG.nozzle, JM.metal, -7.65, -0.06, s * 0.52);
     put(JG.rail, JM.nose, -3.55, -0.04, s * 6.82, false);
+    put(JG.pylon, md, -1.2, -0.26, s * 2.8, false);
     put(JG.mslBody, JM.msl, -3.35, -0.08, s * 6.95, false);
     put(JG.mslBody, JM.msl, -1.2, -0.45, s * 2.8, false);
     put(JG.nav, s > 0 ? JM.navG : JM.navR, -3.9, -0.04, s * 6.84, false);
   }
+  const strobe = put(JG.strobe, JM.strobeW, -2.95, 0.72, 0, false); strobe.visible = false;
+  const vcMat = new THREE.MeshBasicMaterial({ map: JG.vConeTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  const vCone = new THREE.Mesh(JG.vConeGeo, vcMat); vCone.position.set(-1.55, 0.02, 0); vCone.visible = false; g.add(vCone);
   // Dual afterburner nozzles glow + pulsing outer plume, inner core & 3 Mach shock diamonds
   const glowMat = new THREE.MeshBasicMaterial({ color: 0xff9a38, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
   const outerMat = new THREE.MeshBasicMaterial({ color: foe ? 0xff7b2e : 0x7ab8ff, transparent: true, opacity: 0.72, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
@@ -470,7 +502,7 @@ export function jetMesh(foe) {
     for (let i = 0; i < 3; i++) { const d = new THREE.Mesh(JG.abDiamond, diaMat); d.position.x = -0.85 - i * 0.95; d.scale.setScalar(1 - i * 0.22); plume.add(d); rings.push(d); }
     burners.push({ b, glow, plume, outer, core, rings });
   }
-  g.userData.ab = { burners, glowMat, outerMat, coreMat, diaMat };
+  g.userData.ab = { burners, glowMat, outerMat, coreMat, diaMat, strobe, vCone, vcMat };
   return g;
 }
 function foeDD(g, spec) {
@@ -579,6 +611,11 @@ function hangarDeck(g, spec, x, len, w, h, U) {
   const ring = new THREE.Mesh(new THREE.RingGeometry(3.6, 4.0, 32), white); ring.rotation.x = -PI / 2; ring.position.set(dx, dy, 0); g.add(ring);
   const cl = new THREE.Mesh(new THREE.PlaneGeometry(dl * 0.85, 0.3), white); cl.rotation.x = -PI / 2; cl.position.set(dx, dy, 0); g.add(cl);
 }
+function shipNavLights(g, x, y, bz) {
+  for (const s of [1, -1]) {
+    const nl = new THREE.Mesh(JG.nav, s > 0 ? JM.navG : JM.navR); nl.scale.setScalar(2.4); nl.position.set(x, y, s * bz); g.add(nl);
+  }
+}
 /** Arleigh Burke / KDX-III / Maya: two-tier Aegis deckhouse with four octagonal SPY faces, pyramid mast, two raked stacks, hangar aft. */
 function aegis(g, spec) {
   const U = spec.upper, y = spec.fb, B = spec.B, k = spec.L / 155;
@@ -587,6 +624,7 @@ function aegis(g, spec) {
   slab(g, 17 * k, 6.4, B * 0.62, B * 0.46, 14 * k, U, 14 * k, y + 7.6, 0);            // bridge tier carrying the arrays
   box(g, 0.6, 1.2, B * 0.44, 0x141a1f, 21.9 * k, y + 11.2, 0);                       // bridge windows
   box(g, 3.2 * k, 0.5, B * 0.86, U, 20.5 * k, y + 10.4, 0);                          // bridge wings
+  shipNavLights(g, 20.5 * k, y + 10.9, B * 0.43);
   const fx = 21.2 * k, ax = 7.2 * k, hy = y + 10.6, hz = B * 0.25, r = 2.3 * k;
   spyFace(g, fx, hy, hz, PI / 4, r); spyFace(g, fx, hy, -hz, -PI / 4, r); spyFace(g, ax, hy, hz, PI * 0.75, r); spyFace(g, ax, hy, -hz, -PI * 0.75, r);
   pyramidMast(g, 11 * k, y + 14, 15, 2.4, U);
@@ -609,6 +647,7 @@ function pla(g, spec) {
   slab(g, 16 * k, 9, B * 0.6, B * 0.42, 12 * k, U, 15 * k, y + 8.5, 0);              // tower carrying the arrays
   slab(g, 9 * k, 7, B * 0.4, B * 0.22, 6 * k, U, 15 * k, y + 17.5, 0);              // integrated mast top
   box(g, 0.6, 1.2, B * 0.5, 0x141a1f, 22.6 * k, y + 10.4, 0);
+  shipNavLights(g, 21.6 * k, y + 10.9, B * 0.34);
   const r = 2.2 * k, hy = y + 13.5;
   for (const [x, z, a] of [[21.6 * k, B * 0.2, PI / 4], [21.6 * k, -B * 0.2, -PI / 4], [8.4 * k, B * 0.2, PI * 0.75], [8.4 * k, -B * 0.2, -PI * 0.75]]) { const f = box(g, 0.3, r * 1.9, r * 1.6, 0x2c3338, x, hy - r, z); f.rotation.y = -a; f.rotation.z = -0.2; }
   cyl(g, 0.3, 0.5, 7, 0x5a6268, 15 * k, y + 24.5, 0, 6); const d = shadowed(new THREE.Mesh(new THREE.SphereGeometry(1.2, 12, 8), mat(0xe6e8e8))); d.position.set(15 * k, y + 32, 0); g.add(d);
@@ -629,6 +668,7 @@ function kpn(g, spec) {
   slab(g, 26 * k, 7.5, B * 0.82, B * 0.7, 23 * k, U, 12 * k, y, 0);
   slab(g, 13 * k, 5.5, B * 0.6, B * 0.42, 10 * k, U, 13 * k, y + 7.5, 0);
   box(g, 0.6, 1.1, B * 0.42, 0x141a1f, 18.9 * k, y + 10.6, 0);
+  shipNavLights(g, 18 * k, y + 10.5, B * 0.32);
   const r = 1.6 * k; for (const s of [1, -1]) spyFace(g, 18.5 * k, y + 11, s * B * 0.17, s * PI / 4, r);
   pyramidMast(g, 10 * k, y + 13, 12, 2, U);
   stack(g, -6 * k, y, 9 * k, B * 0.36, 8.5, U);

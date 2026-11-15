@@ -4,8 +4,25 @@
  * telegraphs, gyro repeater, rudder and speed indicators) and the Wildcat's
  * cockpit (instrument panel, canopy frame, Mk 8 reflector sight).
  */
-import { THREE, PI, TAU, DEG, KN, clamp, ovScene } from "./core.js";
+import { THREE, PI, TAU, DEG, KN, clamp, ovScene, G } from "./core.js";
 import { TELE } from "./ships.js";
+
+let _ovHemi = null, _ovDir = null;
+function syncOvLight() {
+  if (!_ovHemi) {
+    for (const ch of ovScene.children) {
+      if (ch.isHemisphereLight) _ovHemi = ch;
+      else if (ch.isDirectionalLight) _ovDir = ch;
+    }
+  }
+  const night = G.tod === "night", storm = G.wx === "storm";
+  if (_ovHemi) _ovHemi.intensity = night ? 0.34 : storm ? 1.05 : 1.6;
+  if (_ovDir) {
+    _ovDir.intensity = night ? 0.28 : storm ? 0.72 : 1.6;
+    _ovDir.color.setHex(night ? 0x6d84b8 : storm ? 0xc8d2da : 0xfff0dd);
+  }
+  return { night, storm };
+}
 
 const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, roughness: 0.7, metalness: 0.15, ...o });
 const paintG = M(0x8f9a8e), dark = M(0x2d3336), brass = M(0xb48d4f, { metalness: 0.85, roughness: 0.3 }), black = M(0x101214), wood = M(0x6b4a2e, { roughness: 0.55 });
@@ -13,28 +30,32 @@ function bx(g, w, h, d, m, x, y, z, rx = 0) { const o = new THREE.Mesh(new THREE
 function dialTex(draw) { const c = document.createElement("canvas"); c.width = c.height = 256; const x = c.getContext("2d"); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace; t.userData = { x, draw }; draw(x, 0); t.needsUpdate = true; return t; }
 function redraw(t, v) { t.userData.draw(t.userData.x, v); t.needsUpdate = true; }
 function face(x, label) {
-  x.clearRect(0, 0, 256, 256); x.fillStyle = "#e9e4d6"; x.beginPath(); x.arc(128, 128, 124, 0, TAU); x.fill();
-  x.strokeStyle = "#222"; x.lineWidth = 6; x.stroke(); x.fillStyle = "#222"; x.font = "bold 20px Arial"; x.textAlign = "center"; x.fillText(label, 128, 200);
+  const n = G.tod === "night";
+  x.clearRect(0, 0, 256, 256); x.fillStyle = n ? "#1d1514" : "#e9e4d6"; x.beginPath(); x.arc(128, 128, 124, 0, TAU); x.fill();
+  x.strokeStyle = n ? "#9e492e" : "#222"; x.lineWidth = 6; x.stroke(); x.fillStyle = n ? "#ff9c54" : "#222"; x.font = "bold 20px Arial"; x.textAlign = "center"; x.fillText(label, 128, 200);
 }
-function needle(x, a, len = 96, col = "#111", w = 6) { x.save(); x.translate(128, 128); x.rotate(a); x.fillStyle = col; x.fillRect(-w / 2, -len, w, len + 14); x.restore(); x.fillStyle = "#333"; x.beginPath(); x.arc(128, 128, 9, 0, TAU); x.fill(); }
+function needle(x, a, len = 96, col = "#111", w = 6) {
+  const c = G.tod === "night" && (col === "#111" || col === "#222") ? "#ffae66" : G.tod === "night" && col === "#8a1b14" ? "#ff5242" : col;
+  x.save(); x.translate(128, 128); x.rotate(a); x.fillStyle = c; x.fillRect(-w / 2, -len, w, len + 14); x.restore(); x.fillStyle = G.tod === "night" ? "#c85b3a" : "#333"; x.beginPath(); x.arc(128, 128, 9, 0, TAU); x.fill();
+}
 function dialMesh(g, r, tex, x, y, z, rx = 0) { const m = new THREE.Mesh(new THREE.CircleGeometry(r, 32), new THREE.MeshBasicMaterial({ map: tex })); m.position.set(x, y, z); m.rotation.x = rx; g.add(m);
   const rim = new THREE.Mesh(new THREE.TorusGeometry(r, r * 0.08, 8, 32), brass); rim.position.copy(m.position); rim.rotation.x = rx; g.add(rim); return m; }
 
 // ── ship's bridge ───────────────────────────────────────────────────────────
 export const bridge = new THREE.Group(); bridge.visible = false; ovScene.add(bridge);
 const telTex = dialTex((x, v) => {
-  face(x, "ENGINE ORDER"); x.font = "bold 15px Arial"; x.fillStyle = "#222";
+  face(x, "ENGINE ORDER"); x.font = "bold 15px Arial"; x.fillStyle = G.tod === "night" ? "#ff9c54" : "#222";
   const names = ["BACK", "STOP", "SLOW", "HALF", "STD", "FULL"];
   names.forEach((n, i) => { const a = -PI * 0.75 + (i / 5) * PI * 1.5; x.fillText(n, 128 + Math.sin(a) * 86, 134 - Math.cos(a) * 86); });
   needle(x, -PI * 0.75 + (v / 5) * PI * 1.5, 70, "#8a1b14");
 });
 const compTex = dialTex((x, v) => {
   face(x, "GYRO"); x.save(); x.translate(128, 128); x.rotate(-v);
-  for (let d = 0; d < 360; d += 10) { x.save(); x.rotate(d * DEG); x.fillStyle = "#222"; x.fillRect(-1.5, -118, 3, d % 30 ? 10 : 20); if (d % 30 === 0) { x.font = "bold 18px Arial"; x.textAlign = "center"; x.fillText(d === 0 ? "N" : d === 90 ? "E" : d === 180 ? "S" : d === 270 ? "W" : String(d / 10), 0, -84); } x.restore(); }
-  x.restore(); x.fillStyle = "#b11"; x.beginPath(); x.moveTo(128, 6); x.lineTo(120, 26); x.lineTo(136, 26); x.fill();
+  for (let d = 0; d < 360; d += 10) { x.save(); x.rotate(d * DEG); x.fillStyle = G.tod === "night" ? "#ff9c54" : "#222"; x.fillRect(-1.5, -118, 3, d % 30 ? 10 : 20); if (d % 30 === 0) { x.font = "bold 18px Arial"; x.textAlign = "center"; x.fillText(d === 0 ? "N" : d === 90 ? "E" : d === 180 ? "S" : d === 270 ? "W" : String(d / 10), 0, -84); } x.restore(); }
+  x.restore(); x.fillStyle = G.tod === "night" ? "#ff5242" : "#b11"; x.beginPath(); x.moveTo(128, 6); x.lineTo(120, 26); x.lineTo(136, 26); x.fill();
 });
-const rudTex = dialTex((x, v) => { face(x, "RUDDER"); x.font = "bold 16px Arial"; x.fillStyle = "#222"; x.fillText("PORT", 60, 120); x.fillText("STBD", 196, 120); for (let a = -35; a <= 35; a += 5) { x.save(); x.translate(128, 128); x.rotate(a * DEG * 2.2); x.fillRect(-1.5, -118, 3, a % 15 ? 10 : 20); x.restore(); } needle(x, v * 35 * DEG * 2.2, 96, "#111"); });
-const spdTex = dialTex((x, v) => { face(x, "KNOTS"); x.font = "bold 16px Arial"; x.fillStyle = "#222"; for (let k = 0; k <= 35; k += 5) { const a = -PI * 0.75 + (k / 35) * PI * 1.5; x.fillText(String(k), 128 + Math.sin(a) * 84, 134 - Math.cos(a) * 84); } needle(x, -PI * 0.75 + (clamp(v, 0, 35) / 35) * PI * 1.5, 92); });
+const rudTex = dialTex((x, v) => { face(x, "RUDDER"); const ic = G.tod === "night" ? "#ff9c54" : "#222"; x.font = "bold 16px Arial"; x.fillStyle = ic; x.fillText("PORT", 60, 120); x.fillText("STBD", 196, 120); for (let a = -35; a <= 35; a += 5) { x.save(); x.translate(128, 128); x.rotate(a * DEG * 2.2); x.fillRect(-1.5, -118, 3, a % 15 ? 10 : 20); x.restore(); } needle(x, v * 35 * DEG * 2.2, 96, "#111"); });
+const spdTex = dialTex((x, v) => { face(x, "KNOTS"); x.font = "bold 16px Arial"; x.fillStyle = G.tod === "night" ? "#ff9c54" : "#222"; for (let k = 0; k <= 35; k += 5) { const a = -PI * 0.75 + (k / 35) * PI * 1.5; x.fillText(String(k), 128 + Math.sin(a) * 84, 134 - Math.cos(a) * 84); } needle(x, -PI * 0.75 + (clamp(v, 0, 35) / 35) * PI * 1.5, 92); });
 {
   const g = bridge, z0 = -2.3, brassBright = M(0xdcb464, { metalness: 0.85, roughness: 0.24 });
   const glassClr = new THREE.MeshBasicMaterial({ color: 0xbfe2ee, transparent: true, opacity: 0.10, depthWrite: false });
@@ -118,10 +139,13 @@ const spdTex = dialTex((x, v) => { face(x, "KNOTS"); x.font = "bold 16px Arial";
     bridge.userData.dc = { c: dc, x: dc.getContext("2d"), t: dt };
   }
   const bell = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.1, 0.14, 14), brassBright); bell.position.set(0.65, 1.46, -1.35); g.add(bell);
-  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffe2a0 })); lamp.position.set(0, 1.5, -0.6); g.add(lamp);
+  const domeMat = new THREE.MeshBasicMaterial({ color: 0xffe2a0 });
+  const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), domeMat); lamp.position.set(0, 1.5, -0.6); g.add(lamp);
+  const nLight = new THREE.PointLight(0xff3824, 0, 7.5); nLight.position.set(0, 1.38, -0.75); g.add(nLight);
+  bridge.userData.domeMat = domeMat; bridge.userData.nLight = nLight;
   for (const x of [-2.6, 2.6]) { const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.4, 8), brass); pipe.position.set(x, 0.9, z0 + 0.2); g.add(pipe); }
 }
-let lastB = { tele: -1, hdg: -99, rud: -9, spd: -9, dcT: 0 };
+let lastB = { tele: -1, hdg: -99, rud: -9, spd: -9, dcT: 0, night: null };
 function drawBridgeDc(P) {
   const dc = bridge.userData.dc; if (!dc || !P) return;
   const x = dc.x, hpPct = Math.round(clamp((P.hp ?? 100) / Math.max(1, P.maxHp ?? 100), 0, 1) * 100);
@@ -159,20 +183,28 @@ function drawBridgeDc(P) {
   dc.t.needsUpdate = true;
 }
 export function updateBridge(P, look, pitch = 0) {
+  const { night, storm } = syncOvLight();
+  if (bridge.userData.nLight) {
+    bridge.userData.nLight.intensity = night ? 1.55 : storm ? 0.5 : 0;
+    bridge.userData.nLight.color.setHex(night ? 0xff3824 : 0xffe0a0);
+  }
+  if (bridge.userData.domeMat) bridge.userData.domeMat.color.setHex(night ? 0xff4228 : 0xffe2a0);
   const spdRatio = Math.min(1.5, Math.abs(P.speed || 0) / (30 * KN));
   const vib = spdRatio > 0.1 ? (Math.random() - 0.5) * 0.0022 * spdRatio : 0;
   bridge.position.set(vib, vib * 0.7, 0);
   bridge.rotation.set(-pitch, look, 0, "XYZ"); bridge.userData.wheel.rotation.z = -P.rudder * 1.8;
   const teleRot = clamp((P.tele ?? 0) * 0.24 - 0.36, -0.9, 1.0);
   if (bridge.userData.teleHandles) for (const h of bridge.userData.teleHandles) h.rotation.x += (teleRot - h.rotation.x) * 0.18;
-  if (bridge.userData.wipers) { const spin = performance.now() * 0.022; bridge.userData.wipers.forEach((w, i) => { w.rotation.z = spin + i * 1.1; }); }
+  if (bridge.userData.wipers) { const spin = performance.now() * (storm ? 0.048 : 0.022); bridge.userData.wipers.forEach((w, i) => { w.rotation.z = spin + i * 1.1; }); }
   if (bridge.userData.clino) bridge.userData.clino.rotation.z = clamp(-(P.rudder || 0) * 0.45, -0.35, 0.35);
   const now = performance.now(); if (now - lastB.dcT >= 250) { lastB.dcT = now; drawBridgeDc(P); }
   const h = Math.round(((P.heading / DEG) % 360 + 360) % 360), r = Math.round(P.rudder * 50) / 50, sp = Math.round((P.speed / KN) * 2) / 2;
-  if (lastB.tele !== P.tele) { redraw(telTex, P.tele); lastB.tele = P.tele; }
-  if (lastB.hdg !== h) { redraw(compTex, h * DEG); lastB.hdg = h; }
-  if (lastB.rud !== r) { redraw(rudTex, r); lastB.rud = r; }
-  if (lastB.spd !== sp) { redraw(spdTex, sp); lastB.spd = sp; }
+  const nightChg = lastB.night !== night;
+  if (nightChg) lastB.night = night;
+  if (nightChg || lastB.tele !== P.tele) { redraw(telTex, P.tele); lastB.tele = P.tele; }
+  if (nightChg || lastB.hdg !== h) { redraw(compTex, h * DEG); lastB.hdg = h; }
+  if (nightChg || lastB.rud !== r) { redraw(rudTex, r); lastB.rud = r; }
+  if (nightChg || lastB.spd !== sp) { redraw(spdTex, sp); lastB.spd = sp; }
 }
 
 // ── fighter cockpit (F4F-4) ─────────────────────────────────────────────────
@@ -372,9 +404,15 @@ function drawPanel(pl, dt) {
   const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.022, 0.42, 8), blackM); stick.position.set(0, -0.68, -0.36); stick.rotation.x = 0.3; g.add(stick); cockpit.userData.stick = stick;
   const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.024, 0.105, 8), M(0x3a2a1e)); grip.position.set(0, 0.24, 0); stick.add(grip);
   const trig = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), M(0xc83a2e)); trig.position.set(0, 0.285, -0.022); stick.add(trig); cockpit.userData.trig = trig;
+  const nLight = new THREE.PointLight(0xff4228, 0, 1.9); nLight.position.set(0, -0.36, -0.46); g.add(nLight); cockpit.userData.nLight = nLight;
 }
 let panelT = 0, cHeadX = 0, cHeadY = 0, cRoll = 0;
 export function updateCockpit(pl, dt) {
+  const { night, storm } = syncOvLight();
+  if (cockpit.userData.nLight) {
+    cockpit.userData.nLight.intensity = night ? 0.85 : storm ? 0.35 : 0;
+    cockpit.userData.nLight.color.setHex(night ? 0xff4228 : 0xffcc88);
+  }
   panelT -= dt; if (panelT <= 0) { panelT = 0.066; drawPanel(pl, 0.066); }
   const fire = !!(pl.firing && pl.ammo > 0);
   const st = cockpit.userData.stick;
@@ -485,6 +523,8 @@ export const aaGun = new THREE.Group(); aaGun.visible = false; ovScene.add(aaGun
   stalk.position.set(0, -0.395, -1.1); g.add(stalk);
   const ringM = new THREE.MeshBasicMaterial({ color: 0x15181a, transparent: true, opacity: 0.38 });
   const innerM = new THREE.MeshBasicMaterial({ color: 0x15181a, transparent: true, opacity: 0.24 });
+  aaGun.userData.ringM = ringM; aaGun.userData.innerM = innerM;
+  const aaLight = new THREE.PointLight(0xff4228, 0, 3.2); aaLight.position.set(0, -0.15, -0.4); g.add(aaLight); aaGun.userData.nLight = aaLight;
   {
     const t = new THREE.Mesh(new THREE.TorusGeometry(0.175, 0.0012, 6, 64), ringM); t.position.set(0, 0, -1.1); g.add(t);
     const t2 = new THREE.Mesh(new THREE.TorusGeometry(0.088, 0.0009, 6, 48), innerM); t2.position.set(0, 0, -1.1); g.add(t2);
@@ -495,6 +535,14 @@ export const aaGun = new THREE.Group(); aaGun.visible = false; ovScene.add(aaGun
   }
 }
 export function updateAAGun(recoil) {
+  const { night, storm } = syncOvLight();
+  if (aaGun.userData.ringM) {
+    aaGun.userData.ringM.color.setHex(night ? 0xffa83c : 0x15181a);
+    aaGun.userData.ringM.opacity = night ? 0.65 : storm ? 0.48 : 0.38;
+    aaGun.userData.innerM.color.setHex(night ? 0xffa83c : 0x15181a);
+    aaGun.userData.innerM.opacity = night ? 0.42 : storm ? 0.3 : 0.24;
+  }
+  if (aaGun.userData.nLight) aaGun.userData.nLight.intensity = night ? 0.95 : storm ? 0.35 : 0;
   let active = 0;
   aaGun.userData.barrels.forEach((b, i) => {
     const r = recoil[i] || 0;
@@ -554,8 +602,10 @@ const JV_F = new THREE.Vector3(), JV_U = new THREE.Vector3(), JV_R = new THREE.V
   const ht = new THREE.CanvasTexture(hc); ht.colorSpace = THREE.SRGBColorSpace;
   jhud = { c: hc, x: hc.getContext("2d"), t: ht };
   const hudGlass = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.22), glassM); hudGlass.position.set(0, -0.095, -0.88); hudGlass.rotation.x = -0.22; g.add(hudGlass);
-  const hudSym = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.22), new THREE.MeshBasicMaterial({ map: ht, transparent: true, depthWrite: false }));
+  const hudSymMat = new THREE.MeshBasicMaterial({ map: ht, transparent: true, depthWrite: false });
+  const hudSym = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.22), hudSymMat);
   hudSym.position.set(0, -0.095, -0.878); hudSym.rotation.x = -0.22; g.add(hudSym);
+  jetPit.userData.hudSymMat = hudSymMat; jetPit.userData.hudGlassM = glassM;
   for (const s of [-1, 1]) {
     bx(g, 0.011, 0.21, 0.014, trim, s * 0.122, -0.105, -0.88, -0.22);
     bx(g, 0.014, 0.03, 0.045, M(0x3a434c, { metalness: 0.4 }), s * 0.122, -0.205, -0.86);
@@ -629,6 +679,18 @@ const JV_F = new THREE.Vector3(), JV_U = new THREE.Vector3(), JV_R = new THREE.V
     vp.position.set(s * 0.88, -0.35, -2.05); vp.rotation.set(-PI / 2 + 0.08, 0, -s * 0.22);
     g.add(vp); jetPit.userData.wingVapor.push(vp);
   }
+  // Peripheral Prandtl-Glauert transonic condensation collar over the wing shoulders (boresight clear)
+  const mcCan = document.createElement("canvas"); mcCan.width = 128; mcCan.height = 64;
+  {
+    const mc = mcCan.getContext("2d"), mg = mc.createLinearGradient(0, 0, 0, 64);
+    mg.addColorStop(0, "rgba(235,244,252,0)"); mg.addColorStop(0.35, "rgba(238,246,255,0.68)");
+    mg.addColorStop(0.65, "rgba(235,245,255,0.42)"); mg.addColorStop(1, "rgba(235,244,252,0)");
+    mc.fillStyle = mg; mc.fillRect(0, 0, 128, 64);
+  }
+  const machMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(mcCan), transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+  const machCone = new THREE.Mesh(new THREE.CylinderGeometry(0.55, 1.75, 1.1, 24, 1, true), machMat);
+  machCone.rotation.x = PI / 2; machCone.position.set(0, -0.44, -2.55); g.add(machCone); jetPit.userData.machCone = machCone;
+  const nvLight = new THREE.PointLight(0x4dff88, 0, 2.2); nvLight.position.set(0, -0.1, -0.58); g.add(nvLight); jetPit.userData.nvLight = nvLight;
 }
 let jpT = 0, jhT = 0, jHeadX = 0, jHeadY = 0, jHeadZ = 0;
 function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaDeg, abK) {
@@ -687,12 +749,12 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaD
   x.font = "bold 20px monospace";
   x.strokeRect(14, cy - 18, 72, 32); x.fillText(String(Math.round(spdKmh)), 80, cy + 5);
   x.font = "bold 14px monospace";
-  x.fillStyle = mach >= 0.98 ? amber : green;
+  x.fillStyle = mach >= 0.92 ? amber : green;
   x.fillText(`M ${mach.toFixed(2)}`, 82, cy + 32);
   x.fillStyle = abOn ? amber : green;
   x.fillText(abOn ? `AB ${thrPct}%` : `THR ${thrPct}%`, 82, cy + 50);
   if (abOn) { x.strokeStyle = amber; x.strokeRect(24, cy + 56, 60, 18); x.font = "bold 12px monospace"; x.fillText("AB GATE", 80, cy + 69); }
-  if (mach >= 0.98) { x.fillStyle = amber; x.font = "bold 11px monospace"; x.fillText("SUPERSONIC", 82, cy + (abOn ? 84 : 66)); }
+  if (mach >= 0.92) { x.fillStyle = amber; x.font = "bold 11px monospace"; x.fillText(mach >= 0.98 ? "SUPERSONIC" : "TRANSONIC", 82, cy + (abOn ? 84 : 66)); }
   // Right altitude box + vertical speed cue
   x.fillStyle = green; x.strokeStyle = green; x.textAlign = "left";
   x.font = "bold 20px monospace"; x.strokeRect(W - 86, cy - 18, 72, 32);
@@ -778,6 +840,12 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaD
 }
 /** j = the jet, info = { rwr, lock, blips, ab, roll, pitch, firing, lockPct, gunHit } */
 export function updateJetPit(j, dt, info = {}) {
+  const { night, storm } = syncOvLight();
+  if (jetPit.userData.nvLight) {
+    jetPit.userData.nvLight.intensity = night ? 1.15 : storm ? 0.35 : 0;
+  }
+  if (jetPit.userData.hudSymMat) jetPit.userData.hudSymMat.opacity = night ? 0.86 : 1;
+  if (jetPit.userData.hudGlassM) jetPit.userData.hudGlassM.opacity = night ? 0.16 : 0.28;
   JV_F.set(1, 0, 0).applyQuaternion(j.q);
   JV_U.set(0, 1, 0).applyQuaternion(j.q);
   JV_R.set(0, 0, 1).applyQuaternion(j.q);
@@ -797,9 +865,9 @@ export function updateJetPit(j, dt, info = {}) {
   jetPit.userData.thr.position.z = -0.48 - (thrPct / 100) * 0.13;
   // G-force inertial head lag + transonic compressibility & high-AoA buffet + Vulcan muzzle recoil
   const firing = !!(info.firing && j.gun > 0), gBuf = Math.max(0, (j._g - 2.2) * 0.22);
-  const transBuf = mach >= 0.94 && mach <= 1.06 ? 1 - Math.abs(mach - 1.0) / 0.06 : 0;
+  const transBuf = mach >= 0.90 && mach <= 1.06 ? 1 - Math.abs(mach - 0.96) / 0.08 : 0;
   const aoaBuf = clamp((aoaDeg - 11) / 10, 0, 1);
-  const vib = (firing ? 0.0042 : 0) + (ab ? 0.0014 : 0.0004) + gBuf * 0.0018 + transBuf * 0.0014 + aoaBuf * 0.0016;
+  const vib = (firing ? 0.0042 : 0) + (ab ? 0.0014 : 0.0004) + gBuf * 0.0018 + transBuf * 0.0016 + aoaBuf * 0.0016;
   jHeadX += (clamp(-trueRoll * 0.014, -0.018, 0.018) - jHeadX) * Math.min(1, dt * 6);
   jHeadY += (clamp(-(j._g - 1) * 0.0045, -0.022, 0.012) - jHeadY) * Math.min(1, dt * 6);
   jHeadZ += (clamp(-abK * 0.014, -0.016, 0.006) - jHeadZ) * Math.min(1, dt * 5);
@@ -808,7 +876,12 @@ export function updateJetPit(j, dt, info = {}) {
   if (jetPit.userData.gVig) jetPit.userData.gVig.material.opacity = clamp((j._g - 5.2) / 4.2, 0, 0.72);
   if (jetPit.userData.wingVapor?.length) {
     const vOp = clamp(Math.max(aoaBuf * 0.42, transBuf * 0.52), 0, 0.55);
-    jetPit.userData.wingVapor[0].material.opacity = vOp > 0.02 ? vOp * (0.85 + Math.random() * 0.3) : 0;
+    for (const vp of jetPit.userData.wingVapor) vp.material.opacity = vOp > 0.02 ? vOp * (0.85 + Math.random() * 0.3) : 0;
+  }
+  if (jetPit.userData.machCone) {
+    const mOp = clamp(transBuf * 0.44, 0, 0.44);
+    jetPit.userData.machCone.material.opacity = mOp > 0.02 ? mOp * (0.78 + Math.random() * 0.35) : 0;
+    if (mOp > 0.02) jetPit.userData.machCone.rotation.y += dt * 4.5;
   }
   const blink = Math.floor(performance.now() / 180) % 2 === 0;
   if (jetPit.userData.mcLamp) jetPit.userData.mcLamp.material.color.setHex((j.hit || (altM < 65 && j.vel.y < -8)) && blink ? 0xffb326 : 0x2a1408);
