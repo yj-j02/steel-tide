@@ -139,24 +139,29 @@
       .flag { flex:none; vertical-align:middle; box-shadow:0 0 0 1px rgba(0,0,0,.25); }
       button { font-family:inherit; }
       /* battle panels */
-      #shipCard { position:fixed; left:14px; bottom:14px; width:340px; padding:11px 14px; box-sizing:border-box; display:none; flex-direction:column; gap:6px; pointer-events:auto; }
+      #shipCard { position:fixed; left:14px; bottom:14px; width:308px; padding:10px 12px; box-sizing:border-box; display:none; flex-direction:column; gap:5px; pointer-events:auto; z-index:4; }
       body.jetfly #shipCard, body.jetfly #wpnBar, body.jetfly #tgtCard, body.jetfly #log, body.jetfly #airP { display:none !important; }
       body.playing #shipCard { display:flex; } body.flying #shipCard, body.flying #wpnBar, body.flying #tgtCard, body.aamode #wpnBar, body.aamode #tgtCard, body.aamode #shipCard, body.aamode #airP, body.aamode #log, body.auto #wpnBar { display:none !important; }
-      #shipCard .row, #tgtCard .row { display:flex; align-items:center; gap:8px; } #shipCard .sub, #tgtCard .sub { font-size:11.5px; color:var(--cream2); }
+      #shipCard .row, #tgtCard .row { display:flex; align-items:center; gap:7px; } #shipCard .sub, #tgtCard .sub { font-size:11px; color:var(--cream2); }
+      #shipCard .sub { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       .pct { margin-left:auto; font:700 15px "Special Elite",monospace; } .pct.ok { color:var(--ok); } .pct.warn { color:var(--warn); } .pct.bad { color:var(--bad); }
       .hbar { height:6px; background:rgba(0,0,0,.4); } .hbar i { display:block; height:100%; background:var(--ok); } .hbar i.warn { background:var(--warn); } .hbar i.bad, #tgtCard .hbar i { background:var(--bad); }
-      .pips { display:flex; gap:3px; margin-left:auto; } .pips button { font:11px "Special Elite",monospace; color:var(--cream); background:transparent; border:1px solid var(--gline); padding:5px 6px; cursor:pointer; } .pips button.on { background:rgba(240,201,90,.32); border-color:var(--gold); color:#fbe9b0; }
-      .chips { display:flex; gap:5px; flex-wrap:wrap; } .chip { font:600 11px "Noto Sans KR"; padding:3px 7px; border:1px solid var(--gline); color:var(--cream2); } .chip.fire { color:#ffb070; border-color:#ff9a50; } .chip.flood { color:#8fd0ff; border-color:#5fb4ff; } .chip.bad { color:#ffb4a6; border-color:rgba(255,140,120,.6); } .chip.ok { color:#c4f0a6; } .chip.r { margin-left:auto; color:#fbe9b0; border-color:var(--gold); cursor:pointer; background:transparent; }
+      .pips { display:flex; gap:3px; margin-left:auto; } .pips button { font:700 11px/1 "Special Elite","Noto Sans KR",monospace; color:var(--cream); background:rgba(12,14,10,.55); border:1px solid var(--gline); border-bottom:2px solid rgba(232,220,184,.55); padding:5px 6px; min-width:24px; cursor:pointer; white-space:nowrap; transition:background .12s,border-color .12s; } .pips button:hover { border-color:var(--gold); color:#fbe9b0; } .pips button.on { background:rgba(240,201,90,.32); border-color:var(--gold); border-bottom-color:var(--gold); color:#fbe9b0; }
+      .chips { display:flex; gap:5px; flex-wrap:wrap; } .chip { font:600 11px "Noto Sans KR",sans-serif; padding:3px 7px; border:1px solid var(--gline); color:var(--cream2); white-space:nowrap; } .chip.fire { color:#ffb070; border-color:#ff9a50; } .chip.flood { color:#8fd0ff; border-color:#5fb4ff; } .chip.bad { color:#ffb4a6; border-color:rgba(255,140,120,.6); } .chip.ok { color:#c4f0a6; } .chip.r { margin-left:auto; color:#fbe9b0; background:rgba(240,201,90,.16); border:1px solid var(--gold); border-bottom:2px solid var(--gold); padding:3px 8px; cursor:pointer; transition:background .12s; } .chip.r:hover { background:rgba(240,201,90,.32); }
       #tgtCard { position:fixed; left:50%; top:12px; transform:translateX(-50%); width:420px; padding:9px 14px 10px; box-sizing:border-box; display:none; flex-direction:column; gap:6px; background:var(--warm); border:1px solid rgba(255,170,150,.45); border-top:2px solid #e2513f; }
       body.playing #tgtCard { display:flex; } #tgtCard.off { display:none !important; } #tgtCard .km { margin-left:auto; font:700 15px "Special Elite"; } #tgtCard .sub { color:#f0d6c8; display:flex; justify-content:space-between; }
-      #wpnBar { position:fixed; left:50%; bottom:14px; transform:translateX(-50%); display:none; gap:6px; pointer-events:auto; } body.playing #wpnBar { display:flex; }
-      .slot { width:92px; padding:8px; box-sizing:border-box; display:flex; flex-direction:column; gap:5px; align-items:center; cursor:pointer; color:var(--cream); }
-      body.modern .slot.main { width:150px; } body.modern .slot { width:88px; }
-      .slot.main { width:230px; align-items:stretch; } .slot.on { border-color:var(--gold); } .slot.auto.on { background:rgba(60,90,40,.55); border-color:var(--ok); }
-      .slot .t { font:400 12.5px "Stardos Stencil"; letter-spacing:.06em; } .slot.on .t { color:var(--gold); } .slot.auto.on .t { color:#c4f0a6; } .slot .v { font:11px "Special Elite",monospace; color:var(--cream2); }
+      #wpnBar { position:fixed; left:50%; bottom:14px; transform:translateX(-50%); display:none; gap:5px; pointer-events:auto; z-index:4; } body.playing #wpnBar { display:flex; }
+      .slot { min-width:86px; width:auto; padding:7px 10px; box-sizing:border-box; display:flex; flex-direction:column; gap:4px; align-items:center; cursor:pointer; color:var(--cream); white-space:nowrap; border-bottom:2px solid rgba(232,220,184,.5); transition:background .12s,border-color .12s; }
+      .slot:hover { border-color:rgba(240,201,90,.78); background:rgba(42,45,35,.64); }
+      body.modern .slot.main { min-width:136px; width:auto; } body.modern .slot { min-width:72px; padding:6px 8px; }
+      .slot.main { width:204px; align-items:stretch; } .slot.main .t { text-align:left; } .slot.on { border-color:var(--gold); background:rgba(62,54,28,.56); } .slot.auto.on { background:rgba(60,90,40,.55); border-color:var(--ok); }
+      .slot .t { font:700 12px/1.2 "Stardos Stencil","Noto Sans KR",sans-serif; letter-spacing:.02em; color:#fbe9b0; white-space:nowrap; width:100%; text-align:center; padding-bottom:3px; border-bottom:1px dashed rgba(232,220,184,.22); } .slot.on .t { color:var(--gold); } .slot.auto.on .t { color:#c4f0a6; } .slot .v { font:500 11px/1.2 "Noto Sans KR","Special Elite",sans-serif; color:var(--cream2); white-space:nowrap; }
       .slot .tur { display:flex; gap:4px; } .slot .tur i { flex:1; height:8px; background:rgba(0,0,0,.4); position:relative; } .slot .tur i b { position:absolute; inset:0 auto 0 0; }
       .slot .ln { width:100%; height:4px; background:rgba(232,220,184,.2); } .slot .ln.ok { background:var(--ok); }
-      #log { left:18px; bottom:200px; font:12.5px "Special Elite","Noto Sans KR",monospace; color:#ece2c4; }
+      @media (max-width:1380px) { #wpnBar { left:330px; transform:none; } }
+      @media (max-width:1180px) { #wpnBar { left:auto; right:14px; bottom:48px; transform:none; } body.modern .slot.main { min-width:128px; } body.modern .slot { min-width:68px; padding:6px 7px; } body.modern .slot .t { font-size:11.5px; } body.modern .slot .v { font-size:10.5px; } }
+      #log { left:14px; bottom:186px; width:308px; font:12px/1.4 "Noto Sans KR","Special Elite",monospace; color:#ece2c4; word-break:keep-all; }
+      #log:not(:empty) { background:linear-gradient(90deg,rgba(14,18,14,.74) 0%,rgba(14,18,14,.42) 85%,transparent 100%); border-left:2px solid rgba(232,220,184,.4); padding:6px 10px; }
       #plotP { position:fixed; right:14px; top:14px; width:236px; height:236px; padding:0; border-radius:50%; overflow:hidden; background:rgba(28,40,44,.42); border:2px solid rgba(232,220,184,.45); }
       #plot { width:236px; height:236px; }
       #airP { top:262px; width:236px; border-radius:0; background:var(--glass); backdrop-filter:blur(14px) saturate(1.2); -webkit-backdrop-filter:blur(14px) saturate(1.2); border:1px solid var(--gline); }
