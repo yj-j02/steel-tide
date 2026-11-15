@@ -213,48 +213,102 @@ function drawPanel(pl, dt) {
 }
 {
   const g = cockpit, frameM = M(0x56616d, { roughness: 0.5, metalness: 0.4 }), blackM = M(0x15181a), cowlM = M(0x5a6b7d, { roughness: 0.55 }), seat = M(0x2d3134);
-  // nose / cowling seen over the glare shield + cooling flaps + wing-gun muzzle glow bounce
+  const gunBrass = M(0xc89f4e, { metalness: 0.85, roughness: 0.25 }), exhaustM = M(0x3f3028, { metalness: 0.72, roughness: 0.42 }), oliveM = M(0x4a5543, { roughness: 0.6 });
+  // nose / cowling + cooling flaps + 3 stubby exhaust manifold stacks per side + cowl ring lip
   bx(g, 0.8, 0.1, 3.4, cowlM, 0, -0.45, -2.6); bx(g, 0.5, 0.04, 3.2, M(0x4a5866), 0, -0.36, -2.6);
-  for (const s of [-1, 1]) bx(g, 0.04, 0.14, 0.55, M(0x3a434c), s * 0.43, -0.44, -2.15);
-  const cowlFlash = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.5), new THREE.MeshBasicMaterial({ color: 0xffb355, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
-  cowlFlash.position.set(0, -0.31, -1.6); cowlFlash.rotation.x = -1.25; g.add(cowlFlash); cockpit.userData.cowlFlash = cowlFlash;
+  const cowlLip = new THREE.Mesh(new THREE.TorusGeometry(0.43, 0.034, 8, 24, PI), cowlM);
+  cowlLip.position.set(0, -0.78, -3.6); cowlLip.rotation.z = 0; g.add(cowlLip);
+  for (const s of [-1, 1]) {
+    bx(g, 0.04, 0.14, 0.55, M(0x3a434c), s * 0.43, -0.44, -2.15);
+    for (let e = 0; e < 3; e++) {
+      const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.11, 8), exhaustM);
+      pipe.rotation.z = s * -0.95; pipe.rotation.x = 0.28; pipe.position.set(s * 0.445, -0.46, -1.78 - e * 0.17); g.add(pipe);
+    }
+  }
+  // soft radial bounce glow on top of cowl + instrument panel (no rectangular plane edges)
+  const bCan = document.createElement("canvas"); bCan.width = 64; bCan.height = 64;
+  {
+    const bc = bCan.getContext("2d"), bg = bc.createRadialGradient(32, 32, 2, 32, 32, 31);
+    bg.addColorStop(0, "rgba(255,195,105,0.9)"); bg.addColorStop(0.45, "rgba(255,135,55,0.38)"); bg.addColorStop(1, "rgba(255,95,20,0)");
+    bc.fillStyle = bg; bc.fillRect(0, 0, 64, 64);
+  }
+  const bounceTex = new THREE.CanvasTexture(bCan);
+  const cowlFlash = new THREE.Mesh(new THREE.PlaneGeometry(1.15, 0.7), new THREE.MeshBasicMaterial({ map: bounceTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+  cowlFlash.position.set(0, -0.32, -1.6); cowlFlash.rotation.x = -1.25; g.add(cowlFlash); cockpit.userData.cowlFlash = cowlFlash;
 
   const disc = new THREE.Mesh(new THREE.CircleGeometry(1.6, 40), new THREE.MeshBasicMaterial({ color: 0x111111, transparent: true, opacity: 0.06, depthWrite: false })); disc.position.set(0, -0.85, -4.5); g.add(disc); cockpit.userData.disc = disc;
-  // glare shield + instrument panel (low, keeps the view ahead clear)
+  // glare shield + main instrument panel + warm gunfire bounce glow strip
   bx(g, 1.14, 0.035, 0.2, blackM, 0, -0.2, -0.72);
   const panel = new THREE.Mesh(new THREE.PlaneGeometry(1.08, 0.55), new THREE.MeshBasicMaterial({ map: panelTex })); panel.position.set(0, -0.47, -0.74); panel.rotation.x = -0.1; g.add(panel);
   bx(g, 1.16, 0.6, 0.03, blackM, 0, -0.47, -0.76, -0.1);
-  // Mk 8 reflector sight on the glare shield, its reticle on the bore line
-  bx(g, 0.05, 0.05, 0.12, blackM, 0, -0.16, -0.66);
-  const refl = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.1), new THREE.MeshBasicMaterial({ map: sightTex, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false })); refl.position.set(0, 0, -0.62); g.add(refl); cockpit.userData.refl = refl;
-  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.11, 0.12), new THREE.MeshBasicMaterial({ color: 0xa8c8d8, transparent: true, opacity: 0.08, depthWrite: false })); plate.position.set(0, -0.06, -0.63); plate.rotation.x = -0.35; g.add(plate);
-  // windscreen: flat armoured centre pane + two side panes, slim frame, bolts & mirror
+  const panelGlow = new THREE.Mesh(new THREE.PlaneGeometry(1.06, 0.48), new THREE.MeshBasicMaterial({ map: bounceTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+  panelGlow.position.set(0, -0.46, -0.732); panelGlow.rotation.x = -0.1; g.add(panelGlow); cockpit.userData.panelGlow = panelGlow;
+  // Mk 8 optical reflector gunsight: cylindrical projector barrel, micrometer knob, sun-filter bracket & collimated reticle
+  bx(g, 0.06, 0.045, 0.13, blackM, 0, -0.17, -0.66);
+  const sightTube = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.03, 0.12, 14), blackM); sightTube.rotation.x = PI / 2; sightTube.position.set(0, -0.13, -0.65); g.add(sightTube);
+  const sightLens = new THREE.Mesh(new THREE.CircleGeometry(0.024, 14), new THREE.MeshBasicMaterial({ color: 0x70c8e8, transparent: true, opacity: 0.35 })); sightLens.rotation.x = -PI / 2 + 0.35; sightLens.position.set(0, -0.11, -0.61); g.add(sightLens);
+  const sightKnob = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.014, 0.02, 10), gunBrass); sightKnob.rotation.z = PI / 2; sightKnob.position.set(0.038, -0.13, -0.65); g.add(sightKnob);
+  for (const s of [-1, 1]) bx(g, 0.0045, 0.065, 0.008, frameM, s * 0.056, -0.095, -0.635, -0.35);
+  const refl = new THREE.Mesh(new THREE.PlaneGeometry(0.105, 0.105), new THREE.MeshBasicMaterial({ map: sightTex, transparent: true, opacity: 0.96, blending: THREE.AdditiveBlending, depthWrite: false })); refl.position.set(0, 0, -0.62); g.add(refl); cockpit.userData.refl = refl;
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.115, 0.125), new THREE.MeshBasicMaterial({ color: 0xa8c8d8, transparent: true, opacity: 0.1, depthWrite: false })); plate.position.set(0, -0.055, -0.63); plate.rotation.x = -0.35; g.add(plate);
+  // windscreen: flat armoured centre pane + side panes, riveted internal frame brackets, mirror & standby compass
   const glassM = new THREE.MeshBasicMaterial({ map: glassTex, transparent: true, opacity: 1, depthWrite: false, color: 0xdfeef2 });
   const pane = (w, h, x, y, z, ry, rx) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), glassM); m.position.set(x, y, z); m.rotation.set(rx, ry, 0, "YXZ"); g.add(m); };
   pane(0.36, 0.42, 0, 0.05, -0.56, 0, -0.32); for (const s of [1, -1]) pane(0.3, 0.42, s * 0.31, 0.05, -0.44, -s * 0.85, -0.25);
-  const bar = (len, x, y, z, rx, rz, ry = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.011, len, 0.011), frameM); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); g.add(m); };
-  for (const s of [1, -1]) { bar(0.46, s * 0.18, 0.05, -0.56, -0.32, 0); bar(0.46, s * 0.43, 0.05, -0.33, -0.25, s * 0.12); }
-  bx(g, 0.38, 0.011, 0.011, frameM, 0, 0.26, -0.49); bx(g, 0.4, 0.014, 0.014, frameM, 0, -0.16, -0.63);
+  const bar = (len, x, y, z, rx, rz, ry = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.012, len, 0.012), frameM); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); g.add(m); };
+  for (const s of [1, -1]) {
+    bar(0.46, s * 0.18, 0.05, -0.56, -0.32, 0); bar(0.46, s * 0.43, 0.05, -0.33, -0.25, s * 0.12);
+    for (const by of [-0.08, 0.06, 0.20]) {
+      const bolt = new THREE.Mesh(new THREE.SphereGeometry(0.0055, 6, 5), frameM); bolt.position.set(s * 0.18, by, -0.55 - (by - 0.05) * 0.32); g.add(bolt);
+    }
+  }
+  bx(g, 0.38, 0.012, 0.012, frameM, 0, 0.26, -0.49); bx(g, 0.4, 0.015, 0.015, frameM, 0, -0.16, -0.63);
   bx(g, 0.12, 0.045, 0.025, blackM, 0, 0.285, -0.47, 0.18);
   const cmir = new THREE.Mesh(new THREE.PlaneGeometry(0.105, 0.036), M(0x6e8598, { metalness: 0.9, roughness: 0.08 })); cmir.position.set(0, 0.285, -0.456); cmir.rotation.x = 0.18; g.add(cmir);
-  // canopy rails, sliding hood bows, side consoles, throttle quadrant, stick
+  // slim standby magnetic whiskey compass tucked neatly at upper-right corner
+  const cmpPod = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.015, 0.028, 10), blackM); cmpPod.position.set(0.145, 0.244, -0.49); g.add(cmpPod);
+  const cmpWin = new THREE.Mesh(new THREE.PlaneGeometry(0.015, 0.008), new THREE.MeshBasicMaterial({ color: 0xe6e0c8 })); cmpWin.position.set(0.145, 0.244, -0.474); g.add(cmpWin);
+  // canopy rails, sliding hood bows, emergency canopy release handle, throttle quadrant, gun chargers & stick
   for (const s of [1, -1]) { bx(g, 0.02, 0.02, 1.2, frameM, s * 0.49, -0.2, 0.1); const bow = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.008, 6, 24, PI), frameM); bow.position.set(0, -0.12, s > 0 ? -0.18 : 0.32); g.add(bow); }
   bx(g, 0.012, 0.012, 0.5, frameM, 0, 0.36, 0.07);
   for (const s of [1, -1]) bx(g, 0.14, 0.12, 0.7, seat, s * 0.4, -0.62, -0.2);
-  const thr = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.12, 0.03), M(0xb02a2a)); thr.position.set(-0.4, -0.5, -0.3); g.add(thr); cockpit.userData.thr = thr;
-  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.42, 8), blackM); stick.position.set(0, -0.68, -0.36); stick.rotation.x = 0.3; g.add(stick); cockpit.userData.stick = stick;
-  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.1, 8), M(0x3a2a1e)); grip.position.set(0, 0.24, 0); stick.add(grip);
+  bx(g, 0.06, 0.02, 0.02, M(0xb82c2c), 0.46, -0.18, -0.22); // emergency canopy release handle
+  // notched left throttle quadrant + throttle/mixture/prop levers
+  bx(g, 0.08, 0.06, 0.22, oliveM, -0.41, -0.57, -0.32);
+  const thr = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.036, 10), blackM); thr.rotation.z = PI / 2; thr.position.set(-0.40, -0.49, -0.30); g.add(thr); cockpit.userData.thr = thr;
+  const mix = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), M(0xb02a2a)); mix.position.set(-0.37, -0.50, -0.28); g.add(mix);
+  const prp = new THREE.Mesh(new THREE.SphereGeometry(0.014, 8, 6), M(0x3a6fa8)); prp.position.set(-0.43, -0.50, -0.29); g.add(prp);
+  // twin steel .50-cal gun charger T-handles beneath instrument panel
+  cockpit.userData.chargers = [];
+  for (const cx of [-0.19, 0.19]) {
+    const ch = new THREE.Mesh(new THREE.BoxGeometry(0.055, 0.016, 0.018), frameM); ch.position.set(cx, -0.68, -0.67); g.add(ch);
+    cockpit.userData.chargers.push(ch);
+  }
+  // pleated stick dust boot & contoured flight stick with brass/red trigger button
+  const boot = new THREE.Mesh(new THREE.ConeGeometry(0.065, 0.11, 10), blackM); boot.position.set(0, -0.82, -0.40); g.add(boot);
+  const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.017, 0.022, 0.42, 8), blackM); stick.position.set(0, -0.68, -0.36); stick.rotation.x = 0.3; g.add(stick); cockpit.userData.stick = stick;
+  const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.024, 0.105, 8), M(0x3a2a1e)); grip.position.set(0, 0.24, 0); stick.add(grip);
+  const trig = new THREE.Mesh(new THREE.SphereGeometry(0.012, 8, 6), M(0xc83a2e)); trig.position.set(0, 0.285, -0.022); stick.add(trig); cockpit.userData.trig = trig;
 }
-let panelT = 0, cHeadX = 0, cHeadY = 0;
+let panelT = 0, cHeadX = 0, cHeadY = 0, cRoll = 0;
 export function updateCockpit(pl, dt) {
   panelT -= dt; if (panelT <= 0) { panelT = 0.066; drawPanel(pl, 0.066); }
-  cockpit.userData.stick.rotation.x = 0.3 - pl.pitchCmd * 0.25; cockpit.userData.thr.position.z = -0.24 - pl.throttle * 0.12;
-  cockpit.userData.disc.rotation.z += dt * (28 + 18 * pl.throttle);
-  cHeadX += (clamp(-(pl.turnRate || 0) * 0.004, -0.018, 0.018) - cHeadX) * Math.min(1, dt * 6);
-  cHeadY += (clamp(-pl.pitchCmd * 0.012, -0.016, 0.016) - cHeadY) * Math.min(1, dt * 6);
-  const fire = !!(pl.firing && pl.ammo > 0), vib = (fire ? 0.0045 : 0.0008) * (0.4 + pl.throttle);
-  cockpit.position.set(cHeadX + (Math.random() - 0.5) * vib, cHeadY + (Math.random() - 0.5) * vib, fire ? (Math.random() - 0.5) * 0.004 : 0);
-  if (cockpit.userData.cowlFlash) cockpit.userData.cowlFlash.material.opacity = fire ? 0.16 + Math.random() * 0.24 : 0;
+  const fire = !!(pl.firing && pl.ammo > 0);
+  const st = cockpit.userData.stick;
+  st.rotation.x = 0.3 - (pl.pitchCmd || 0) * 0.25;
+  st.rotation.z = clamp(-(pl.turnRate || 0) * 0.22, -0.26, 0.26);
+  if (cockpit.userData.trig) cockpit.userData.trig.position.z = fire ? -0.012 : -0.022;
+  cockpit.userData.thr.position.z = -0.24 - (pl.throttle || 0) * 0.13;
+  cockpit.userData.disc.rotation.z += dt * (28 + 18 * (pl.throttle || 0));
+  cHeadX += (clamp(-(pl.turnRate || 0) * 0.0045, -0.02, 0.02) - cHeadX) * Math.min(1, dt * 6);
+  cHeadY += (clamp(-(pl.pitchCmd || 0) * 0.013, -0.018, 0.018) - cHeadY) * Math.min(1, dt * 6);
+  cRoll += (clamp(-(pl.turnRate || 0) * 0.028, -0.04, 0.04) - cRoll) * Math.min(1, dt * 5);
+  const vib = (fire ? 0.0048 : 0.00085) * (0.4 + (pl.throttle || 0));
+  cockpit.position.set(cHeadX + (Math.random() - 0.5) * vib, cHeadY + (Math.random() - 0.5) * vib, fire ? (Math.random() - 0.5) * 0.0045 : 0);
+  cockpit.rotation.z = cRoll;
+  if (cockpit.userData.cowlFlash) cockpit.userData.cowlFlash.material.opacity = fire ? 0.18 + Math.random() * 0.26 : 0;
+  if (cockpit.userData.panelGlow) cockpit.userData.panelGlow.material.opacity = fire ? 0.05 + Math.random() * 0.08 : 0;
+  if (cockpit.userData.chargers) for (const ch of cockpit.userData.chargers) ch.position.z = fire ? -0.668 + (Math.random() - 0.5) * 0.016 : -0.67;
   if (cockpit.userData.refl) cockpit.userData.refl.position.x = clamp(-(pl.turnRate || 0) * 0.0022, -0.022, 0.022);
 }
 
