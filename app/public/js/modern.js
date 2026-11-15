@@ -247,8 +247,21 @@ export function defend(dt, mode = "auto") {
     const pd = S.spec.pd;
     if (pd && S.mag[pd[0]] > 0 && D.pdCd <= 0) { const c = th.find((t) => t.d < WPN[pd[0]].range && t.m.engaged < need(t.m) + 1); if (c) { launch(S, pd[0], c.m); S.mag[pd[0]]--; c.m.engaged++; D.pdCd = 1.2; } }
     // CIWS: last 1.2 km
-    if (!S.ciwsDead) for (const { m, d } of th) if (d < 1300) { D.ciT -= dt; if (D.ciT <= 0) { D.ciT = 0.05; S.tilt.updateWorldMatrix(true, false); const o = S.pos.clone().setY(S.spec.fb + 9); spark.spawn({ x: o.x + (m.pos.x - o.x) * rnd(), y: o.y + (m.pos.y - o.y) * rnd(), z: o.z + (m.pos.z - o.z) * rnd(), life: 0.25, s0: 1.2, s1: 0.6, a: 1, c: 0xffe0a0 }); const dd = o.distanceTo(camera.position); if (dd < 3000 && rnd() < 0.5) at(dd, () => sfx.mgShot(dd)); }
-      if (rnd() < dt * (m.W.drone ? 0.22 : m.W.cls === "sub" ? 0.4 : m.W.cls === "sup" ? 0.22 : 0.1) * satK(m.side)) { m.killedBy = S; kill(m, "boom"); } break; }
+    if (!S.ciwsDead) for (const { m, d } of th) if (d < 1300) {
+      D.ciT -= dt;
+      if (D.ciT <= 0) {
+        D.ciT = 0.05; S.tilt.updateWorldMatrix(true, false);
+        const o = S.pos.clone().setY(S.spec.fb + 9), dir = m.pos.clone().sub(o), dl = Math.max(dir.length(), 1); dir.divideScalar(dl);
+        flash.spawn({ x: o.x, y: o.y, z: o.z, life: 0.06, s0: 2.2, s1: 0.9, a: 0.85, c: 0xffd478 });
+        if ((D.ciN = (D.ciN || 0) + 1) % 3 === 0) smoke.spawn({ x: o.x, y: o.y, z: o.z, vx: dir.x * 8 + 1.5, vy: 2.2, vz: dir.z * 8 + 1, life: 0.8, s0: 1.4, s1: 4.5, a: 0.25, c: 0xd0d4d8 });
+        for (let t = 0; t < 3; t++) {
+          const k = (t + rnd()) / 3, bx = o.x + dir.x * dl * k, by = o.y + dir.y * dl * k, bz = o.z + dir.z * dl * k;
+          spark.spawn({ x: bx, y: by, z: bz, vx: dir.x * 420 + gauss() * 14, vy: dir.y * 420 + gauss() * 14, vz: dir.z * 420 + gauss() * 14, life: 0.2, s0: 1.4, s1: 0.6, a: 1, c: t === 0 ? 0xffef9e : 0xffb858 });
+        }
+        const dd = o.distanceTo(camera.position); if (dd < 2600 && rnd() < 0.45) at(dd, () => (dd < 450 && sfx.vulcan ? sfx.vulcan() : sfx.mgShot(dd)));
+      }
+      if (rnd() < dt * (m.W.drone ? 0.22 : m.W.cls === "sub" ? 0.4 : m.W.cls === "sup" ? 0.22 : 0.1) * satK(m.side)) { m.killedBy = S; kill(m, "boom"); } break;
+    }
     // soft kill: AI ships throw a decoy when a missile is inside 5 km
     if (!mine && D.decoyCd <= 0 && th[0].d < 5000) { decoy(S); D.decoyCd = 35; }
   }
@@ -430,6 +443,7 @@ export function stepFlares(dt) {
   for (let i = M.flares.length - 1; i >= 0; i--) { const f = M.flares[i]; if (f.d > 0) { f.d -= dt; if (f.d <= 0 && f.src) f.p.copy(f.src.pos); continue; }
     f.t += dt; f.v.multiplyScalar(Math.exp(-dt * 0.9)); f.v.y -= 9.8 * dt; f.p.addScaledVector(f.v, dt); const a = Math.max(0, 1 - f.t / 4.5);
     if (rnd() < 0.7) flash.spawn({ x: f.p.x, y: f.p.y, z: f.p.z, life: 0.35, s0: 4.5 * a + 1, s1: 1.5, a: a, c: 0xfff4c8 });
+    if (rnd() < dt * 22) spark.spawn({ x: f.p.x, y: f.p.y, z: f.p.z, vx: gauss() * 8, vy: -4 - rnd() * 6, vz: gauss() * 8, g: 9.8, life: 0.45, s0: 0.9 * a + 0.3, s1: 0.2, a: 0.95 * a, c: 0xfff8dc });
     if (rnd() < dt * 14) smoke.spawn({ x: f.p.x, y: f.p.y, z: f.p.z, life: 2.4, s0: 1.5, s1: 7, a: 0.35 * a, c: 0xdadada });
     if (f.t > 4.5 || f.p.y < 2) M.flares.splice(i, 1); }
 }
@@ -441,6 +455,10 @@ export function jetGun(j) {
   if (j.gun % 4 === 0) {
     flash.spawn({ x: o.x, y: o.y - 0.5, z: o.z, life: 0.055, s0: 2.2, s1: 0.8, a: 0.85, c: 0xffcc66 });
     smoke.spawn({ x: o.x, y: o.y - 0.5, z: o.z, vx: j.vel.x * 0.25 + gauss() * 2, vy: j.vel.y * 0.25 + 1, vz: j.vel.z * 0.25 + gauss() * 2, life: 0.45, s0: 1.1, s1: 3.4, a: 0.28, c: 0xd0d0cc });
+    if (j.pilot || camera.position.distanceTo(j.pos) < 120) {
+      const ej = j.pos.clone().addScaledVector(f, 3.2); ej.y -= 0.7;
+      spark.spawn({ x: ej.x, y: ej.y, z: ej.z, vx: j.vel.x * 0.35 - f.x * 24 + gauss() * 4, vy: j.vel.y * 0.35 - 7 + gauss() * 2, vz: j.vel.z * 0.35 - f.z * 24 + gauss() * 4, g: 20, drag: 1.2, life: 0.36, s0: 0.2, s1: 0.08, a: 0.95, c: 0xffcf68 });
+    }
   }
   let res = null;
   for (const t of [...M.jets, ...M.list]) { if (!t.alive || t.side === j.side || (!t.isJet && t.W.role !== "asm")) continue;

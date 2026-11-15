@@ -669,14 +669,15 @@ function buildTurret(ship, t, i) {
   else { box(grp, tw, th, td, spec.upper, -tw * 0.1, 0, 0); box(grp, tw * 0.9, 0.22, td * 0.92, 0x5a6266, -tw * 0.1, th, 0); }
   if (cal >= 200) box(grp, 1.2, 0.9, td * 1.25, spec.upper, -tw * 0.45, th * 0.55, 0);
   const pivot = new THREE.Group(); pivot.position.set(tw * 0.38, th * 0.5, 0); grp.add(pivot);
-  const r = (cal / 1000) * 0.95, spc = t.n === 1 ? 0 : tw * (t.n === 3 ? 0.27 : 0.3);
+  const r = (cal / 1000) * 0.95, spc = t.n === 1 ? 0 : tw * (t.n === 3 ? 0.27 : 0.3), bars = [];
   for (let b = 0; b < t.n; b++) {
     const zz = (b - (t.n - 1) / 2) * spc;
     const bar = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(r * 0.8, r * 1.25, g.len, 10), mat(0x474e52))); bar.rotation.z = -PI / 2; bar.position.set(g.len / 2, 0, zz); pivot.add(bar);
+    bars.push({ bar, rec: 0 });
     if (cal >= 150) { const bag = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.6, r * 2.1, 1.6 + cal / 400, 10), mat(0xcbc4ae)); bag.rotation.z = -PI / 2; bag.position.set(0.9, 0, zz); pivot.add(bag); }
   }
   grp.rotation.y = -t.rest;
-  return { i, grp, pivot, th, x: t.x, y: y + t.up + 1.2 + th * 0.5, rest: t.rest, n: t.n, spc, tw, d: 0, elev: 0, reload: 3 + i * 1.2 + rnd() * 2, alive: true, onTarget: false, inArc: true, range: 9000 };
+  return { i, grp, pivot, bars, th, x: t.x, y: y + t.up + 1.2 + th * 0.5, rest: t.rest, n: t.n, spc, tw, d: 0, elev: 0, reload: 3 + i * 1.2 + rnd() * 2, alive: true, onTarget: false, inArc: true, range: 9000 };
 }
 
 // ── the ship ────────────────────────────────────────────────────────────────
@@ -750,6 +751,7 @@ export class Ship {
       t.onTarget = t.inArc && Math.abs(want - t.d) < 0.012 && Math.abs(we - t.elev) < 0.006 && this.sinking === 0;
       const was = t.reload; t.reload = Math.max(0, was - dt);
       if (this.isPlayer && was > 0 && t.reload === 0 && G.state === "playing" && !G.plane) sfx.ready();
+      if (t.bars) for (const br of t.bars) if (br.rec > 0) { br.rec = Math.max(0, br.rec - dt * 1.8); br.bar.position.x = this.gun.len / 2 - Math.sin(Math.pow(br.rec, 0.45) * PI) * (this.gun.cal / 406) * 1.35; }
       t.grp.rotation.y = -(t.rest + t.d); t.pivot.rotation.z = t.elev;
     }
     for (const m of this.torps) m.reload = Math.max(0, m.reload - dt);
@@ -820,9 +822,11 @@ function muzzleFX(pos, f, el, cal, ship) {
   const k = cal / 406, dir = new THREE.Vector3(f.x * Math.cos(el), Math.sin(el), f.z * Math.cos(el));
   for (let i = 0; i < 3; i++) flash.spawn({ x: pos.x + dir.x * i * 9 * k, y: pos.y + dir.y * i * 9 * k, z: pos.z + dir.z * i * 9 * k, life: 0.2, s0: 15 * k + 4, s1: 30 * k + 7, a: 0.95, c: i ? 0xffa040 : 0xfff0c0 });
   flash.spawn({ x: pos.x + dir.x * 14 * k, y: pos.y + dir.y * 14 * k, z: pos.z + dir.z * 14 * k, vx: dir.x * 20, vy: dir.y * 20, vz: dir.z * 20, life: 0.45, s0: 18 * k + 4, s1: 50 * k + 9, a: 0.6, c: 0xff6a18 });
+  for (let i = 0; i < 4 + Math.round(6 * k); i++) spark.spawn({ x: pos.x + gauss() * 1.5, y: pos.y + gauss() * 1.5, z: pos.z + gauss() * 1.5, vx: dir.x * (55 + rnd() * 35) + gauss() * 8, vy: dir.y * 45 + gauss() * 6, vz: dir.z * (55 + rnd() * 35) + gauss() * 8, g: GRAV * 0.5, life: 0.45 + rnd() * 0.3, s0: 1.4 * k + 0.4, s1: 0.3, a: 0.95, c: 0xffd27a });
   for (let i = 0; i < 3; i++) smoke.spawn({ x: pos.x + dir.x * (10 + i * 12) * k, y: pos.y + dir.y * (10 + i * 12) * k, z: pos.z + dir.z * (10 + i * 12) * k,
     vx: dir.x * (30 - i * 5) * k + 2, vy: 2.5 + dir.y * 10, vz: dir.z * (30 - i * 5) * k + 0.6, drag: 0.5, life: 7 + rnd() * 4, s0: 12 * k + 3, s1: 58 * k + 10, a: 0.6, c: 0x9a8c78 });
-  if (cal >= 200) rings.spawn({ x: pos.x + f.x * 22 * k, z: pos.z + f.z * 22 * k, w0: 8, l0: 8, w1: 95 * k, l1: 95 * k, life: 1.4, a: 0.42, c: 0x41505a, ease: 3 });
+  if (cal >= 127) rings.spawn({ x: pos.x + f.x * 22 * k, z: pos.z + f.z * 22 * k, w0: 6, l0: 6, w1: 95 * k + 18, l1: 95 * k + 18, life: 1.4, a: 0.52 * k + 0.15, c: 0xd8e8f2, ease: 3 });
+  if (cal >= 200) for (let i = 0; i < 2; i++) spray.spawn({ x: pos.x + f.x * 20 * k + gauss() * 4, y: 0.8, z: pos.z + f.z * 20 * k + gauss() * 4, vx: f.x * 10 + gauss() * 4, vy: 5 + rnd() * 5, vz: f.z * 10 + gauss() * 4, g: GRAV * 0.8, life: 1.2, s0: 5 * k + 2, s1: 14 * k + 5, a: 0.55, fade: 0.7, c: 0xe6f2f8 });
   if (ship.isPlayer && !G.plane) { G.shake = Math.min(G.shake + 0.6 * k + 0.12, 1.6); G.kick = Math.min((G.kick || 0) + 0.5 + 0.5 * k, 1); }
 }
 function launch(ship, q) {
@@ -834,6 +838,7 @@ function launch(ship, q) {
   const pos = new THREE.Vector3(tp.x + f.x * L * Math.cos(el) + perp.x * zz, tp.y + Math.sin(el) * L, tp.z + f.z * L * Math.cos(el) + perp.z * zz);
   const vel = new THREE.Vector3(f.x * Math.cos(el), Math.sin(el), f.z * Math.cos(el)).multiplyScalar(g.V0);
   const sh = new Shell(ship, pos, vel, q.salvo); sh.he = !!q.he; G.shells.push(sh);
+  if (t.bars?.[q.b]) t.bars[q.b].rec = 1;
   muzzleFX(pos, f, el, g.cal, ship);
   if (ship.isPlayer) { G.stats.shots++; if (q.first) { if (G.plane) { const d = pos.distanceTo(camera.position); at(d, () => sfx.farGun(d, g.cal)); } else sfx.gun(g.cal); } }
   else if (q.first) { const d = pos.distanceTo(camera.position); at(d, () => sfx.farGun(d, g.cal)); }
@@ -908,7 +913,10 @@ function resolveHit(ship, s, lx) {
     else G.log(`${tag} — 고폭탄 작렬`, cls);
     return;
   }
-  if (rnd() > pen) { deal(g.dmg[0] * 0.25 * ship.armorK, "도탄"); G.log(`${tag} — 도탄`, cls); return; }
+  if (rnd() > pen) {
+    for (let i = 0; i < 10; i++) spark.spawn({ x: s.pos.x, y: s.pos.y + 1, z: s.pos.z, vx: gauss() * 18 - dxn * 18, vy: 22 + rnd() * 28, vz: gauss() * 18 - dzn * 18, g: GRAV, life: 0.75 + rnd() * 0.4, s0: 1.6, s1: 0.4, a: 1, c: 0xfff0a8 });
+    deal(g.dmg[0] * 0.25 * ship.armorK, "도탄"); G.log(`${tag} — 도탄`, cls); return;
+  }
   let dmg = (g.dmg[0] + rnd() * (g.dmg[1] - g.dmg[0])) * ship.armorK;
   if (penK > 6 && rnd() < 0.45) { deal(dmg * 0.3, "과관통"); G.log(`${tag} — 과관통`, cls); return; }
   const c = critical(ship, lx, who(ship)); deal(dmg + c.dmg, "관통");
@@ -1053,6 +1061,7 @@ export function intercept(from, v, tgt) {
 }
 function torpHit(ship, t, lx) {
   const p = t.pos.clone().setY(0.5); spawnSplash(p.x, p.z, 1.7); hitFX(p, 0.9);
+  rings.spawn({ x: p.x, z: p.z, w0: 10, l0: 10, w1: 125, l1: 125, life: 2.2, a: 0.72, c: 0xdff4ff, ease: 3 });
   for (let i = 0; i < 46; i++) spray.spawn({ x: p.x + gauss() * 3.5, y: 1, z: p.z + gauss() * 3.5, vx: gauss() * 3, vy: 24 + rnd() * 34, vz: gauss() * 3, g: GRAV, life: 3.6, s0: 4, s1: 13, a: 0.95, fade: 0.5, c: 0xffffff });
   const d = p.distanceTo(camera.position); at(d, () => sfx.explode(d));
   const n = t.dmg * (0.85 + rnd() * 0.3) * ship.armorK * (ship.spec.belt > 250 ? 0.75 : 1);
