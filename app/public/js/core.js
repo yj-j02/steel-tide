@@ -427,26 +427,35 @@ export function cyl(p, rt, rb, h, c, x, y, z, seg = 14) { const m = shadowed(new
 const lineMat = new THREE.LineBasicMaterial({ color: 0x353b3f });
 export function lines(g, pts) { const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3)); g.add(new THREE.LineSegments(geo, lineMat)); }
 
-/** Grumman F4F-4 Wildcat style fighter. Nose points +Z, up +Y. */
+/** Grumman F4F-4 / Zero style carrier fighter. Nose points +Z, up +Y. */
 export function planeMesh(scale = 1, foe = false) {
   if (PLANE_HQ && !foe) return hqPlane(scale);
   const g = new THREE.Group(), top = foe ? 0x55603f : 0x5d6f82, under = foe ? 0x9c9d8a : 0xb9c0c6, dark = 0x24282b;
-  const fus = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.28, 7.6, 14), mat(top))); fus.rotation.x = PI / 2; fus.position.z = 0.1; g.add(fus);
-  const belly = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.3, 6.6, 14, 1, false, PI * 0.5, PI), mat(under))); belly.rotation.x = PI / 2; belly.position.set(0, -0.08, 0.4); g.add(belly);
-  const cowl = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.78, 0.72, 1.3, 16), mat(top))); cowl.rotation.x = PI / 2; cowl.position.z = 3.9; g.add(cowl);
-  const face = new THREE.Mesh(new THREE.CircleGeometry(0.7, 16), mat(dark)); face.position.z = 4.56; g.add(face);
-  const hub = new THREE.Mesh(new THREE.ConeGeometry(0.22, 0.5, 10), mat(0x30353a)); hub.rotation.x = PI / 2; hub.position.z = 4.8; g.add(hub);
-  const prop = new THREE.Group(); prop.position.z = 4.7; g.add(prop);
+  const fus = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.28, 7.6, 16), mat(top))); fus.rotation.x = PI / 2; fus.position.z = 0.1; g.add(fus);
+  const belly = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.3, 6.6, 16, 1, false, PI * 0.5, PI), mat(under))); belly.rotation.x = PI / 2; belly.position.set(0, -0.08, 0.4); g.add(belly);
+  const cowl = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.79, 0.72, 1.35, 18), mat(top))); cowl.rotation.x = PI / 2; cowl.position.z = 3.92; g.add(cowl);
+  const lip = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.12, 8, 18), mat(foe ? 0x2c3028 : top)); lip.position.z = 4.56; g.add(lip);
+  const face = new THREE.Mesh(new THREE.CircleGeometry(0.65, 16), mat(dark)); face.position.z = 4.52; g.add(face);
+  for (let i = 0; i < 7; i++) { const a = (i / 7) * TAU, cy = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.36, 0.22), mat(0x4b5156)); cy.position.set(Math.cos(a) * 0.42, Math.sin(a) * 0.42, 4.46); cy.rotation.z = a; g.add(cy); }
+  const scoop = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.22, 0.85), mat(dark)); scoop.position.set(0, -0.68, 3.6); g.add(scoop);
+  for (const s of [-1, 1]) { const ex = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.42, 6), mat(0x2b2420)); ex.rotation.x = PI / 2; ex.rotation.y = s * 0.25; ex.position.set(s * 0.66, -0.22, 3.18); g.add(ex); }
+  const hub = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.56, 12), mat(0x30353a)); hub.rotation.x = PI / 2; hub.position.z = 4.82; g.add(hub);
+  const prop = new THREE.Group(); prop.position.z = 4.72; g.add(prop);
   for (let i = 0; i < 3; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.5, 0.05), mat(0x1c1e20)); b.position.y = 0.75; const a = new THREE.Group(); a.rotation.z = (i * TAU) / 3; a.add(b); prop.add(a); }
-  const disc = new THREE.Mesh(new THREE.CircleGeometry(1.55, 24), new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.18, depthWrite: false })); disc.position.z = 4.72; g.add(disc);
+  const disc = new THREE.Mesh(new THREE.CircleGeometry(1.55, 24), new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.18, depthWrite: false })); disc.position.z = 4.74; g.add(disc);
   const wing = new THREE.Shape(); wing.moveTo(-5.8, -0.45); wing.lineTo(-5.6, 0.35); wing.lineTo(-1, 1.05); wing.lineTo(1, 1.05); wing.lineTo(5.6, 0.35); wing.lineTo(5.8, -0.45); wing.lineTo(1, -0.95); wing.lineTo(-1, -0.95); wing.closePath();
   const wg = new THREE.ExtrudeGeometry(wing, { depth: 0.2, bevelEnabled: false }); wg.rotateX(PI / 2);
   const w = shadowed(new THREE.Mesh(wg, mat(top))); w.position.set(0, -0.25, 0.7); g.add(w);
+  for (const gx of [-2.8, -2.25, 2.25, 2.8]) { const gun = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.65, 6), mat(dark)); gun.rotation.x = PI / 2; gun.position.set(gx, -0.25, 1.65); g.add(gun); }
   const st = new THREE.Shape(); st.moveTo(-2.1, -0.3); st.lineTo(-1.9, 0.25); st.lineTo(1.9, 0.25); st.lineTo(2.1, -0.3); st.lineTo(0, -0.55); st.closePath();
   const sg = new THREE.ExtrudeGeometry(st, { depth: 0.1, bevelEnabled: false }); sg.rotateX(PI / 2);
   const s = shadowed(new THREE.Mesh(sg, mat(top))); s.position.set(0, 0.05, -3.3); g.add(s);
   const fin = shadowed(new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.55, 1.25), mat(top))); fin.position.set(0, 0.85, -3.55); fin.rotation.x = -0.18; g.add(fin);
+  const tw = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.08, 8), mat(dark)); tw.rotation.z = PI / 2; tw.position.set(0, -0.32, -3.4); g.add(tw);
+  const tank = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 1.4, 4, 10), mat(under)); tank.rotation.x = PI / 2; tank.position.set(0, -0.58, 0.7); g.add(tank);
   const can = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 10), new THREE.MeshStandardMaterial({ color: 0x223040, metalness: 0.9, roughness: 0.1 })); can.scale.set(0.85, 0.75, 1.7); can.position.set(0, 0.55, 0.3); g.add(can);
+  for (const fz of [-0.15, 0.35, 0.85]) { const ho = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.03, 6, 14, PI), mat(top)); ho.position.set(0, 0.45, fz); g.add(ho); }
+  const mast = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.58, 0.1), mat(top)); mast.position.set(0, 0.96, -0.35); mast.rotation.x = -0.2; g.add(mast);
   const ins = new THREE.MeshBasicMaterial({ color: foe ? 0xb8382c : 0x1d2f66 }), star = new THREE.MeshBasicMaterial({ color: 0xf2f2f2 });
   if (foe) for (const sx of [-3.6, 3.6]) { const c = new THREE.Mesh(new THREE.CircleGeometry(0.62, 16), ins); c.rotation.x = -PI / 2; c.position.set(sx, -0.03, 0.55); g.add(c);
     const r = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.74, 20), new THREE.MeshBasicMaterial({ color: 0xe9d27a })); r.rotation.x = -PI / 2; r.position.set(sx, -0.025, 0.55); g.add(r); }

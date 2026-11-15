@@ -149,8 +149,9 @@ function drawPanel(pl, dt) {
 }
 {
   const g = cockpit, frameM = M(0x56616d, { roughness: 0.5, metalness: 0.4 }), blackM = M(0x15181a), cowlM = M(0x5a6b7d, { roughness: 0.55 }), seat = M(0x2d3134);
-  // nose / cowling seen over the glare shield + wing-gun muzzle glow bounce
+  // nose / cowling seen over the glare shield + cooling flaps + wing-gun muzzle glow bounce
   bx(g, 0.8, 0.1, 3.4, cowlM, 0, -0.45, -2.6); bx(g, 0.5, 0.04, 3.2, M(0x4a5866), 0, -0.36, -2.6);
+  for (const s of [-1, 1]) bx(g, 0.04, 0.14, 0.55, M(0x3a434c), s * 0.43, -0.44, -2.15);
   const cowlFlash = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.5), new THREE.MeshBasicMaterial({ color: 0xffb355, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
   cowlFlash.position.set(0, -0.31, -1.6); cowlFlash.rotation.x = -1.25; g.add(cowlFlash); cockpit.userData.cowlFlash = cowlFlash;
 
@@ -163,29 +164,32 @@ function drawPanel(pl, dt) {
   bx(g, 0.05, 0.05, 0.12, blackM, 0, -0.16, -0.66);
   const refl = new THREE.Mesh(new THREE.PlaneGeometry(0.1, 0.1), new THREE.MeshBasicMaterial({ map: sightTex, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false })); refl.position.set(0, 0, -0.62); g.add(refl); cockpit.userData.refl = refl;
   const plate = new THREE.Mesh(new THREE.PlaneGeometry(0.11, 0.12), new THREE.MeshBasicMaterial({ color: 0xa8c8d8, transparent: true, opacity: 0.08, depthWrite: false })); plate.position.set(0, -0.06, -0.63); plate.rotation.x = -0.35; g.add(plate);
-  // windscreen: flat armoured centre pane + two side panes, slim frame, nearly clear glass
+  // windscreen: flat armoured centre pane + two side panes, slim frame, bolts & mirror
   const glassM = new THREE.MeshBasicMaterial({ map: glassTex, transparent: true, opacity: 1, depthWrite: false, color: 0xdfeef2 });
   const pane = (w, h, x, y, z, ry, rx) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), glassM); m.position.set(x, y, z); m.rotation.set(rx, ry, 0, "YXZ"); g.add(m); };
   pane(0.36, 0.42, 0, 0.05, -0.56, 0, -0.32); for (const s of [1, -1]) pane(0.3, 0.42, s * 0.31, 0.05, -0.44, -s * 0.85, -0.25);
   const bar = (len, x, y, z, rx, rz, ry = 0) => { const m = new THREE.Mesh(new THREE.BoxGeometry(0.011, len, 0.011), frameM); m.position.set(x, y, z); m.rotation.set(rx, ry, rz); g.add(m); };
   for (const s of [1, -1]) { bar(0.46, s * 0.18, 0.05, -0.56, -0.32, 0); bar(0.46, s * 0.43, 0.05, -0.33, -0.25, s * 0.12); }
   bx(g, 0.38, 0.011, 0.011, frameM, 0, 0.26, -0.49); bx(g, 0.4, 0.014, 0.014, frameM, 0, -0.16, -0.63);
-  // canopy rails, sliding hood bows, rear-view mirror
+  bx(g, 0.12, 0.045, 0.025, blackM, 0, 0.285, -0.47, 0.18);
+  const cmir = new THREE.Mesh(new THREE.PlaneGeometry(0.105, 0.036), M(0x6e8598, { metalness: 0.9, roughness: 0.08 })); cmir.position.set(0, 0.285, -0.456); cmir.rotation.x = 0.18; g.add(cmir);
+  // canopy rails, sliding hood bows, side consoles, throttle quadrant, stick
   for (const s of [1, -1]) { bx(g, 0.02, 0.02, 1.2, frameM, s * 0.49, -0.2, 0.1); const bow = new THREE.Mesh(new THREE.TorusGeometry(0.5, 0.008, 6, 24, PI), frameM); bow.position.set(0, -0.12, s > 0 ? -0.18 : 0.32); g.add(bow); }
-  bx(g, 0.012, 0.012, 0.5, frameM, 0, 0.36, 0.07); 
-  // side consoles, throttle quadrant, stick
+  bx(g, 0.012, 0.012, 0.5, frameM, 0, 0.36, 0.07);
   for (const s of [1, -1]) bx(g, 0.14, 0.12, 0.7, seat, s * 0.4, -0.62, -0.2);
   const thr = new THREE.Mesh(new THREE.BoxGeometry(0.03, 0.12, 0.03), M(0xb02a2a)); thr.position.set(-0.4, -0.5, -0.3); g.add(thr); cockpit.userData.thr = thr;
   const stick = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.42, 8), blackM); stick.position.set(0, -0.68, -0.36); stick.rotation.x = 0.3; g.add(stick); cockpit.userData.stick = stick;
   const grip = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.026, 0.1, 8), M(0x3a2a1e)); grip.position.set(0, 0.24, 0); stick.add(grip);
 }
-let panelT = 0;
+let panelT = 0, cHeadX = 0, cHeadY = 0;
 export function updateCockpit(pl, dt) {
   panelT -= dt; if (panelT <= 0) { panelT = 0.066; drawPanel(pl, 0.066); }
   cockpit.userData.stick.rotation.x = 0.3 - pl.pitchCmd * 0.25; cockpit.userData.thr.position.z = -0.24 - pl.throttle * 0.12;
   cockpit.userData.disc.rotation.z += dt * (28 + 18 * pl.throttle);
+  cHeadX += (clamp(-(pl.turnRate || 0) * 0.004, -0.018, 0.018) - cHeadX) * Math.min(1, dt * 6);
+  cHeadY += (clamp(-pl.pitchCmd * 0.012, -0.016, 0.016) - cHeadY) * Math.min(1, dt * 6);
   const fire = !!(pl.firing && pl.ammo > 0), vib = (fire ? 0.0045 : 0.0008) * (0.4 + pl.throttle);
-  cockpit.position.set((Math.random() - 0.5) * vib, (Math.random() - 0.5) * vib, fire ? (Math.random() - 0.5) * 0.004 : 0);
+  cockpit.position.set(cHeadX + (Math.random() - 0.5) * vib, cHeadY + (Math.random() - 0.5) * vib, fire ? (Math.random() - 0.5) * 0.004 : 0);
   if (cockpit.userData.cowlFlash) cockpit.userData.cowlFlash.material.opacity = fire ? 0.16 + Math.random() * 0.24 : 0;
   if (cockpit.userData.refl) cockpit.userData.refl.position.x = clamp(-(pl.turnRate || 0) * 0.0022, -0.022, 0.022);
 }
@@ -209,13 +213,23 @@ export const aaGun = new THREE.Group(); aaGun.visible = false; ovScene.add(aaGun
 }
 export function updateAAGun(recoil) { aaGun.userData.barrels.forEach((b, i) => { b.position.z = -0.75 + recoil[i] * 0.12; }); }
 
-// ── modern jet cockpit (F/A-18E / F-35 style): live collimated HUD combiner, UFC, Master Caution, 3 glass MFDs, HOTAS, canopy ──
+// ── modern jet cockpit (F/A-18E / F-35 style): nose/LERX exterior cues, mirrors, live HUD combiner, UFC, 3 MFDs, HOTAS ──
 export const jetPit = new THREE.Group(); jetPit.visible = false; ovScene.add(jetPit);
 const jmfd = [];
 let jhud = null;
+const JV_F = new THREE.Vector3(), JV_U = new THREE.Vector3(), JV_R = new THREE.Vector3();
 {
   const g = jetPit, body = M(0x161a1e, { roughness: 0.85 }), trim = M(0x282f36, { roughness: 0.55 }), pad = M(0x101316, { roughness: 0.92 });
+  const skin = M(0x525c65, { roughness: 0.52, metalness: 0.3 }), skinDark = M(0x363d44, { roughness: 0.55, metalness: 0.35 }), pitotM = M(0x202428, { metalness: 0.8, roughness: 0.35 });
   const glassM = new THREE.MeshBasicMaterial({ color: 0x6ce884, transparent: true, opacity: 0.06, depthWrite: false });
+  // visible exterior fighter nose cone, radome tip, Vulcan gun slot, and LERX / swept wing roots over the sill
+  const radome = new THREE.Mesh(new THREE.ConeGeometry(0.46, 3.8, 16), skin); radome.rotation.x = -PI / 2; radome.scale.set(1.18, 1, 0.72); radome.position.set(0, -0.45, -3.15); g.add(radome);
+  const noseTip = new THREE.Mesh(new THREE.ConeGeometry(0.18, 1.35, 14), skinDark); noseTip.rotation.x = -PI / 2; noseTip.scale.set(1.1, 1, 0.75); noseTip.position.set(0, -0.52, -4.95); g.add(noseTip);
+  bx(g, 0.14, 0.04, 0.42, pad, 0.14, -0.345, -1.65, 0.08);
+  for (const s of [-1, 1]) {
+    const lerx = bx(g, 0.46, 0.055, 1.8, skinDark, s * 0.74, -0.42, -1.85, 0.06); lerx.rotation.y = -s * 0.24; lerx.rotation.z = -s * 0.08;
+    const wroot = bx(g, 1.65, 0.06, 1.25, skin, s * 1.95, -0.48, -2.35, 0.03); wroot.rotation.y = -s * 0.48;
+  }
   // instrument panel + sculpted matte anti-glare shroud + brow lip
   bx(g, 1.54, 0.3, 0.04, body, 0, -0.45, -0.74, -0.35);
   bx(g, 1.24, 0.036, 0.24, pad, 0, -0.29, -0.87, -0.08);
@@ -255,23 +269,33 @@ let jhud = null;
     jmfd.push({ c, x: c.getContext("2d"), t });
   };
   mk(-0.33, -0.41, 0.21, 0.17, -0.35); mk(0, -0.435, 0.23, 0.175, -0.35); mk(0.33, -0.41, 0.21, 0.17, -0.35);
-  // bubble canopy frame bow + stealth-tinted side sills
+  // stealth canopy glass reflection, arch frame, grab rails & triple rear-view mirrors
   const frame = M(0x13171a, { roughness: 0.7 });
-  const bow = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.012, 6, 48, PI), frame); bow.position.set(0, -0.62, -1.15); g.add(bow);
-  bx(g, 0.028, 0.028, 1.4, frame, -1.05, -0.32, -0.4); bx(g, 0.028, 0.028, 1.4, frame, 1.05, -0.32, -0.4);
-  const stick = new THREE.Group(); stick.position.set(0.3, -0.62, -0.5); g.add(stick); bx(stick, 0.035, 0.18, 0.035, trim, 0, 0.09, 0); bx(stick, 0.05, 0.075, 0.06, body, 0, 0.2, 0); g.userData.stick = stick;
-  const thr = new THREE.Group(); thr.position.set(-0.42, -0.58, -0.5); g.add(thr); bx(thr, 0.075, 0.07, 0.095, body, 0, 0.05, 0); g.userData.thr = thr;
-  bx(g, 0.2, 0.03, 0.5, trim, -0.55, -0.6, -0.45); bx(g, 0.2, 0.03, 0.5, trim, 0.55, -0.6, -0.45);
+  const canopyGlass = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.72), new THREE.MeshBasicMaterial({ map: glassTex, transparent: true, opacity: 0.55, depthWrite: false, color: 0xd6e8cc }));
+  canopyGlass.position.set(0, 0.06, -0.98); canopyGlass.rotation.x = -0.45; g.add(canopyGlass);
+  const bow = new THREE.Mesh(new THREE.TorusGeometry(1.18, 0.015, 8, 48, PI), frame); bow.position.set(0, -0.62, -1.08); bow.rotation.x = 0.12; g.add(bow);
+  const rearBow = new THREE.Mesh(new THREE.TorusGeometry(1.06, 0.016, 8, 48, PI), frame); rearBow.position.set(0, -0.5, 0.18); g.add(rearBow);
+  bx(g, 0.024, 0.024, 1.32, frame, 0, 0.54, -0.44);
+  for (const [mx, my, ry] of [[-0.22, 0.42, 0.28], [0, 0.48, 0], [0.22, 0.42, -0.28]]) {
+    const mh = bx(g, 0.11, 0.042, 0.022, body, mx, my, -0.72, 0.22); mh.rotation.y = ry;
+    const mg = new THREE.Mesh(new THREE.PlaneGeometry(0.095, 0.032), M(0x7c93a6, { metalness: 0.92, roughness: 0.06 })); mg.position.set(0, 0, 0.012); mh.add(mg);
+  }
+  bx(g, 0.028, 0.028, 1.5, frame, -0.96, -0.32, -0.4); bx(g, 0.028, 0.028, 1.5, frame, 0.96, -0.32, -0.4);
+  // HOTAS stick, throttle levers with AB detent, side consoles, ejection seat handle
+  const stick = new THREE.Group(); stick.position.set(0.28, -0.62, -0.48); g.add(stick); bx(stick, 0.035, 0.18, 0.035, trim, 0, 0.09, 0); bx(stick, 0.052, 0.085, 0.065, body, 0, 0.2, 0); bx(stick, 0.026, 0.02, 0.03, pitotM, 0, 0.25, -0.01); g.userData.stick = stick;
+  const thr = new THREE.Group(); thr.position.set(-0.42, -0.58, -0.48); g.add(thr); bx(thr, 0.075, 0.068, 0.095, body, 0, 0.05, 0); bx(thr, 0.02, 0.018, 0.04, M(0xb82820), 0.028, 0.09, -0.01); g.userData.thr = thr;
+  bx(g, 0.22, 0.03, 0.56, trim, -0.54, -0.6, -0.45); bx(g, 0.22, 0.03, 0.56, trim, 0.54, -0.6, -0.45);
+  const ejectLoop = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.008, 6, 16), M(0xe6b822)); ejectLoop.position.set(0, -0.66, -0.54); ejectLoop.rotation.x = 0.7; g.add(ejectLoop);
 }
-let jpT = 0, jhT = 0;
-function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg) {
+let jpT = 0, jhT = 0, jHeadX = 0, jHeadY = 0, jHeadZ = 0;
+function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaDeg, abK) {
   if (!jhud) return;
   const { c, x, t } = jhud, W = c.width, H = c.height, cx = W / 2, cy = H / 2;
   x.clearRect(0, 0, W, H);
-  const green = "#6eff82", amber = "#ffd04d", red = "#ff5a48";
+  const green = "#6eff82", amber = "#ffd04d", red = "#ff5a48", abOn = abK > 0.35 || thrPct >= 88;
   x.strokeStyle = green; x.fillStyle = green; x.lineWidth = 2; x.lineCap = "round";
-  // Rotating artificial horizon & pitch ladder (-30..+30 deg)
-  x.save(); x.beginPath(); x.rect(92, 56, W - 184, H - 122); x.clip();
+  // Rotating artificial horizon & pitch ladder (-30..+30 deg) using true fighter attitude
+  x.save(); x.beginPath(); x.rect(92, 56, W - 184, H - 134); x.clip();
   x.translate(cx, cy + pitch * 260); x.rotate(-roll);
   x.font = "bold 14px monospace"; x.textAlign = "right";
   for (let deg = -30; deg <= 30; deg += 10) {
@@ -295,17 +319,33 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg) {
   // Fixed bore-sight & Flight Path Vector (velocity vector)
   x.strokeStyle = green; x.lineWidth = 2.2;
   x.beginPath(); x.moveTo(cx - 16, cy); x.lineTo(cx - 6, cy); x.lineTo(cx, cy + 7); x.lineTo(cx + 6, cy); x.lineTo(cx + 16, cy); x.stroke();
-  const fpvY = clamp(cy - (j.vel.y / Math.max(40, j.vel.length())) * 170 + pitch * 110, 74, H - 84);
+  const fpvY = clamp(cy - (j.vel.y / Math.max(40, j.vel.length())) * 170 + pitch * 110, 74, H - 96);
   x.beginPath(); x.arc(cx, fpvY, 10, 0, TAU);
   x.moveTo(cx - 22, fpvY); x.lineTo(cx - 10, fpvY); x.moveTo(cx + 10, fpvY); x.lineTo(cx + 22, fpvY);
   x.moveTo(cx, fpvY - 10); x.lineTo(cx, fpvY - 19); x.stroke();
-  // Left airspeed box + Mach + AB
-  x.font = "bold 20px monospace"; x.textAlign = "right";
+  // Bottom bank scale arc (-45..+45 deg)
+  const br = 128, by = cy + 68;
+  x.strokeStyle = green; x.lineWidth = 1.6; x.beginPath(); x.arc(cx, by, br, PI * 0.25, PI * 0.75); x.stroke();
+  for (const aDeg of [-45, -30, -15, 0, 15, 30, 45]) {
+    const a = PI * 0.5 + aDeg * DEG;
+    x.beginPath(); x.moveTo(cx + Math.cos(a) * br, by + Math.sin(a) * br); x.lineTo(cx + Math.cos(a) * (br + (aDeg % 30 === 0 ? 9 : 5)), by + Math.sin(a) * (br + (aDeg % 30 === 0 ? 9 : 5))); x.stroke();
+  }
+  const ba = PI * 0.5 + clamp(roll, -45 * DEG, 45 * DEG);
+  x.fillStyle = amber; x.beginPath();
+  x.moveTo(cx + Math.cos(ba) * (br - 2), by + Math.sin(ba) * (br - 2));
+  x.lineTo(cx + Math.cos(ba - 0.04) * (br - 11), by + Math.sin(ba - 0.04) * (br - 11));
+  x.lineTo(cx + Math.cos(ba + 0.04) * (br - 11), by + Math.sin(ba + 0.04) * (br - 11)); x.closePath(); x.fill();
+  // Left airspeed box + G-load + AOA + Mach + AB Gate
+  x.fillStyle = gLoad >= 7.2 ? red : gLoad >= 4.8 ? amber : green; x.font = "bold 14px monospace"; x.textAlign = "right";
+  x.fillText(`${gLoad.toFixed(1)}G`, 82, cy - 46);
+  x.fillStyle = green; x.fillText(`α ${aoaDeg.toFixed(1)}°`, 82, cy - 28);
+  x.font = "bold 20px monospace";
   x.strokeRect(14, cy - 18, 72, 32); x.fillText(String(Math.round(spdKmh)), 80, cy + 5);
   x.font = "bold 14px monospace";
   x.fillText(`M ${(j.vel.length() / 340).toFixed(2)}`, 82, cy + 32);
-  x.fillStyle = thrPct >= 88 ? amber : green;
-  x.fillText(thrPct >= 88 ? `AB ${thrPct}%` : `THR ${thrPct}%`, 82, cy + 50);
+  x.fillStyle = abOn ? amber : green;
+  x.fillText(abOn ? `AB ${thrPct}%` : `THR ${thrPct}%`, 82, cy + 50);
+  if (abOn) { x.strokeStyle = amber; x.strokeRect(24, cy + 56, 60, 18); x.font = "bold 12px monospace"; x.fillText("AB GATE", 80, cy + 69); }
   // Right altitude box + vertical speed cue
   x.fillStyle = green; x.strokeStyle = green; x.textAlign = "left";
   x.font = "bold 20px monospace"; x.strokeRect(W - 86, cy - 18, 72, 32);
@@ -328,7 +368,7 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg) {
   if (info.lock) {
     x.strokeStyle = amber; x.fillStyle = amber; x.lineWidth = 2.4;
     x.beginPath(); x.moveTo(cx, cy - 34); x.lineTo(cx + 28, cy); x.lineTo(cx, cy + 34); x.lineTo(cx - 28, cy); x.closePath(); x.stroke();
-    x.font = "bold 15px monospace"; x.fillText(`FOX-2 SHOOT`, cx, H - 56);
+    x.font = "bold 15px monospace"; x.fillText(`FOX-2 SHOOT`, cx, H - 52);
   } else if ((info.lockPct || 0) > 0) {
     const lr = 48 - 22 * clamp(info.lockPct, 0, 1);
     x.strokeStyle = green; x.setLineDash([7, 5]); x.beginPath(); x.arc(cx, cy, lr, 0, TAU); x.stroke(); x.setLineDash([]);
@@ -349,24 +389,38 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg) {
   x.textAlign = "right"; x.fillText(`AAM ${j.aam}  ASM ${j.asm}`, W - 18, H - 20);
   t.needsUpdate = true;
 }
-/** j = the jet, info = { rwr, lock, blips, roll, pitch, firing, lockPct, gunHit } */
+/** j = the jet, info = { rwr, lock, blips, ab, roll, pitch, firing, lockPct, gunHit } */
 export function updateJetPit(j, dt, info = {}) {
-  const roll = info.roll || 0, pitch = info.pitch || 0;
+  JV_F.set(1, 0, 0).applyQuaternion(j.q);
+  JV_U.set(0, 1, 0).applyQuaternion(j.q);
+  JV_R.set(0, 0, 1).applyQuaternion(j.q);
   const spdMs = j.vel.length(), spdKmh = spdMs * 3.6, altM = j.pos.y, thrPct = clamp(Math.round(((j.thr - 110) / 220) * 100), 0, 100);
-  const hdg = info.hdg ?? ((Math.atan2(j.vel.x, -j.vel.z) * 180 / PI + 360) % 360);
-  jetPit.userData.stick.rotation.set(-pitch * 0.3, 0, -roll * 0.3);
-  jetPit.userData.thr.position.z = -0.5 - (thrPct / 100) * 0.12;
-  // Micro recoil & afterburner / high-G airframe vibration + Vulcan muzzle glare
-  const firing = !!(info.firing && j.gun > 0), ab = thrPct >= 88, gBuf = Math.max(0, (Math.abs(roll) + Math.abs(pitch) * 1.4 - 0.65) * 0.6);
-  const vib = (firing ? 0.0042 : 0) + (ab ? 0.0011 : 0.0004) + gBuf * 0.0022;
-  jetPit.position.set((Math.random() - 0.5) * vib, (Math.random() - 0.5) * vib, firing ? (Math.random() - 0.5) * 0.003 : 0);
+  const truePitch = Math.asin(clamp(JV_F.y, -1, 1)), trueRoll = Math.atan2(-JV_R.y, JV_U.y);
+  const hdg = info.hdg ?? ((Math.atan2(JV_F.x, -JV_F.z) * 180 / PI + 360) % 360);
+  const angRate = j._prevF ? JV_F.angleTo(j._prevF) / Math.max(dt, 1e-3) : 0;
+  (j._prevF ||= new THREE.Vector3()).copy(JV_F);
+  const rawG = clamp(Math.cos(truePitch) * Math.cos(trueRoll) + (spdMs * angRate) / 9.81, -2.5, 9.2);
+  j._g = (j._g ?? 1) + (rawG - (j._g ?? 1)) * Math.min(1, dt * 8);
+  const aoaDeg = clamp(Math.asin(clamp(JV_F.y - j.vel.y / Math.max(spdMs, 1), -0.45, 0.45)) * 180 / PI + Math.max(0, j._g - 1) * 1.15, -4, 24);
+  const abK = info.ab ?? (thrPct >= 88 ? 1 : 0), ab = abK > 0.35 || thrPct >= 88;
+  const stickRoll = info.roll || clamp(angRate * Math.sign(trueRoll || 1) * 0.4, -1, 1);
+  const stickPitch = info.pitch || clamp(angRate * 0.5, -1, 1);
+  jetPit.userData.stick.rotation.set(-stickPitch * 0.28, 0, -stickRoll * 0.28);
+  jetPit.userData.thr.position.z = -0.48 - (thrPct / 100) * 0.13;
+  // G-force inertial head lag + afterburner longitudinal kick + Vulcan muzzle recoil/buffet
+  const firing = !!(info.firing && j.gun > 0), gBuf = Math.max(0, (j._g - 2.2) * 0.22);
+  const vib = (firing ? 0.0042 : 0) + (ab ? 0.0014 : 0.0004) + gBuf * 0.0018;
+  jHeadX += (clamp(-trueRoll * 0.014, -0.018, 0.018) - jHeadX) * Math.min(1, dt * 6);
+  jHeadY += (clamp(-(j._g - 1) * 0.0045, -0.022, 0.012) - jHeadY) * Math.min(1, dt * 6);
+  jHeadZ += (clamp(-abK * 0.014, -0.016, 0.006) - jHeadZ) * Math.min(1, dt * 5);
+  jetPit.position.set(jHeadX + (Math.random() - 0.5) * vib, jHeadY + (Math.random() - 0.5) * vib, jHeadZ + (firing ? (Math.random() - 0.5) * 0.003 : 0));
   if (jetPit.userData.gunGlow) jetPit.userData.gunGlow.material.opacity = firing ? 0.18 + Math.random() * 0.25 : 0;
   const blink = Math.floor(performance.now() / 180) % 2 === 0;
   if (jetPit.userData.mcLamp) jetPit.userData.mcLamp.material.color.setHex((j.hit || (altM < 65 && j.vel.y < -8)) && blink ? 0xffb326 : 0x2a1408);
   if (jetPit.userData.rwrLamp) jetPit.userData.rwrLamp.material.color.setHex(info.rwr && blink ? 0xff3b2f : 0x2a0808);
   // 30 Hz collimated HUD combiner update
   jhT -= dt;
-  if (jhT <= 0) { jhT = 0.033; drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg); }
+  if (jhT <= 0) { jhT = 0.033; drawJetHud(j, info, spdKmh, altM, thrPct, trueRoll, truePitch, hdg, j._g, aoaDeg, abK); }
   // 10 Hz three-MFD glass cockpit + UFC update
   jpT -= dt; if (jpT > 0) return; jpT = 0.1;
   const [L, C, R] = jmfd, bg = (m, title) => {

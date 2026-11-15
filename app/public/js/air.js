@@ -158,6 +158,13 @@ export class Plane {
         if (this.gunI % 2 === 0) { const d = this === G.plane ? 0 : camera.position.distanceTo(o.position); if (d < 30) sfx.mgShot(0); else if (this.gunI % 6 === 0) at(d, () => sfx.mgShot(d)); }
       }
     } else this.fireT = 0;
+    if (this.alive && this.throttle > 0.92 && rnd() < dt * 16) {
+      const ex = o.localToWorld(new THREE.Vector3((rnd() < 0.5 ? 1 : -1) * 0.72, -0.22, 3.1));
+      flash.spawn({ x: ex.x, y: ex.y, z: ex.z, vx: this.vel.x * 0.2, vy: this.vel.y * 0.2, vz: this.vel.z * 0.2, life: 0.075, s0: 0.7, s1: 0.3, a: 0.65, c: 0xff9840 });
+    }
+    if (this.alive && (Math.abs(this.pitchCmd) > 0.65 || this.speed > 155) && rnd() < dt * 18) {
+      for (const sx of [-5.6, 5.6]) { const tp = o.localToWorld(new THREE.Vector3(sx, -0.2, -0.1)); spray.spawn({ x: tp.x, y: tp.y, z: tp.z, life: 0.35, s0: 0.38, s1: 1.1, a: 0.2, c: 0xf4f8ff }); }
+    }
     this.smokeT -= dt;
     if (this.smokeT <= 0 && this.hp < 50) { this.smokeT = 0.06; const t = o.localToWorld(new THREE.Vector3(0, 0, -1)); smoke.spawn({ x: t.x, y: t.y, z: t.z, life: 4, s0: 1.5, s1: 9, a: this.alive ? 0.5 : 0.85, c: this.alive ? 0x555555 : 0x151515 });
       if (!this.alive) flash.spawn({ x: t.x, y: t.y, z: t.z, life: 0.25, s0: 3, s1: 1.5, a: 1, c: 0xff7020 }); }

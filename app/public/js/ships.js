@@ -394,26 +394,83 @@ function mcarrier(g, spec) {
   g.userData.bridge = [ix + 8, yd + 15, iz];
   return spec.nuke ? [] : [[ix - 6, yd + 18, iz]];
 }
-/** Modern fighter, ~16 m, nose +x: fuselage, cockpit, swept wings, twin canted fins, stabilators. */
+/** Modern twin-engine carrier fighter, ~16.5 m, nose +x: radome, LERX strakes, side intakes, twin nozzles + AB plumes, wingtip rails. */
 const JG = (() => {
-  const P = [[0, -8], [0.75, -7.6], [0.95, -3], [0.9, 2], [0.65, 4.8], [0.3, 7], [0, 8]].map(([r, y]) => new THREE.Vector2(r, y));
-  const body = new THREE.LatheGeometry(P, 12); body.rotateZ(-PI / 2); body.scale(1, 0.85, 1.25);
-  const ws = new THREE.Shape(); ws.moveTo(2.5, 0); ws.lineTo(-3.5, 6.4); ws.lineTo(-5.2, 6.4); ws.lineTo(-4.5, 0); ws.closePath();
-  const wing = new THREE.ExtrudeGeometry(ws, { depth: 0.18, bevelEnabled: false }); wing.rotateX(PI / 2);
-  const ts = new THREE.Shape(); ts.moveTo(0, 0); ts.lineTo(-2.4, 3.2); ts.lineTo(-3.6, 3.2); ts.lineTo(-3.4, 0); ts.closePath();
-  const fin = new THREE.ExtrudeGeometry(ts, { depth: 0.12, bevelEnabled: false });
-  const st = new THREE.Shape(); st.moveTo(0, 0); st.lineTo(-1.6, 2.6); st.lineTo(-2.6, 2.6); st.lineTo(-2.4, 0); st.closePath();
-  const stab = new THREE.ExtrudeGeometry(st, { depth: 0.1, bevelEnabled: false }); stab.rotateX(PI / 2);
-  const can = new THREE.SphereGeometry(1, 12, 8, 0, PI * 2, 0, PI / 2); can.scale(2.2, 0.75, 0.6);
-  return { body, wing, fin, stab, can };
+  const P = [[0, -7.8], [0.78, -7.4], [0.96, -3.2], [0.92, 1.8], [0.68, 4.6], [0.42, 6.2], [0, 6.5]].map(([r, y]) => new THREE.Vector2(r, y));
+  const body = new THREE.LatheGeometry(P, 16); body.rotateZ(-PI / 2); body.scale(1, 0.78, 1.24);
+  const radome = new THREE.ConeGeometry(0.42, 2.3, 14); radome.rotateZ(-PI / 2); radome.scale(1, 0.82, 1.08); radome.translate(7.25, -0.05, 0);
+  const pitot = new THREE.CylinderGeometry(0.015, 0.03, 0.9, 6); pitot.rotateZ(-PI / 2); pitot.translate(8.7, -0.06, 0);
+  const ls = new THREE.Shape(); ls.moveTo(4.9, 0.45); ls.lineTo(3.3, 1.28); ls.lineTo(1.7, 1.55); ls.lineTo(1.1, 0.6); ls.closePath();
+  const lerx = new THREE.ExtrudeGeometry(ls, { depth: 0.14, bevelEnabled: false }); lerx.rotateX(PI / 2);
+  const ws = new THREE.Shape(); ws.moveTo(2.4, 0); ws.lineTo(-3.2, 6.2); ws.lineTo(-4.9, 6.2); ws.lineTo(-4.1, 0); ws.closePath();
+  const wing = new THREE.ExtrudeGeometry(ws, { depth: 0.16, bevelEnabled: true, bevelThickness: 0.035, bevelSize: 0.04, bevelSegments: 1 }); wing.rotateX(PI / 2);
+  const ts = new THREE.Shape(); ts.moveTo(0, 0); ts.lineTo(-2.3, 3.25); ts.lineTo(-3.55, 3.25); ts.lineTo(-3.25, 0); ts.closePath();
+  const fin = new THREE.ExtrudeGeometry(ts, { depth: 0.11, bevelEnabled: false });
+  const st = new THREE.Shape(); st.moveTo(0.2, 0); st.lineTo(-1.6, 2.7); st.lineTo(-2.65, 2.7); st.lineTo(-2.35, 0); st.closePath();
+  const stab = new THREE.ExtrudeGeometry(st, { depth: 0.1, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.03, bevelSegments: 1 }); stab.rotateX(PI / 2);
+  const can = new THREE.SphereGeometry(1, 16, 10, 0, PI * 2, 0, PI / 2); can.scale(2.15, 0.72, 0.56);
+  const spine = new THREE.BoxGeometry(5.6, 0.48, 0.76);
+  const intake = new THREE.BoxGeometry(2.6, 0.62, 0.52);
+  const intakeHole = new THREE.PlaneGeometry(0.46, 0.54); intakeHole.rotateY(PI / 2);
+  const nozzle = new THREE.CylinderGeometry(0.42, 0.34, 1.15, 14); nozzle.rotateZ(-PI / 2);
+  const rail = new THREE.BoxGeometry(2.4, 0.14, 0.14);
+  const mslBody = new THREE.CylinderGeometry(0.08, 0.08, 2.9, 8); mslBody.rotateZ(-PI / 2);
+  const nav = new THREE.SphereGeometry(0.11, 6, 6);
+  const seat = new THREE.BoxGeometry(0.45, 0.55, 0.42);
+  const abGlow = new THREE.CircleGeometry(0.32, 14); abGlow.rotateY(-PI / 2);
+  const abOuter = new THREE.ConeGeometry(0.36, 4.6, 14, 1, true); abOuter.rotateZ(PI / 2); abOuter.translate(-2.3, 0, 0);
+  const abCore = new THREE.ConeGeometry(0.2, 2.9, 12); abCore.rotateZ(PI / 2); abCore.translate(-1.45, 0, 0);
+  const abDiamond = new THREE.SphereGeometry(0.22, 10, 8); abDiamond.scale(1.9, 0.72, 0.72);
+  return { body, radome, pitot, lerx, wing, fin, stab, can, spine, intake, intakeHole, nozzle, rail, mslBody, nav, seat, abGlow, abOuter, abCore, abDiamond };
 })();
-const JM = { us: mat(0x8a949b), foe: mat(0x7d8580), glass: new THREE.MeshStandardMaterial({ color: 0x2a2416, roughness: 0.05, metalness: 0.95 }) };
+const JM = {
+  us: new THREE.MeshStandardMaterial({ color: 0x869098, roughness: 0.48, metalness: 0.32 }),
+  usDark: new THREE.MeshStandardMaterial({ color: 0x56606a, roughness: 0.52, metalness: 0.35 }),
+  foe: new THREE.MeshStandardMaterial({ color: 0x767f7c, roughness: 0.52, metalness: 0.28 }),
+  foeDark: new THREE.MeshStandardMaterial({ color: 0x454c4d, roughness: 0.55, metalness: 0.32 }),
+  nose: new THREE.MeshStandardMaterial({ color: 0x2c3238, roughness: 0.4, metalness: 0.35 }),
+  metal: new THREE.MeshStandardMaterial({ color: 0x24282d, roughness: 0.32, metalness: 0.85 }),
+  voidM: new THREE.MeshBasicMaterial({ color: 0x090b0d }),
+  msl: new THREE.MeshStandardMaterial({ color: 0xdce2e6, roughness: 0.45, metalness: 0.2 }),
+  glass: new THREE.MeshStandardMaterial({ color: 0x4b3b1c, roughness: 0.05, metalness: 0.94, envMapIntensity: 1.4 }),
+  navR: new THREE.MeshBasicMaterial({ color: 0xff3b30 }),
+  navG: new THREE.MeshBasicMaterial({ color: 0x3dff7a }),
+};
 export function jetMesh(foe) {
-  const g = new THREE.Group(), m = foe ? JM.foe : JM.us, put = (geo, mm, x, y, z) => { const o = new THREE.Mesh(geo, mm); o.position.set(x, y, z); o.castShadow = true; g.add(o); return o; };
-  put(JG.body, m, 0, 0, 0); put(JG.can, JM.glass, 4.2, 0.55, 0);
-  put(JG.wing, m, 0, -0.1, 0.6); const w2 = put(JG.wing, m, 0, -0.1, -0.6); w2.scale.z = -1;
-  put(JG.stab, m, -5.2, -0.1, 0.5); const s2 = put(JG.stab, m, -5.2, -0.1, -0.5); s2.scale.z = -1;
-  for (const s of [1, -1]) { const f = put(JG.fin, m, -3.2, 0.5, s * 0.9); f.rotation.x = -s * 0.42; }
+  const g = new THREE.Group(), m = foe ? JM.foe : JM.us, md = foe ? JM.foeDark : JM.usDark;
+  const put = (geo, mm, x, y, z, sh = true) => { const o = new THREE.Mesh(geo, mm); o.position.set(x, y, z); if (sh) o.castShadow = true; g.add(o); return o; };
+  put(JG.body, m, 0, 0, 0); put(JG.radome, JM.nose, 0, 0, 0); put(JG.pitot, JM.metal, 0, 0, 0, false);
+  put(JG.spine, md, -0.3, 0.46, 0); put(JG.seat, JM.nose, 4.1, 0.56, 0, false); put(JG.can, JM.glass, 4.2, 0.48, 0, false);
+  put(JG.wing, m, 0, -0.08, 0.58); const w2 = put(JG.wing, m, 0, -0.08, -0.58); w2.scale.z = -1;
+  put(JG.lerx, md, 0, 0.02, 0.12); const l2 = put(JG.lerx, md, 0, 0.02, -0.12); l2.scale.z = -1;
+  put(JG.stab, m, -5.3, -0.08, 0.52); const s2 = put(JG.stab, m, -5.3, -0.08, -0.52); s2.scale.z = -1;
+  for (const s of [1, -1]) {
+    const f = put(JG.fin, s > 0 ? m : md, -3.25, 0.42, s * 0.88); f.rotation.x = -s * 0.42;
+    const ik = put(JG.intake, md, 1.9, -0.14, s * 0.96); ik.rotation.y = s * 0.05;
+    put(JG.intakeHole, JM.voidM, 3.21, -0.14, s * 0.99, false);
+    put(JG.nozzle, JM.metal, -7.65, -0.06, s * 0.52);
+    put(JG.rail, JM.nose, -3.55, -0.04, s * 6.82, false);
+    put(JG.mslBody, JM.msl, -3.35, -0.08, s * 6.95, false);
+    put(JG.mslBody, JM.msl, -1.2, -0.45, s * 2.8, false);
+    put(JG.nav, s > 0 ? JM.navG : JM.navR, -3.9, -0.04, s * 6.84, false);
+  }
+  // Dual afterburner nozzles glow + pulsing outer plume, inner core & 3 Mach shock diamonds
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0xff9a38, transparent: true, opacity: 0.45, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  const outerMat = new THREE.MeshBasicMaterial({ color: foe ? 0xff7b2e : 0x7ab8ff, transparent: true, opacity: 0.72, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+  const coreMat = new THREE.MeshBasicMaterial({ color: 0xfff5d6, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false });
+  const diaMat = new THREE.MeshBasicMaterial({ color: 0xdff6ff, transparent: true, opacity: 0.88, blending: THREE.AdditiveBlending, depthWrite: false });
+  const burners = [];
+  for (const s of [1, -1]) {
+    const b = new THREE.Group(); b.position.set(-8.22, -0.06, s * 0.52); g.add(b);
+    const glow = new THREE.Mesh(JG.abGlow, glowMat); glow.visible = false; b.add(glow);
+    const plume = new THREE.Group(); plume.visible = false; b.add(plume);
+    const outer = new THREE.Mesh(JG.abOuter, outerMat); plume.add(outer);
+    const core = new THREE.Mesh(JG.abCore, coreMat); plume.add(core);
+    const rings = [];
+    for (let i = 0; i < 3; i++) { const d = new THREE.Mesh(JG.abDiamond, diaMat); d.position.x = -0.85 - i * 0.95; d.scale.setScalar(1 - i * 0.22); plume.add(d); rings.push(d); }
+    burners.push({ b, glow, plume, outer, core, rings });
+  }
+  g.userData.ab = { burners, glowMat, outerMat, coreMat, diaMat };
   return g;
 }
 function foeDD(g, spec) {
