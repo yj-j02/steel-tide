@@ -307,6 +307,19 @@ export const sfx = {
     noiseShape(0.16 * k, 0.85, 4200, 1050, "highpass", 0.7, 0.055, 0.35);
     noiseShape(0.12 * k, 1.35, 3200, 520, "bandpass", 1.1, 0.18, 0.55);
   },
+  sonicFlyby(d = 0, sup = true) {
+    const a = atten(d * 2.2); if (a < 0.05) return;
+    if (sup) {
+      subBoom(a * 0.28, 165, 42, 0.12, 0, 0.45);
+      subBoom(a * 0.22, 135, 34, 0.14, 0.045, 0.4);
+      noiseShape(a * 0.26, 0.08, 4200, 1100, "bandpass", 1.4, 0, 0.35);
+      voiceTone(a * 0.09, 0.34, 580, 145, "sawtooth", 0.015, 1400);
+      noiseShape(a * 0.24, 0.42, 2600, 320, "bandpass", 0.95, 0.01, 0.5);
+    } else {
+      noiseShape(a * 0.2, 0.38, 1850, 280, "bandpass", 1.1, 0, 0.4);
+      voiceTone(a * 0.06, 0.32, 380, 130, "triangle", 0, 900);
+    }
+  },
   click() { metalClank(0.055, 1620, 520, 0.018, 0, false); noiseShape(0.038, 0.014, 2600, 950, "bandpass", 1.25, 0, 0); },
   coin() { voiceTone(0.08, 0.12, 988, 988, "triangle", 0, 2600); voiceTone(0.09, 0.26, 1319, 1319, "sine", 0.075); },
 };

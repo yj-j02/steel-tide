@@ -681,6 +681,20 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaD
   x.font = "bold 14px monospace";
   const vv = Math.round(j.vel.y);
   x.fillText(`${vv >= 0 ? "+" : ""}${vv}m/s`, W - 84, cy + 32);
+  let dBrg = null;
+  if (j.owner && j.owner.alive) {
+    const dx = j.owner.pos.x - j.pos.x, dz = j.owner.pos.z - j.pos.z, tcnKm = Math.hypot(dx, dz) / 1000;
+    const tcnBrg = (Math.atan2(dx, -dz) * 180 / PI + 360) % 360;
+    dBrg = ((tcnBrg - hdg + 540) % 360) - 180;
+    x.font = "bold 12px monospace";
+    x.fillStyle = tcnKm < 2.2 && altM < 220 ? amber : green;
+    x.fillText(tcnKm < 2.2 && altM < 220 ? `ILS ${tcnKm.toFixed(1)}km` : `TCN ${tcnKm.toFixed(1)}km`, W - 84, cy + 50);
+  }
+  if (altM < 180) {
+    x.font = "bold 12px monospace";
+    x.fillStyle = altM < 65 ? red : amber;
+    x.fillText(`RALT ${Math.round(altM)}m`, W - 84, cy + 66);
+  }
   // Top sliding compass heading tape
   x.fillStyle = green; x.strokeStyle = green; x.lineWidth = 1.8; x.textAlign = "center";
   x.font = "bold 15px monospace";
@@ -698,6 +712,11 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaD
     }
   }
   x.restore();
+  if (dBrg !== null) {
+    const bx = cx + clamp(dBrg, -34, 34) * 3.2;
+    x.fillStyle = Math.abs(dBrg) < 8 ? amber : green;
+    x.beginPath(); x.moveTo(bx, 36); x.lineTo(bx - 5, 29); x.lineTo(bx + 5, 29); x.closePath(); x.fill();
+  }
   // Dynamic gun pipper + AAM lock / RWR / pull-up / OVER-G alerts
   const fire = !!(info.firing && j.gun > 0);
   if (fire || info.gunHit > 0) {
@@ -873,13 +892,14 @@ export function updateJetPit(j, dt, info = {}) {
     U.x.fillText(info.rwr ? "!! MSL WARN !!" : (fuelSec < 45 ? "!! BINGO FUEL !!" : (info.lock ? "FOX-2 LOCKED" : "MASTER ARM ON")), U.c.width / 2, 36);
     U.x.fillStyle = "#9ae69f"; U.x.font = "bold 17px monospace";
     U.x.fillText(`HDG ${String(Math.round(hdg)).padStart(3, "0")}  AAM ${j.aam}  ASM ${j.asm}`, U.c.width / 2, 68);
-    const keys = ["IFF", "TCN", "DLNK", "AP"];
+    const tcnNear = !!(j.owner && j.owner.alive && Math.hypot(j.owner.pos.x - j.pos.x, j.owner.pos.z - j.pos.z) < 3500);
+    const keys = [["IFF", true], ["TCN", tcnNear], ["DLNK", (info.blips?.length || 0) > 0], ["AP", !!(j.landT > 0 || j.home)]];
     for (let k = 0; k < keys.length; k++) {
-      const kx = 11 + k * 60;
-      U.x.fillStyle = "rgba(25,75,40,0.45)"; U.x.fillRect(kx, 86, 54, 30);
-      U.x.strokeStyle = "#2f854a"; U.x.lineWidth = 1.5; U.x.strokeRect(kx, 86, 54, 30);
-      U.x.fillStyle = "#7cff8a"; U.x.font = "bold 12px monospace";
-      U.x.fillText(keys[k], kx + 27, 105);
+      const kx = 11 + k * 60, [lbl, on] = keys[k];
+      U.x.fillStyle = on ? "rgba(46,135,68,0.68)" : "rgba(25,75,40,0.35)"; U.x.fillRect(kx, 86, 54, 30);
+      U.x.strokeStyle = on ? "#7cff8a" : "#286b3d"; U.x.lineWidth = on ? 2 : 1.5; U.x.strokeRect(kx, 86, 54, 30);
+      U.x.fillStyle = on ? "#d9ffe0" : "#68b878"; U.x.font = "bold 12px monospace";
+      U.x.fillText(lbl, kx + 27, 105);
     }
     U.t.needsUpdate = true;
   }

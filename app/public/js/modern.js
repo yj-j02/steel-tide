@@ -144,6 +144,7 @@ export function stepMissiles(dt, onHit) {
         flash.spawn({ x: m.pos.x, y: m.pos.y, z: m.pos.z, life: 0.3, s0: 4.5, s1: 12, a: 0.98, c: 0xffc668 });
         for (let k = 0; k < 7; k++) spark.spawn({ x: m.pos.x, y: m.pos.y, z: m.pos.z, vx: gauss() * 24, vy: -10 - rnd() * 16, vz: gauss() * 24, g: 9.8, life: 0.95, s0: 1.6, s1: 0.45, a: 1, c: k % 2 ? 0xff9a3a : 0xffe49e });
         smoke.spawn({ x: m.pos.x, y: m.pos.y - 2, z: m.pos.z, vy: -8, life: 3.0, s0: 2.4, s1: 9, a: 0.45, c: 0xbcb8b0 });
+        const bd = m.pos.distanceTo(camera.position); if (bd < 2500) at(bd, () => sfx.sonicFlyby?.(bd, false));
       }
       const want = W.role === "asm" ? (W.sprint && m.target && m.pos.distanceTo(m.target.pos) < 7000 ? W.sprint : W.v) : W.v;
       const v = m.vel.length(); m.vel.setLength(v + (want - v) * Math.min(1, dt * (W.role === "asm" ? 0.8 : 2.5)));
@@ -179,6 +180,7 @@ export function stepMissiles(dt, onHit) {
     }
     m.pos.addScaledVector(m.vel, dt); m.dist += m.vel.length() * dt;
     const mSpd = m.vel.length(), fast = W.cls === "hyp" || (W.sprint && mSpd > W.v * 1.15);
+    if (!m.flybySfx && m.t > 0.35 && m.pos.distanceTo(camera.position) < 420) { m.flybySfx = true; sfx.sonicFlyby?.(m.pos.distanceTo(camera.position), mSpd > 340); }
     if (W.sprint && !m.sprintFX && mSpd > W.v * 1.15) {
       m.sprintFX = true;
       flash.spawn({ x: m.pos.x, y: m.pos.y, z: m.pos.z, life: 0.22, s0: 5, s1: 15, a: 0.72, c: 0xdff6ff });
@@ -397,6 +399,10 @@ function updateJetFX(j, dt, spd) {
       spray.spawn({ x: V_TIP.x, y: V_TIP.y, z: V_TIP.z, vx: -V_FW.x * 12, vy: -V_FW.y * 12, vz: -V_FW.z * 12, life: 0.42, s0: 0.55, s1: 1.6, a: 0.24, c: 0xf4f9ff });
     }
   }
+  if (j.pos.y < 32 && spd > 140) {
+    if (rnd() < dt * 24) spray.spawn({ x: j.pos.x + gauss() * 2.5, y: 0.9, z: j.pos.z + gauss() * 2.5, vx: -V_FW.x * 16 + gauss() * 5, vy: 5 + rnd() * 8, vz: -V_FW.z * 16 + gauss() * 5, life: 0.85, s0: 2.4, s1: 9.5, a: 0.48, c: 0xeaf4f8 });
+    if (rnd() < dt * 8) rings.spawn({ x: j.pos.x, z: j.pos.z, w0: 4, l0: 4, w1: 22, l1: 22, life: 1.3, a: 0.36, c: 0xdff2fc, ease: 3 });
+  }
 }
 /** know(side) → [{ ship, pos, firm }] enemy surface contacts that side can target. onEvent(j, kind, extra). */
 export function stepJets(dt, know, onEvent) {
@@ -491,6 +497,14 @@ export function jetGun(j) {
     sfx.hitThunk();
     if (S.strafe === 25 && !S.radarDead) { S.radarDead = true; S.radarOn = false; G.onStrafe?.(S, "radar"); }
     if (S.strafe === 50 && !S.ciwsDead) { S.ciwsDead = true; G.onStrafe?.(S, "ciws"); } }
+  if (!res && f.y < -0.04) {
+    const tSea = -o.y / f.y;
+    if (tSea > 20 && tSea < 1500 && rnd() < 0.65) {
+      const sx = o.x + f.x * tSea + gauss() * 3, sz = o.z + f.z * tSea + gauss() * 3;
+      spray.spawn({ x: sx, y: 0.8, z: sz, vx: gauss() * 4, vy: 10 + rnd() * 12, vz: gauss() * 4, g: 9.8, life: 0.9, s0: 1.6, s1: 5.5, a: 0.85, c: 0xf0f8ff });
+      rings.spawn({ x: sx, z: sz, w0: 1.5, l0: 1.5, w1: 11, l1: 11, life: 1.1, a: 0.45, c: 0xdcf0fa, ease: 3 });
+    }
+  }
   return res;
 }
 export function clearMissiles() { M.flares.length = 0; for (const j of M.jets) scene.remove(j.mesh); M.jets.length = 0; for (const h of M.helos) scene.remove(h.mesh); M.helos.length = 0; for (const m of M.list) scene.remove(m.mesh); M.list.length = 0; M.decoys.length = 0; M.cam = null; trGeo.setDrawRange(0, 0); }
