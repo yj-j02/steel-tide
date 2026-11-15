@@ -1202,7 +1202,7 @@ function sortie() {
   if (G.state !== "playing" || G.auto) return;
   if (G.plane) { recallPlane(); leaveFlight(); return; }
   const err = launchPlane(true, "us", sortieRole);
-  if (err) { if (G.carrier?.alive && (G.planeCD > 0 || G.refit?.length) && (G.sortieRes || 0) < 4) { G.sortieRes = (G.sortieRes || 0) + 1; sfx.click(); toast(`사출 예약 ${G.sortieRes}기 — ${G.planeCD > 0 ? "갑판 정리" : "정비"}가 끝나면 자동 사출 (Shift+F: 예약 취소)`, 3); airSig = ""; } else { toast(err); sfx.deny(); } return; }
+  if (err) { if (G.carrier?.alive && (G.planeCD > 0 || G.refit?.length) && (G.sortieRes || 0) < Math.min(4, G.squad + (G.refit?.length || 0))) { /* only as many as planes that can launch */ G.sortieRes = (G.sortieRes || 0) + 1; sfx.click(); toast(`사출 예약 ${G.sortieRes}기 — ${G.planeCD > 0 ? "갑판 정리" : "정비"}가 끝나면 자동 사출 (Shift+F: 예약 취소)`, 3); airSig = ""; } else { toast(err); sfx.deny(); } return; }
   G.radio("launch");
   const p = air.planes[air.planes.length - 1]; toast(`${p.label} 출격 — 임무: ${ROLE_NAMES[sortieRole]} · 오른쪽 항공대 패널에서 임무 변경`, 3.2);
 }
@@ -1251,7 +1251,7 @@ function renderJetPanel() {
   const row = (j) => [j.id, j.name, jetState(j), j.role, j.aam, j.asm, j.flares, Math.round(Math.max(0, 1 - j.t / j.endur) * 100), j.hit ? 1 : 0];
   const sig = JSON.stringify([C ? [C.jetsReady, C.rearm?.length] : 0, md.role, G.sortieRes || 0, foeN, md.fly ? md.fly.id : 0, md.flyAuto, js.map(row)]); if (sig === jetSig) return; jetSig = sig;
   const rb = (cur, val, attrs) => `<button class="rb${cur === val ? " on" : ""}" ${attrs}>${JR[val]}</button>`;
-  let h = `<div class="ah"><b>항공대 · ${C ? C.name || "비행장" : "없음"}</b><span>대기 ${C?.jetsReady ?? 0}${C?.rearm?.length ? ` · 정비 ${C.rearm.length}` : ""}${G.sortieRes ? ` · 예약 ${G.sortieRes}` : ""} · 비행 ${js.length}${foeN ? ` · <i>적기 ${foeN}</i>` : ""}</span></div>`;
+  let h = `<div class="ah"><b>항공대 · ${C ? C.name || "비행장" : "없음"}</b><span>대기 ${C?.jetsReady ?? 0}${C?.rearm?.length ? ` · 정비 ${C.rearm.length}` : ""}${G.sortieRes ? ` · 예약 ${G.sortieRes}${C && !C.jetsReady ? (C.rearm?.length ? ` (재무장 ${Math.ceil(Math.min(...C.rearm))}초)` : " (착함 대기)") : ""}` : ""} · 비행 ${js.length}${foeN ? ` · <i>적기 ${foeN}</i>` : ""}</span></div>`;
   h += `<div class="ar">출격 임무 ${["cap", "strike", "multi"].map((r) => rb(md.role, r, `data-jdef="${r}"`)).join("")}</div>`;
   h += `<button class="sortie" data-jact="sortie">${!C ? "탑재 전투기 없음" : C.jetsReady ? `F 출격 · ${JR[md.role]} (2기)` : "F 출격 예약 (재무장 대기)"}</button>`;
   if (js.length) h += `<div class="ar all">전체 ${["cap", "strike", "multi"].map((r) => `<button class="rb" data-jall="${r}">${JR[r]}</button>`).join("")}<button class="rb home" data-jallhome="1">귀환</button></div>`;
@@ -1808,7 +1808,9 @@ function modernKey(code) {
   if (false) { md.salvo = md.salvo === 1 ? 2 : md.salvo === 2 ? 4 : 1; sfx.click(); toast(`일제사격 ${md.salvo}발 단위`); return true; }
   // (KeyK removed: handled automatically)
   // (KeyE removed: handled automatically)
-  if (code === "KeyF") { const C = myAir(); if (!C) { sfx.deny(); toast("탑재 전투기 없음"); return true; } if (C.jetsReady < 1) { if (C.rearm.length || MSL.jets.some((j) => j.alive && j.side === "us")) { if ((G.sortieRes || 0) < 4) G.sortieRes = (G.sortieRes || 0) + 1; sfx.click(); toast(`출격 예약 ${G.sortieRes}회 (2기씩) — 재무장·착함이 끝나면 자동 출격 (Shift+F: 취소)`, 3.5); } else { sfx.deny(); toast("출격 가능 기체 없음"); } return true; }
+  if (code === "KeyF") { const C = myAir(); if (!C) { sfx.deny(); toast("탑재 전투기 없음"); return true; } if (C.jetsReady < 1) { const up = MSL.jets.filter((j) => j.alive && j.side === "us" && j.owner === C).length, cap = Math.min(4, Math.ceil((C.rearm.length + up) / 2)); /* only as many sorties as jets that can come back */
+      if (!cap) { sfx.deny(); toast("출격 가능 기체 없음"); return true; } if ((G.sortieRes || 0) >= cap) { sfx.deny(); toast(`예약 ${G.sortieRes}회가 최대 — 비행 중 ${up}기·정비 ${C.rearm.length}기뿐 (전체 '귀환'으로 빨리 불러들일 수 있음)`, 3.5); return true; }
+      G.sortieRes = (G.sortieRes || 0) + 1; sfx.click(); toast(`출격 예약 ${G.sortieRes}회 — 대기 기체 없음: 비행 중 ${up}기가 착함하고 재무장(60초)해야 출격 · 전체 '귀환'으로 빨리 불러들일 수 있음 (Shift+F: 취소)`, 4.5); return true; }
     sortieJets(C, md.role); sfx.click();
     toast(`전투기 출격 · 임무 ${JR[md.role]} — ${md.role === "cap" ? "적기·대함미사일 요격" : md.role === "strike" ? `저공 침투해 ${WPN[C.cv.asm].name}로 적함 공격 후 귀환` : `요격하다가 적함이 탐지되면 ${WPN[C.cv.asm].name}로 공격`} (N: 임무 변경 · I: 직접 조종)`, 5); return true; }
   if (code === "KeyO") { const on = G.player.radarOn === false; for (const s of ours()) if (s.spec.modern && !s.radarDead) s.radarOn = on; sfx.click();
