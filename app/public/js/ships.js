@@ -16,8 +16,8 @@ export const GUNS = {
   "16/50":  { name: '16인치/50구경 Mk 7',            cal: 406, V0: 762, k: 1.85e-5, maxEl: 45, dmg: [5.5, 9.0], reload: 30,  train: 5,  elev: 10, disp: 0.009, len: 20 },
   "8/55":   { name: '8인치/55구경 Mk 12',            cal: 203, V0: 762, k: 3.8e-5,  maxEl: 41, dmg: [1.8, 3.2], reload: 15,  train: 8,  elev: 10, disp: 0.010, len: 11 },
   "6/47":   { name: '6인치/47구경 Mk 16',            cal: 152, V0: 762, k: 5.6e-5,  maxEl: 47, dmg: [1.0, 1.8], reload: 7.5, train: 10, elev: 12, disp: 0.012, len: 7.2 },
-  "5/62":   { name: '5인치/62구경 Mk 45 Mod 4',      cal: 127, V0: 808, k: 6.0e-5,  maxEl: 65, dmg: [0.9, 1.5], reload: 3, train: 30, elev: 20, disp: 0.011, len: 6.3 },
-  "130":    { name: '130mm H/PJ-38',                cal: 130, V0: 850, k: 6.0e-5,  maxEl: 65, dmg: [0.9, 1.6], reload: 3.2, train: 30, elev: 20, disp: 0.012, len: 6.5 },
+  "5/62":   { name: '5인치/62구경 Mk 45 Mod 4',      cal: 127, V0: 808, k: 6.0e-5,  maxEl: 65, dmg: [1.7, 2.8], reload: 3, train: 30, elev: 20, disp: 0.011, len: 6.3 },
+  "130":    { name: '130mm H/PJ-38',                cal: 130, V0: 850, k: 6.0e-5,  maxEl: 65, dmg: [1.7, 2.9], reload: 3.2, train: 30, elev: 20, disp: 0.012, len: 6.5 },
   "5/38":   { name: '5인치/38구경 Mk 12',            cal: 127, V0: 792, k: 9.0e-5,  maxEl: 45, dmg: [0.55, 1.0], reload: 4, train: 25, elev: 15, disp: 0.014, len: 4.8 },
   "15e":    { name: '15인치 (가상)', cal: 381, V0: 790, k: 2.4e-5, maxEl: 30, dmg: [4.2, 7.4], reload: 31, train: 4, elev: 6, disp: 0.011, len: 17 },
   "15e2":   { name: '15인치 (가상)', cal: 381, V0: 800, k: 2.4e-5, maxEl: 40, dmg: [4.4, 7.6], reload: 30, train: 5, elev: 8, disp: 0.010, len: 17 },
@@ -107,9 +107,9 @@ export const MODERN = {
   burke2: MOD({ id: "burke2", name: "USS 프랭크 E. 피터슨 (DDG-121)", short: "피터슨", cls: "이지스 구축함", tier: 5, L: 155, B: 20, fb: 7, vmax: 31, turn: 4.6, hp: 120, gun: "5/62", style: "aegis", ...HZ, paint: "haze", hullNo: "121", deckHex: "#5d6569", turrets: [T1(60, 0, 0)],
     vls: { L: ["SM-6", 8], M: ["SM-2", 24], S: ["ESSM", 24], A: ["NSM", 12] }, pd: ["SeaRAM", 11], nation: "us" }),
   jeongjo: MOD({ id: "jeongjo", name: "ROKS 정조대왕 (DDG-995)", short: "정조대왕", cls: "이지스 구축함", tier: 5, L: 170, B: 21.4, fb: 7.4, vmax: 30, turn: 4.2, hp: 140, gun: "5/62", style: "aegis", ...HZ, paint: "kgray", hullNo: "995", deckHex: "#5a6266", turrets: [T1(66, 0, 0)], cans: 4,
-    vls: { L: ["SM-6", 12], M: ["SM-2", 32], S: ["K-SAAM", 16], A: ["해성", 16] }, pd: ["RAM", 21], nation: "kr" }),
+    vls: { L: ["SM-6", 12], M: ["SM-2", 32], S: ["K-SAAM", 16], A: ["해성", 16], B: ["초음속 대함", 4] }, pd: ["RAM", 21], nation: "kr" }),
   jeongjo2: MOD({ id: "jeongjo2", name: "ROKS 다산정약용 (DDG-996)", short: "다산정약용", cls: "이지스 구축함", tier: 5, L: 170, B: 21.4, fb: 7.4, vmax: 30, turn: 4.2, hp: 130, gun: "5/62", style: "aegis", ...HZ, paint: "kgray", hullNo: "996", deckHex: "#5a6266", turrets: [T1(66, 0, 0)], cans: 4,
-    vls: { L: ["SM-6", 8], M: ["SM-2", 24], S: ["K-SAAM", 16], A: ["해성", 16] }, pd: ["RAM", 21], nation: "kr" }),
+    vls: { L: ["SM-6", 8], M: ["SM-2", 24], S: ["K-SAAM", 16], A: ["해성", 16], B: ["초음속 대함", 4] }, pd: ["RAM", 21], nation: "kr" }),
   maya: MOD({ id: "maya", name: "JS 마야 (DDG-179)", short: "마야", cls: "이지스 호위함", tier: 5, L: 170, B: 21, fb: 7.3, vmax: 30, turn: 4.3, hp: 135, gun: "5/62", style: "aegis", ...HZ, paint: "haze", hullNo: "179", deckHex: "#5d6569", turrets: [T1(66, 0, 0)], cans: 4,
     vls: { L: ["SM-6", 12], M: ["SM-2", 32], S: ["ESSM", 32], A: ["17식", 16] }, pd: ["SeaRAM", 11], nation: "jp" }),
   haguro: MOD({ id: "haguro", name: "JS 하구로 (DDG-180)", short: "하구로", cls: "이지스 호위함", tier: 5, L: 170, B: 21, fb: 7.3, vmax: 30, turn: 4.3, hp: 125, gun: "5/62", style: "aegis", ...HZ, paint: "haze", hullNo: "180", deckHex: "#5d6569", turrets: [T1(66, 0, 0)], cans: 4,
@@ -119,9 +119,9 @@ export const MODERN = {
   t055b: MOD({ id: "t055b", name: "055형 구축함 '라싸'", short: "라싸", cls: "055형 구축함", tier: 5, L: 180, B: 20, fb: 7.4, vmax: 30, turn: 4, hp: 140, gun: "130", style: "pla", ...PLA_C, paint: "plagray", hullNo: "102", deckHex: "#707879", turrets: [T1(70, 0, 0)],
     vls: { L: ["HHQ-9", 24], S: ["HHQ-16", 16], A: ["YJ-18", 16] }, pd: ["HQ-10", 24], nation: "cn" }),
   choehyon: MOD({ id: "choehyon", name: "최현호 (51)", short: "최현", cls: "최현급 구축함", tier: 5, L: 144, B: 16, fb: 6.4, vmax: 28, turn: 4.8, hp: 110, gun: "5/62", style: "kpn", ...KPN_C, paint: "kpn", hullNo: "51", deckHex: "#55595b", turrets: [T1(56, 0, 0)],
-    vls: { M: ["함대공(추정)", 32], A: ["순항미사일", 24] }, pd: ["판치르-M", 32], nation: "nk" }),
+    vls: { M: ["함대공(추정)", 32], A: ["순항미사일", 24], B: ["초음속 순항", 4] }, pd: ["판치르-M", 32], nation: "nk" }),
   kangkon: MOD({ id: "kangkon", name: "강건호 (52)", short: "강건", cls: "최현급 구축함", tier: 5, L: 144, B: 16, fb: 6.4, vmax: 28, turn: 4.8, hp: 105, gun: "5/62", style: "kpn", ...KPN_C, paint: "kpn", hullNo: "52", deckHex: "#55595b", turrets: [T1(56, 0, 0)],
-    vls: { M: ["함대공(추정)", 24], A: ["순항미사일", 24] }, pd: ["판치르-M", 32], nation: "nk" }),
+    vls: { M: ["함대공(추정)", 24], A: ["순항미사일", 24], B: ["초음속 순항", 4] }, pd: ["판치르-M", 32], nation: "nk" }),
 };
 export const TRANSPORT = { id: "transport", name: "수송선", short: "수송선", cls: "수송선", tier: 0, L: 135, B: 17.3, D: 8.5, fb: 6, sheer: 1.6, vmax: 15, turn: 3, hp: 42, belt: 10,
   gun: "5/38", style: "cargo", ...US, paint: "ms1", hullNo: "", deckHex: "#5b5348", planks: false, turrets: [T1(-58, 0, PI)], aa: 0.25 };
@@ -668,7 +668,7 @@ export class Ship {
       const vmax = this.vmax * this.engine * (1 - 0.1 * Math.min(this.flooding, 5));
       const target = TELE[this.tele].f * vmax * (1 - 0.22 * Math.abs(this.rudder));
       this.speed += (target - this.speed) * dt / (target > this.speed ? 9 * Math.sqrt(sp.L / 190) : 7 * Math.sqrt(sp.L / 190));
-      this.rudder += clamp(this.rudderCmd - this.rudder, -1 * dt, 1 * dt);
+      if (this.rudderJam > 0) this.rudderJam -= dt; else this.rudder += clamp(this.rudderCmd - this.rudder, -1 * dt, 1 * dt); // jammed: the rudder stays where the hit left it
       const yawT = this.rudder * this.turnRate * (this.speed / this.vmax) * 1.6;
       this.yawRate += (yawT - this.yawRate) * dt / (1.6 * Math.sqrt(sp.L / 190));
       for (let i = this.fires.length - 1; i >= 0; i--) { this.fires[i] -= dt; this.damage(0.2 * dt * this.maxHp / 100); if (this.fires[i] <= 0) this.fires.splice(i, 1); }
@@ -719,7 +719,7 @@ export class Ship {
     this.sync(G.time);
   }
   damage(n) {
-    if (!this.alive || this.boarded) return; this.hp -= n;
+    if (!this.alive || this.boarded) return; this.hp -= n; if (n > 0.2) G.lastHitT = G.battleT;
     if (this.hp <= 0) { this.hp = 0; this.alive = false; this.sinking = 0.01; this.listSide = rnd() < 0.5 ? -1 : 1; const d = this.pos.distanceTo(camera.position); at(d, () => sfx.explode(d)); G.onSunk(this); }
   }
   fire(max = Infinity) {
@@ -770,8 +770,8 @@ function muzzleFX(pos, f, el, cal, ship) {
 }
 function launch(ship, q) {
   const t = q.t, g = ship.gun;
-  const b = ship.heading + t.rest + t.d + gauss() * 0.0028 * ship.dispK;
-  const el = solve(ship.tb, t.range * (1 + gauss() * g.disp * ship.dispK)).elev;
+  const b = ship.heading + t.rest + t.d + gauss() * 0.0028 * ship.dispK * (G.wxDisp || 1);
+  const el = solve(ship.tb, t.range * (1 + gauss() * g.disp * ship.dispK * (G.wxDisp || 1))).elev;
   const f = new THREE.Vector3(Math.cos(b), 0, Math.sin(b)), perp = new THREE.Vector3(-f.z, 0, f.x), tp = ship.turretPos(t);
   const zz = (q.b - (t.n - 1) / 2) * t.spc, L = t.tw * 0.38 + g.len;
   const pos = new THREE.Vector3(tp.x + f.x * L * Math.cos(el) + perp.x * zz, tp.y + Math.sin(el) * L, tp.z + f.z * L * Math.cos(el) + perp.z * zz);
@@ -829,7 +829,8 @@ function critical(ship, lx, who_) {
     const r = rnd();
     if (r < 0.34) { ship.engine = Math.max(0.3, ship.engine - 0.22); return { dmg: 0, note: `관통 — ${who_} 기관실 피해` }; }
     if (r < 0.7) { ship.fires.push(32); if (ship.isPlayer) { sfx.alarm(); G.radio?.("fire"); } return { dmg: 0, note: `관통 — ${who_} 상부구조물 화재` }; }
-  } else if (rnd() < 0.5) { ship.flooding++; if (ship.isPlayer) G.radio?.("flood"); ship.listSide = ship.listSide || (rnd() < 0.5 ? -1 : 1); return { dmg: 0, note: `관통 — ${who_} ${lx > 0 ? "함수" : "함미"} 침수` }; }
+  } else if (lx < -ship.spec.L * 0.3 && !(ship.rudderJam > 0) && rnd() < 0.3) { ship.rudderJam = 22 + rnd() * 10; if (ship.isPlayer) { sfx.alarm(); G.toast?.("조타실 피격 — 타 고착! R 수리로 복구"); } return { dmg: 0, note: `관통 — ${who_} 조타실 피해 · 타 고착` }; }
+  else if (rnd() < 0.5) { ship.flooding++; if (ship.isPlayer) G.radio?.("flood"); ship.listSide = ship.listSide || (rnd() < 0.5 ? -1 : 1); return { dmg: 0, note: `관통 — ${who_} ${lx > 0 ? "함수" : "함미"} 침수` }; }
   return { dmg: 0, note: "관통" };
 }
 function resolveHit(ship, s, lx) {
@@ -843,7 +844,7 @@ function resolveHit(ship, s, lx) {
   if (ship.isPlayer && !G.plane) G.shake = Math.min(G.shake + 0.9 * k, 1.5);
   landed(s, true);
   const tag = ship.isPlayer ? "피탄" : ship.side === "us" ? `${ship.spec.short} 피탄` : "명중", cls = ship.side === "us" ? "bad" : "hit";
-  const mine = s.owner.isPlayer && ship.side === "foe", deal = (n, kind) => { if (mine) { G.stats.dealt = (G.stats.dealt || 0) + (Math.min(n, ship.hp) / ship.maxHp) * 100; G.ribbon?.(kind); } ship.damage(n); };
+  const mine = s.owner.isPlayer && ship.side === "foe", deal = (n, kind) => { if (mine) { ship.myHitT = G.battleT; G.stats.dealt = (G.stats.dealt || 0) + (Math.min(n, ship.hp) / ship.maxHp) * 100; G.ribbon?.(kind); } ship.damage(n); };
   if (s.he) { // high-capacity shell bursts on contact: no ricochet or over-penetration, less damage, often a fire
     deal(g.dmg[0] * (0.55 + rnd() * 0.3) * ship.armorK, "고폭탄 명중");
     if (rnd() < (g.cal >= 200 ? 0.3 : 0.15)) { ship.fires.push(32); if (ship.isPlayer) { sfx.alarm(); G.radio?.("fire"); } if (mine) G.ribbon?.("화재 발생"); G.log(`${tag}! 고폭탄 — 화재 발생`, cls); }
@@ -860,7 +861,7 @@ function resolveHit(ship, s, lx) {
 /** Aerial bomb. */
 export function bombHit(ship, p, lx, ours = true) {
   hitFX(p, 0.85); const d = p.distanceTo(camera.position); at(d, () => sfx.explode(d));
-  if (ours) G.stats.bombs++; const c = critical(ship, lx, who(ship)), n = ((7 + rnd() * 5) * ship.armorK + c.dmg) * (ours ? 1 : 0.5); if (ship.side === "foe") { G.stats.dealt = (G.stats.dealt || 0) + (Math.min(n, ship.hp) / ship.maxHp) * 100; G.ribbon?.("폭탄 명중"); } ship.damage(n);
+  if (ours) { G.stats.bombs++; ship.myHitT = G.battleT; } const c = critical(ship, lx, who(ship)), n = ((7 + rnd() * 5) * ship.armorK + c.dmg) * (ours ? 1 : 0.5); if (ship.side === "foe") { G.stats.dealt = (G.stats.dealt || 0) + (Math.min(n, ship.hp) / ship.maxHp) * 100; G.ribbon?.("폭탄 명중"); } ship.damage(n);
   if (rnd() < (ours ? 0.5 : 0.25)) ship.fires.push(30);
   G.log(ours ? `폭탄 명중! ${c.note.replace("관통 — ", "")}` : `${ship.isPlayer ? "본함" : ship.name} 폭탄 피격!`, ours ? "hit" : "bad");
 }
@@ -879,7 +880,7 @@ export function updateShells(dt) {
       const v = s.vel.length(), k = s.gun.k; s.vel.x -= k * v * s.vel.x * h; s.vel.z -= k * v * s.vel.z * h; s.vel.y -= (GRAV + k * v * s.vel.y) * h;
       s.pos.addScaledVector(s.vel, h);
       if (near) { const hit = hullHit(s.pos, s.owner); if (hit) { resolveHit(hit.ship, s, hit.lx); done = true; } }
-      if (!done && s.pos.y <= 0) { const sc = s.gun.cal / 406; spawnSplash(s.pos.x, s.pos.z, sc); if (rnd() < 0.55) { const d = s.pos.distanceTo(camera.position); at(d, () => sfx.splash(d, sc)); } landed(s, false); done = true; }
+      if (!done && s.pos.y <= 0) { const sc = s.gun.cal / 406; if (!G.onShellLand?.(s.pos, s.gun, s.owner)) { spawnSplash(s.pos.x, s.pos.z, sc); if (rnd() < 0.55) { const d = s.pos.distanceTo(camera.position); at(d, () => sfx.splash(d, sc)); } } landed(s, false); done = true; }
     }
     if (done || s.t > 160) { s.dispose(); sh.splice(i, 1); continue; }
     s.draw();
@@ -899,7 +900,8 @@ export function brain(ship, tgt, st, dt, steer = true) {
   if (!ship.alive) { ship.rudderCmd = 0; return; }
   const dx = tgt.pos.x - ship.pos.x, dz = tgt.pos.z - ship.pos.z, range = Math.hypot(dx, dz), bp = Math.atan2(dz, dx);
   if (steer) {
-    const pref = ship.prefRange || ship.spec.range || [Math.min(ship.tb.max * 0.45, 14000) * 0.75, Math.min(ship.tb.max * 0.45, 14000)];
+    const prefK = !G.modern && G.battleT > 300 ? 0.7 : 1; // WWII: after 5 minutes both sides close for a decision
+    const pref0 = ship.prefRange || ship.spec.range || [Math.min(ship.tb.max * 0.45, 14000) * 0.75, Math.min(ship.tb.max * 0.45, 14000)], pref = [pref0[0] * prefK, pref0[1] * prefK];
     st.zigT -= dt; if (st.zigT <= 0) { st.zigT = 45 + rnd() * 40; st.zig = (rnd() - 0.5) * 34 * DEG; }
     const off = (range > pref[1] * 1.05 ? (range > pref[1] * 1.4 ? 18 : 40) : range < pref[0] * 0.75 ? 122 : 88) * DEG; // far away: close in nearly head-on
     const a = wrap(bp + off + st.zig), b2 = wrap(bp - off + st.zig);
@@ -914,7 +916,7 @@ export function brain(ship, tgt, st, dt, steer = true) {
   if (st.wait <= 0 && !st.blind && tgt.alive && range < ship.tb.max * 0.98 && ship.turrets.some((t) => t.alive && t.reload <= 0 && t.onTarget)) {
     if (ship.fire()) {
       if (ship.side === "foe" && tgt.isPlayer && !G.plane) A.later.push({ t: Math.max(0.2, solve(ship.tb, ship.aimR).time - 2.4), fn: sfx.incoming });
-      st.wait = Math.min(6, ship.reloadT * 0.5); st.sigR = Math.max(st.sigR * 0.78, ship.side === "foe" ? 185 : 95); st.sigB = Math.max(st.sigB * 0.78, ship.side === "foe" ? 0.0045 : 0.0028); // enemy gunnery settles less tightly st.errR = gauss() * st.sigR; st.errB = gauss() * st.sigB;
+      st.wait = Math.min(6, ship.reloadT * 0.5); st.sigR = Math.max(st.sigR * 0.78, ship.side === "foe" ? 185 : 95); st.sigB = Math.max(st.sigB * 0.78, ship.side === "foe" ? 0.0045 : 0.0028); st.errR = gauss() * st.sigR; st.errB = gauss() * st.sigB; // enemy gunnery settles less tightly
     }
   }  if (ship.spec.torp && !st.blind && (!ship.isPlayer || G.auto)) aiTorp(ship, tgt, st, dt);
 }
@@ -999,7 +1001,7 @@ function torpHit(ship, t, lx) {
   const n = t.dmg * (0.85 + rnd() * 0.3) * ship.armorK * (ship.spec.belt > 250 ? 0.75 : 1);
   ship.flooding += 2; ship.listSide = ship.listSide || (lx >= 0 ? 1 : -1);
   const mine = t.owner.isPlayer && ship.side === "foe";
-  if (mine) { G.stats.dealt = (G.stats.dealt || 0) + (Math.min(n, ship.hp) / ship.maxHp) * 100; G.stats.torpHits = (G.stats.torpHits || 0) + 1; G.ribbon?.("어뢰 명중"); }
+  if (mine) { ship.myHitT = G.battleT; G.stats.dealt = (G.stats.dealt || 0) + (Math.min(n, ship.hp) / ship.maxHp) * 100; G.stats.torpHits = (G.stats.torpHits || 0) + 1; G.ribbon?.("어뢰 명중"); }
   if (ship.isPlayer) { G.shake = 1.5; G.radio?.("flood"); }
   G.log(ship.isPlayer ? "어뢰 피격! 대규모 침수" : ship.side === "us" ? `${ship.name} 어뢰 피격!` : `어뢰 명중! ${ship.name} 침수`, ship.side === "us" ? "bad" : "hit");
   ship.damage(n);

@@ -20,6 +20,8 @@ Then open http://localhost:8820. The dev server turns caching off and mutes the 
 | `js/core.js` | Renderer, sky and sea shaders, maps and islands, particles |
 | `js/ships.js` | Guns and ballistics, ship catalogue, procedural ship models, AI |
 | `js/modern.js` | Missiles, air defence, helicopters, jets |
+| `js/ops.js` | Modern operations (campaign missions, objectives, support strikes) |
+| `js/cic.js` | Commander's command-and-control room (CIC) |
 | `js/air.js` | WWII aircraft |
 | `js/infantry.js` | Boarding-party soldiers and first-person weapons |
 | `js/interior.js` | Cockpit and gun viewmodels |
@@ -29,6 +31,10 @@ Then open http://localhost:8820. The dev server turns caching off and mutes the 
 Test hooks live on `window.__st` (for example `start`, `frameOnce`, `setMission`, `setNat`).
 
 ## Working together (Gemini + Claude)
+
+- GitHub `main` is the only source of truth. Never commit to the Higgsfield website repo directly;
+  deploying means copying `app/public` from GitHub `main` into the Higgsfield checkout, then push and deploy.
+- Gemini owns `index.html` (CSS and panels); Claude owns `client.js` and `js/*.js`. Ids and class names used by `client.js` stay as they are unless both sides agree.
 
 - Run `git pull` before you start, then commit small and push often.
 - Don't make big edits to the same file at the same time; split the work by file.

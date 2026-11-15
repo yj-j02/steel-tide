@@ -1,0 +1,13 @@
+Sound sources (all from Wikimedia Commons; edited: trimmed, pitched, filtered, reverb, loudness-normalised)
+- Explosion-LS100155.ogg, Explosions-LS100150.ogg, Explosions-LS100152.ogg — by Fg2 — Public domain
+- "B-Roll: Soldiers practice operating a 50-caliber machine gun (977575)" — U.S. Army SETAF-AF / Sgt. Michael Westendorf — Public domain
+- "3 P-51 Mustangs start-up and make a fly-by at Paine Field USA June 2010 with sound" — John Veit — CC0
+- "Oceanwavescrushing.ogg" — Luftrum — CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/) (used for the shell-splash sound)
+
+Background music (Wikimedia Commons; licence checked via the Commons API imageinfo/extmetadata on 2026-11-12; re-encoded mono MP3)
+- bgm_menu.mp3 — "06-United States Navy Band-Victory at Sea-Anchors Aweigh.mp3", performed by the United States Navy Band — Public domain (work of the U.S. federal government)
+  https://commons.wikimedia.org/wiki/File:06-United_States_Navy_Band-Victory_at_Sea-Anchors_Aweigh.mp3
+- bgm_battle.mp3 — "Holst- mars.ogg": Gustav Holst, "Mars, the Bringer of War" (The Planets), transcription by Merlin Patterson, performed by the United States Air Force Band (CD "Frontiers", 1998) — Public domain
+  https://commons.wikimedia.org/wiki/File:Holst-_mars.ogg
+
+Radio voice (radio/*.mp3): generated with Higgsfield Seed Audio TTS for this game, split per line; the radio effect is applied at runtime.

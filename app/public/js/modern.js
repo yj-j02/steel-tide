@@ -35,9 +35,17 @@ export const WPN = {
   "R-27": { role: "aam", range: 12000, v: 1000, pk: { jet: 0.45, sub: 0.2 } },
   "YJ-18": { role: "asm", name: "YJ-18", range: 34000, v: 260, sprint: 850, cls: "sup", alt: "skim", dmg: 38 },
   "YJ-21": { role: "asm", name: "YJ-21", range: 40000, v: 1900, cls: "hyp", alt: "ball", dmg: 48 },
+  "초음속 대함": { role: "asm", name: "초음속 대함(개발형)", range: 25000, v: 300, sprint: 880, cls: "sup", alt: "skim", dmg: 40 },
+  "초음속 순항": { role: "asm", name: "초음속 순항미사일", range: 20000, v: 290, sprint: 800, cls: "sup", alt: "skim", dmg: 36 },
   "순항미사일": { role: "asm", name: "순항미사일", range: 16000, v: 260, cls: "sub", alt: "skim", dmg: 30 },
 };
-export const M = { list: [], decoys: [], helos: [], jets: [], cam: null };
+/** 1 up to 3 missiles arriving together; above that every extra missile cuts each intercept's odds (radars and launchers saturate). */
+export const satK = (side) => 1 / (1 + 0.14 * Math.max(0, (M.sat?.[side] || 0) - 3));
+export const M = { list: [], decoys: [], helos: [], jets: [], flares: [], cam: null };
+// expendables per jet (flare + chaff cartridges, game counts). Public figures: ALE-47 buckets hold 30 cartridges each; an F-16 Block 50 can carry up to 60 flares,
+// Hornet/Super Hornet dispensers about 60 cartridges. F-35, J-15 loads are not public — the numbers here are estimates.
+export const FLARES = { "F/A-18E": 60, "F-35B": 48, "F-35B (가정)": 48, "J-15": 48, "MiG-29 (지상 발진)": 30 };
+export const flaresOf = (type) => FLARES[type] ?? 40;
 /** sensor ranges (game scale): ship radar vs surface ships, ESM intercept of a radiating ship, eyes, helicopter radar, EO/IR when not radiating, missile seeker */
 export const SENS = { surf: 13000, esm: 28000, vis: 7000, helo: 12000, eo: 4000, seek: 9000 };
 const TR_MAX = 1400, trGeo = new THREE.BufferGeometry();
@@ -49,13 +57,15 @@ const FIN = new THREE.BoxGeometry(0.6, 0.04, 1.1);
 const MATS = { us: new THREE.MeshStandardMaterial({ color: 0xe9ecec, roughness: 0.5 }), foe: new THREE.MeshStandardMaterial({ color: 0x9aa2a6, roughness: 0.5 }),
   fire: new THREE.MeshBasicMaterial({ color: 0xffc070, transparent: true, opacity: 0.95, blending: THREE.AdditiveBlending, depthWrite: false }) };
 const FLAME = new THREE.SphereGeometry(0.5, 8, 6);
+export const hooks = {}; // filled by ops.js (drone meshes) — avoids a circular import
 function mesh(W, side, sc) {
+  if (W.drone && hooks.droneMesh) { const d = hooks.droneMesh(W.drone); scene.add(d); return d; }
   const g = new THREE.Group(), m = MATS[side === "us" ? "us" : "foe"]; g.add(new THREE.Mesh(BODY, m)); g.add(new THREE.Mesh(NOSE, m));
   for (const r of [0, PI / 2]) { const f = new THREE.Mesh(FIN, m); f.position.x = -1.9; f.rotation.x = r; g.add(f); }
   const fl = new THREE.Mesh(FLAME, MATS.fire); fl.position.x = -2.7; fl.scale.set(1.8, 0.8, 0.8); g.add(fl); g.userData.fl = fl;
   g.scale.setScalar(sc); scene.add(g); return g;
 }
-const X = new THREE.Vector3(1, 0, 0), tmp = new THREE.Vector3(), _dq = new THREE.Quaternion(), _eu = new THREE.Euler();
+const X = new THREE.Vector3(1, 0, 0), tmp = new THREE.Vector3();
 /** world position of a VLS hatch on the ship (fore or aft grid) */
 function hatch(S) { const v = S.funnels && S.root.userData; void v; S.tilt.updateWorldMatrix(true, false); const xs = S.vlsX || [S.spec.L * 0.26, -S.spec.L * 0.32]; return S.tilt.localToWorld(new THREE.Vector3(xs[rnd() < 0.5 ? 0 : 1] + gauss() * 1.5, S.spec.fb + 1.2, gauss() * 1.2)); }
 export function launch(S, key, target) {
@@ -67,7 +77,7 @@ export function launch(S, key, target) {
   M.list.push(m);
   flash.spawn({ x: p.x, y: p.y + 2, z: p.z, life: 0.35, s0: 5, s1: 12, a: 1, c: 0xffd27a });
   for (let i = 0; i < (W.role === "pd" ? 2 : 6); i++) smoke.spawn({ x: p.x + gauss(), y: p.y + rnd() * 3, z: p.z + gauss(), vx: gauss(), vy: 3 + rnd() * 4, vz: gauss(), life: 3.5, s0: 3, s1: 12, a: 0.65, c: 0xe8e8e8 });
-  const d = p.distanceTo(camera.position); at(d, () => (d < 2500 ? sfx.torpLaunch() : sfx.flak(d)));
+  const d = p.distanceTo(camera.position); at(d, () => (m.air || W.role === "asm" ? (d < 6000 ? sfx.mslLaunch(d) : sfx.flak(d)) : d < 2500 ? sfx.torpLaunch() : sfx.flak(d)));
   return m;
 }
 /** Can side `side` see this missile? sea-skimmers only inside the radar horizon of one of their ships. */
@@ -78,6 +88,7 @@ export function seen(m, side) {
   for (const h of [...M.helos, ...M.jets]) if (h.alive && h.side === side) { const R = skim ? 16000 * st : 30000; if (h.pos.distanceToSquared(m.pos) < R * R) return true; } // an airborne radar sees over the horizon
   return false;
 }
+export function killMissile(m, how = "boom") { kill(m, how); }
 function kill(m, how) {
   m.alive = false; scene.remove(m.mesh); if (M.cam === m) M.camEnd = 1.2;
   if (how === "air") { flash.spawn({ x: m.pos.x, y: m.pos.y, z: m.pos.z, life: 0.4, s0: 8, s1: 22, a: 1, c: 0xff9a3a }); for (let i = 0; i < 8; i++) spark.spawn({ x: m.pos.x, y: m.pos.y, z: m.pos.z, vx: gauss() * 30, vy: gauss() * 20, vz: gauss() * 30, g: 9.8, life: 1.6, s0: 1.6, s1: 0.6, a: 1, c: 0xffb050 });
@@ -97,6 +108,8 @@ const enemiesOf = (side) => G.ships.filter((s) => s.alive && s.side !== side && 
 /** onHit(ship, m) lets the game score and log. */
 export function stepMissiles(dt, onHit) {
   const tp = trGeo.attributes.position.array, tc = trGeo.attributes.color.array; let n = 0;
+  // saturation: how many anti-ship missiles each side has inside 9 km of their targets right now
+  M.sat = { us: 0, foe: 0 }; for (const m of M.list) if (m.alive && m.W.role === "asm" && m.target && m.pos.distanceToSquared(m.target.pos) < 8.1e7) M.sat[m.side]++;
   for (let i = M.list.length - 1; i >= 0; i--) {
     const m = M.list[i];
     if (!m.alive) { M.list.splice(i, 1); continue; }
@@ -107,8 +120,9 @@ export function stepMissiles(dt, onHit) {
       const want = W.role === "asm" ? (W.sprint && m.target && m.pos.distanceTo(m.target.pos) < 7000 ? W.sprint : W.v) : W.v;
       const v = m.vel.length(); m.vel.setLength(v + (want - v) * Math.min(1, dt * (W.role === "asm" ? 0.8 : 2.5)));
       if (W.role === "asm") {
-        let T = m.decoy || m.target;
-        if (!m.decoy && !m.est && (!T || !T.alive)) { const c = enemiesOf(m.side).sort((a, b) => a.pos.distanceToSquared(m.pos) - b.pos.distanceToSquared(m.pos))[0]; m.target = T = c && c.pos.distanceTo(m.pos) < 12000 ? c : null; }
+        if (m.jamT > 0) m.jamT -= dt;
+        let T = m.jamT > 0 ? null : m.decoy || m.target;
+        if (!m.decoy && !m.est && !(m.jamT > 0) && (!T || !T.alive)) { const c = enemiesOf(m.side).sort((a, b) => a.pos.distanceToSquared(m.pos) - b.pos.distanceToSquared(m.pos))[0]; m.target = T = c && c.pos.distanceTo(m.pos) < 12000 ? c : null; }
         if (m.est && !m.decoy) { // fired at an estimated position: fly there, then switch the seeker on and take the nearest ship it finds
           if (m.pos.distanceTo(m.est) > SENS.seek * 0.7) T = { pos: m.est, vel: null };
           else { m.est = null; const c = enemiesOf(m.side).filter((s) => s.pos.distanceTo(m.pos) < SENS.seek).sort((a, b) => a.pos.distanceToSquared(m.pos) - b.pos.distanceToSquared(m.pos))[0]; m.target = T = c || null; m.seekMiss = !c; }
@@ -116,6 +130,7 @@ export function stepMissiles(dt, onHit) {
         if (T) {
           const aim = lead(m, T, m.vel.length()).clone(), d = m.pos.distanceTo(T.pos);
           if (W.alt === "skim") aim.y = d > 2500 ? 9 : 4;
+          else if (W.alt === "drone") aim.y = d > 1600 ? 120 : 3;
           else if (W.alt === "ball") { const frac = clamp(m.dist / Math.max(1, m.dist + d), 0, 1); aim.y = d > 6000 ? Math.max(200, m.apex * Math.sin(Math.PI * Math.min(frac + 0.15, 1))) : 0; }
           steer(m, aim, dt, W.alt === "ball" ? 0.9 : d < 3000 ? 2.4 : 1.1);
           if (W.alt === "skim" && m.pos.y < 3) m.vel.y = Math.max(m.vel.y, 2);
@@ -128,7 +143,9 @@ export function stepMissiles(dt, onHit) {
         if (!T || !T.alive) { m.lost = (m.lost || 0) + dt; if (m.lost > 1.2) { kill(m, "air"); continue; } }
         else {
           steer(m, lead(m, T, m.vel.length()).clone(), dt, 5);
-          if (m.pos.distanceTo(T.pos) < 32) { const ok = rnd() < (T.isJet ? (W.pk.jet ? W.pk.jet * 0.45 : 0.2) * (T.flareT > 0 ? 0.25 : 1) : (W.pk[T.W.cls] ?? 0.55) * 0.45); T.engaged = Math.max(0, T.engaged - 1); kill(m, "air"); if (ok) { T.killedBy = m.owner; kill(T, "boom"); } continue; } // jets jink and jam; no layer is a sure kill
+          if (m.pos.distanceTo(T.pos) < 32) { const ok = rnd() < (W.pk[T.W.cls] ?? (T.isJet ? 0.3 : 0.55)) * (T.isJet ? 1 : satK(T.side)) * (T.isJet ? (T.pilot ? 0.55 * (T.flareT > 0 ? 0.4 : 1) * (T.gT > 0 ? 0.65 : 1) : 1) : 0.45); T.engaged = Math.max(0, T.engaged - 1); kill(m, "air");
+            if (ok && T.pilot && !T.hit) { T.hit = true; G.onJetHit?.(T); } // the aircraft you fly survives the first hit, damaged
+            else if (ok) { T.killedBy = m.owner; kill(T, "boom"); } continue; } // jets jink and jam; no layer is a sure kill
         }
       }
     }
@@ -136,7 +153,7 @@ export function stepMissiles(dt, onHit) {
     if (m.pos.y < 0.5 && !boost) { kill(m, "sea"); continue; }
     if (m.dist > W.range * (W.role === "asm" ? 1.15 : 1.3)) { if (W.role === "asm") { m.vel.y -= 30 * dt; } else { kill(m, "air"); continue; } }
     m.mesh.position.copy(m.pos); m.mesh.quaternion.setFromUnitVectors(X, tmp.copy(m.vel).normalize()); m.mesh.userData.fl.scale.x = 1.4 + Math.random() * 0.8;
-    m.trT -= dt; if (m.trT <= 0) { m.trT = 0.1; m.trail.push(m.pos.clone()); if (m.trail.length > (W.role === "asm" ? 40 : 18)) m.trail.shift(); }
+    m.trT -= dt; if (m.trT <= 0 && !W.drone) { m.trT = 0.1; m.trail.push(m.pos.clone()); if (m.trail.length > (W.role === "asm" ? 40 : 18)) m.trail.shift(); }
     const c = m.side === "us" ? (W.role === "asm" ? [0.95, 0.95, 0.95] : [0.65, 0.85, 1]) : [1, 0.55, 0.45];
     for (let j = 0; j + 1 < m.trail.length && n < TR_MAX; j++) { const a = m.trail[j], b = m.trail[j + 1]; tp.set([a.x, a.y, a.z, b.x, b.y, b.z], n * 6); tc.set([...c, ...c], n * 6); n++; }
     if (n < TR_MAX && m.trail.length) { const a = m.trail[m.trail.length - 1]; tp.set([a.x, a.y, a.z, m.pos.x, m.pos.y, m.pos.z], n * 6); tc.set([...c, ...c], n * 6); n++; }
@@ -149,7 +166,8 @@ function impact(m, S, lx, onHit) {
   for (let i = 0; i < 30; i++) spark.spawn({ x: p.x, y: p.y + 2, z: p.z, vx: gauss() * 25, vy: 10 + rnd() * 30, vz: gauss() * 25, g: 9.8, life: 2.4, s0: 2.6, s1: 0.8, a: 1, c: 0xffa040 });
   for (let i = 0; i < 6; i++) smoke.spawn({ x: p.x + gauss() * 3, y: p.y + 3, z: p.z + gauss() * 3, vy: 6, life: 10, s0: 8, s1: 30, a: 0.75, c: 0x1e1e1e });
   const d = p.distanceTo(camera.position); at(d, () => sfx.explode(d)); if (S.isPlayer) G.shake = 2;
-  const n = W.dmg * (0.85 + rnd() * 0.3) * (W.cls === "hyp" ? 1 : 1.5); // x1.5: three or four hits sink a destroyer, so battles end S.fires.push(40); if (rnd() < 0.5) { S.flooding += 1; S.listSide = S.listSide || (lx >= 0 ? 1 : -1); }
+  const n = W.dmg * (0.85 + rnd() * 0.3) * (W.cls === "hyp" ? 1 : 1.5); S.fires.push(40); // x1.5: three or four hits sink a destroyer, so battles end
+  if (rnd() < 0.5) { S.flooding += 1; S.listSide = S.listSide || (lx >= 0 ? 1 : -1); }
   onHit?.(S, m, n); S.damage(n);
 }
 // ── defence: each modern ship engages incoming missiles aimed at its side, inside its own envelope ──
@@ -170,6 +188,7 @@ export function defend(dt, mode = "auto") {
     for (const { m, d } of th) {
       if (D.cd > 0 || mine) break;
       if (m.engaged >= need(m)) continue;
+      if (m.W.drone && (d > 5000 || m.engaged >= 1)) continue; // small radar return: SAMs only take drones close in, one each
       const k = pickSam(S, d); if (!k) continue;
       if (launch(S, k, m)) { S.mag[k]--; m.engaged++; D.cd = 0.7; if (S.isPlayer) G.stats.sams = (G.stats.sams || 0) + 1; }
     }
@@ -177,8 +196,8 @@ export function defend(dt, mode = "auto") {
     const pd = S.spec.pd;
     if (pd && S.mag[pd[0]] > 0 && D.pdCd <= 0) { const c = th.find((t) => t.d < WPN[pd[0]].range && t.m.engaged < need(t.m) + 1); if (c) { launch(S, pd[0], c.m); S.mag[pd[0]]--; c.m.engaged++; D.pdCd = 1.2; } }
     // CIWS: last 1.2 km
-    for (const { m, d } of th) if (d < 1300) { D.ciT -= dt; if (D.ciT <= 0) { D.ciT = 0.05; S.tilt.updateWorldMatrix(true, false); const o = S.pos.clone().setY(S.spec.fb + 9); spark.spawn({ x: o.x + (m.pos.x - o.x) * rnd(), y: o.y + (m.pos.y - o.y) * rnd(), z: o.z + (m.pos.z - o.z) * rnd(), life: 0.25, s0: 1.2, s1: 0.6, a: 1, c: 0xffe0a0 }); const dd = o.distanceTo(camera.position); if (dd < 3000 && rnd() < 0.5) at(dd, () => sfx.mgShot(dd)); }
-      if (rnd() < dt * (m.W.cls === "sub" ? 0.4 : m.W.cls === "sup" ? 0.22 : 0.1)) { m.killedBy = S; kill(m, "boom"); } break; }
+    if (!S.ciwsDead) for (const { m, d } of th) if (d < 1300) { D.ciT -= dt; if (D.ciT <= 0) { D.ciT = 0.05; S.tilt.updateWorldMatrix(true, false); const o = S.pos.clone().setY(S.spec.fb + 9); spark.spawn({ x: o.x + (m.pos.x - o.x) * rnd(), y: o.y + (m.pos.y - o.y) * rnd(), z: o.z + (m.pos.z - o.z) * rnd(), life: 0.25, s0: 1.2, s1: 0.6, a: 1, c: 0xffe0a0 }); const dd = o.distanceTo(camera.position); if (dd < 3000 && rnd() < 0.5) at(dd, () => sfx.mgShot(dd)); }
+      if (rnd() < dt * (m.W.drone ? 0.22 : m.W.cls === "sub" ? 0.4 : m.W.cls === "sup" ? 0.22 : 0.1) * satK(m.side)) { m.killedBy = S; kill(m, "boom"); } break; }
     // soft kill: AI ships throw a decoy when a missile is inside 5 km
     if (!mine && D.decoyCd <= 0 && th[0].d < 5000) { decoy(S); D.decoyCd = 35; }
   }
@@ -251,7 +270,7 @@ export function launchJet(S, role, cv, pos) {
   const mesh = jetMesh(S.side === "foe"); mesh.scale.setScalar(1.4); scene.add(mesh);
   const p = pos ? pos.clone() : S.pos.clone().setY((S.spec?.fb || 0) + 14), h = S.heading ?? 0;
   const j = { isJet: true, side: S.side, owner: S, role, name: cv.type, W: { cls: "jet", alt: "high", name: cv.type }, pos: p, vel: new THREE.Vector3(Math.cos(h) * 120, 25, Math.sin(h) * 120), t: 0, endur: 260, home: false, alive: true, engaged: 0, mesh,
-    asm: role !== "cap" ? 2 : 0, asmKey: cv.asm, aam: 4, aamKey: cv.aam, aamCd: 2, trail: [], flares: 8, flareT: 0, flareCd: 0, hp: 4, gun: 400, gunCd: 0 };
+    asm: role !== "cap" ? 2 : 0, asmKey: cv.asm, aam: 10, aamKey: cv.aam, aamCd: 2, trail: [], flares: flaresOf(cv.type) };
   M.jets.push(j); return j;
 }
 /** know(side) → [{ ship, pos, firm }] enemy surface contacts that side can target. onEvent(j, kind, extra). */
@@ -259,26 +278,30 @@ export function stepJets(dt, know, onEvent) {
   for (let i = M.jets.length - 1; i >= 0; i--) {
     const j = M.jets[i];
     if (!j.alive) { if (!j.gone) onEvent?.(j, "lost", j.killedBy); M.jets.splice(i, 1); continue; }
-    j.t += dt; j.aamCd -= dt; j.flareT = Math.max(0, j.flareT - dt); j.flareCd = Math.max(0, j.flareCd - dt);
-    if (!j.pilot && j.flares > 0 && j.flareCd <= 0 && M.list.some((m) => m.alive && m.target === j && m.pos.distanceTo(j.pos) < 3500)) dropJetFlare(j); // AI pilots flare against incoming missiles
+    j.t += dt; j.aamCd -= dt;
+    if (j.pilot && j.landT > 0) { const o = j.owner; j.landT -= dt; j.pos.copy(o.pos).add(new THREE.Vector3(0, o.spec.fb + 10, 0)); j.vel.copy(o.vel || new THREE.Vector3()); j.mesh.position.copy(j.pos);
+      if (j.landT <= 0) { j.gun = 480; j.aam = 10; j.asm = j.asmKey ? 2 : 0; j.flares = flaresOf(j.name); j.hit = false; j.t = 0; j.thr = 240; j.vel.copy(o.fwd).multiplyScalar(200); j.pos.addScaledVector(o.fwd, o.spec.L * 0.4); j.pos.y = 70; j.q.setFromUnitVectors(X, o.fwd); onEvent?.(j, "relaunch"); } continue; }
     if (j.pilot) { // flown by the player: fly where the stick points
-      const I = j.inp || { p: 0, r: 0, mp: 0, my: 0 }; // body axes: x nose, y up, z right wing — roll on x, yaw on y, pitch on z
-      j.q.multiply(_dq.setFromEuler(_eu.set(I.r * 2.6 * dt, I.my, I.p * 1.5 * dt + I.mp, "XYZ"))).normalize(); I.mp = I.my = 0;
-      j.vel.lerp(tmp.set(1, 0, 0).applyQuaternion(j.q).multiplyScalar(j.thr), Math.min(1, dt * 3)); j.pos.addScaledVector(j.vel, dt); j.W.alt = j.pos.y < 300 ? "skim" : "high";
+      const want = new THREE.Vector3(1, 0, 0).applyQuaternion(j.q).multiplyScalar(Math.min(j.thr, j.hit ? 250 : 999));
+      j.vel.lerp(want, Math.min(1, dt * 2.6)); j.pos.addScaledVector(j.vel, dt); j.W.alt = j.pos.y < 300 ? "skim" : "high"; j.flareT = Math.max(0, (j.flareT || 0) - dt);
       if (j.pos.y < 8) { j.killedBy = null; kill(j, "boom"); continue; }
+      if (j.hit && rnd() < dt * 20) smoke.spawn({ x: j.pos.x, y: j.pos.y, z: j.pos.z, life: 3, s0: 2, s1: 10, a: 0.6, c: 0x222222 });
       j.mesh.position.copy(j.pos); j.mesh.quaternion.copy(j.q); continue;
     }
+    if (j.flares > 0 && (j.aiFlCd || 0) <= G.time && M.list.some((m) => m.alive && m.target === j && m.pos.distanceTo(j.pos) < 4500)) { const n = Math.min(j.flares, 6); j.flares -= n; j.aiFlCd = G.time + 1.6; jetFlare(j, n); } // AI: a 6-cartridge program, again while the threat stays
     if (j.t > j.endur || !j.owner.alive || (j.role === "multi" && !j.asm && !j.aam)) j.home = true; j.W.alt = j.pos.y < 300 ? "skim" : "high"; // low flyers stay under the radar horizon longer
     let goal = null, alt = j.role === "strike" ? 160 : 1800, spd = 240;
     const foes = M.jets.filter((o) => o.alive && o.side !== j.side), near = foes.sort((a, b) => a.pos.distanceToSquared(j.pos) - b.pos.distanceToSquared(j.pos))[0];
     if (!j.home && j.aam > 0 && near && near.pos.distanceTo(j.pos) < (j.role !== "strike" ? 25000 : 9000)) { // engage aircraft (strike jets only in self-defence)
       goal = near.pos.clone().addScaledVector(near.vel, 2); alt = near.pos.y;
+      { const dd = near.pos.distanceTo(j.pos), fw = j.vel.clone().normalize(), ang = Math.acos(clamp(near.pos.clone().sub(j.pos).dot(fw) / Math.max(dd, 1), -1, 1));
+        j.gunT = (j.gunT || 0) - dt; if (dd < 1500 && ang < 0.12 && j.gunT <= 0) { j.gunT = 0.09; jetGun(j); if (camera.position.distanceTo(j.pos) < 1500 && rnd() < 0.3) sfx.vulcan?.(); } }
       if (j.aamCd <= 0 && near.pos.distanceTo(j.pos) < WPN[j.aamKey].range * 0.8 && near.engaged < 1) { const m = launch(j, j.aamKey, near); if (m) { j.aam--; near.engaged++; j.aamCd = 6; onEvent?.(j, "aam", near); } }
     } else if (!j.home && j.role !== "strike" && j.aam > 0 && (() => { const m = M.list.filter((x) => x.alive && x.W.role === "asm" && x.side !== j.side && !x.engaged && x.pos.distanceTo(j.pos) < 9000).sort((a, b) => a.pos.distanceToSquared(j.pos) - b.pos.distanceToSquared(j.pos))[0]; j.msl = m; return !!m; })()) {
       const m = j.msl; goal = m.pos.clone().addScaledVector(m.vel, 3); alt = Math.max(200, m.pos.y + 150); // CAP also shoots down incoming anti-ship missiles
       if (j.aamCd <= 0 && m.pos.distanceTo(j.pos) < 7000) { const a = launch(j, j.aamKey, m); if (a) { j.aam--; m.engaged++; j.aamCd = 4; onEvent?.(j, "aam", m); } }
     } else if (!j.home && j.role !== "cap" && j.asm > 0) {
-      const c = know(j.side).sort((a, b) => a.pos.distanceToSquared(j.pos) - b.pos.distanceToSquared(j.pos))[0];
+      const ref = j.aimPt || j.pos, c = know(j.side).sort((a, b) => a.pos.distanceToSquared(ref) - b.pos.distanceToSquared(ref))[0]; // support strikes go for the contact nearest the commander's strike point
       if (c) { goal = c.pos.clone(); const d = Math.hypot(c.pos.x - j.pos.x, c.pos.z - j.pos.z);
         if (d < WPN[j.asmKey].range * 0.75) { for (let k = 0; k < j.asm; k++) { const m = launch(j, j.asmKey, c.ship); if (m && !c.firm) m.est = c.pos.clone(); } onEvent?.(j, "strike", c.ship); j.asm = 0; j.home = j.role === "strike" || !j.aam; } }
     }
@@ -291,15 +314,43 @@ export function stepJets(dt, know, onEvent) {
     if (rnd() < dt * 6) smoke.spawn({ x: j.pos.x, y: j.pos.y, z: j.pos.z, life: 1.2, s0: 1.5, s1: 5, a: 0.18, c: 0xcfcfcf });
   }
 }
-/** Flare burst behind a jet: spoils missile shots at it for a few seconds and breaks some locks outright. */
-export function dropJetFlare(j) {
-  if (!(j.flares > 0) || j.flareCd > 0) return false; j.flares--; j.flareT = 4; j.flareCd = 1.2;
-  for (let i = 0; i < 6; i++) flash.spawn({ x: j.pos.x, y: j.pos.y - 2, z: j.pos.z, vx: j.vel.x * 0.25 + gauss() * 25, vy: -12 + gauss() * 8, vz: j.vel.z * 0.25 + gauss() * 25, life: 2.6 + rnd(), s0: 7, s1: 3, a: 1, c: 0xfff2c8 });
-  for (const m of M.list) if (m.alive && m.target === j && m.pos.distanceTo(j.pos) < 6000 && rnd() < 0.5) { m.target = null; j.engaged = Math.max(0, j.engaged - 1); }
-  return true;
+/** Flares / chaff from a jet: missiles homing on it may lose it (they self-destruct shortly after). Returns how many were fooled. */
+export function jetFlare(j, k = 4) { // a dispense program: k cartridges in pairs, each burning and falling away on its own
+  j.flareT = 2.5; let n = 0; const b = j.vel.clone().normalize(), side = new THREE.Vector3(-b.z, 0, b.x);
+  for (let i = 0; i < k; i++) { const s = i % 2 ? 1 : -1; M.flares.push({ p: j.pos.clone().addScaledVector(b, -7), v: j.vel.clone().multiplyScalar(0.5).addScaledVector(side, s * (22 + rnd() * 18)).add(new THREE.Vector3(gauss() * 4, -14 - rnd() * 10, gauss() * 4)), t: 0, d: Math.floor(i / 2) * 0.18, src: j }); }
+  const pk = 1 - Math.pow(0.5, k / 2); // 2 → 50 %, 4 → 75 %, 6 → 88 % per missile (radar missiles: chaff, simplified)
+  for (const m of M.list) if (m.alive && m.target === j && m.pos.distanceTo(j.pos) < 9000 && rnd() < pk) { m.target = null; j.engaged = Math.max(0, (j.engaged || 0) - 1); n++; }
+  return n;
 }
-/** Cannon or other direct kill of an aircraft or missile. */
-export function shootDown(t, by) { t.killedBy = by; kill(t, "boom"); }
-export function clearMissiles() { for (const j of M.jets) scene.remove(j.mesh); M.jets.length = 0; for (const h of M.helos) scene.remove(h.mesh); M.helos.length = 0; for (const m of M.list) scene.remove(m.mesh); M.list.length = 0; M.decoys.length = 0; M.cam = null; trGeo.setDrawRange(0, 0); }
+export function stepFlares(dt) {
+  for (let i = M.flares.length - 1; i >= 0; i--) { const f = M.flares[i]; if (f.d > 0) { f.d -= dt; if (f.d <= 0 && f.src) f.p.copy(f.src.pos); continue; }
+    f.t += dt; f.v.multiplyScalar(Math.exp(-dt * 0.9)); f.v.y -= 9.8 * dt; f.p.addScaledVector(f.v, dt); const a = Math.max(0, 1 - f.t / 4.5);
+    if (rnd() < 0.7) flash.spawn({ x: f.p.x, y: f.p.y, z: f.p.z, life: 0.35, s0: 4.5 * a + 1, s1: 1.5, a: a, c: 0xfff4c8 });
+    if (rnd() < dt * 14) smoke.spawn({ x: f.p.x, y: f.p.y, z: f.p.z, life: 2.4, s0: 1.5, s1: 7, a: 0.35 * a, c: 0xdadada });
+    if (f.t > 4.5 || f.p.y < 2) M.flares.splice(i, 1); }
+}
+/** 20 mm cannon burst from jet j along its nose: hits enemy aircraft and missiles inside a narrow cone out to 1.7 km. */
+export function jetGun(j) {
+  const f = j.q ? new THREE.Vector3(1, 0, 0).applyQuaternion(j.q) : j.vel.clone().normalize(), o = j.pos.clone().addScaledVector(f, 9);
+  const v = f.clone().multiplyScalar(1050).add(j.vel); v.x += gauss() * 5; v.y += gauss() * 5; v.z += gauss() * 5;
+  spark.spawn({ x: o.x, y: o.y - 0.6, z: o.z, vx: v.x, vy: v.y, vz: v.z, g: 9.8, life: 1.5, s0: 1.3, s1: 0.9, a: 1, c: 0xffe08a });
+  let res = null;
+  for (const t of [...M.jets, ...M.list]) { if (!t.alive || t.side === j.side || (!t.isJet && t.W.role !== "asm")) continue;
+    const d = t.pos.clone().sub(j.pos), L = d.length(); if (L > 1700 || L < 30) continue;
+    if (j.pilot) { /* player: test the round's real path (1050 m/s + own speed) against the target's motion, closest approach within 14 m (missiles 9 m); no dice roll, so lead the target */
+      const r0 = o.clone().sub(t.pos), rv = v.clone().sub(t.vel || r0.clone().set(0, 0, 0)), s = clamp(-r0.dot(rv) / Math.max(rv.lengthSq(), 1e-6), 0, 1.7); if (r0.addScaledVector(rv, s).length() > (t.isJet ? 14 : 9)) continue; }
+    else { const ang = Math.acos(clamp(d.dot(f) / L, -1, 1)); if (ang > 0.02 + 14 / L) continue; if (rnd() > 0.32) continue; } /* AI pilots keep the old cone and odds */
+    t.gh = (t.gh || 0) + 1; res = res || "hit";
+    flash.spawn({ x: t.pos.x, y: t.pos.y, z: t.pos.z, life: 0.15, s0: 3, s1: 7, a: 1, c: 0xffc070 });
+    if (t.gh >= (t.isJet ? 5 : 1)) { if (t.pilot && !t.hit) { t.hit = true; t.gh = 0; G.onJetHit?.(t); continue; } t.killedBy = j; kill(t, "boom"); res = "kill"; } }
+  // strafing a warship: 20 mm rounds knock out its search radar, then its CIWS (not the hull)
+  if (j.pilot) for (const S of G.ships) { if (!S.alive || S.side === j.side || !S.spec.modern) continue;
+    const d = S.pos.clone().setY(S.spec.fb + 6).sub(j.pos), L = d.length(); if (L > 1700 || L < 40) continue; const ang = Math.acos(clamp(d.dot(f) / L, -1, 1)); if (ang > 0.03 + S.spec.L * 0.35 / L) continue;
+    if (rnd() > 0.4) continue; S.strafe = (S.strafe || 0) + 1; res = res || "hit"; flash.spawn({ x: S.pos.x + gauss() * 8, y: S.spec.fb + 6 + rnd() * 8, z: S.pos.z + gauss() * 8, life: 0.15, s0: 2, s1: 5, a: 1, c: 0xffc070 });
+    if (S.strafe === 25 && !S.radarDead) { S.radarDead = true; S.radarOn = false; G.onStrafe?.(S, "radar"); }
+    if (S.strafe === 50 && !S.ciwsDead) { S.ciwsDead = true; G.onStrafe?.(S, "ciws"); } }
+  return res;
+}
+export function clearMissiles() { M.flares.length = 0; for (const j of M.jets) scene.remove(j.mesh); M.jets.length = 0; for (const h of M.helos) scene.remove(h.mesh); M.helos.length = 0; for (const m of M.list) scene.remove(m.mesh); M.list.length = 0; M.decoys.length = 0; M.cam = null; trGeo.setDrawRange(0, 0); }
 /** fill a ship's magazine from its spec */
 export function arm(S) { S.mag = {}; for (const e of Object.values(S.spec.vls || {})) S.mag[e[0]] = (S.mag[e[0]] || 0) + e[1]; if (S.spec.pd) S.mag[S.spec.pd[0]] = S.spec.pd[1]; S.vlsX = S.tilt?.userData?.vls || null; }

@@ -75,7 +75,30 @@ function hiss(vol, dur, f0, f1, delay = 0) {
 export const atten = (d) => clamp(1 - d / 26000, 0.05, 1);
 export function at(dist, fn) { A.later.push({ t: dist / 340, fn }); }
 
+/** Jet engine for the aircraft you fly: turbine roar (filtered noise) + compressor whine, both following the throttle. level 0 = off. */
+let JET = null;
+export function jetSound(level, thr = 0.5) {
+  const c = A.ctx; if (!c) return;
+  if (!JET) { if (level <= 0) return; const roar = loopNoise(A.brown, "lowpass", 500, 0.7, 0), rush = loopNoise(A.noise, "bandpass", 2400, 0.9, 0);
+    const o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain(); o.type = "sawtooth"; o2.type = "sine"; g.gain.value = 0; const f = c.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 3000; f.Q.value = 3;
+    o.connect(f); o2.connect(f); f.connect(g).connect(A.master); o.start(); o2.start(); JET = { roar, rush, whine: g, o, o2 }; }
+  const t = c.currentTime, k = 0.12;
+  JET.roar.gain.setTargetAtTime(level * (0.35 + 0.5 * thr), t, k); JET.rush.gain.setTargetAtTime(level * (0.03 + 0.07 * thr), t, k); JET.whine.gain.setTargetAtTime(level * (0.012 + 0.02 * thr), t, k);
+  JET.o.frequency.setTargetAtTime(2100 + 1700 * thr, t, k); JET.o2.frequency.setTargetAtTime(3150 + 2500 * thr, t, k);
+}
+let DRONE = null;
+/** moped-like buzz of loitering drones near the camera (0 = silent) */
+export function droneSound(level) {
+  const c = A.ctx; if (!c) return;
+  if (!DRONE) { if (level <= 0) return; const o = c.createOscillator(), lfo = c.createOscillator(), lg = c.createGain(), g = c.createGain(), f = c.createBiquadFilter();
+    o.type = "sawtooth"; o.frequency.value = 118; lfo.frequency.value = 23; lg.gain.value = 0.5; f.type = "lowpass"; f.frequency.value = 900; g.gain.value = 0;
+    const am = c.createGain(); am.gain.value = 0.5; lfo.connect(lg).connect(am.gain); o.connect(f).connect(am).connect(g).connect(A.master); o.start(); lfo.start(); DRONE = { g, o }; }
+  DRONE.g.gain.setTargetAtTime(level * 0.09, c.currentTime, 0.15); DRONE.o.frequency.setTargetAtTime(110 + level * 30, c.currentTime, 0.3);
+}
 export const sfx = {
+  rwr() { tone(0.12, 0.09, 1900, 1900, "square"); tone(0.12, 0.09, 1900, 1900, "square", 0.14); },
+  flare() { hiss(0.1, 0.5, 2600, 700); },
+  vulcan() { tone(0.16, 0.07, 240, 150, "sawtooth"); hiss(0.07, 0.07, 3200, 1400); },
   gun(cal) { const k = cal / 406; play("gun_near", { vol: 0.4 + 0.6 * k, rate: 1 + (1 - k) * 0.8 }); },
   farGun(d, cal) { const k = cal / 406, a = atten(d); play("gun_far", { vol: a * (0.35 + 0.65 * k), rate: 1 + (1 - k) * 0.6, lp: 600 + 3000 * a }); },
   splash(d, sc) { const a = atten(d); play("splash", { vol: a * (0.25 + 0.6 * Math.min(sc, 1)), rate: 0.7 + (1 - Math.min(sc, 1)) * 0.5, lp: 800 + 7000 * a }); },
@@ -99,6 +122,9 @@ export const sfx = {
   aaThump() { tone(0.05, 0.06, 110, 55, "sine"); },
   torpLaunch() { hiss(0.09, 0.7, 900, 240); },
   lockTone() { tone(0.05, 0.08, 1760, 1760, "sine"); },
+  lockSeek() { tone(0.035, 0.06, 1100, 1100, "sine"); }, // acquiring: slow low beeps
+  lockSolid() { tone(0.03, 0.13, 2100, 2100, "sine"); }, // locked: fast high tone
+  mslLaunch(d = 0) { const k = Math.max(0.15, 1 - d / 4000); hiss(0.24 * k, 1.7, 2800, 260); tone(0.14 * k, 0.3, 95, 45, "sine"); hiss(0.08 * k, 0.25, 600, 200); }, // motor ignition: bang + roar fading away
   click() { tone(0.06, 0.05, 1200, 900, "square"); },
   coin() { tone(0.1, 0.12, 988, 980, "square"); tone(0.1, 0.25, 1319, 1310, "square", 0.08); },
 };
@@ -107,17 +133,16 @@ export const sfx = {
 export function updateAudio(dt, ctx = {}) {
   for (let i = A.later.length - 1; i >= 0; i--) { A.later[i].t -= dt; if (A.later[i].t <= 0) { const f = A.later[i].fn; A.later.splice(i, 1); f(); } }
   if (!A.ctx) return;
-  const p = G.player, pl = G.plane, jet = ctx.jet, flying = !!(pl && !pl.crashed && G.state !== "menu") || !!jet, spd = jet ? jet.vel.length() : pl ? pl.speed : 0;
+  const p = G.player, pl = G.plane, flying = !!(pl && !pl.crashed && G.state !== "menu");
   const onDeck = !flying && p && G.state !== "menu", near = ctx.nearShip ?? 1;
   const set = (g, v) => g && g.gain.setTargetAtTime(v, A.ctx.currentTime, 0.25);
   set(A.hum, onDeck ? (0.03 + 0.07 * Math.abs(p.speed) / p.vmax) * near : 0);
   set(A.amb.hull, onDeck ? 0.06 * clamp(Math.abs(p.speed) / p.vmax, 0, 1) * near : 0);
   set(A.amb.swell, flying ? 0.05 : 0.16); set(A.amb.crest, flying ? 0.004 : 0.018);
-  set(A.amb.rush, flying ? clamp((spd - 30) / 120, 0, 1) * (ctx.cockpit ? 0.05 : 0.09) : 0);
+  set(A.amb.rush, flying ? clamp((pl.speed - 30) / 120, 0, 1) * (ctx.cockpit ? 0.05 : 0.09) : 0);
   if (flying && !A.eng && A.buf.engine) A.eng = play("engine", { loop: true, vol: 0 });
   if (A.eng) {
     if (!flying) { A.eng.src.stop(); A.eng = null; }
-    else if (jet) { const t = clamp((jet.thr - 110) / 220, 0, 1); A.eng.src.playbackRate.value = 1.15 + 0.6 * t; A.eng.g.gain.value = (0.3 + 0.35 * t) * (ctx.cockpit ? 1.2 : 1); } // jet: higher whine with throttle
     else { A.eng.src.playbackRate.value = 0.72 + 0.42 * pl.throttle + 0.1 * clamp((pl.speed - 60) / 90, 0, 1); A.eng.g.gain.value = (0.25 + 0.3 * pl.throttle) * (ctx.cockpit ? 1.25 : 1); }
   }
 }

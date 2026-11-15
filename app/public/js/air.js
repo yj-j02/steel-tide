@@ -324,7 +324,8 @@ function aaFrom(E, dt) {
 export function updateAir(dt) {
   if (G.refit) for (let i = G.refit.length - 1; i >= 0; i--) { const r = G.refit[i]; r.t -= dt; if (r.t <= 0) { G.refit.splice(i, 1); if (G.carrier?.alive) { G.squad++; G.log(`${r.label} 정비 완료 — 재출격 가능 (대기 ${G.squad}기)`, "hit"); } } }
   for (const p of [...air.planes]) {
-    if (!p.crashed) p.update(dt);
+    if (!p.crashed) { p.update(dt); if (p.pos.y > 5000) p.pos.y = 5000; }
+    if (p.side === "foe" && p.mode === "home" && !(G.foeCarrier && G.foeCarrier.alive) && Math.hypot(p.pos.x, p.pos.z) > 26000) { removePlane(p, false); continue; } // raiders that turned for home leave the map
     if (p.landed) { removePlane(p, true); continue; }
     if (p.crashed) { p.endT -= dt; if (p.endT <= 0) removePlane(p, false); }
   }

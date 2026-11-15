@@ -190,17 +190,50 @@ export const aaGun = new THREE.Group(); aaGun.visible = false; ovScene.add(aaGun
   const g = aaGun, gun = M(0x59636b, { metalness: 0.5, roughness: 0.45 }), blk = M(0x16191b), olive = M(0x6b7461);
   const barrels = new THREE.Group(); g.add(barrels); aaGun.userData.barrels = [];
   for (const s of [1, -1]) {
-    const b = new THREE.Group(); b.position.set(s * 0.36, -0.6, -0.75); // wider and lower so the breeches sit below the line of sight barrels.add(b); aaGun.userData.barrels.push(b);
+    const b = new THREE.Group(); b.position.set(s * 0.36, -0.6, -0.75); barrels.add(b); aaGun.userData.barrels.push(b); // wider and lower so the breeches sit below the line of sight
     const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 2.2, 12), gun); tube.rotation.x = PI / 2; tube.position.z = -1.1; b.add(tube);
     const hider = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.28, 12), blk); hider.rotation.x = PI / 2; hider.position.z = -2.3; b.add(hider);
     const jacket = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.7, 12), olive); jacket.rotation.x = PI / 2; jacket.position.z = -0.2; b.add(jacket);
     bx(b, 0.12, 0.08, 0.24, olive, 0, -0.1, -0.05); const hopper = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, 0.1), blk); hopper.position.set(0, -0.01, -0.05); b.add(hopper); // slim receiver, low feed
   }
   bx(g, 0.7, 0.08, 0.34, olive, 0, -0.78, -0.45); bx(g, 1.0, 0.3, 0.03, olive, 0, -1.15, -0.9, -0.2);
-  // open ring (cartwheel) sight on the bore line
-  const ringM = new THREE.MeshBasicMaterial({ color: 0x15181a });
-  for (const r of [0.07, 0.14]) { const t = new THREE.Mesh(new THREE.TorusGeometry(r, 0.0016, 6, 48), ringM); t.position.set(0, 0, -1.1); g.add(t); }
-  for (let i = 0; i < 4; i++) { const sp = new THREE.Mesh(new THREE.BoxGeometry(0.002, 0.14, 0.002), ringM); sp.position.set(0, 0, -1.1); sp.rotation.z = (i * PI) / 4; g.add(sp); const sp2 = sp.clone(); sp2.rotation.z = (i * PI) / 4 + PI / 2; g.add(sp2); }
-  bx(g, 0.012, 0.13, 0.012, blk, 0, -0.08, -1.1);
+  // light ring sight: one thin, half-transparent outer ring only, so it frames the sky instead of covering targets (the aim dot is drawn on the HUD)
+  const ringM = new THREE.MeshBasicMaterial({ color: 0x15181a, transparent: true, opacity: 0.35 });
+  { const t = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.0011, 6, 64), ringM); t.position.set(0, 0, -1.1); g.add(t); }
 }
 export function updateAAGun(recoil) { aaGun.userData.barrels.forEach((b, i) => { b.position.z = -0.75 + recoil[i] * 0.12; }); }
+
+// ── modern jet cockpit (F/A-18E / F-35 style): glareshield, wide-angle HUD combiner, three glass MFDs, side stick, throttle, canopy bow ──
+export const jetPit = new THREE.Group(); jetPit.visible = false; ovScene.add(jetPit);
+const jmfd = [];
+{
+  const g = jetPit, body = M(0x1d2125, { roughness: 0.85 }), trim = M(0x2c3237, { roughness: 0.6 }), glassM = new THREE.MeshBasicMaterial({ color: 0x9fe8a0, transparent: true, opacity: 0.08, depthWrite: false });
+  bx(g, 1.5, 0.28, 0.04, body, 0, -0.44, -0.74, -0.35);
+  bx(g, 1.2, 0.035, 0.22, trim, 0, -0.29, -0.86, -0.1);
+  const hud = new THREE.Mesh(new THREE.PlaneGeometry(0.2, 0.16), glassM); hud.position.set(0, -0.18, -0.9); hud.rotation.x = -0.2; g.add(hud);
+  bx(g, 0.012, 0.13, 0.012, trim, -0.1, -0.22, -0.9); bx(g, 0.012, 0.13, 0.012, trim, 0.1, -0.22, -0.9);
+  const mk = (x, y, w, h, rx) => { const c = document.createElement("canvas"); c.width = 256; c.height = Math.round(256 * h / w); const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t })); m.position.set(x, y, -0.715); m.rotation.x = rx; g.add(m);
+    bx(g, w + 0.025, h + 0.025, 0.008, trim, x, y - 0.004, -0.722, rx); jmfd.push({ c, x: c.getContext("2d"), t }); };
+  mk(-0.33, -0.4, 0.2, 0.16, -0.35); mk(0, -0.42, 0.24, 0.18, -0.35); mk(0.33, -0.4, 0.2, 0.16, -0.35);
+  const frame = M(0x15181b); const bow = new THREE.Mesh(new THREE.TorusGeometry(1.25, 0.012, 6, 48, Math.PI), frame); bow.position.set(0, -0.62, -1.15); g.add(bow);
+  bx(g, 0.03, 0.03, 1.4, frame, -1.05, -0.32, -0.4); bx(g, 0.03, 0.03, 1.4, frame, 1.05, -0.32, -0.4);
+  const stick = new THREE.Group(); stick.position.set(0.3, -0.62, -0.5); g.add(stick); bx(stick, 0.035, 0.18, 0.035, trim, 0, 0.09, 0); bx(stick, 0.05, 0.07, 0.06, body, 0, 0.2, 0); g.userData.stick = stick;
+  const thr = new THREE.Group(); thr.position.set(-0.42, -0.58, -0.5); g.add(thr); bx(thr, 0.07, 0.07, 0.09, body, 0, 0.05, 0); g.userData.thr = thr;
+  bx(g, 0.2, 0.03, 0.5, trim, -0.55, -0.6, -0.45); bx(g, 0.2, 0.03, 0.5, trim, 0.55, -0.6, -0.45);
+}
+let jpT = 0;
+/** j = the jet, info = { rwr, lock, roll } */
+export function updateJetPit(j, dt, info) {
+  const roll = info.roll || 0; jetPit.userData.stick.rotation.set(-(info.pitch || 0) * 0.3, 0, -roll * 0.3); jetPit.userData.thr.position.z = -0.5 - ((j.thr - 110) / 220) * 0.12;
+  jpT -= dt; if (jpT > 0) return; jpT = 0.1;
+  const [L, C, R] = jmfd, bg = (m) => { m.x.fillStyle = "#04140a"; m.x.fillRect(0, 0, m.c.width, m.c.height); m.x.strokeStyle = "#1e5a2e"; m.x.strokeRect(4, 4, m.c.width - 8, m.c.height - 8); m.x.fillStyle = "#7ef07a"; m.x.font = "bold 18px monospace"; };
+  bg(L); L.x.fillText(`SPD ${(j.vel.length() * 3.6).toFixed(0)}`, 14, 34); L.x.fillText(`ALT ${j.pos.y.toFixed(0)}`, 14, 62); L.x.fillText(`THR ${Math.round(((j.thr - 110) / 220) * 100)}%`, 14, 90);
+  L.x.fillStyle = j.hit ? "#ff5a4e" : "#7ef07a"; L.x.fillText(j.hit ? "DAMAGED" : "SYS OK", 14, 118); L.x.fillStyle = "#7ef07a"; L.x.fillText(`FUEL ${Math.max(0, Math.ceil(j.endur + 120 - j.t))}`, 14, 146);
+  bg(C); const cw = C.c.width, ch = C.c.height, cx = cw / 2, cy = ch - 20; C.x.strokeStyle = "#2f8a46"; for (const r of [50, 100, 150]) { C.x.beginPath(); C.x.arc(cx, cy, r, Math.PI, 0); C.x.stroke(); }
+  for (const o of info.blips || []) { C.x.fillStyle = o.foe ? "#ff5a4e" : "#7cc4ff"; C.x.fillRect(cx + o.x * 150 - 3, cy - o.y * 150 - 3, 6, 6); }
+  C.x.fillStyle = "#7ef07a"; C.x.fillText(info.lock ? `LOCK ${info.lock}` : "SEARCH", 10, 26);
+  bg(R); R.x.fillText(`GUN ${Math.max(0, j.gun)}`, 14, 34); R.x.fillText(`AAM ${j.aam}`, 14, 62); R.x.fillText(`ASM ${j.asm}`, 14, 90); R.x.fillText(`FLR ${j.flares}`, 14, 118);
+  if (info.rwr) { R.x.fillStyle = "#ff5a4e"; R.x.fillText(`MSL ${info.rwr}`, 14, 146); }
+  for (const m of jmfd) m.t.needsUpdate = true;
+}
