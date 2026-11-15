@@ -845,7 +845,8 @@ function drawBoardStatus() {
 }
 const effDist = () => (cam.map ? cam.mapDist * 0.55 : cam.dist);
 const SPEED_N = ["정지", "미속", "반속", "전속"], SPEED_TELE = [1, 2, 3, 5];
-const altDown = () => keys.has("AltLeft") || keys.has("AltRight");
+let altMod = false; /* Alt state from the modifier flag of the latest key/mouse event: still right when the Alt keydown itself never reached the page */
+const altDown = () => keys.has("AltLeft") || keys.has("AltRight") || altMod;
 const shiftDown = () => keys.has("ShiftLeft") || keys.has("ShiftRight");
 const commanding = () => G.state === "playing" && !paused && !G.auto && G.player && G.player.alive;
 const isPlane = (o) => !!(o && o.obj && o.fwd && o.callsign);
@@ -1168,7 +1169,7 @@ $("#plot").addEventListener("contextmenu", (e) => e.preventDefault());
 canvas.addEventListener("mousedown", (e) => {
   mouseX = e.clientX; mouseY = e.clientY; initAudio();
   const st = { x: e.clientX, y: e.clientY, d: 0 };
-  if (e.button === 1) { mDown = st; e.preventDefault(); return; }
+  altMod = e.altKey; if (e.button === 1) { mDown = st; e.preventDefault(); if (md.fly) md.lookHeld = true; /* jet: hold the wheel button to look around, same as Alt */ return; }
   if (e.button === 2) { rDown = st; return; }
   if (e.button !== 0) return; lDown = st;
   if (md.fly && G.state === "playing" && !paused) { if (document.pointerLockElement === canvas) md.gunHeld = true; else lockPointer(); return; }
@@ -1180,14 +1181,14 @@ canvas.addEventListener("dblclick", (e) => {
 });
 window.addEventListener("mouseup", (e) => {
   if (e.button === 0) md.gunHeld = false;
-  if (e.button === 1) mDown = null;
+  if (e.button === 1) { mDown = null; md.lookHeld = false; }
   if (e.button === 2 && rDown) { const click = rDown.d < 6 && !cap.fps; rDown = null; if (click && commanding() && !G.plane && e.target === canvas) { const h = pick(e.clientX, e.clientY); if (h) orderSelected(h, e.shiftKey); } }
   if (e.button === 0 && lDown) { const L = lDown; lDown = null; if (screen === "battle" && commanding() && !G.plane && !aa.on && !cap.fps && e.target === canvas) { if (L.box) boxSelect(L.x, L.y, e.clientX, e.clientY, e.shiftKey); else if (L.d < 5 && e.altKey) clickSelect(e.clientX, e.clientY, e.shiftKey); } }
 });
 document.addEventListener("mousemove", (e) => {
-  const dx = e.movementX, dy = e.movementY; mouseX = e.clientX; mouseY = e.clientY;
+  const dx = e.movementX, dy = e.movementY; mouseX = e.clientX; mouseY = e.clientY; altMod = e.altKey;
   if (md.fly && G.state === "playing" && document.pointerLockElement === canvas) { const k = 0.0022 * SENS / 0.6;
-    if (altDown()) { md.look.yaw = clamp(md.look.yaw - dx * k * 1.5, -PI, PI); md.look.pitch = clamp(md.look.pitch - dy * k * 1.5, -1.3, 1.3); } else { md.mx += dx; md.my += dy; } return; }
+    if (altDown() || md.lookHeld) { md.look.yaw = clamp(md.look.yaw - dx * k * 1.5, -PI, PI); md.look.pitch = clamp(md.look.pitch - dy * k * 1.5, -1.3, 1.3); } else { md.mx += dx; md.my += dy; } return; }
   for (const s of [lDown, rDown, mDown]) if (s) s.d += Math.abs(dx) + Math.abs(dy);
   if (lDown && lDown.d > 4 && !G.plane && !aa.on && !cap.fps && screen === "battle" && e.buttons & 1 && e.altKey && !isPlane(cam.tgt) && commanding()) { lDown.box = true; return; }
   if (lDown && lDown.d > 4 && !G.plane && !aa.on && !cap.fps && screen === "battle" && e.buttons & 1) { // left-drag: pan the camera freely over the sea
@@ -1216,7 +1217,7 @@ window.addEventListener("wheel", (e) => {
 }, { passive: true });
 $("#plot").addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); if (!commanding() || G.plane) return; const p = plotPick(e); if (e.button === 2) moveOrder(p.x, p.z, e.shiftKey); else if (e.button === 0) aimAtPoint(p.x, p.z); });
 window.addEventListener("keydown", (e) => {
-  if (e.code === "AltLeft" || e.code === "AltRight") e.preventDefault();
+  altMod = e.altKey; if (e.code === "AltLeft" || e.code === "AltRight") e.preventDefault();
   if (e.target && e.target.tagName === "INPUT") return;
   if (["Tab", "Space", "AltLeft", "AltRight", "ArrowUp", "ArrowDown"].includes(e.code)) e.preventDefault();
   if (e.repeat) return; keys.add(e.code);
@@ -1258,8 +1259,8 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "Space" && !aa.on && !cap.fps) tryFire();
 });
 window.addEventListener("beforeunload", (e) => { if (md.fly) e.preventDefault(); }); // Ctrl (throttle down) + W would otherwise close the tab mid-flight
-window.addEventListener("keyup", (e) => { keys.delete(e.code); if (e.code === "Space") air.firing = false; });
-window.addEventListener("blur", () => keys.clear());
+window.addEventListener("keyup", (e) => { keys.delete(e.code); altMod = e.altKey; if (e.code === "AltLeft" || e.code === "AltRight") e.preventDefault(); /* a bare Alt release would open the browser menu on Windows, taking focus and the pointer lock */ if (e.code === "Space") air.firing = false; });
+window.addEventListener("blur", () => { keys.clear(); altMod = false; if (typeof md !== "undefined") md.lookHeld = false; });
 $("#pauseBtn").addEventListener("click", (e) => { e.stopPropagation(); setPause(true); });
 $("#resumeBtn").addEventListener("click", () => { const o = $("#pause"); if (o.classList.contains("menuset")) { o.style.display = "none"; o.classList.remove("menuset"); } else setPause(false); });
 function openSettings() { if (G.state === "playing" || G.state === "ending") { setPause(true); return; } const o = $("#pause"); o.classList.add("menuset"); o.querySelector("h1").textContent = "설정"; $("#resumeBtn").textContent = "닫기"; o.style.display = "grid"; }
@@ -1353,7 +1354,7 @@ function modernStep(dt) {
     else { const kk = 0.0022 * SENS / 0.6; // S pulls the nose up, W pushes it down, A/D roll, the mouse trims pitch and yaw
       j.inp = { p: (keys.has("KeyS") ? 1 : 0) - (keys.has("KeyW") ? 1 : 0), r: (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0), mp: -md.my * kk, my: -md.mx * kk * 0.8 }; md.mx = md.my = 0;
       const up = keys.has("ShiftLeft") || keys.has("ShiftRight") || keys.has("KeyE"), dn = keys.has("KeyQ"); /* not Ctrl: Ctrl+W would close the browser tab */ j.thr = clamp(j.thr + ((up ? 1 : 0) - (dn ? 1 : 0)) * 120 * dt, 110, 330);
-      j.gunCd -= dt; if (md.gunHeld && j.gun > 0 && j.gunCd <= 0) fireCannon(j); stepBullets(dt); md.flyLock = flyLockOn(); if (j.t > j.endur + 120) { releaseFly(); j.home = true; toast("연료 부족 — 자동 귀환"); } } }
+      j.gunCd -= dt; if (!md.gunHeld) j.gunCd = Math.max(j.gunCd, 0); for (let n = 0; md.gunHeld && j.gun > 0 && j.gunCd <= 0 && n < 4; n++) fireCannon(j); /* keep the rate of fire when frames are long */ stepBullets(dt); md.flyLock = flyLockOn(); if (j.t > j.endur + 120) { releaseFly(); j.home = true; toast("연료 부족 — 자동 귀환"); } } }
   md.decoyCd = Math.max(0, md.decoyCd - dt); md.fireCd = Math.max(0, md.fireCd - dt); md.eCd = Math.max(0, md.eCd - dt);
   stepMissiles(dt, (S, m, n) => {
     const mine = m.owner?.isPlayer && S.side === "foe";
@@ -1401,22 +1402,51 @@ function takeJet() {
   if (!j) { sfx.deny(); toast("조종할 전투기 없음"); return; }
   md.fly = j; document.body.classList.add("jetfly"); j.pilot = true; j.home = false; j.thr = 240; md.look = { yaw: 0, pitch: 0 }; md.mx = md.my = 0; md.bul = [];
   j.q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), j.vel.clone().normalize()); lockPointer(); sfx.click();
-  toast(`${j.name} 조종 — W/S 기수 · A/D 롤 · 마우스 미세 조정 · Shift·E 가속 / Q 감속 · 좌클릭 기관포 · Space 공대공 · B 대함 · X 플레어 · Alt+마우스 둘러보기`, 6);
+  toast(`${j.name} 조종 — W/S 기수 · A/D 롤 · 마우스 미세 조정 · Shift·E 가속 / Q 감속 · 좌클릭 기관포 · Space 공대공 · B 대함 · X 플레어 · Alt(또는 휠 버튼)+마우스 둘러보기`, 6);
 }
 function releaseFly() { document.body.classList.remove("jetfly"); if (md.fly) { md.fly.mesh.visible = true; md.fly.pilot = false; md.fly = null; } if (document.pointerLockElement) document.exitPointerLock(); toast("자동 조종 — 함대 지휘로 복귀"); }
 const jfwd = (j) => new THREE.Vector3(1, 0, 0).applyQuaternion(j.q), jup = (j) => new THREE.Vector3(0, 1, 0).applyQuaternion(j.q);
 function fireCannon(j) {
-  j.gun--; j.gunCd = 0.06; const f = jfwd(j), p = j.pos.clone().addScaledVector(f, 8), v = f.multiplyScalar(1050).add(j.vel); v.x += gauss() * 7; v.y += gauss() * 7; v.z += gauss() * 7;
+  j.gun--; j.gunCd += 0.06; const f = jfwd(j), p = j.pos.clone().addScaledVector(f, 8), v = f.multiplyScalar(1050).add(j.vel); v.x += gauss() * 7; v.y += gauss() * 7; v.z += gauss() * 7;
   md.bul.push({ p, v, t: 0 }); spark.spawn({ x: p.x, y: p.y, z: p.z, vx: v.x, vy: v.y, vz: v.z, life: 1.4, s0: 2.4, s1: 1.4, a: 1, c: 0xffd27a }); if (j.gun % 3 === 0) sfx.mgShot(0);
 }
-/** cannon rounds: straight tracers; hits on enemy aircraft (4 to down one) and missiles (one) */
+/** cannon rounds: straight tracers; hits on enemy aircraft (4 to down one) and missiles (one).
+ * A round covers 20-80 m per frame (1050 m/s + the jet's speed, frames up to 50 ms), more than the 28 m wide hit sphere,
+ * so a point test at the end of the frame skips straight through the target. Instead test the whole path of the frame:
+ * the round's segment against the target's own motion this frame (jets and missiles step after the bullets). */
+const GUN_R_JET = 14, GUN_R_MSL = 9, _br0 = new THREE.Vector3(), _brd = new THREE.Vector3(), _V0 = new THREE.Vector3();
+function sweepHit(b0, bv, o, dt, R) { // earliest fraction of the frame [0..1] at which the round passes within R of o, else -1
+  _br0.copy(b0).sub(o.pos); _brd.copy(bv).sub(o.vel || _V0).multiplyScalar(dt); // relative start and relative path
+  const dd = _brd.lengthSq(), c = _br0.lengthSq() - R * R; if (c <= 0) return 0; if (dd < 1e-9) return -1;
+  const bq = _br0.dot(_brd); if (bq >= 0) return -1; const disc = bq * bq - dd * c; if (disc < 0) return -1;
+  const s = (-bq - Math.sqrt(disc)) / dd; return s <= 1 ? s : -1;
+}
 function stepBullets(dt) {
-  for (let i = md.bul.length - 1; i >= 0; i--) { const b = md.bul[i]; b.t += dt; b.p.addScaledVector(b.v, dt); let hit = false;
-    for (const e of MSL.jets) if (e.alive && e.side === "foe" && e.pos.distanceToSquared(b.p) < 196) { e.hp = (e.hp ?? 4) - 1; hit = true; if (e.hp <= 0) { shootDown(e, md.fly); log(`${md.fly.name} 기관포로 ${e.name} 격추!`, "hit"); } break; }
-    if (!hit) for (const m of MSL.list) if (m.alive && m.side === "foe" && m.W.role === "asm" && m.pos.distanceToSquared(b.p) < 81) { shootDown(m, md.fly); hit = true; break; }
-    if (!hit && b.p.y < 30) for (const S of G.ships) if (S.alive && S.side === "foe" && b.p.y < (S.spec.fb || 8) + 12 && Math.hypot(b.p.x - S.pos.x, b.p.z - S.pos.z) < S.spec.L * 0.4) { S.damage(0.04); hit = true; break; } // strafing: light hull damage
+  for (let i = md.bul.length - 1; i >= 0; i--) { const b = md.bul[i]; b.t += dt; const b0 = b.p.clone(); let hit = false, best = 2, tgt = null;
+    for (const e of MSL.jets) if (e.alive && e.side === "foe") { const s = sweepHit(b0, b.v, e, dt, GUN_R_JET); if (s >= 0 && s < best) { best = s; tgt = e; } }
+    for (const m of MSL.list) if (m.alive && m.side === "foe" && m.W.role === "asm") { const s = sweepHit(b0, b.v, m, dt, GUN_R_MSL); if (s >= 0 && s < best) { best = s; tgt = m; } }
+    if (tgt) { hit = true; b.p.copy(b0).addScaledVector(b.v, best * dt); /* impact point for the sparks */
+      if (tgt.isJet) { tgt.hp = (tgt.hp ?? 4) - 1; if (tgt.hp <= 0) { shootDown(tgt, md.fly); log(`${md.fly.name} 기관포로 ${tgt.name} 격추!`, "hit"); } }
+      else shootDown(tgt, md.fly);
+    } else b.p.addScaledVector(b.v, dt);
+    if (!hit && Math.min(b0.y, b.p.y) < 30) { const n = Math.max(1, Math.ceil(b.v.length() * dt / 8)); /* strafing: sample the path every 8 m, light hull damage */
+      for (let k = 1; k <= n && !hit; k++) { const q = _br0.copy(b0).lerp(b.p, k / n);
+        for (const S of G.ships) if (S.alive && S.side === "foe" && q.y < (S.spec.fb || 8) + 12 && Math.hypot(q.x - S.pos.x, q.z - S.pos.z) < S.spec.L * 0.4) { S.damage(0.04); hit = true; b.p.copy(q); break; } } }
     if (hit) for (let k = 0; k < 4; k++) spark.spawn({ x: b.p.x, y: b.p.y, z: b.p.z, vx: gauss() * 20, vy: gauss() * 20, vz: gauss() * 20, life: 0.4, s0: 1.8, s1: 0.5, a: 1, c: 0xffe0a0 });
     if (hit || b.t > 1.4 || b.p.y < 0) md.bul.splice(i, 1); }
+}
+/** Where to put the gun cross so the rounds meet target T: rounds leave at 1050 m/s along the nose plus the jet's own velocity,
+ * so relative to the jet they fly straight along the nose and only the target's motion relative to the jet needs leading. */
+function gunLeadPoint(j, T) {
+  const rv = (T.vel ? T.vel.clone() : new THREE.Vector3()).sub(j.vel), p0 = j.pos.clone().addScaledVector(jfwd(j), 8); let t = T.pos.distanceTo(p0) / 1050;
+  for (let k = 0; k < 4; k++) t = T.pos.clone().addScaledVector(rv, t).distanceTo(p0) / 1050;
+  return { p: T.pos.clone().addScaledVector(rv, t), d: T.pos.distanceTo(j.pos), t };
+}
+function gunTarget(j) { // the locked aircraft/missile if it is inside gun range, else the nearest foe aircraft in front
+  const f = jfwd(j), ok = (o) => { const v = o.pos.clone().sub(j.pos), d = v.length(); return d < 1800 && v.dot(f) > d * 0.6; };
+  if (md.flyLock && md.flyLock.alive && ok(md.flyLock)) return md.flyLock; let best = null, bd = Infinity;
+  for (const e of MSL.jets) if (e.alive && e.side === "foe" && ok(e)) { const d = e.pos.distanceToSquared(j.pos); if (d < bd) { bd = d; best = e; } }
+  return best;
 }
 function flyLockOn() {
   const j = md.fly; if (!j) return null; const f = jfwd(j); let best = null, bs = Infinity;
@@ -1433,7 +1463,7 @@ function flyStrike() {
 }
 function flyCamera(dt) {
   const j = md.fly, f = jfwd(j), up = jup(j), L = md.look; j.mesh.visible = !md.flyFP;
-  if (!altDown()) { const k = Math.exp(-dt * 6); L.yaw *= k; L.pitch *= k; } // free look springs back when Alt is let go
+  if (!altDown() && !md.lookHeld) { const k = Math.exp(-dt * 6); L.yaw *= k; L.pitch *= k; } // free look springs back when Alt is let go
   const look = f.clone().applyAxisAngle(up, L.yaw); look.applyAxisAngle(new THREE.Vector3().crossVectors(look, up).normalize(), L.pitch);
   camera.up.copy(up); // the view banks with the aircraft
   if (md.flyFP) { setNear(0.5); camera.fov = 72; camera.updateProjectionMatrix(); camera.position.copy(j.pos).addScaledVector(f, 5).addScaledVector(up, 1.3); camera.lookAt(camera.position.clone().addScaledVector(look, 200)); return; }
@@ -1449,11 +1479,16 @@ function drawFlyHUD() {
     txt(`${(j.vel.length() * 3.6).toFixed(0)}`, W * 0.32, H * 0.86, "#8ef07a", "bold 20px monospace", "center"); txt("KM/H", W * 0.32, H * 0.9, "#6fbf60", "11px monospace", "center");
     txt(`${j.pos.y.toFixed(0)}`, W * 0.68, H * 0.86, "#8ef07a", "bold 20px monospace", "center"); txt("ALT M", W * 0.68, H * 0.9, "#6fbf60", "11px monospace", "center");
   }
-  const aim = proj(j.pos.clone().addScaledVector(jfwd(j), 800)); if (aim) { hx.strokeStyle = "#9be06a"; hx.lineWidth = 1.6; hx.beginPath(); hx.arc(aim.x, aim.y, 46, 0, TAU); hx.stroke(); hx.beginPath(); hx.arc(aim.x, aim.y, 3, 0, TAU); hx.stroke(); }
+  const gt = gunTarget(j), gl = gt && gunLeadPoint(j, gt); // gun cross at the target's range so it lines up with the lead mark without parallax
+  const aim = proj(j.pos.clone().addScaledVector(jfwd(j), gl ? Math.max(gl.d, 150) : 800)); if (aim) { hx.strokeStyle = "#9be06a"; hx.lineWidth = 1.6; hx.beginPath(); hx.arc(aim.x, aim.y, 46, 0, TAU); hx.stroke(); hx.beginPath(); hx.arc(aim.x, aim.y, 3, 0, TAU); hx.stroke(); }
+  if (gl) { const q = proj(gl.p), qt = proj(gt.pos); if (q) { // lead mark: put the small circle of the gun cross on the diamond and fire
+    const on = aim && Math.hypot(q.x - aim.x, q.y - aim.y) < 16, c = on ? "#ff3b30" : "#ffd166"; hx.strokeStyle = c; hx.lineWidth = 2; hx.beginPath(); hx.moveTo(q.x, q.y - 9); hx.lineTo(q.x + 9, q.y); hx.lineTo(q.x, q.y + 9); hx.lineTo(q.x - 9, q.y); hx.closePath(); hx.stroke();
+    if (qt) { hx.lineWidth = 1; hx.setLineDash([4, 4]); hx.beginPath(); hx.moveTo(qt.x, qt.y); hx.lineTo(q.x, q.y); hx.stroke(); hx.setLineDash([]); }
+    txt(`${on ? "사격!" : "기관포 조준"} ${gl.d.toFixed(0)} m`, q.x + 14, q.y + 14, c, "bold 11px 'Noto Sans KR', sans-serif"); } }
   const T = md.flyLock; if (T) { const q = proj(T.pos); if (q && q.on) { hx.strokeStyle = "#ff3b30"; hx.lineWidth = 2; hx.strokeRect(q.x - 14, q.y - 14, 28, 28); txt(`LOCK ${T.isJet ? T.name : T.W.name} ${(T.pos.distanceTo(j.pos) / 1000).toFixed(1)} km`, q.x, q.y - 24, "#ff6b5e", "bold 11px 'Noto Sans KR', sans-serif", "center"); } }
   panel(W / 2 - 230, H - 150, 460, 46);
   txt(`${j.name} · ${(j.vel.length() * 3.6).toFixed(0)} km/h · 고도 ${j.pos.y.toFixed(0)} m · 기관포 ${j.gun} · 공대공 ${j.aam} · 대함 ${j.asm} · 플레어 ${j.flares} · 연료 ${Math.max(0, Math.ceil(j.endur + 120 - j.t))}초`, W / 2, H - 136, "#fff", "bold 12px 'Noto Sans KR', sans-serif", "center");
-  txt("W/S 기수 · A/D 롤 · 마우스 미세 · Shift·E 가속 / Q 감속 · 좌클릭 기관포 · Space 공대공 · B 대함 · X 플레어 · Alt+마우스 둘러보기 · V 시점 · I 복귀", W / 2, H - 116, "#cfe7ff", "11px 'Noto Sans KR', sans-serif", "center");
+  txt("W/S 기수 · A/D 롤 · 마우스 미세 · Shift·E 가속 / Q 감속 · 좌클릭 기관포 · Space 공대공 · B 대함 · X 플레어 · Alt(또는 휠 버튼)+마우스 둘러보기 · V 시점 · I 복귀", W / 2, H - 116, "#cfe7ff", "11px 'Noto Sans KR', sans-serif", "center");
 }
 G.onIntercept = (m) => { if (m.side === "foe") { md.icpt = { t: 1.6, n: m.isJet ? `적 ${m.name} 격추` : `${m.W.name || "적 미사일"} 요격` }; G.stats.icpt = (G.stats.icpt || 0) + 1; } };
 function sortieJets(S, role) {
