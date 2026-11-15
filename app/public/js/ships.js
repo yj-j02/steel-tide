@@ -807,13 +807,20 @@ export class Ship {
     this.smokeT -= dt;
     if (this.smokeT <= 0) {
       this.smokeT = 0.45;
-      if (this.sinking === 0 && this.root.visible) for (const fl of this.funnels) { const w = this.tilt.localToWorld(new THREE.Vector3(...fl)); smoke.spawn({ x: w.x, y: w.y, z: w.z, vx: 2.5, vy: 3.2, vz: 1, life: 9, s0: 5, s1: 30, a: 0.24, c: 0x3a3a3a }); }
+      const spdK = clamp(Math.abs(this.speed) / Math.max(this.vmax, 1), 0, 1);
+      if (this.sinking === 0 && this.root.visible) for (const fl of this.funnels) { const w = this.tilt.localToWorld(new THREE.Vector3(...fl)); smoke.spawn({ x: w.x, y: w.y, z: w.z, vx: 2.2 - this.fwd.x * this.speed * 0.45, vy: 2.8 + 2.4 * spdK, vz: 0.9 - this.fwd.z * this.speed * 0.45, life: 7 + 4 * spdK, s0: 4.5 + 2.5 * spdK, s1: 22 + 18 * spdK, a: 0.14 + 0.2 * spdK, c: spdK > 0.75 ? 0x2c2a28 : 0x424446 }); }
       for (let i = 0; i < Math.min(this.fires.length, 3); i++) {
         const lx = ((i * 37 + this.phase * 20) % (sp.L * 0.47)) - sp.L * 0.23, w = this.tilt.localToWorld(new THREE.Vector3(lx, sp.fb + 6, 0));
         for (let k = 0; k < 2; k++) smoke.spawn({ x: w.x + gauss() * 2, y: w.y + k * 4, z: w.z + gauss() * 2, vx: 3 + rnd() * 2, vy: 13 + rnd() * 5, vz: 1.2, drag: 0.06, life: 16 + rnd() * 6, s0: 8, s1: 70 + rnd() * 30, a: 0.75, fade: 0.8, c: k ? 0x2a2622 : 0x141210 }); // tall, drifting column
         flash.spawn({ x: w.x + gauss(), y: w.y - 1.5, z: w.z + gauss(), vy: 3, life: 0.6 + rnd() * 0.4, s0: 10 + rnd() * 6, s1: 5, a: 0.95, c: rnd() < 0.5 ? 0xff6a1a : 0xffa030 });
       }
-      if (this.sinking > 0 && this.sinking < 30) { const w = this.tilt.localToWorld(new THREE.Vector3((rnd() - 0.5) * sp.L * 0.6, sp.fb, 0)); smoke.spawn({ x: w.x, y: Math.max(w.y, 2), z: w.z, vx: 2, vy: 5, vz: 1, life: 14, s0: 14, s1: 60, a: 0.6, c: 0x161616 }); }
+      if (this.sinking > 0 && this.sinking < 30) {
+        const w = this.tilt.localToWorld(new THREE.Vector3((rnd() - 0.5) * sp.L * 0.6, sp.fb, 0));
+        smoke.spawn({ x: w.x, y: Math.max(w.y, 2), z: w.z, vx: 2, vy: 5, vz: 1, life: 14, s0: 14, s1: 60, a: 0.6, c: 0x161616 });
+        for (let k = 0; k < 2; k++) spray.spawn({ x: w.x + gauss() * 4, y: 0.8, z: w.z + gauss() * 4, vx: gauss() * 4, vy: 5 + rnd() * 7, vz: gauss() * 4, g: GRAV * 0.8, life: 1.3, s0: 3.5, s1: 12, a: 0.58, fade: 0.7, c: 0xf0f6fa });
+        if (rnd() < 0.45) rings.spawn({ x: w.x, z: w.z, w0: 6, l0: 6, w1: 32, l1: 32, life: 2.6, a: 0.48, c: 0xe8f4f8 });
+        if (rnd() < 0.22) flash.spawn({ x: w.x, y: Math.max(w.y, 2.5), z: w.z, life: 0.35, s0: 8, s1: 22, a: 0.88, c: 0xff7824 });
+      }
     }
     this.sync(G.time);
   }

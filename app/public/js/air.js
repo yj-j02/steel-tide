@@ -336,6 +336,10 @@ function aaFrom(E, dt) {
       const fl = P.flareT > 0 && P.flareP, AP = fl ? fl.p : P.pos, AV = fl ? fl.v : P.vel, tof = src.distanceTo(AP) / 880, pred = AP.clone().addScaledVector(AV, tof * 0.85);
       const dir = pred.sub(src).normalize(); dir.x += gauss() * 0.028; dir.y += gauss() * 0.028; dir.z += gauss() * 0.028;
       air.aa.push({ p: src, v: dir.normalize().multiplyScalar(880), t: 0, side: E.side, aa: true });
+      E._aaCnt = (E._aaCnt || 0) + 1;
+      if (E._aaCnt % 6 === 0) flash.spawn({ x: src.x, y: src.y, z: src.z, life: 0.07, s0: 1.8, s1: 3.8, a: 0.88, c: 0xffc468 });
+      if (E._aaCnt % 12 === 0) smoke.spawn({ x: src.x, y: src.y + 0.5, z: src.z, vy: 1.2, life: 1.8, s0: 1.2, s1: 4.2, a: 0.26, c: 0xc8c6be });
+      if (E._aaCnt % 16 === 0) { const dc = src.distanceTo(camera.position); if (dc < 1600) at(dc, () => sfx.mgShot(dc)); }
     }
   }
 }

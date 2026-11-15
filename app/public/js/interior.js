@@ -288,11 +288,15 @@ function drawPanel(pl, dt) {
   };
   x.fillStyle = "#0b0d0e"; x.fillRect(890, 300, 120, 200);
   x.strokeStyle = "#3c4246"; x.lineWidth = 2; x.strokeRect(890, 300, 120, 200);
-  if (pl.hp < 50 && Math.floor(performance.now() * 0.006) % 2 === 0) {
+  if (pl.pos.y < 95 && f.y < -0.22 && Math.floor(performance.now() * 0.008) % 2 === 0) {
+    x.fillStyle = "rgba(255,59,48,0.34)"; x.fillRect(892, 302, 116, 18);
+    x.fillStyle = "#ffe270"; x.font = "bold 11px monospace"; x.textAlign = "center"; x.fillText("PULL UP!", 950, 315);
+  } else if (pl.hp < 50 && Math.floor(performance.now() * 0.006) % 2 === 0) {
     x.fillStyle = "rgba(255,59,48,0.22)"; x.fillRect(892, 302, 116, 18);
     x.fillStyle = "#ff5b4d"; x.font = "bold 10px monospace"; x.textAlign = "center"; x.fillText("OIL PRESS LOW", 950, 314);
   }
-  lamp(925, 340, pl.ammo > 0, "#ffcf5a", "GUNS"); lamp(975, 340, pl.bombs > 0, "#ff8a3d", "BOMBS"); lamp(925, 398, pl.hp < 50, "#ff3b30", "DAMAGE"); lamp(975, 398, pl.flareT > 0, "#ffffff", "FLARE");
+  const bombRel = pl.bombCD > 0.6 && Math.floor(performance.now() * 0.01) % 2 === 0;
+  lamp(925, 340, pl.ammo > 0, "#ffcf5a", "GUNS"); lamp(975, 340, pl.bombs > 0 || bombRel, bombRel ? "#ffdf68" : "#ff8a3d", bombRel ? "BOMB REL" : "BOMBS"); lamp(925, 398, pl.hp < 50, "#ff3b30", "DAMAGE"); lamp(975, 398, pl.flareT > 0, "#ffffff", "FLARE");
   const lowAmmo = pl.ammo > 0 && pl.ammo < 600 && Math.floor(performance.now() * 0.008) % 2 === 0;
   x.fillStyle = pl.ammo <= 0 || lowAmmo ? "#ff5242" : "#e8e4d4"; x.font = "bold 15px monospace"; x.textAlign = "center"; x.fillText(`RDS ${String(pl.ammo).padStart(4, "0")}`, 950, 456);
   const ratio = clamp((pl.ammo || 0) / 3600, 0, 1);
@@ -729,6 +733,14 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaD
   x.beginPath(); x.arc(cx, fpvY, 10, 0, TAU);
   x.moveTo(cx - 22, fpvY); x.lineTo(cx - 10, fpvY); x.moveTo(cx + 10, fpvY); x.lineTo(cx + 22, fpvY);
   x.moveTo(cx, fpvY - 10); x.lineTo(cx, fpvY - 19); x.stroke();
+  if (j.vel.y < -10 && altM < 900) {
+    const ccY = clamp(fpvY + 46, 90, H - 72);
+    x.save(); x.strokeStyle = amber; x.fillStyle = amber; x.lineWidth = 1.6;
+    x.setLineDash([4, 4]); x.beginPath(); x.moveTo(cx, fpvY + 10); x.lineTo(cx, ccY - 8); x.stroke();
+    x.setLineDash([]); x.beginPath(); x.arc(cx, ccY, 8, 0, TAU); x.stroke();
+    x.beginPath(); x.arc(cx, ccY, 2, 0, TAU); x.fill();
+    x.restore();
+  }
   // Bottom bank scale arc (-45..+45 deg)
   const br = 128, by = cy + 68;
   x.strokeStyle = green; x.lineWidth = 1.6; x.beginPath(); x.arc(cx, by, br, PI * 0.25, PI * 0.75); x.stroke();
@@ -805,6 +817,10 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaD
     x.strokeStyle = info.gunHit > 0 ? amber : green; x.lineWidth = 2;
     x.beginPath(); x.arc(cx, cy + 28, r, 0, TAU);
     x.moveTo(cx - 6, cy + 28); x.lineTo(cx + 6, cy + 28); x.moveTo(cx, cy + 22); x.lineTo(cx, cy + 34); x.stroke();
+  }
+  if (j.aamCd > 3.2 && Math.floor(performance.now() / 130) % 2 === 0) {
+    x.fillStyle = amber; x.font = "bold 14px monospace"; x.textAlign = "center";
+    x.fillText("FOX-2 AWAY", cx, cy + 44);
   }
   if (info.lock) {
     x.strokeStyle = amber; x.fillStyle = amber; x.lineWidth = 2.4;
