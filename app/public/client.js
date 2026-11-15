@@ -1352,7 +1352,7 @@ function modernStep(dt) {
   if (md.fly) { const j = md.fly; if (!j.alive || G.state !== "playing") { md.fly = null; document.body.classList.remove("jetfly"); if (document.pointerLockElement) document.exitPointerLock(); if (!j.alive) toast("격추당했습니다 — 함대 지휘로 복귀", 3); }
     else { const kk = 0.0022 * SENS / 0.6; // S pulls the nose up, W pushes it down, A/D roll, the mouse trims pitch and yaw
       j.inp = { p: (keys.has("KeyS") ? 1 : 0) - (keys.has("KeyW") ? 1 : 0), r: (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0), mp: -md.my * kk, my: -md.mx * kk * 0.8 }; md.mx = md.my = 0;
-      const up = keys.has("ShiftLeft") || keys.has("ShiftRight") || keys.has("KeyE"), dn = keys.has("ControlLeft") || keys.has("ControlRight") || keys.has("KeyQ"); j.thr = clamp(j.thr + ((up ? 1 : 0) - (dn ? 1 : 0)) * 120 * dt, 110, 330);
+      const up = keys.has("ShiftLeft") || keys.has("ShiftRight") || keys.has("KeyE"), dn = keys.has("KeyQ"); /* not Ctrl: Ctrl+W would close the browser tab */ j.thr = clamp(j.thr + ((up ? 1 : 0) - (dn ? 1 : 0)) * 120 * dt, 110, 330);
       j.gunCd -= dt; if (md.gunHeld && j.gun > 0 && j.gunCd <= 0) fireCannon(j); stepBullets(dt); md.flyLock = flyLockOn(); if (j.t > j.endur + 120) { releaseFly(); j.home = true; toast("연료 부족 — 자동 귀환"); } } }
   md.decoyCd = Math.max(0, md.decoyCd - dt); md.fireCd = Math.max(0, md.fireCd - dt); md.eCd = Math.max(0, md.eCd - dt);
   stepMissiles(dt, (S, m, n) => {
@@ -1401,7 +1401,7 @@ function takeJet() {
   if (!j) { sfx.deny(); toast("조종할 전투기 없음"); return; }
   md.fly = j; document.body.classList.add("jetfly"); j.pilot = true; j.home = false; j.thr = 240; md.look = { yaw: 0, pitch: 0 }; md.mx = md.my = 0; md.bul = [];
   j.q = new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(1, 0, 0), j.vel.clone().normalize()); lockPointer(); sfx.click();
-  toast(`${j.name} 조종 — W/S 기수 · A/D 롤 · 마우스 미세 조정 · Shift/Ctrl 추력 · 좌클릭 기관포 · Space 공대공 · B 대함 · X 플레어 · Alt+마우스 둘러보기`, 6);
+  toast(`${j.name} 조종 — W/S 기수 · A/D 롤 · 마우스 미세 조정 · Shift·E 가속 / Q 감속 · 좌클릭 기관포 · Space 공대공 · B 대함 · X 플레어 · Alt+마우스 둘러보기`, 6);
 }
 function releaseFly() { document.body.classList.remove("jetfly"); if (md.fly) { md.fly.mesh.visible = true; md.fly.pilot = false; md.fly = null; } if (document.pointerLockElement) document.exitPointerLock(); toast("자동 조종 — 함대 지휘로 복귀"); }
 const jfwd = (j) => new THREE.Vector3(1, 0, 0).applyQuaternion(j.q), jup = (j) => new THREE.Vector3(0, 1, 0).applyQuaternion(j.q);
@@ -1453,7 +1453,7 @@ function drawFlyHUD() {
   const T = md.flyLock; if (T) { const q = proj(T.pos); if (q && q.on) { hx.strokeStyle = "#ff3b30"; hx.lineWidth = 2; hx.strokeRect(q.x - 14, q.y - 14, 28, 28); txt(`LOCK ${T.isJet ? T.name : T.W.name} ${(T.pos.distanceTo(j.pos) / 1000).toFixed(1)} km`, q.x, q.y - 24, "#ff6b5e", "bold 11px 'Noto Sans KR', sans-serif", "center"); } }
   panel(W / 2 - 230, H - 150, 460, 46);
   txt(`${j.name} · ${(j.vel.length() * 3.6).toFixed(0)} km/h · 고도 ${j.pos.y.toFixed(0)} m · 기관포 ${j.gun} · 공대공 ${j.aam} · 대함 ${j.asm} · 플레어 ${j.flares} · 연료 ${Math.max(0, Math.ceil(j.endur + 120 - j.t))}초`, W / 2, H - 136, "#fff", "bold 12px 'Noto Sans KR', sans-serif", "center");
-  txt("W/S 기수 · A/D 롤 · 마우스 미세 · Shift/Ctrl 추력 · 좌클릭 기관포 · Space 공대공 · B 대함 · X 플레어 · Alt+마우스 둘러보기 · V 시점 · I 복귀", W / 2, H - 116, "#cfe7ff", "11px 'Noto Sans KR', sans-serif", "center");
+  txt("W/S 기수 · A/D 롤 · 마우스 미세 · Shift·E 가속 / Q 감속 · 좌클릭 기관포 · Space 공대공 · B 대함 · X 플레어 · Alt+마우스 둘러보기 · V 시점 · I 복귀", W / 2, H - 116, "#cfe7ff", "11px 'Noto Sans KR', sans-serif", "center");
 }
 G.onIntercept = (m) => { if (m.side === "foe") { md.icpt = { t: 1.6, n: m.isJet ? `적 ${m.name} 격추` : `${m.W.name || "적 미사일"} 요격` }; G.stats.icpt = (G.stats.icpt || 0) + 1; } };
 function sortieJets(S, role) {
@@ -1664,7 +1664,7 @@ function drawAlerts(dt) {
   if (torpThreat && Math.floor(G.time * 4) % 2 === 0) txt(`어뢰 접근! ${torpThreat.toFixed(0)}초`, cx, 150, "#ff3b30", "bold 22px 'Noto Sans KR', sans-serif", "center");
   if (radioSub) { radioSub.t -= dt; if (radioSub.t <= 0) radioSub = null; else { hx.globalAlpha = clamp(radioSub.t, 0, 1); rr(cx - 140, 168, 280, 26, 4); hx.fillStyle = "rgba(10,30,20,.75)"; hx.fill(); txt(`[무전] ${radioSub.text}`, cx, 181, "#b8ffb0", "bold 13px 'Noto Sans KR', sans-serif", "center"); hx.globalAlpha = 1; } }
 }
-const HELP = [["O / Y (현대전)", "레이더 방사 켜기·끄기(EMCON) / 정찰 헬기 출격·귀환"], ["G / I (현대전)", "전투기 2기 출격 / 직접 조종 — W/S 기수 · A/D 롤 · Shift/Ctrl 추력 · 좌클릭 기관포 · Space 공대공 · B 대함 · X 플레어 · Alt+마우스 둘러보기 · V 조종석"], ["F / T (현대전)", "대함 미사일 발사 / 미사일·전투기 추적 카메라 — 방공·기만체는 자동"], ["우클릭", "그 지점으로 이동 (Shift: 경유지 추가 · 기함 위: 정지)"], ["1 / 2 / 3 · 0", "속력: 미속 / 반속 / 전속 · 정지"], ["A / D", "사선(포 방향) 좌우 회전 — Shift: 미세"], ["W / S", "사거리 늘리기 / 줄이기"], ["더블클릭", "그 지점 조준 · 적함 더블클릭: 표적 고정 (리드 자동)"], ["좌클릭 끌기", "카메라 자유 이동 (C: 기함으로 복귀)"], ["Alt + 끌기 · Alt + 클릭", "아군 함선 선택 (Shift: 추가) → 우클릭: 선택한 함선 이동 · 기함 우클릭: 호위 복귀"], ["M", "지도 시점 — 위에서 전장 전체 보기 (휠: 축척)"], ["Space", "발사 (누르고 있으면 장전되는 대로 연사)"], ["Z", "자동 공격 켜기/끄기 — 주포 자동 조준·발사 + 어뢰 탑재함은 어뢰 자동 발사"], ["Q", "주포 ↔ 어뢰 (구축함)"], ["R", "수리반 — 화재·침수 진압 + 선체 복구"], ["F", "전투기 출격 (최대 9기) — 오른쪽 항공대 패널에서 기체별 임무: 요격 / 함대 공격 / 자동"], ["Tab", "카메라 대상: 기함 → 전투기 → 항모 → 표적"], ["Enter", "보고 있는 전투기 직접 조종 / 자동 조종 복귀"], ["우클릭 끌기 · 휠", "카메라 회전 · 확대/축소 (방향키도 가능)"], ["V (비행 중)", "조종석 1인칭 ↔ 추적 시점"], ["G", "대공 사수 1인칭 — 40mm 기관포로 적기 직접 사격"], ["미니맵", "우클릭: 이동 · 좌클릭: 조준 · 휠: 축척"], ["U", "화면 표시 모두 끄기 — 전투 장면만 보기 (다시 U)"], ["P", "메뉴 (계속 · 전투 포기 · 소리 설정)"]];
+const HELP = [["O / Y (현대전)", "레이더 방사 켜기·끄기(EMCON) / 정찰 헬기 출격·귀환"], ["G / I (현대전)", "전투기 2기 출격 / 직접 조종 — W/S 기수 · A/D 롤 · Shift·E 가속 / Q 감속 · 좌클릭 기관포 · Space 공대공 · B 대함 · X 플레어 · Alt+마우스 둘러보기 · V 조종석"], ["F / T (현대전)", "대함 미사일 발사 / 미사일·전투기 추적 카메라 — 방공·기만체는 자동"], ["우클릭", "그 지점으로 이동 (Shift: 경유지 추가 · 기함 위: 정지)"], ["1 / 2 / 3 · 0", "속력: 미속 / 반속 / 전속 · 정지"], ["A / D", "사선(포 방향) 좌우 회전 — Shift: 미세"], ["W / S", "사거리 늘리기 / 줄이기"], ["더블클릭", "그 지점 조준 · 적함 더블클릭: 표적 고정 (리드 자동)"], ["좌클릭 끌기", "카메라 자유 이동 (C: 기함으로 복귀)"], ["Alt + 끌기 · Alt + 클릭", "아군 함선 선택 (Shift: 추가) → 우클릭: 선택한 함선 이동 · 기함 우클릭: 호위 복귀"], ["M", "지도 시점 — 위에서 전장 전체 보기 (휠: 축척)"], ["Space", "발사 (누르고 있으면 장전되는 대로 연사)"], ["Z", "자동 공격 켜기/끄기 — 주포 자동 조준·발사 + 어뢰 탑재함은 어뢰 자동 발사"], ["Q", "주포 ↔ 어뢰 (구축함)"], ["R", "수리반 — 화재·침수 진압 + 선체 복구"], ["F", "전투기 출격 (최대 9기) — 오른쪽 항공대 패널에서 기체별 임무: 요격 / 함대 공격 / 자동"], ["Tab", "카메라 대상: 기함 → 전투기 → 항모 → 표적"], ["Enter", "보고 있는 전투기 직접 조종 / 자동 조종 복귀"], ["우클릭 끌기 · 휠", "카메라 회전 · 확대/축소 (방향키도 가능)"], ["V (비행 중)", "조종석 1인칭 ↔ 추적 시점"], ["G", "대공 사수 1인칭 — 40mm 기관포로 적기 직접 사격"], ["미니맵", "우클릭: 이동 · 좌클릭: 조준 · 휠: 축척"], ["U", "화면 표시 모두 끄기 — 전투 장면만 보기 (다시 U)"], ["P", "메뉴 (계속 · 전투 포기 · 소리 설정)"]];
 function drawHelp() {
   const x = 14, y = 70, w = 470, h = HELP.length * 20 + 40; panel(x, y, w, h); txt("조작법 (H: 닫기)", x + 14, y + 18, "#ffd166", "bold 13px 'Noto Sans KR', sans-serif");
   HELP.forEach(([k, v], i) => { txt(k, x + 14, y + 42 + i * 20, "#ffc857", "bold 12px 'Noto Sans KR', sans-serif"); txt(v, x + 140, y + 42 + i * 20, "#dfe8ec", "12px 'Noto Sans KR', sans-serif"); });
