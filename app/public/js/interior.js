@@ -106,14 +106,58 @@ const spdTex = dialTex((x, v) => { face(x, "KNOTS"); x.font = "bold 16px Arial";
   chartSheet.position.set(2.45, -0.89, -1.78); chartSheet.rotation.x = -PI / 2 + 0.16; g.add(chartSheet);
   const cLampShade = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.09, 10), brass); cLampShade.position.set(2.82, -0.66, -1.96); cLampShade.rotation.set(0.4, 0, 0.35); g.add(cLampShade);
   dialMesh(g, 0.2, rudTex, 0, 1.25, z0 + 0.08); dialMesh(g, 0.18, spdTex, -0.9, 1.25, z0 + 0.08);
-  // overhead clinometer & ship's brass bell
+  // overhead clinometer, damage control & battery status plaque, ship's brass bell
   bx(g, 0.42, 0.06, 0.04, dark, 0.9, 1.24, z0 + 0.08);
   const clino = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.12, 0.02), M(0xd64838)); clino.position.set(0.9, 1.18, z0 + 0.11); g.add(clino); bridge.userData.clino = clino;
+  {
+    const dc = document.createElement("canvas"); dc.width = 256; dc.height = 128;
+    const dt = new THREE.CanvasTexture(dc); dt.colorSpace = THREE.SRGBColorSpace;
+    bx(g, 0.60, 0.30, 0.024, brass, 1.85, 1.24, z0 + 0.068);
+    const dp = new THREE.Mesh(new THREE.PlaneGeometry(0.56, 0.26), new THREE.MeshBasicMaterial({ map: dt }));
+    dp.position.set(1.85, 1.24, z0 + 0.082); g.add(dp);
+    bridge.userData.dc = { c: dc, x: dc.getContext("2d"), t: dt };
+  }
   const bell = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.1, 0.14, 14), brassBright); bell.position.set(0.65, 1.46, -1.35); g.add(bell);
   const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffe2a0 })); lamp.position.set(0, 1.5, -0.6); g.add(lamp);
   for (const x of [-2.6, 2.6]) { const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.4, 8), brass); pipe.position.set(x, 0.9, z0 + 0.2); g.add(pipe); }
 }
-let lastB = { tele: -1, hdg: -99, rud: -9, spd: -9 };
+let lastB = { tele: -1, hdg: -99, rud: -9, spd: -9, dcT: 0 };
+function drawBridgeDc(P) {
+  const dc = bridge.userData.dc; if (!dc || !P) return;
+  const x = dc.x, hpPct = Math.round(clamp((P.hp ?? 100) / Math.max(1, P.maxHp ?? 100), 0, 1) * 100);
+  x.fillStyle = "#111718"; x.fillRect(0, 0, 256, 128);
+  x.strokeStyle = "#8a6d38"; x.lineWidth = 3; x.strokeRect(2, 2, 252, 124);
+  x.fillStyle = "#e8dfc6"; x.font = "bold 12px monospace"; x.textAlign = "left";
+  x.fillText("DAMAGE CONTROL / BATT", 10, 18);
+  x.fillStyle = "#9aa7a4"; x.font = "bold 11px monospace"; x.fillText(`HULL ${String(hpPct).padStart(3, " ")}%`, 10, 38);
+  x.fillStyle = "#1d2729"; x.fillRect(80, 28, 164, 11);
+  x.fillStyle = hpPct > 60 ? "#6eff82" : hpPct > 30 ? "#ffd04d" : "#ff5242";
+  x.fillRect(80, 28, Math.round(164 * (hpPct / 100)), 11);
+  const dmgLamp = (lx, label, on, col) => {
+    x.fillStyle = on ? col : "#20282a"; x.fillRect(lx, 48, 72, 24);
+    x.strokeStyle = on ? col : "#3c4b4e"; x.lineWidth = 1.5; x.strokeRect(lx, 48, 72, 24);
+    x.fillStyle = on ? "#111" : "#6b787a"; x.font = "bold 12px monospace"; x.textAlign = "center";
+    x.fillText(label, lx + 36, 64);
+  };
+  dmgLamp(10, "FIRE", (P.fires?.length || 0) > 0, "#ff683b");
+  dmgLamp(92, "FLOOD", (P.flooding || 0) > 0, "#4db8ff");
+  dmgLamp(174, "STEER", (P.rudderJam || 0) > 0, "#ffd04d");
+  const turs = P.turrets || [];
+  if (turs.length) {
+    const bw = Math.min(54, Math.floor(236 / turs.length) - 4), gap = 4, sx = 128 - (turs.length * (bw + gap) - gap) / 2;
+    turs.forEach((t, i) => {
+      const tx = sx + i * (bw + gap), col = !t.alive ? "#ff4238" : t.reload <= 0 ? "#6eff82" : "#ffd04d";
+      x.fillStyle = !t.alive ? "rgba(255,66,56,0.22)" : t.reload <= 0 ? "rgba(110,255,130,0.22)" : "rgba(255,208,77,0.18)";
+      x.fillRect(tx, 84, bw, 32); x.strokeStyle = col; x.strokeRect(tx, 84, bw, 32);
+      x.fillStyle = col; x.font = "bold 12px monospace"; x.textAlign = "center";
+      x.fillText(`T${i + 1}`, tx + bw / 2, 104);
+    });
+  } else {
+    x.fillStyle = "#6eff82"; x.font = "bold 12px monospace"; x.textAlign = "center";
+    x.fillText("FLIGHT / VLS OPS NORMAL", 128, 105);
+  }
+  dc.t.needsUpdate = true;
+}
 export function updateBridge(P, look, pitch = 0) {
   const spdRatio = Math.min(1.5, Math.abs(P.speed || 0) / (30 * KN));
   const vib = spdRatio > 0.1 ? (Math.random() - 0.5) * 0.0022 * spdRatio : 0;
@@ -123,6 +167,7 @@ export function updateBridge(P, look, pitch = 0) {
   if (bridge.userData.teleHandles) for (const h of bridge.userData.teleHandles) h.rotation.x += (teleRot - h.rotation.x) * 0.18;
   if (bridge.userData.wipers) { const spin = performance.now() * 0.022; bridge.userData.wipers.forEach((w, i) => { w.rotation.z = spin + i * 1.1; }); }
   if (bridge.userData.clino) bridge.userData.clino.rotation.z = clamp(-(P.rudder || 0) * 0.45, -0.35, 0.35);
+  const now = performance.now(); if (now - lastB.dcT >= 250) { lastB.dcT = now; drawBridgeDc(P); }
   const h = Math.round(((P.heading / DEG) % 360 + 360) % 360), r = Math.round(P.rudder * 50) / 50, sp = Math.round((P.speed / KN) * 2) / 2;
   if (lastB.tele !== P.tele) { redraw(telTex, P.tele); lastB.tele = P.tele; }
   if (lastB.hdg !== h) { redraw(compTex, h * DEG); lastB.hdg = h; }
@@ -368,7 +413,7 @@ export const aaGun = new THREE.Group(); aaGun.visible = false; ovScene.add(aaGun
   }
   const flashTex = new THREE.CanvasTexture(fCan);
   const barrels = new THREE.Group(); g.add(barrels);
-  aaGun.userData.barrels = []; aaGun.userData.muzzles = [];
+  aaGun.userData.barrels = []; aaGun.userData.muzzles = []; aaGun.userData.clips = []; aaGun.userData.casings = [];
   for (const s of [1, -1]) {
     // stationary twin recoil cradle & hydraulic recuperator cylinder under each barrel
     const cradle = new THREE.Mesh(new THREE.CylinderGeometry(0.082, 0.088, 0.72, 12), olive);
@@ -391,12 +436,14 @@ export const aaGun = new THREE.Group(); aaGun.visible = false; ovScene.add(aaGun
     // slim breech casing & top feed chute with visible 4-round 40mm brass clip near peripheral view
     bx(b, 0.13, 0.1, 0.32, olive, 0, -0.09, -0.02);
     const hopper = new THREE.Mesh(new THREE.BoxGeometry(0.066, 0.046, 0.16), blk); hopper.position.set(0, 0.045, -0.28); b.add(hopper);
+    const clipG = new THREE.Group(); b.add(clipG); aaGun.userData.clips.push(clipG);
     for (let r = 0; r < 4; r++) {
       const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.012, 0.068, 8), brassS);
-      sh.rotation.z = PI / 2; sh.position.set(-s * (0.012 + r * 0.014), 0.078 + r * 0.01, -0.26); b.add(sh);
+      sh.rotation.z = PI / 2; sh.position.set(-s * (0.012 + r * 0.014), 0.078 + r * 0.01, -0.26); clipG.add(sh);
       const tip = new THREE.Mesh(new THREE.ConeGeometry(0.010, 0.030, 8), copper);
-      tip.rotation.x = -PI / 2; tip.position.set(-s * (0.012 + r * 0.014), 0.078 + r * 0.01, -0.30); b.add(tip);
+      tip.rotation.x = -PI / 2; tip.position.set(-s * (0.012 + r * 0.014), 0.078 + r * 0.01, -0.30); clipG.add(tip);
     }
+    const cas = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.013, 0.075, 8), brassS); cas.visible = false; g.add(cas); aaGun.userData.casings.push({ m: cas, s });
     // soft feathered additive muzzle flash sprite + forward gas jet cone
     const mf = new THREE.Group(); mf.position.set(0, 0, -2.50); mf.visible = false; b.add(mf);
     const mfMat = new THREE.MeshBasicMaterial({ map: flashTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
@@ -435,6 +482,16 @@ export function updateAAGun(recoil) {
     const r = recoil[i] || 0;
     b.position.z = -0.75 + r * 0.14;
     b.position.y = -0.60 - r * 0.006;
+    if (aaGun.userData.clips?.[i]) aaGun.userData.clips[i].position.y = -r * 0.018;
+    const cs = aaGun.userData.casings?.[i];
+    if (cs) {
+      cs.m.visible = r > 0.12;
+      if (cs.m.visible) {
+        const t = 1 - r;
+        cs.m.position.set(cs.s * (0.36 + t * 0.08), -0.58 - t * t * 0.42, -0.88 - t * 0.45);
+        cs.m.rotation.set(t * 11, t * 5, cs.s * 0.8);
+      }
+    }
     if (r > 0.5) active += r;
     const mz = aaGun.userData.muzzles?.[i];
     if (mz) {
@@ -745,11 +802,11 @@ export function updateJetPit(j, dt, info = {}) {
   L.x.fillText(`IAS ${Math.round(spdKmh)} km/h`, 14, 134);
   L.x.fillText(`ALT ${Math.round(altM)} m`, 14, 156);
   L.x.font = "bold 12px monospace"; L.x.fillStyle = ab ? "#ffd04d" : "#7ef07a";
-  L.x.fillText(`EGT ${egt}C  NZ ${noz}%`, 136, 132);
-  L.x.fillStyle = "#163b21"; L.x.fillRect(136, 139, 104, 7);
+  L.x.fillText(`EGT ${egt}° NZ ${noz}%`, 130, 132);
+  L.x.fillStyle = "#163b21"; L.x.fillRect(130, 139, 108, 7);
   L.x.fillStyle = egt > 960 ? "#ff6854" : ab ? "#ffd04d" : "#6eff82";
-  L.x.fillRect(136, 139, Math.round(104 * clamp((egt - 500) / 580, 0.08, 1)), 7);
-  L.x.fillStyle = "#9ae69f"; L.x.fillText(`G ${j._g.toFixed(1)}   M ${mach.toFixed(2)}`, 136, 160);
+  L.x.fillRect(130, 139, Math.round(108 * clamp((egt - 500) / 580, 0.08, 1)), 7);
+  L.x.fillStyle = "#9ae69f"; L.x.fillText(`G ${j._g.toFixed(1)}   M ${mach.toFixed(2)}`, 130, 160);
   L.x.font = "bold 14px monospace";
   L.x.fillStyle = j.hit ? "#ff5a4e" : (fuelSec < 45 ? "#ffd04d" : (ab ? "#ffd04d" : "#7ef07a"));
   L.x.fillText(j.hit ? "WARN: AIRFRAME DMG" : (fuelSec < 45 ? "WARN: BINGO FUEL" : (ab ? "AFTERBURNER ON" : "FCS NORMAL")), 14, 186);

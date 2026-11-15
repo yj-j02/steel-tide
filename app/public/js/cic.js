@@ -184,7 +184,10 @@ function resolve(ok) {
   } else if (p.id === "battery") {
     const b = C.battery, T = C.deps.know("us").sort((x, y) => x.pos.distanceToSquared(pt) - y.pos.distanceToSquared(pt))[0];
     for (let i = 0; i < 4; i++) setTimeout(() => { if (G.state !== "playing") return; const src = { isJet: true, side: "us", pos: b.pos.clone().setY(b.pos.y + 25), vel: pt.clone().sub(b.pos).setY(0).normalize().multiplyScalar(150).setY(90), alive: true, spec: { fb: 0 }, name: b.name };
-      const m = launch(src, b.key, T && T.pos.distanceTo(pt) < 5000 ? T.ship : null); if (m && !(T && T.pos.distanceTo(pt) < 5000)) m.est = pt.clone(); }, 400 + i * 900);
+      const m = launch(src, b.key, T && T.pos.distanceTo(pt) < 5000 ? T.ship : null); if (m && !(T && T.pos.distanceTo(pt) < 5000)) m.est = pt.clone();
+      flash.spawn({ x: b.pos.x, y: b.pos.y + 18, z: b.pos.z, life: 0.45, s0: 14, s1: 38, a: 0.95, c: 0xffb858 });
+      rings.spawn({ x: b.pos.x, z: b.pos.z, w0: 8, l0: 8, w1: 95, l1: 95, life: 1.5, a: 0.55, c: 0xffb858 });
+    }, 400 + i * 900);
     C.pulses.push({ x: pt.x, z: pt.z, t: 0, dur: 4.5, maxR: 5000, col: "#ff8c52" });
     say(`${b.name} 4발 일제 발사 승인! 지정 해역으로 저공 스키밍 비행 중.`); C.deps.log(`${b.name} 4발 발사 승인`, "hit");
   } else if (p.id === "recon") {
@@ -418,12 +421,35 @@ function drawMap(marks) {
     x.beginPath(); x.moveTo(u - 5, v + 4); x.lineTo(u, v - 5); x.lineTo(u + 5, v + 4); x.stroke();
     if (j.support || big) placeLbl(j.name.replace(" (가정)", ""), u + 7, v + 1, j.side === "us" ? "#a6f5e8" : "#ff9b8d");
   }
-  for (const m of M.list) {
-    if (!m.alive) continue; const [u, v] = S(m.pos);
-    x.fillStyle = m.side === "us" ? "#e6f4f6" : "#ff5f52"; x.fillRect(u - 2, v - 2, 4, 4);
-    if (m.side === "foe" && m.target?.side === "us" && big) {
-      const [tu, tv] = S(m.target.pos); x.save(); x.strokeStyle = "rgba(255,95,82,.35)"; x.setLineDash([2, 3]); x.beginPath(); x.moveTo(u, v); x.lineTo(tu, tv); x.stroke(); x.restore();
+  for (const h of M.helos || []) {
+    if (!h.alive) continue; const [u, v] = S(h.pos), col = h.side === "us" ? "#7cf5d4" : "#ff8a7a", ra = G.time * 8;
+    x.strokeStyle = col; x.lineWidth = 1.4;
+    x.beginPath(); x.arc(u, v, 4.5, 0, TAU);
+    x.moveTo(u + Math.cos(ra) * 7, v + Math.sin(ra) * 7); x.lineTo(u - Math.cos(ra) * 7, v - Math.sin(ra) * 7);
+    x.moveTo(u - Math.sin(ra) * 7, v + Math.cos(ra) * 7); x.lineTo(u + Math.sin(ra) * 7, v - Math.cos(ra) * 7); x.stroke();
+    if (big) {
+      x.save(); x.strokeStyle = h.side === "us" ? "rgba(124,245,212,.16)" : "rgba(255,138,122,.16)"; x.setLineDash([4, 4]);
+      x.beginPath(); x.arc(u, v, 8000 * sc, 0, TAU); x.stroke(); x.restore();
+      placeLbl(h.name || "초계헬기", u + 8, v + 3, col);
     }
+  }
+  const warnShips = new Set();
+  for (const m of M.list) {
+    if (!m.alive) continue; const [u, v] = S(m.pos), mv = Math.hypot(m.vel.x, m.vel.z);
+    x.fillStyle = m.side === "us" ? "#e6f4f6" : "#ff5f52"; x.fillRect(u - 2, v - 2, 4, 4);
+    if (mv > 1) {
+      const du = (m.vel.z / mv) * 10, dv = (-m.vel.x / mv) * 10;
+      x.strokeStyle = m.side === "us" ? "rgba(230,244,246,.7)" : "rgba(255,95,82,.85)"; x.lineWidth = 1.3;
+      x.beginPath(); x.moveTo(u, v); x.lineTo(u + du, v + dv); x.stroke();
+    }
+    if (m.side === "foe" && m.target?.side === "us" && (big || m.pos.distanceTo(m.target.pos) < 12000)) {
+      warnShips.add(m.target);
+      const [tu, tv] = S(m.target.pos); x.save(); x.strokeStyle = "rgba(255,95,82,.38)"; x.setLineDash([2, 3]); x.beginPath(); x.moveTo(u, v); x.lineTo(tu, tv); x.stroke(); x.restore();
+    }
+  }
+  for (const ws of warnShips) if (ws.alive) {
+    const [wu, wv] = S(ws.pos), pr = 12 + Math.sin(G.time * 7) * 3;
+    x.strokeStyle = "rgba(255,84,72,.82)"; x.lineWidth = 1.6; x.beginPath(); x.arc(wu, wv, pr, 0, TAU); x.stroke();
   }
   for (const k of marks || []) {
     const [u, v] = S(k.pos); x.strokeStyle = x.fillStyle = k.c;
