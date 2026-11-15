@@ -36,29 +36,93 @@ const compTex = dialTex((x, v) => {
 const rudTex = dialTex((x, v) => { face(x, "RUDDER"); x.font = "bold 16px Arial"; x.fillStyle = "#222"; x.fillText("PORT", 60, 120); x.fillText("STBD", 196, 120); for (let a = -35; a <= 35; a += 5) { x.save(); x.translate(128, 128); x.rotate(a * DEG * 2.2); x.fillRect(-1.5, -118, 3, a % 15 ? 10 : 20); x.restore(); } needle(x, v * 35 * DEG * 2.2, 96, "#111"); });
 const spdTex = dialTex((x, v) => { face(x, "KNOTS"); x.font = "bold 16px Arial"; x.fillStyle = "#222"; for (let k = 0; k <= 35; k += 5) { const a = -PI * 0.75 + (k / 35) * PI * 1.5; x.fillText(String(k), 128 + Math.sin(a) * 84, 134 - Math.cos(a) * 84); } needle(x, -PI * 0.75 + (clamp(v, 0, 35) / 35) * PI * 1.5, 92); });
 {
-  const g = bridge, z0 = -2.3;
+  const g = bridge, z0 = -2.3, brassBright = M(0xdcb464, { metalness: 0.85, roughness: 0.24 });
+  const glassClr = new THREE.MeshBasicMaterial({ color: 0xbfe2ee, transparent: true, opacity: 0.10, depthWrite: false });
   bx(g, 7, 1.0, 0.12, paintG, 0, -1.15, z0); bx(g, 7, 0.6, 0.12, paintG, 0, 1.35, z0);
   for (const x of [-3.0, -1.5, 0, 1.5, 3.0]) bx(g, 0.05, 1.45, 0.1, dark, x, 0.33, z0);
   bx(g, 7, 0.06, 0.25, brass, 0, -0.62, z0 + 0.1);
+  // Clear-view rotating rain screens on port/stbd forward windows
+  bridge.userData.wipers = [];
+  for (const wx of [-0.75, 0.75]) {
+    const cg = new THREE.Group(); cg.position.set(wx, 0.34, z0 + 0.04); g.add(cg);
+    cg.add(new THREE.Mesh(new THREE.TorusGeometry(0.32, 0.012, 8, 28), brass));
+    cg.add(new THREE.Mesh(new THREE.CircleGeometry(0.31, 24), glassClr));
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.036, 0.04, 12), brassBright); hub.rotation.x = PI / 2; cg.add(hub);
+    const blade = new THREE.Mesh(new THREE.BoxGeometry(0.012, 0.56, 0.008), dark); blade.position.z = 0.012; cg.add(blade);
+    bridge.userData.wipers.push(blade);
+  }
   for (const s of [1, -1]) { bx(g, 0.12, 1.0, 3.6, paintG, s * 3.4, -1.15, -0.55); bx(g, 0.12, 0.6, 3.6, paintG, s * 3.4, 1.35, -0.55); bx(g, 0.14, 1.05, 0.1, dark, s * 3.4, 0.3, -1.2); bx(g, 0.14, 1.05, 0.1, dark, s * 3.4, 0.3, 0.2); }
   bx(g, 7, 0.1, 3.8, paintG, 0, 1.65, -0.5); bx(g, 7, 0.1, 3.8, wood, 0, -1.65, -0.5);
   bx(g, 5.5, 0.7, 0.55, dark, 0, -1.25, -1.95, 0.15);
   for (let i = 0; i < 6; i++) { const d = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.07, 0.02, 16), black); d.rotation.x = PI / 2 - 0.4; d.position.set(-1.8 + i * 0.72, -0.86, -1.8); g.add(d); }
-  // wheel
-  bx(g, 0.25, 0.95, 0.25, wood, 0, -1.2, -1.05); const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.12, 12), brass); hub.rotation.x = PI / 2; hub.position.set(0, -0.55, -0.98); g.add(hub);
+  // helm stand + brass spoked ship's wheel with protruding hand grips
+  bx(g, 0.25, 0.95, 0.25, wood, 0, -1.2, -1.05); const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.12, 12), brassBright); hub.rotation.x = PI / 2; hub.position.set(0, -0.55, -0.98); g.add(hub);
   const wheel = new THREE.Group(); wheel.position.set(0, -0.55, -0.95); g.add(wheel); bridge.userData.wheel = wheel;
   wheel.add(new THREE.Mesh(new THREE.TorusGeometry(0.4, 0.03, 8, 32), wood));
-  for (let i = 0; i < 8; i++) { const sp = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.56, 0.025), brass); sp.rotation.z = (i / 8) * PI; wheel.add(sp); }
-  // engine telegraphs
-  for (const s of [-1, 1]) { const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, 1.0, 12), brass); ped.position.set(s * 0.95, -1.15, -1.1); g.add(ped); dialMesh(g, 0.2, telTex, s * 0.95, -0.42, -1.08, -0.25); }
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * (PI * 2), sp = new THREE.Mesh(new THREE.CylinderGeometry(0.012, 0.014, 0.48, 8), brassBright);
+    sp.position.set(Math.cos(a) * 0.24, Math.sin(a) * 0.24, 0); sp.rotation.z = a - PI / 2; wheel.add(sp);
+    const grip = new THREE.Mesh(new THREE.SphereGeometry(0.022, 8, 6), wood);
+    grip.position.set(Math.cos(a) * 0.48, Math.sin(a) * 0.48, 0); wheel.add(grip);
+  }
+  // twin engine order telegraphs with animated brass lever arms
+  bridge.userData.teleHandles = [];
+  for (const s of [-1, 1]) {
+    const ped = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.14, 1.0, 12), brass); ped.position.set(s * 0.95, -1.15, -1.1); g.add(ped);
+    dialMesh(g, 0.2, telTex, s * 0.95, -0.42, -1.08, -0.25);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(0.205, 0.014, 8, 24), brassBright); rim.position.set(s * 0.95, -0.42, -1.075); rim.rotation.x = -0.25; g.add(rim);
+    const hpiv = new THREE.Group(); hpiv.position.set(s * 1.13, -0.42, -1.08); g.add(hpiv);
+    const arm = new THREE.Mesh(new THREE.BoxGeometry(0.02, 0.28, 0.02), brassBright); arm.position.y = 0.14; hpiv.add(arm);
+    const knob = new THREE.Mesh(new THREE.SphereGeometry(0.032, 10, 8), black); knob.position.y = 0.29; hpiv.add(knob);
+    bridge.userData.teleHandles.push(hpiv);
+  }
+  // magnetic binnacle with port/stbd Kelvin compensating spheres + hood
   dialMesh(g, 0.24, compTex, -1.75, -0.6, -1.25, -0.9); const binn = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.26, 0.95, 16), brass); binn.position.set(-1.75, -1.15, -1.3); g.add(binn);
+  bx(g, 0.68, 0.05, 0.06, brass, -1.75, -0.78, -1.3);
+  for (const [ks, col] of [[-1, 0x992420], [1, 0x1f6e34]]) {
+    const ball = new THREE.Mesh(new THREE.SphereGeometry(0.095, 12, 10), M(col, { roughness: 0.35, metalness: 0.2 }));
+    ball.position.set(-1.75 + ks * 0.33, -0.70, -1.3); g.add(ball);
+  }
+  // starboard pelorus & armored bridge binoculars stand
+  const pStand = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.12, 0.95, 12), dark); pStand.position.set(1.75, -1.15, -1.25); g.add(pStand);
+  const pRing = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.05, 16), brassBright); pRing.position.set(1.75, -0.66, -1.25); g.add(pRing);
+  const binoc = new THREE.Group(); binoc.position.set(1.75, -0.57, -1.25); binoc.rotation.set(0.08, -0.2, 0); g.add(binoc);
+  for (const bs of [-0.045, 0.045]) {
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.022, 0.24, 10), black); tube.rotation.x = PI / 2; tube.position.set(bs, 0, -0.05); binoc.add(tube);
+  }
+  bx(binoc, 0.11, 0.025, 0.04, brass, 0, 0, 0.02);
+  // starboard corner chart table + navigation chart & warm gooseneck lamp
+  const chartCanv = document.createElement("canvas"); chartCanv.width = 256; chartCanv.height = 192;
+  {
+    const cc = chartCanv.getContext("2d"); cc.fillStyle = "#e8dec3"; cc.fillRect(0, 0, 256, 192);
+    cc.strokeStyle = "rgba(70,95,110,0.32)"; cc.lineWidth = 1;
+    for (let x = 24; x < 256; x += 32) { cc.beginPath(); cc.moveTo(x, 0); cc.lineTo(x, 192); cc.stroke(); }
+    for (let y = 24; y < 192; y += 32) { cc.beginPath(); cc.moveTo(0, y); cc.lineTo(256, y); cc.stroke(); }
+    cc.strokeStyle = "#5c4d35"; cc.lineWidth = 2; cc.beginPath(); cc.moveTo(20, 150); cc.quadraticCurveTo(95, 115, 175, 130); cc.lineTo(235, 92); cc.stroke();
+    cc.strokeStyle = "#b5332a"; cc.lineWidth = 2.5; cc.setLineDash([7, 4]); cc.beginPath(); cc.moveTo(35, 42); cc.lineTo(130, 88); cc.lineTo(215, 48); cc.stroke();
+  }
+  bx(g, 1.1, 0.05, 0.78, wood, 2.45, -0.92, -1.78, 0.16);
+  const chartSheet = new THREE.Mesh(new THREE.PlaneGeometry(0.92, 0.62), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(chartCanv) }));
+  chartSheet.position.set(2.45, -0.89, -1.78); chartSheet.rotation.x = -PI / 2 + 0.16; g.add(chartSheet);
+  const cLampShade = new THREE.Mesh(new THREE.ConeGeometry(0.06, 0.09, 10), brass); cLampShade.position.set(2.82, -0.66, -1.96); cLampShade.rotation.set(0.4, 0, 0.35); g.add(cLampShade);
   dialMesh(g, 0.2, rudTex, 0, 1.25, z0 + 0.08); dialMesh(g, 0.18, spdTex, -0.9, 1.25, z0 + 0.08);
+  // overhead clinometer & ship's brass bell
+  bx(g, 0.42, 0.06, 0.04, dark, 0.9, 1.24, z0 + 0.08);
+  const clino = new THREE.Mesh(new THREE.BoxGeometry(0.016, 0.12, 0.02), M(0xd64838)); clino.position.set(0.9, 1.18, z0 + 0.11); g.add(clino); bridge.userData.clino = clino;
+  const bell = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.1, 0.14, 14), brassBright); bell.position.set(0.65, 1.46, -1.35); g.add(bell);
   const lamp = new THREE.Mesh(new THREE.SphereGeometry(0.08, 12, 8), new THREE.MeshBasicMaterial({ color: 0xffe2a0 })); lamp.position.set(0, 1.5, -0.6); g.add(lamp);
   for (const x of [-2.6, 2.6]) { const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.04, 1.4, 8), brass); pipe.position.set(x, 0.9, z0 + 0.2); g.add(pipe); }
 }
 let lastB = { tele: -1, hdg: -99, rud: -9, spd: -9 };
 export function updateBridge(P, look, pitch = 0) {
+  const spdRatio = Math.min(1.5, Math.abs(P.speed || 0) / (30 * KN));
+  const vib = spdRatio > 0.1 ? (Math.random() - 0.5) * 0.0022 * spdRatio : 0;
+  bridge.position.set(vib, vib * 0.7, 0);
   bridge.rotation.set(-pitch, look, 0, "XYZ"); bridge.userData.wheel.rotation.z = -P.rudder * 1.8;
+  const teleRot = clamp((P.tele ?? 0) * 0.24 - 0.36, -0.9, 1.0);
+  if (bridge.userData.teleHandles) for (const h of bridge.userData.teleHandles) h.rotation.x += (teleRot - h.rotation.x) * 0.18;
+  if (bridge.userData.wipers) { const spin = performance.now() * 0.022; bridge.userData.wipers.forEach((w, i) => { w.rotation.z = spin + i * 1.1; }); }
+  if (bridge.userData.clino) bridge.userData.clino.rotation.z = clamp(-(P.rudder || 0) * 0.45, -0.35, 0.35);
   const h = Math.round(((P.heading / DEG) % 360 + 360) % 360), r = Math.round(P.rudder * 50) / 50, sp = Math.round((P.speed / KN) * 2) / 2;
   if (lastB.tele !== P.tele) { redraw(telTex, P.tele); lastB.tele = P.tele; }
   if (lastB.hdg !== h) { redraw(compTex, h * DEG); lastB.hdg = h; }
@@ -197,21 +261,110 @@ export function updateCockpit(pl, dt) {
 // ── twin 40 mm Bofors mount, gunner's view (camera space) ──────────────────
 export const aaGun = new THREE.Group(); aaGun.visible = false; ovScene.add(aaGun);
 {
-  const g = aaGun, gun = M(0x59636b, { metalness: 0.5, roughness: 0.45 }), blk = M(0x16191b), olive = M(0x6b7461);
-  const barrels = new THREE.Group(); g.add(barrels); aaGun.userData.barrels = [];
-  for (const s of [1, -1]) {
-    const b = new THREE.Group(); b.position.set(s * 0.36, -0.6, -0.75); barrels.add(b); aaGun.userData.barrels.push(b); // wider and lower so the breeches sit below the line of sight
-    const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.045, 2.2, 12), gun); tube.rotation.x = PI / 2; tube.position.z = -1.1; b.add(tube);
-    const hider = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.05, 0.28, 12), blk); hider.rotation.x = PI / 2; hider.position.z = -2.3; b.add(hider);
-    const jacket = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.075, 0.7, 12), olive); jacket.rotation.x = PI / 2; jacket.position.z = -0.2; b.add(jacket);
-    bx(b, 0.12, 0.08, 0.24, olive, 0, -0.1, -0.05); const hopper = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, 0.1), blk); hopper.position.set(0, -0.01, -0.05); b.add(hopper); // slim receiver, low feed
+  const g = aaGun, gun = M(0x5a656e, { metalness: 0.65, roughness: 0.36 }), blk = M(0x16191b, { metalness: 0.4, roughness: 0.55 });
+  const olive = M(0x636d5b, { metalness: 0.28, roughness: 0.65 }), brassS = M(0xc79e49, { metalness: 0.85, roughness: 0.25 });
+  const copper = M(0xb86d3b, { metalness: 0.75, roughness: 0.3 }), steelBr = M(0x88949e, { metalness: 0.8, roughness: 0.28 });
+  // soft radial feathered muzzle flash texture (no sharp quad edges)
+  const fCan = document.createElement("canvas"); fCan.width = 128; fCan.height = 128;
+  {
+    const fc = fCan.getContext("2d"), rg = fc.createRadialGradient(64, 64, 2, 64, 64, 62);
+    rg.addColorStop(0, "rgba(255,252,225,1)"); rg.addColorStop(0.22, "rgba(255,205,105,0.88)");
+    rg.addColorStop(0.55, "rgba(255,115,35,0.32)"); rg.addColorStop(1, "rgba(255,60,10,0)");
+    fc.fillStyle = rg; fc.fillRect(0, 0, 128, 128);
+    for (let k = 0; k < 6; k++) {
+      fc.save(); fc.translate(64, 64); fc.rotate((k / 6) * PI);
+      const lg = fc.createRadialGradient(0, 0, 2, 0, 0, 58);
+      lg.addColorStop(0, "rgba(255,240,180,0.65)"); lg.addColorStop(1, "rgba(255,120,30,0)");
+      fc.fillStyle = lg; fc.scale(1, 0.14); fc.beginPath(); fc.arc(0, 0, 58, 0, PI * 2); fc.fill();
+      fc.restore();
+    }
   }
-  bx(g, 0.7, 0.08, 0.34, olive, 0, -0.78, -0.45); bx(g, 1.0, 0.3, 0.03, olive, 0, -1.15, -0.9, -0.2);
-  // light ring sight: one thin, half-transparent outer ring only, so it frames the sky instead of covering targets (the aim dot is drawn on the HUD)
-  const ringM = new THREE.MeshBasicMaterial({ color: 0x15181a, transparent: true, opacity: 0.35 });
-  { const t = new THREE.Mesh(new THREE.TorusGeometry(0.17, 0.0011, 6, 64), ringM); t.position.set(0, 0, -1.1); g.add(t); }
+  const flashTex = new THREE.CanvasTexture(fCan);
+  const barrels = new THREE.Group(); g.add(barrels);
+  aaGun.userData.barrels = []; aaGun.userData.muzzles = [];
+  for (const s of [1, -1]) {
+    // stationary twin recoil cradle & hydraulic recuperator cylinder under each barrel
+    const cradle = new THREE.Mesh(new THREE.CylinderGeometry(0.082, 0.088, 0.72, 12), olive);
+    cradle.rotation.x = PI / 2; cradle.position.set(s * 0.36, -0.60, -1.06); g.add(cradle);
+    const recup = new THREE.Mesh(new THREE.CylinderGeometry(0.034, 0.036, 0.62, 10), steelBr);
+    recup.rotation.x = PI / 2; recup.position.set(s * 0.36, -0.715, -1.02); g.add(recup);
+    bx(g, 0.14, 0.04, 0.18, olive, s * 0.36, -0.76, -0.82);
+    // recoiling barrel & breech assembly
+    const b = new THREE.Group(); b.position.set(s * 0.36, -0.6, -0.75); barrels.add(b); aaGun.userData.barrels.push(b);
+    const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.046, 2.25, 12), gun); tube.rotation.x = PI / 2; tube.position.z = -1.12; b.add(tube);
+    // stepped Bofors conical flash hider + dark bore aperture
+    const hider = new THREE.Mesh(new THREE.CylinderGeometry(0.064, 0.044, 0.28, 12), blk); hider.rotation.x = PI / 2; hider.position.z = -2.32; b.add(hider);
+    const hiderLip = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.008, 6, 16), blk); hiderLip.position.z = -2.45; b.add(hiderLip);
+    // cooling sleeve + machined spring/cooling ribs along barrel base
+    const jacket = new THREE.Mesh(new THREE.CylinderGeometry(0.072, 0.075, 0.68, 12), olive); jacket.rotation.x = PI / 2; jacket.position.z = -0.22; b.add(jacket);
+    for (let f = 0; f < 5; f++) {
+      const fin = new THREE.Mesh(new THREE.CylinderGeometry(0.058, 0.058, 0.022, 12), blk);
+      fin.rotation.x = PI / 2; fin.position.z = -0.62 - f * 0.11; b.add(fin);
+    }
+    // slim breech casing & top feed chute with visible 4-round 40mm brass clip near peripheral view
+    bx(b, 0.13, 0.1, 0.32, olive, 0, -0.09, -0.02);
+    const hopper = new THREE.Mesh(new THREE.BoxGeometry(0.066, 0.046, 0.16), blk); hopper.position.set(0, 0.045, -0.28); b.add(hopper);
+    for (let r = 0; r < 4; r++) {
+      const sh = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.012, 0.068, 8), brassS);
+      sh.rotation.z = PI / 2; sh.position.set(-s * (0.012 + r * 0.014), 0.078 + r * 0.01, -0.26); b.add(sh);
+      const tip = new THREE.Mesh(new THREE.ConeGeometry(0.010, 0.030, 8), copper);
+      tip.rotation.x = -PI / 2; tip.position.set(-s * (0.012 + r * 0.014), 0.078 + r * 0.01, -0.30); b.add(tip);
+    }
+    // soft feathered additive muzzle flash sprite + forward gas jet cone
+    const mf = new THREE.Group(); mf.position.set(0, 0, -2.50); mf.visible = false; b.add(mf);
+    const mfMat = new THREE.MeshBasicMaterial({ map: flashTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
+    const disc = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 0.46), mfMat); disc.position.z = -0.04; mf.add(disc);
+    const mfCore = new THREE.Mesh(new THREE.ConeGeometry(0.055, 0.34, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0xffd278, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
+    mfCore.rotation.x = -PI / 2; mfCore.position.z = -0.17; mf.add(mfCore);
+    aaGun.userData.muzzles.push({ g: mf, m: mfMat, cm: mfCore.material });
+    // dual gunner handwheels, shoulder rests & subtle outer tub wing shield gussets
+    const hw = new THREE.Mesh(new THREE.TorusGeometry(0.11, 0.014, 6, 18), brassS);
+    hw.position.set(s * 0.56, -0.78, -0.56); hw.rotation.y = s * PI / 2; g.add(hw);
+    bx(g, 0.045, 0.08, 0.24, blk, s * 0.24, -0.78, -0.34);
+    bx(g, 0.025, 0.36, 0.42, olive, s * 0.56, -0.68, -0.96, -0.12);
+    bx(g, 0.032, 0.026, 0.44, gun, s * 0.56, -0.50, -0.96, -0.12);
+  }
+  // traverse tray & lower armored gunner apron shield (leaves sky & horizon wide open)
+  bx(g, 0.74, 0.08, 0.38, olive, 0, -0.79, -0.46);
+  bx(g, 1.08, 0.34, 0.032, olive, 0, -1.04, -0.94, -0.22);
+  bx(g, 1.1, 0.028, 0.042, gun, 0, -0.87, -0.98, -0.22);
+  // centered spider-web AA ring sight on slim vertical cradle post below outer ring
+  const stalk = new THREE.Mesh(new THREE.CylinderGeometry(0.004, 0.005, 0.44, 8), blk);
+  stalk.position.set(0, -0.395, -1.1); g.add(stalk);
+  const ringM = new THREE.MeshBasicMaterial({ color: 0x15181a, transparent: true, opacity: 0.38 });
+  const innerM = new THREE.MeshBasicMaterial({ color: 0x15181a, transparent: true, opacity: 0.24 });
+  {
+    const t = new THREE.Mesh(new THREE.TorusGeometry(0.175, 0.0012, 6, 64), ringM); t.position.set(0, 0, -1.1); g.add(t);
+    const t2 = new THREE.Mesh(new THREE.TorusGeometry(0.088, 0.0009, 6, 48), innerM); t2.position.set(0, 0, -1.1); g.add(t2);
+    for (let k = 0; k < 4; k++) {
+      const a = k * PI / 2, strut = new THREE.Mesh(new THREE.BoxGeometry(0.086, 0.0012, 0.0012), innerM);
+      strut.position.set(Math.cos(a) * 0.132, Math.sin(a) * 0.132, -1.1); strut.rotation.z = a; g.add(strut);
+    }
+  }
 }
-export function updateAAGun(recoil) { aaGun.userData.barrels.forEach((b, i) => { b.position.z = -0.75 + recoil[i] * 0.12; }); }
+export function updateAAGun(recoil) {
+  let active = 0;
+  aaGun.userData.barrels.forEach((b, i) => {
+    const r = recoil[i] || 0;
+    b.position.z = -0.75 + r * 0.14;
+    b.position.y = -0.60 - r * 0.006;
+    if (r > 0.5) active += r;
+    const mz = aaGun.userData.muzzles?.[i];
+    if (mz) {
+      const flash = r > 0.58;
+      mz.g.visible = flash;
+      if (flash) {
+        const k = (r - 0.58) / 0.42;
+        mz.m.opacity = 0.45 + k * 0.45;
+        mz.cm.opacity = 0.55 + k * 0.4;
+        mz.g.rotation.z = Math.random() * PI;
+        const sc = 0.8 + Math.random() * 0.45;
+        mz.g.scale.set(sc, sc, 0.9 + k * 0.5);
+      }
+    }
+  });
+  aaGun.position.set(active ? (Math.random() - 0.5) * 0.004 : 0, active ? (Math.random() - 0.5) * 0.003 : 0, 0);
+}
 
 // ── modern jet cockpit (F/A-18E / F-35 style): nose/LERX exterior cues, mirrors, live HUD combiner, UFC, 3 MFDs, HOTAS ──
 export const jetPit = new THREE.Group(); jetPit.visible = false; ovScene.add(jetPit);

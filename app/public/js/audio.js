@@ -203,9 +203,10 @@ export const sfx = {
   gun(cal) {
     const k = Math.min(1.15, cal / 406);
     play("gun_near", { vol: 0.45 + 0.55 * k, rate: 1 + (1 - k) * 0.72 });
-    subBoom(0.28 * (0.35 + 0.65 * k), 118 - 36 * k, 28, 0.26 + 0.28 * k, 0, 0.52);
-    noiseShape(0.16 * (0.4 + 0.6 * k), 0.14 + 0.14 * k, 1900, 300, "lowpass", 0.7, 0.004, 0.45);
-    if (cal >= 127) metalClank(0.05 * k, 210, 130, 0.11, 0.08, false);
+    subBoom(0.28 * (0.35 + 0.65 * k), 118 - 36 * k, 26, 0.26 + 0.32 * k, 0, 0.56);
+    noiseShape(0.18 * (0.4 + 0.6 * k), 0.15 + 0.16 * k, 2200, 260, "lowpass", 0.75, 0.003, 0.48);
+    if (cal >= 305) subBoom(0.2 * k, 72, 22, 0.38, 0.055, 0.65);
+    if (cal >= 127) metalClank(0.065 * k, cal >= 254 ? 175 : 220, 95, 0.13, 0.085, false);
   },
   farGun(d, cal) {
     const k = Math.min(1.15, cal / 406), a = atten(d);
@@ -232,14 +233,18 @@ export const sfx = {
   },
   flak(d) {
     const a = atten(d * 3);
-    play("flak", { vol: a * 0.8, rate: 0.85 + Math.random() * 0.3 });
-    noiseShape(a * 0.2, 0.12, 2600, 460, "bandpass", 1.1, 0, 0.4);
+    play("flak", { vol: a * 0.85, rate: 0.85 + Math.random() * 0.3 });
+    noiseShape(a * 0.24, 0.055, 3400, 1100, "bandpass", 1.35, 0, 0.3);
+    noiseShape(a * 0.18, 0.14, 2400, 420, "bandpass", 1.0, 0.008, 0.45);
+    if (a > 0.12) subBoom(a * 0.14, 155, 48, 0.09, 0.01, 0.35);
   },
   /** One .50 cal report — the guns call this at their firing rate. */
   mgShot(d = 0) {
     const name = Math.random() < 0.5 ? "mg1" : "mg2", rate = 0.9 + Math.random() * 0.2;
-    if (d < 30) play(name, { vol: 0.5, rate });
-    else { const a = atten(d * 4); if (a > 0.06) play(name, { vol: a * 0.35, rate: rate * 0.9, lp: 900 + 4000 * a }); }
+    if (d < 30) {
+      play(name, { vol: 0.5, rate });
+      metalClank(0.022, 1850 + Math.random() * 260, 720, 0.018, 0.015, false);
+    } else { const a = atten(d * 4); if (a > 0.06) play(name, { vol: a * 0.35, rate: rate * 0.9, lp: 900 + 4000 * a }); }
   },
   incoming() { noiseShape(0.14, 2.3, 1850, 320, "bandpass", 1.8, 0, 0.35); subBoom(0.08, 220, 85, 0.6, 0.6, 0.25); },
   bell() {
@@ -249,13 +254,22 @@ export const sfx = {
       voiceTone(0.05, 0.38, 4328, 4310, "sine", d);
     }
   },
-  ready() { voiceTone(0.075, 0.05, 880, 880, "triangle", 0, 2200); voiceTone(0.085, 0.09, 1320, 1320, "sine", 0.045); },
+  ready() {
+    metalClank(0.028, 1950, 920, 0.014, 0, false);
+    voiceTone(0.065, 0.045, 960, 960, "triangle", 0.006, 2200);
+    voiceTone(0.075, 0.075, 1280, 1280, "sine", 0.048);
+  },
   deny() { voiceTone(0.11, 0.14, 185, 110, "triangle", 0, 420); subBoom(0.1, 120, 65, 0.11); },
   alarm() { for (let i = 0; i < 3; i++) klaxon(0.12, 0.27, 440, i * 0.4); },
   torpWarn() { for (let i = 0; i < 3; i++) { klaxon(0.10, 0.15, 920, i * 0.34); klaxon(0.095, 0.15, 640, i * 0.34 + 0.16); } },
   hitTick() { metalClank(0.11, 1850, 640, 0.05, 0); noiseShape(0.07, 0.04, 3400, 1200, "bandpass", 1.4, 0, 0.1); },
   hitThunk() { subBoom(0.24, 138, 36, 0.14, 0, 0.25); metalClank(0.13, 460, 135, 0.09); noiseShape(0.08, 0.06, 1800, 420, "bandpass", 1.0, 0, 0.15); },
-  aaThump() { subBoom(0.16, 125, 42, 0.09, 0, 0.22); noiseShape(0.075, 0.055, 950, 300, "lowpass", 0.8, 0, 0.15); },
+  aaThump() {
+    subBoom(0.18, 148, 42, 0.105, 0, 0.24);
+    noiseShape(0.10, 0.055, 1650, 380, "lowpass", 0.9, 0.002, 0.18);
+    metalClank(0.042, 420 + Math.random() * 60, 195, 0.055, 0.016, false);
+    metalClank(0.016, 2250 + Math.random() * 300, 1420, 0.032, 0.065, false);
+  },
   torpLaunch() { subBoom(0.26, 150, 52, 0.22, 0, 0.25); noiseShape(0.16, 0.55, 1600, 280, "bandpass", 1.3, 0.02, 0.35); noiseShape(0.12, 0.4, 520, 140, "lowpass", 0.8, 0.22, 0.25); },
   lockTone() { voiceTone(0.055, 0.06, 1760, 1760, "triangle", 0, 3200); voiceTone(0.035, 0.06, 2640, 2640, "sine", 0.02); },
   lockSeek() {
@@ -276,7 +290,7 @@ export const sfx = {
     noiseShape(0.28 * k, 1.65, 2500, 300, "bandpass", 0.65, 0.045, 0.65);
     noiseShape(0.16 * k, 0.85, 4200, 1050, "highpass", 0.7, 0.055, 0.35);
   },
-  click() { metalClank(0.06, 1450, 440, 0.022, 0, false); noiseShape(0.04, 0.016, 2400, 900, "bandpass", 1.2, 0, 0); },
+  click() { metalClank(0.055, 1620, 520, 0.018, 0, false); noiseShape(0.038, 0.014, 2600, 950, "bandpass", 1.25, 0, 0); },
   coin() { voiceTone(0.08, 0.12, 988, 988, "triangle", 0, 2600); voiceTone(0.09, 0.26, 1319, 1319, "sine", 0.075); },
 };
 
