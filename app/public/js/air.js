@@ -188,7 +188,7 @@ export class Plane {
     if (!this.alive || this.bombs <= 0 || this.bombCD > 0) return false;
     this.bombs--; this.bombCD = 0.6; if (this.side === "us" && G.stats) G.stats.bombsDropped = (G.stats.bombsDropped || 0) + 1; const o = this.obj, m = new THREE.Mesh(bombGeo, bombMat);
     const p = o.localToWorld(new THREE.Vector3(this.bombs ? 1.2 : -1.2, -0.7, 0.6)); m.position.copy(p); scene.add(m);
-    air.bombs.push({ p, v: this.vel, m, side: this.side, trail: [p.clone()], tt: 0, from: this }); if (this === G.plane) sfx.hitThunk(); return true;
+    air.bombs.push({ p, v: this.vel, m, side: this.side, trail: [p.clone()], tt: 0, from: this }); if (this === G.plane) (sfx.bombDrop ? sfx.bombDrop() : sfx.hitThunk()); return true;
   }
   /** Decoy flares (game feature, not WWII equipment): AA lays on the flare for a few seconds. */
   dropFlare() {
@@ -294,13 +294,14 @@ function stepBombs(dt) {
   for (let i = air.bombs.length - 1; i >= 0; i--) {
     const b = air.bombs[i]; b.v.y -= GRAV * dt; b.v.multiplyScalar(1 - 0.03 * dt); b.p.addScaledVector(b.v, dt);
     b.m.position.copy(b.p); b.m.lookAt(b.p.clone().add(b.v));
+    if (rnd() < dt * 18) smoke.spawn({ x: b.p.x, y: b.p.y, z: b.p.z, life: 0.75, s0: 0.45, s1: 1.4, a: 0.25, c: 0xd8dce0 });
     b.tt += dt; if (b.tt > 0.15) { b.tt = 0; b.trail.push(b.p.clone()); }
     const end = (hitShip) => { b.trail.push(b.p.clone()); if (b.side === "us") { air.bombTrails.push({ pts: b.trail, t: 8 }); if (air.bombTrails.length > 12) air.bombTrails.shift();
         let miss = 0; if (!hitShip) { let best = Infinity; for (const S of G.ships) if (S.alive && S.side !== b.side) best = Math.min(best, Math.hypot(S.pos.x - b.p.x, S.pos.z - b.p.z) - S.spec.B / 2); miss = Math.max(0, Math.round(best)); }
         G.onBombImpact?.(b.p.clone(), !!hitShip, miss, b.from); } scene.remove(b.m); air.bombs.splice(i, 1); };
     const hit = b.p.y < 40 ? hullHit(b.p, null) : null;
     if (hit && hit.ship.side !== b.side) { bombHit(hit.ship, b.p.clone(), hit.lx, b.side === "us"); end(hit.ship); continue; }
-    if (b.p.y <= 0) { spawnSplash(b.p.x, b.p.z, 0.55); hitFX(new THREE.Vector3(b.p.x, 0, b.p.z), 0.25); const d = b.p.distanceTo(camera.position); at(d, () => sfx.explode(d));
+    if (b.p.y <= 0) { spawnSplash(b.p.x, b.p.z, 0.72); hitFX(new THREE.Vector3(b.p.x, 0, b.p.z), 0.25); const d = b.p.distanceTo(camera.position); at(d, () => sfx.explode(d));
       if (b.side === "us") G.log("폭탄 근탄 — 빗나감"); end(null); }
   }
 }

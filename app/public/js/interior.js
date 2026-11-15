@@ -277,11 +277,17 @@ function drawPanel(pl, dt) {
   bx(g, 0.8, 0.1, 3.4, cowlM, 0, -0.45, -2.6); bx(g, 0.5, 0.04, 3.2, M(0x4a5866), 0, -0.36, -2.6);
   const cowlLip = new THREE.Mesh(new THREE.TorusGeometry(0.43, 0.034, 8, 24, PI), cowlM);
   cowlLip.position.set(0, -0.78, -3.6); cowlLip.rotation.z = 0; g.add(cowlLip);
+  cockpit.userData.exFlames = [];
+  const exFlameG = new THREE.ConeGeometry(0.016, 0.085, 7);
+  const exFlameM = new THREE.MeshBasicMaterial({ color: 0xff9d42, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
   for (const s of [-1, 1]) {
     bx(g, 0.04, 0.14, 0.55, M(0x3a434c), s * 0.43, -0.44, -2.15);
     for (let e = 0; e < 3; e++) {
       const pipe = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.022, 0.11, 8), exhaustM);
       pipe.rotation.z = s * -0.95; pipe.rotation.x = 0.28; pipe.position.set(s * 0.445, -0.46, -1.78 - e * 0.17); g.add(pipe);
+      const ef = new THREE.Mesh(exFlameG, exFlameM.clone());
+      ef.rotation.z = s * -1.15; ef.rotation.x = 0.35; ef.position.set(s * 0.47, -0.45, -1.76 - e * 0.17);
+      g.add(ef); cockpit.userData.exFlames.push(ef);
     }
   }
   // soft radial bounce glow on top of cowl + instrument panel (no rectangular plane edges)
@@ -386,7 +392,19 @@ export function updateCockpit(pl, dt) {
   if (cockpit.userData.cowlFlash) cockpit.userData.cowlFlash.material.opacity = fire ? 0.18 + Math.random() * 0.26 : 0;
   if (cockpit.userData.panelGlow) cockpit.userData.panelGlow.material.opacity = fire ? 0.05 + Math.random() * 0.08 : 0;
   if (cockpit.userData.chargers) for (const ch of cockpit.userData.chargers) ch.position.z = fire ? -0.668 + (Math.random() - 0.5) * 0.016 : -0.67;
-  if (cockpit.userData.refl) cockpit.userData.refl.position.x = clamp(-(pl.turnRate || 0) * 0.0022, -0.022, 0.022);
+  if (cockpit.userData.exFlames) {
+    const thr = pl.throttle || 0;
+    for (let i = 0; i < cockpit.userData.exFlames.length; i++) {
+      const ef = cockpit.userData.exFlames[i], on = thr > 0.55 && pl.alive;
+      ef.material.opacity = on ? clamp((thr - 0.5) * 0.85, 0, 0.55) * (0.6 + Math.random() * 0.7) : 0;
+      ef.material.color.setHex(thr > 0.85 && Math.random() < 0.45 ? 0x88c8ff : 0xff9a3c);
+      const sc = 0.75 + Math.random() * 0.55; ef.scale.set(sc, 0.8 + thr * 0.6, sc);
+    }
+  }
+  if (cockpit.userData.refl) {
+    cockpit.userData.refl.position.x = clamp(-(pl.turnRate || 0) * 0.0022, -0.022, 0.022);
+    cockpit.userData.refl.position.y = clamp(-(pl.pitchCmd || 0) * 0.0028, -0.022, 0.022);
+  }
   if (cockpit.userData.dmgGlass) cockpit.userData.dmgGlass.material.opacity = pl.hp < 65 ? clamp((65 - pl.hp) / 65, 0, 0.78) : 0;
 }
 
@@ -518,7 +536,7 @@ const JV_F = new THREE.Vector3(), JV_U = new THREE.Vector3(), JV_R = new THREE.V
 {
   const g = jetPit, body = M(0x161a1e, { roughness: 0.85 }), trim = M(0x282f36, { roughness: 0.55 }), pad = M(0x101316, { roughness: 0.92 });
   const skin = M(0x525c65, { roughness: 0.52, metalness: 0.3 }), skinDark = M(0x363d44, { roughness: 0.55, metalness: 0.35 }), pitotM = M(0x202428, { metalness: 0.8, roughness: 0.35 });
-  const glassM = new THREE.MeshBasicMaterial({ color: 0x6ce884, transparent: true, opacity: 0.06, depthWrite: false });
+  const glassM = new THREE.MeshBasicMaterial({ color: 0x051d0e, transparent: true, opacity: 0.28, depthWrite: false });
   // visible exterior fighter nose cone, radome tip, Vulcan gun slot, and LERX / swept wing roots over the sill
   const radome = new THREE.Mesh(new THREE.ConeGeometry(0.46, 3.8, 16), skin); radome.rotation.x = -PI / 2; radome.scale.set(1.18, 1, 0.72); radome.position.set(0, -0.45, -3.15); g.add(radome);
   const noseTip = new THREE.Mesh(new THREE.ConeGeometry(0.18, 1.35, 14), skinDark); noseTip.rotation.x = -PI / 2; noseTip.scale.set(1.1, 1, 0.75); noseTip.position.set(0, -0.52, -4.95); g.add(noseTip);
@@ -536,7 +554,7 @@ const JV_F = new THREE.Vector3(), JV_U = new THREE.Vector3(), JV_R = new THREE.V
   const ht = new THREE.CanvasTexture(hc); ht.colorSpace = THREE.SRGBColorSpace;
   jhud = { c: hc, x: hc.getContext("2d"), t: ht };
   const hudGlass = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.22), glassM); hudGlass.position.set(0, -0.095, -0.88); hudGlass.rotation.x = -0.22; g.add(hudGlass);
-  const hudSym = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.22), new THREE.MeshBasicMaterial({ map: ht, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
+  const hudSym = new THREE.Mesh(new THREE.PlaneGeometry(0.24, 0.22), new THREE.MeshBasicMaterial({ map: ht, transparent: true, depthWrite: false }));
   hudSym.position.set(0, -0.095, -0.878); hudSym.rotation.x = -0.22; g.add(hudSym);
   for (const s of [-1, 1]) {
     bx(g, 0.011, 0.21, 0.014, trim, s * 0.122, -0.105, -0.88, -0.22);
@@ -619,6 +637,7 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaD
   x.clearRect(0, 0, W, H);
   const green = "#6eff82", amber = "#ffd04d", red = "#ff5a48", abOn = abK > 0.35 || thrPct >= 88;
   x.strokeStyle = green; x.fillStyle = green; x.lineWidth = 2; x.lineCap = "round";
+  x.shadowColor = "rgba(0, 22, 8, 0.92)"; x.shadowBlur = 4;
   // Rotating artificial horizon & pitch ladder (-30..+30 deg) using true fighter attitude
   x.save(); x.beginPath(); x.rect(92, 56, W - 184, H - 134); x.clip();
   x.translate(cx, cy + pitch * 260); x.rotate(-roll);
@@ -754,6 +773,7 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaD
   x.fillStyle = green; x.font = "bold 14px monospace";
   x.textAlign = "left"; x.fillText(`GUN ${Math.max(0, j.gun)}  FLR ${j.flares}`, 18, H - 20);
   x.textAlign = "right"; x.fillText(`AAM ${j.aam}  ASM ${j.asm}`, W - 18, H - 20);
+  x.shadowBlur = 0;
   t.needsUpdate = true;
 }
 /** j = the jet, info = { rwr, lock, blips, ab, roll, pitch, firing, lockPct, gunHit } */

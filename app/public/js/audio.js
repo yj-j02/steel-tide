@@ -285,6 +285,12 @@ export const sfx = {
     metalClank(0.042, 420 + Math.random() * 60, 195, 0.055, 0.016, false);
     metalClank(0.016, 2250 + Math.random() * 300, 1420, 0.032, 0.065, false);
   },
+  bombDrop() {
+    metalClank(0.14, 620, 210, 0.06, 0, false);
+    subBoom(0.16, 155, 58, 0.12, 0, 0.22);
+    voiceTone(0.065, 1.35, 1480, 520, "sine", 0.06, 2200);
+    noiseShape(0.08, 0.95, 2200, 620, "bandpass", 1.8, 0.05, 0.25);
+  },
   torpLaunch() { subBoom(0.26, 150, 52, 0.22, 0, 0.25); noiseShape(0.16, 0.55, 1600, 280, "bandpass", 1.3, 0.02, 0.35); noiseShape(0.12, 0.4, 520, 140, "lowpass", 0.8, 0.22, 0.25); },
   lockTone() { voiceTone(0.055, 0.06, 1760, 1760, "triangle", 0, 3200); voiceTone(0.035, 0.06, 2640, 2640, "sine", 0.02); },
   lockSeek() {
