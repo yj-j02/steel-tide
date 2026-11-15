@@ -24,8 +24,21 @@ export function initAudio() {
   try { A.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return; }
   const c = A.ctx;
   A.master = c.createGain(); A.master.gain.value = A.muted ? 0 : A.vol.sfx;
-  const comp = c.createDynamicsCompressor(); comp.threshold.value = -12; comp.ratio.value = 4; comp.attack.value = 0.003; comp.release.value = 0.25;
+  const comp = c.createDynamicsCompressor(); comp.threshold.value = -14; comp.ratio.value = 3.5; comp.attack.value = 0.003; comp.release.value = 0.24;
   A.master.connect(comp).connect(c.destination); A.music = c.createGain(); A.music.gain.value = A.muted ? 0 : A.vol.music; A.music.connect(comp);
+  // Marine acoustic horizon + cockpit reflection impulse (routed into A.master so mute/volume stays unified)
+  const rLen = Math.floor(c.sampleRate * 1.45), ir = c.createBuffer(2, rLen, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = ir.getChannelData(ch); let lp = 0;
+    for (let i = 0; i < rLen; i++) {
+      const k = 1 - i / rLen, early = i < c.sampleRate * 0.08 && i % 430 < 6 ? 1.4 : 1;
+      lp = lp * 0.62 + (Math.random() * 2 - 1) * 0.38;
+      d[i] = lp * Math.pow(k, 2.3) * 0.55 * early;
+    }
+  }
+  A.rev = c.createConvolver(); A.rev.buffer = ir;
+  A.revSend = c.createGain(); A.revSend.gain.value = 0.24;
+  A.revSend.connect(A.rev).connect(A.master);
   const n = c.sampleRate * 4; A.noise = c.createBuffer(1, n, c.sampleRate); A.brown = c.createBuffer(1, n, c.sampleRate);
   const w = A.noise.getChannelData(0), b = A.brown.getChannelData(0); let last = 0;
   for (let i = 0; i < n; i++) { w[i] = Math.random() * 2 - 1; last = (last + 0.02 * w[i]) / 1.02; b[i] = last * 3.5; }
@@ -79,12 +92,24 @@ export function at(dist, fn) { A.later.push({ t: dist / 340, fn }); }
 let JET = null;
 export function jetSound(level, thr = 0.5) {
   const c = A.ctx; if (!c) return;
-  if (!JET) { if (level <= 0) return; const roar = loopNoise(A.brown, "lowpass", 500, 0.7, 0), rush = loopNoise(A.noise, "bandpass", 2400, 0.9, 0);
-    const o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain(); o.type = "sawtooth"; o2.type = "sine"; g.gain.value = 0; const f = c.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 3000; f.Q.value = 3;
-    o.connect(f); o2.connect(f); f.connect(g).connect(A.master); o.start(); o2.start(); JET = { roar, rush, whine: g, o, o2 }; }
-  const t = c.currentTime, k = 0.12;
-  JET.roar.gain.setTargetAtTime(level * (0.35 + 0.5 * thr), t, k); JET.rush.gain.setTargetAtTime(level * (0.03 + 0.07 * thr), t, k); JET.whine.gain.setTargetAtTime(level * (0.012 + 0.02 * thr), t, k);
-  JET.o.frequency.setTargetAtTime(2100 + 1700 * thr, t, k); JET.o2.frequency.setTargetAtTime(3150 + 2500 * thr, t, k);
+  if (!JET) {
+    if (level <= 0) return;
+    const roar = loopNoise(A.brown, "lowpass", 440, 0.7, 0);
+    const ab = loopNoise(A.brown, "bandpass", 118, 0.9, 0);
+    const rush = loopNoise(A.noise, "bandpass", 2200, 0.85, 0);
+    const o = c.createOscillator(), o2 = c.createOscillator(), g = c.createGain();
+    o.type = "sawtooth"; o2.type = "sine"; g.gain.value = 0;
+    const f = c.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 2800; f.Q.value = 2.6;
+    o.connect(f); o2.connect(f); f.connect(g).connect(A.master); o.start(); o2.start();
+    JET = { roar, ab, rush, whine: g, o, o2 };
+  }
+  const t = c.currentTime, k = 0.12, mil = Math.max(0, (thr - 0.65) / 0.35);
+  JET.roar.gain.setTargetAtTime(level * (0.34 + 0.52 * thr), t, k);
+  JET.ab.gain.setTargetAtTime(level * mil * mil * 0.48, t, 0.08);
+  JET.rush.gain.setTargetAtTime(level * (0.025 + 0.075 * thr), t, k);
+  JET.whine.gain.setTargetAtTime(level * (0.008 + 0.015 * thr), t, k);
+  JET.o.frequency.setTargetAtTime(2050 + 1650 * thr, t, k);
+  JET.o2.frequency.setTargetAtTime(3075 + 2450 * thr, t, k);
 }
 let DRONE = null;
 /** moped-like buzz of loitering drones near the camera (0 = silent) */
@@ -95,38 +120,164 @@ export function droneSound(level) {
     const am = c.createGain(); am.gain.value = 0.5; lfo.connect(lg).connect(am.gain); o.connect(f).connect(am).connect(g).connect(A.master); o.start(); lfo.start(); DRONE = { g, o }; }
   DRONE.g.gain.setTargetAtTime(level * 0.09, c.currentTime, 0.15); DRONE.o.frequency.setTargetAtTime(110 + level * 30, c.currentTime, 0.3);
 }
+// Cached white/warm noise buffer + soft saturation curve for heavy combat acoustics
+let _wbuf = null, _wsCurve = null;
+function wbuf(c) {
+  if (_wbuf && _wbuf.sampleRate === c.sampleRate) return _wbuf;
+  const len = c.sampleRate * 2, b = c.createBuffer(1, len, c.sampleRate), ch = b.getChannelData(0);
+  for (let i = 0; i < len; i++) ch[i] = Math.random() * 2 - 1;
+  return (_wbuf = b);
+}
+function wsCurve() {
+  if (_wsCurve) return _wsCurve;
+  const n = 256, k = 2.8; _wsCurve = new Float32Array(n);
+  for (let i = 0; i < n; i++) { const x = (i * 2) / n - 1; _wsCurve[i] = ((1 + k) * x) / (1 + k * Math.abs(x)); }
+  return _wsCurve;
+}
+function subBoom(vol, f0, f1, dur, delay = 0, rev = 0.35) {
+  const c = A.ctx; if (!c || A.muted || vol <= 0.002) return;
+  const t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain(), ws = c.createWaveShaper();
+  o.type = "triangle"; o.frequency.setValueAtTime(f0, t); o.frequency.exponentialRampToValueAtTime(Math.max(18, f1), t + dur);
+  ws.curve = wsCurve();
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  o.connect(ws).connect(g).connect(A.master);
+  if (A.revSend && rev > 0) { const rg = c.createGain(); rg.gain.value = rev; g.connect(rg).connect(A.revSend); }
+  o.start(t); o.stop(t + dur + 0.03);
+}
+function noiseShape(vol, dur, f0, f1, type = "bandpass", Q = 1.0, delay = 0, rev = 0.2, rate = 1) {
+  const c = A.ctx; if (!c || A.muted || vol <= 0.002) return;
+  const t = c.currentTime + delay, s = c.createBufferSource();
+  s.buffer = wbuf(c); s.playbackRate.value = rate; s.loop = dur > 1.8;
+  const f = c.createBiquadFilter(), g = c.createGain();
+  f.type = type; f.Q.value = Q; f.frequency.setValueAtTime(Math.max(40, f0), t);
+  f.frequency.exponentialRampToValueAtTime(Math.max(35, f1), t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.004); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  s.connect(f).connect(g).connect(A.master);
+  if (A.revSend && rev > 0) { const rg = c.createGain(); rg.gain.value = rev; g.connect(rg).connect(A.revSend); }
+  s.start(t, Math.random() * 0.4); s.stop(t + dur + 0.03);
+}
+function metalClank(vol, f0, f1, dur, delay = 0, bright = true) {
+  const c = A.ctx; if (!c || A.muted || vol <= 0.002) return;
+  const t = c.currentTime + delay;
+  for (const [m, w] of bright ? [[1, 0.55], [1.47, 0.3], [2.31, 0.15]] : [[1, 0.7], [1.58, 0.3]]) {
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = m === 1 ? "triangle" : "sine";
+    o.frequency.setValueAtTime(f0 * m, t); o.frequency.exponentialRampToValueAtTime(Math.max(40, f1 * m), t + dur);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol * w, t + 0.002); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g).connect(A.master); o.start(t); o.stop(t + dur + 0.02);
+  }
+}
+function voiceTone(vol, dur, f0, f1, type = "sine", delay = 0, lp = 0) {
+  const c = A.ctx; if (!c || A.muted || vol <= 0.002) return;
+  const t = c.currentTime + delay, o = c.createOscillator(), g = c.createGain();
+  o.type = type; o.frequency.setValueAtTime(f0, t);
+  if (f1 !== f0) o.frequency.exponentialRampToValueAtTime(Math.max(30, f1), t + dur);
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + Math.min(0.008, dur * 0.2)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  if (lp > 0) { const f = c.createBiquadFilter(); f.type = "lowpass"; f.frequency.value = lp; o.connect(f).connect(g).connect(A.master); }
+  else o.connect(g).connect(A.master);
+  o.start(t); o.stop(t + dur + 0.02);
+}
+function klaxon(vol, dur, freq, delay = 0) {
+  const c = A.ctx; if (!c || A.muted) return;
+  const t = c.currentTime + delay, g = c.createGain(), f = c.createBiquadFilter();
+  f.type = "bandpass"; f.frequency.value = freq * 1.4; f.Q.value = 1.6;
+  g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(vol, t + 0.025); g.gain.setValueAtTime(vol * 0.9, t + dur - 0.04); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  for (const df of [0, 7]) { const o = c.createOscillator(); o.type = "sawtooth"; o.frequency.setValueAtTime(freq + df, t); o.connect(f); o.start(t); o.stop(t + dur + 0.02); }
+  f.connect(g).connect(A.master);
+}
+
 export const sfx = {
-  rwr() { tone(0.12, 0.09, 1900, 1900, "square"); tone(0.12, 0.09, 1900, 1900, "square", 0.14); },
-  flare() { hiss(0.1, 0.5, 2600, 700); },
-  vulcan() { tone(0.16, 0.07, 240, 150, "sawtooth"); hiss(0.07, 0.07, 3200, 1400); },
-  gun(cal) { const k = cal / 406; play("gun_near", { vol: 0.4 + 0.6 * k, rate: 1 + (1 - k) * 0.8 }); },
-  farGun(d, cal) { const k = cal / 406, a = atten(d); play("gun_far", { vol: a * (0.35 + 0.65 * k), rate: 1 + (1 - k) * 0.6, lp: 600 + 3000 * a }); },
-  splash(d, sc) { const a = atten(d); play("splash", { vol: a * (0.25 + 0.6 * Math.min(sc, 1)), rate: 0.7 + (1 - Math.min(sc, 1)) * 0.5, lp: 800 + 7000 * a }); },
-  hit(d, big = 1) { const a = atten(d); play("hit", { vol: a * (0.5 + 0.5 * big), rate: 1.25 - 0.4 * big, lp: 900 + 7000 * a }); },
-  explode(d) { const a = atten(d); play("explode", { vol: a, lp: 700 + 7000 * a }); },
-  flak(d) { const a = atten(d * 3); play("flak", { vol: a * 0.8, rate: 0.85 + Math.random() * 0.3 }); },
+  rwr() {
+    for (const d of [0, 0.075, 0.15]) { voiceTone(0.085, 0.055, 2240, 2060, "triangle", d, 3200); voiceTone(0.04, 0.055, 1120, 1030, "sine", d); }
+  },
+  flare() {
+    metalClank(0.11, 520, 190, 0.05, 0, false); subBoom(0.14, 175, 70, 0.06, 0, 0.15);
+    noiseShape(0.16, 0.48, 3800, 880, "bandpass", 0.95, 0.015, 0.3);
+  },
+  vulcan() {
+    // M61A1 20mm rotary cannon brrrt: 60Hz mechanical bark + supersonic crack
+    voiceTone(0.13, 0.055, 175, 115, "sawtooth", 0, 750);
+    subBoom(0.11, 165, 62, 0.055, 0, 0.18);
+    noiseShape(0.13, 0.065, 3600, 950, "bandpass", 0.9, 0, 0.25);
+  },
+  gun(cal) {
+    const k = Math.min(1.15, cal / 406);
+    play("gun_near", { vol: 0.45 + 0.55 * k, rate: 1 + (1 - k) * 0.72 });
+    subBoom(0.28 * (0.35 + 0.65 * k), 118 - 36 * k, 28, 0.26 + 0.28 * k, 0, 0.52);
+    noiseShape(0.16 * (0.4 + 0.6 * k), 0.14 + 0.14 * k, 1900, 300, "lowpass", 0.7, 0.004, 0.45);
+    if (cal >= 127) metalClank(0.05 * k, 210, 130, 0.11, 0.08, false);
+  },
+  farGun(d, cal) {
+    const k = Math.min(1.15, cal / 406), a = atten(d);
+    play("gun_far", { vol: a * (0.35 + 0.65 * k), rate: 1 + (1 - k) * 0.55, lp: 550 + 2800 * a });
+    subBoom(a * 0.24 * (0.3 + 0.7 * k), 72, 24, 0.5, 0.02, 0.7);
+  },
+  splash(d, sc) {
+    const a = atten(d), s = Math.min(sc, 1.15);
+    play("splash", { vol: a * (0.25 + 0.6 * Math.min(sc, 1)), rate: 0.7 + (1 - Math.min(sc, 1)) * 0.5, lp: 800 + 7000 * a });
+    subBoom(a * 0.22 * s, 88, 32, 0.34, 0, 0.45);
+  },
+  hit(d, big = 1) {
+    const a = atten(d);
+    play("hit", { vol: a * (0.5 + 0.5 * big), rate: 1.25 - 0.4 * big, lp: 900 + 7000 * a });
+    metalClank(a * (0.14 + 0.16 * big), 330 - 95 * big, 105, 0.15, 0);
+    subBoom(a * (0.28 + 0.26 * big), 108, 28, 0.28, 0.008, 0.45);
+  },
+  explode(d) {
+    const a = atten(d);
+    play("explode", { vol: a, lp: 700 + 7000 * a });
+    subBoom(a * 0.65, 92, 20, 0.88, 0, 0.8);
+    noiseShape(a * 0.26, 0.55, 2200, 250, "bandpass", 0.9, 0.09, 0.7);
+    noiseShape(a * 0.14, 0.36, 3500, 480, "bandpass", 1.2, 0.26, 0.55);
+  },
+  flak(d) {
+    const a = atten(d * 3);
+    play("flak", { vol: a * 0.8, rate: 0.85 + Math.random() * 0.3 });
+    noiseShape(a * 0.2, 0.12, 2600, 460, "bandpass", 1.1, 0, 0.4);
+  },
   /** One .50 cal report — the guns call this at their firing rate. */
   mgShot(d = 0) {
     const name = Math.random() < 0.5 ? "mg1" : "mg2", rate = 0.9 + Math.random() * 0.2;
     if (d < 30) play(name, { vol: 0.5, rate });
     else { const a = atten(d * 4); if (a > 0.06) play(name, { vol: a * 0.35, rate: rate * 0.9, lp: 900 + 4000 * a }); }
   },
-  incoming() { hiss(0.12, 2.4, 1400, 380); },
-  bell() { for (const d of [0, 0.22]) { tone(0.18, 0.6, 1568, 1560, "sine", d); tone(0.08, 0.5, 2349, 2340, "sine", d); } },
-  ready() { tone(0.08, 0.07, 950, 700, "square"); },
-  deny() { tone(0.1, 0.16, 150, 110, "square"); },
-  alarm() { for (let i = 0; i < 3; i++) tone(0.12, 0.28, 620, 610, "square", i * 0.4); },
-  torpWarn() { for (let i = 0; i < 4; i++) { tone(0.12, 0.16, 880, 870, "square", i * 0.3); tone(0.09, 0.14, 660, 655, "square", i * 0.3 + 0.15); } },
-  hitTick() { tone(0.05, 0.035, 2600, 2200, "square"); },
-  hitThunk() { tone(0.14, 0.09, 180, 70, "triangle"); tone(0.06, 0.05, 900, 500, "square"); },
-  aaThump() { tone(0.05, 0.06, 110, 55, "sine"); },
-  torpLaunch() { hiss(0.09, 0.7, 900, 240); },
-  lockTone() { tone(0.05, 0.08, 1760, 1760, "sine"); },
-  lockSeek() { tone(0.035, 0.06, 1100, 1100, "sine"); }, // acquiring: slow low beeps
-  lockSolid() { tone(0.03, 0.13, 2100, 2100, "sine"); }, // locked: fast high tone
-  mslLaunch(d = 0) { const k = Math.max(0.15, 1 - d / 4000); hiss(0.24 * k, 1.7, 2800, 260); tone(0.14 * k, 0.3, 95, 45, "sine"); hiss(0.08 * k, 0.25, 600, 200); }, // motor ignition: bang + roar fading away
-  click() { tone(0.06, 0.05, 1200, 900, "square"); },
-  coin() { tone(0.1, 0.12, 988, 980, "square"); tone(0.1, 0.25, 1319, 1310, "square", 0.08); },
+  incoming() { noiseShape(0.14, 2.3, 1850, 320, "bandpass", 1.8, 0, 0.35); subBoom(0.08, 220, 85, 0.6, 0.6, 0.25); },
+  bell() {
+    for (const d of [0, 0.22]) {
+      voiceTone(0.16, 0.68, 1568, 1560, "sine", d);
+      voiceTone(0.08, 0.5, 3168, 3150, "sine", d);
+      voiceTone(0.05, 0.38, 4328, 4310, "sine", d);
+    }
+  },
+  ready() { voiceTone(0.075, 0.05, 880, 880, "triangle", 0, 2200); voiceTone(0.085, 0.09, 1320, 1320, "sine", 0.045); },
+  deny() { voiceTone(0.11, 0.14, 185, 110, "triangle", 0, 420); subBoom(0.1, 120, 65, 0.11); },
+  alarm() { for (let i = 0; i < 3; i++) klaxon(0.12, 0.27, 440, i * 0.4); },
+  torpWarn() { for (let i = 0; i < 3; i++) { klaxon(0.10, 0.15, 920, i * 0.34); klaxon(0.095, 0.15, 640, i * 0.34 + 0.16); } },
+  hitTick() { metalClank(0.11, 1850, 640, 0.05, 0); noiseShape(0.07, 0.04, 3400, 1200, "bandpass", 1.4, 0, 0.1); },
+  hitThunk() { subBoom(0.24, 138, 36, 0.14, 0, 0.25); metalClank(0.13, 460, 135, 0.09); noiseShape(0.08, 0.06, 1800, 420, "bandpass", 1.0, 0, 0.15); },
+  aaThump() { subBoom(0.16, 125, 42, 0.09, 0, 0.22); noiseShape(0.075, 0.055, 950, 300, "lowpass", 0.8, 0, 0.15); },
+  torpLaunch() { subBoom(0.26, 150, 52, 0.22, 0, 0.25); noiseShape(0.16, 0.55, 1600, 280, "bandpass", 1.3, 0.02, 0.35); noiseShape(0.12, 0.4, 520, 140, "lowpass", 0.8, 0.22, 0.25); },
+  lockTone() { voiceTone(0.055, 0.06, 1760, 1760, "triangle", 0, 3200); voiceTone(0.035, 0.06, 2640, 2640, "sine", 0.02); },
+  lockSeek() {
+    // AIM-9 IR seeker search growl
+    voiceTone(0.04, 0.075, 820, 790, "sawtooth", 0, 1250);
+    voiceTone(0.025, 0.075, 122, 118, "sawtooth", 0, 420);
+  },
+  lockSolid() {
+    // High steady AIM-9 good-tone lock growl
+    voiceTone(0.05, 0.14, 1520, 1520, "triangle", 0, 2600);
+    voiceTone(0.03, 0.14, 2280, 2280, "sine", 0);
+  },
+  mslLaunch(d = 0) {
+    const k = Math.max(0.15, 1 - d / 4000);
+    // Stage 1: VLS/rail ejection punch; Stage 2: booster ignition roar
+    subBoom(0.38 * k, 132, 36, 0.24, 0, 0.52);
+    noiseShape(0.22 * k, 0.18, 950, 230, "lowpass", 0.8, 0, 0.4);
+    noiseShape(0.28 * k, 1.65, 2500, 300, "bandpass", 0.65, 0.045, 0.65);
+    noiseShape(0.16 * k, 0.85, 4200, 1050, "highpass", 0.7, 0.055, 0.35);
+  },
+  click() { metalClank(0.06, 1450, 440, 0.022, 0, false); noiseShape(0.04, 0.016, 2400, 900, "bandpass", 1.2, 0, 0); },
+  coin() { voiceTone(0.08, 0.12, 988, 988, "triangle", 0, 2600); voiceTone(0.09, 0.26, 1319, 1319, "sine", 0.075); },
 };
 
 /** Per-frame: delayed sounds, ambience levels, the flown aircraft's engine. */
