@@ -195,10 +195,12 @@ export const sfx = {
     noiseShape(0.16, 0.48, 3800, 880, "bandpass", 0.95, 0.015, 0.3);
   },
   vulcan() {
-    // M61A1 20mm rotary cannon brrrt: 60Hz mechanical bark + supersonic crack
-    voiceTone(0.13, 0.055, 175, 115, "sawtooth", 0, 750);
-    subBoom(0.11, 165, 62, 0.055, 0, 0.18);
-    noiseShape(0.13, 0.065, 3600, 950, "bandpass", 0.9, 0, 0.25);
+    // M61A1 20mm rotary cannon brrrt: 100Hz rotary buzz + mechanical drum clatter + supersonic crack
+    voiceTone(0.14, 0.06, 198, 128, "sawtooth", 0, 920);
+    voiceTone(0.08, 0.055, 98, 92, "sawtooth", 0, 380);
+    subBoom(0.12, 168, 58, 0.06, 0, 0.2);
+    noiseShape(0.14, 0.068, 3900, 1050, "bandpass", 0.95, 0, 0.25);
+    metalClank(0.024, 1680 + Math.random() * 240, 760, 0.02, 0.01, false);
   },
   gun(cal) {
     const k = Math.min(1.15, cal / 406);
@@ -212,22 +214,27 @@ export const sfx = {
     const k = Math.min(1.15, cal / 406), a = atten(d);
     play("gun_far", { vol: a * (0.35 + 0.65 * k), rate: 1 + (1 - k) * 0.55, lp: 550 + 2800 * a });
     subBoom(a * 0.24 * (0.3 + 0.7 * k), 72, 24, 0.5, 0.02, 0.7);
+    if (a > 0.08) noiseShape(a * 0.14 * k, 0.55, 680, 140, "lowpass", 0.7, 0.08, 0.8);
   },
   splash(d, sc) {
     const a = atten(d), s = Math.min(sc, 1.15);
     play("splash", { vol: a * (0.25 + 0.6 * Math.min(sc, 1)), rate: 0.7 + (1 - Math.min(sc, 1)) * 0.5, lp: 800 + 7000 * a });
     subBoom(a * 0.22 * s, 88, 32, 0.34, 0, 0.45);
+    if (a > 0.08) noiseShape(a * 0.22 * s, 0.38, 1850, 320, "lowpass", 0.8, 0.015, 0.5);
   },
   hit(d, big = 1) {
     const a = atten(d);
     play("hit", { vol: a * (0.5 + 0.5 * big), rate: 1.25 - 0.4 * big, lp: 900 + 7000 * a });
     metalClank(a * (0.14 + 0.16 * big), 330 - 95 * big, 105, 0.15, 0);
+    if (big >= 1) metalClank(a * 0.12 * big, 210, 68, 0.22, 0.035);
     subBoom(a * (0.28 + 0.26 * big), 108, 28, 0.28, 0.008, 0.45);
   },
   explode(d) {
     const a = atten(d);
     play("explode", { vol: a, lp: 700 + 7000 * a });
     subBoom(a * 0.65, 92, 20, 0.88, 0, 0.8);
+    subBoom(a * 0.52, 58, 16, 1.15, 0.04, 0.85);
+    metalClank(a * 0.16, 480, 110, 0.28, 0.02);
     noiseShape(a * 0.26, 0.55, 2200, 250, "bandpass", 0.9, 0.09, 0.7);
     noiseShape(a * 0.14, 0.36, 3500, 480, "bandpass", 1.2, 0.26, 0.55);
   },
@@ -284,11 +291,13 @@ export const sfx = {
   },
   mslLaunch(d = 0) {
     const k = Math.max(0.15, 1 - d / 4000);
-    // Stage 1: VLS/rail ejection punch; Stage 2: booster ignition roar
+    // Stage 1: VLS hatch snap & ejection punch; Stage 2: booster ignition roar & plume crackle
+    metalClank(0.11 * k, 460, 160, 0.075, 0, false);
     subBoom(0.38 * k, 132, 36, 0.24, 0, 0.52);
     noiseShape(0.22 * k, 0.18, 950, 230, "lowpass", 0.8, 0, 0.4);
     noiseShape(0.28 * k, 1.65, 2500, 300, "bandpass", 0.65, 0.045, 0.65);
     noiseShape(0.16 * k, 0.85, 4200, 1050, "highpass", 0.7, 0.055, 0.35);
+    noiseShape(0.12 * k, 1.35, 3200, 520, "bandpass", 1.1, 0.18, 0.55);
   },
   click() { metalClank(0.055, 1620, 520, 0.018, 0, false); noiseShape(0.038, 0.014, 2600, 950, "bandpass", 1.25, 0, 0); },
   coin() { voiceTone(0.08, 0.12, 988, 988, "triangle", 0, 2600); voiceTone(0.09, 0.26, 1319, 1319, "sine", 0.075); },
