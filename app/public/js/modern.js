@@ -84,8 +84,9 @@ export function launch(S, key, target) {
   if (W.role === "pd" && target) m.vel.copy(target.pos).sub(p).normalize().multiplyScalar(300);
   M.list.push(m);
   flash.spawn({ x: p.x, y: p.y + 2, z: p.z, life: 0.45, s0: W.role === "pd" ? 4.5 : 8, s1: W.role === "pd" ? 10 : 18, a: 1, c: 0xffd078 });
+  if (W.role !== "pd" && !S.isJet) rings.spawn({ x: p.x, z: p.z, w0: 2.5, l0: 2.5, w1: 18, l1: 18, life: 0.9, a: 0.55 });
   if (W.role !== "pd") for (let i = 0; i < 8; i++) spark.spawn({ x: p.x + gauss(), y: p.y + 1, z: p.z + gauss(), vx: gauss() * 16, vy: 12 + rnd() * 26, vz: gauss() * 16, g: 12, life: 0.85, s0: 1.8, s1: 0.5, a: 1, c: i % 2 ? 0xffa644 : 0xffe49e });
-  for (let i = 0; i < (W.role === "pd" ? 3 : 11); i++) smoke.spawn({ x: p.x + gauss() * 1.4, y: p.y + rnd() * 3.5, z: p.z + gauss() * 1.4, vx: gauss() * 2.4, vy: 4 + rnd() * 6, vz: gauss() * 2.4, life: 4.5, s0: 3.5, s1: 15, a: 0.72, c: i % 2 ? 0xeae6dc : 0xc8c4ba });
+  for (let i = 0; i < (W.role === "pd" ? 3 : 13); i++) smoke.spawn({ x: p.x + gauss() * 1.4, y: p.y + rnd() * 3.5, z: p.z + gauss() * 1.4, vx: gauss() * 2.8, vy: 4 + rnd() * 7, vz: gauss() * 2.8, life: 5.2, s0: 3.5, s1: 17, a: 0.74, c: i % 2 ? 0xeae6dc : 0xc8c4ba });
   const d = p.distanceTo(camera.position); at(d, () => (m.air || W.role === "asm" ? (d < 6000 ? sfx.mslLaunch(d) : sfx.flak(d)) : d < 2500 ? sfx.torpLaunch() : sfx.flak(d)));
   return m;
 }
@@ -178,12 +179,20 @@ export function stepMissiles(dt, onHit) {
       flash.spawn({ x: m.pos.x, y: m.pos.y, z: m.pos.z, life: 0.14, s0: 3.2, s1: 7.5, a: 0.75, c: 0xffb868 });
       spark.spawn({ x: m.pos.x + gauss() * 0.8, y: m.pos.y + gauss() * 0.8, z: m.pos.z + gauss() * 0.8, vx: gauss() * 14, vy: gauss() * 14, vz: gauss() * 14, life: 0.35, s0: 1.5, s1: 0.4, a: 0.9, c: 0xffd27a });
     }
+    if (!m.machFX && mSpd > 620) {
+      m.machFX = true;
+      for (let k = 0; k < 5; k++) smoke.spawn({ x: m.pos.x + gauss() * 2, y: m.pos.y + gauss() * 2, z: m.pos.z + gauss() * 2, vx: gauss() * 5, vy: gauss() * 5, vz: gauss() * 5, life: 0.65, s0: 4.5, s1: 16, a: 0.52, c: 0xf2f8ff });
+    }
+    if (W.alt === "ball" && m.vel.y < -80 && rnd() < dt * 24) {
+      flash.spawn({ x: m.pos.x, y: m.pos.y, z: m.pos.z, life: 0.12, s0: 3.6, s1: 8.5, a: 0.8, c: 0xff9840 });
+    }
     if (!boost && m.air && m.t < 2.2 && rnd() < dt * 24) {
       smoke.spawn({ x: m.pos.x, y: m.pos.y, z: m.pos.z, vx: gauss() * 1.5, vy: gauss() * 1.5, vz: gauss() * 1.5, life: 1.8, s0: 1.4, s1: 5.5, a: 0.42, c: 0xefefef });
     }
     if (W.role === "asm" && W.alt === "skim" && !boost && m.pos.y < 14) {
-      if (rnd() < dt * 24) spray.spawn({ x: m.pos.x + gauss() * 1.5, y: 0.8, z: m.pos.z + gauss() * 1.5, vx: gauss() * 4, vy: 4 + rnd() * 6.5, vz: gauss() * 4, life: 0.75, s0: 2.2, s1: 8, a: 0.5, c: 0xeaf4f8 });
-      if (rnd() < dt * 6.5) rings.spawn({ x: m.pos.x, z: m.pos.z, w0: 3, l0: 3, w1: 16, l1: 16, life: 1.4, a: 0.36 });
+      if (rnd() < dt * 26) spray.spawn({ x: m.pos.x + gauss() * 1.5, y: 0.8, z: m.pos.z + gauss() * 1.5, vx: gauss() * 4, vy: 4 + rnd() * 7, vz: gauss() * 4, life: 0.75, s0: 2.2, s1: 8.5, a: 0.54, c: 0xeaf4f8 });
+      if (mSpd > 240 && rnd() < dt * 16) smoke.spawn({ x: m.pos.x + gauss() * 1.4, y: 1.4, z: m.pos.z + gauss() * 1.4, vx: gauss() * 3, vy: 1.8, vz: gauss() * 3, life: 1.3, s0: 2.0, s1: 7.5, a: 0.34, c: 0xeaf4fa });
+      if (rnd() < dt * 7) rings.spawn({ x: m.pos.x, z: m.pos.z, w0: 3, l0: 3, w1: 17, l1: 17, life: 1.4, a: 0.38 });
     }
     if (m.pos.y < 0.5 && !boost) { kill(m, "sea"); continue; }
     if (m.dist > W.range * (W.role === "asm" ? 1.15 : 1.3)) { if (W.role === "asm") { m.vel.y -= 30 * dt; } else { kill(m, "air"); continue; } }
@@ -203,6 +212,8 @@ export function stepMissiles(dt, onHit) {
 }
 function impact(m, S, lx, onHit) {
   const W = m.W; kill(m, "hit"); const p = m.pos.clone(); hitFX(p, 1.1);
+  rings.spawn({ x: p.x, z: p.z, w0: 8, l0: 8, w1: 72, l1: 72, life: 1.8, a: 0.52 });
+  if (p.y < 22) for (let i = 0; i < 8; i++) spray.spawn({ x: p.x + gauss() * 4, y: 1.5, z: p.z + gauss() * 4, vx: gauss() * 10, vy: 12 + rnd() * 20, vz: gauss() * 10, life: 1.2, s0: 3.5, s1: 13, a: 0.58, c: 0xe8f2f8 });
   for (let i = 0; i < 30; i++) spark.spawn({ x: p.x, y: p.y + 2, z: p.z, vx: gauss() * 25, vy: 10 + rnd() * 30, vz: gauss() * 25, g: 9.8, life: 2.4, s0: 2.6, s1: 0.8, a: 1, c: 0xffa040 });
   for (let i = 0; i < 6; i++) smoke.spawn({ x: p.x + gauss() * 3, y: p.y + 3, z: p.z + gauss() * 3, vy: 6, life: 10, s0: 8, s1: 30, a: 0.75, c: 0x1e1e1e });
   const d = p.distanceTo(camera.position); at(d, () => sfx.explode(d)); if (S.isPlayer) G.shake = 2;

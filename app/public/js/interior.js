@@ -493,6 +493,28 @@ const JV_F = new THREE.Vector3(), JV_U = new THREE.Vector3(), JV_R = new THREE.V
   const thr = new THREE.Group(); thr.position.set(-0.42, -0.58, -0.48); g.add(thr); bx(thr, 0.075, 0.068, 0.095, body, 0, 0.05, 0); bx(thr, 0.02, 0.018, 0.04, M(0xb82820), 0.028, 0.09, -0.01); g.userData.thr = thr;
   bx(g, 0.22, 0.03, 0.56, trim, -0.54, -0.6, -0.45); bx(g, 0.22, 0.03, 0.56, trim, 0.54, -0.6, -0.45);
   const ejectLoop = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.008, 6, 16), M(0xe6b822)); ejectLoop.position.set(0, -0.66, -0.54); ejectLoop.rotation.x = 0.7; g.add(ejectLoop);
+  // Peripheral G-LOC dark vignette (center 100% clear) + high-AoA / transonic LERX condensation ribbons
+  const gvCan = document.createElement("canvas"); gvCan.width = 128; gvCan.height = 128;
+  {
+    const gc = gvCan.getContext("2d"), gg = gc.createRadialGradient(64, 64, 34, 64, 64, 66);
+    gg.addColorStop(0, "rgba(0,0,0,0)"); gg.addColorStop(0.65, "rgba(0,0,0,0.35)"); gg.addColorStop(1, "rgba(0,0,0,0.95)");
+    gc.fillStyle = gg; gc.fillRect(0, 0, 128, 128);
+  }
+  const gVig = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.9), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(gvCan), transparent: true, opacity: 0, depthWrite: false }));
+  gVig.position.set(0, 0, -0.45); g.add(gVig); jetPit.userData.gVig = gVig;
+  const vCan = document.createElement("canvas"); vCan.width = 64; vCan.height = 128;
+  {
+    const vc = vCan.getContext("2d"), vg = vc.createRadialGradient(32, 64, 3, 32, 64, 32);
+    vg.addColorStop(0, "rgba(235,245,255,0.75)"); vg.addColorStop(1, "rgba(235,245,255,0)");
+    vc.fillStyle = vg; vc.save(); vc.scale(0.55, 1.8); vc.beginPath(); vc.arc(58, 36, 30, 0, PI * 2); vc.fill(); vc.restore();
+  }
+  const vMat = new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(vCan), transparent: true, opacity: 0, depthWrite: false, side: THREE.DoubleSide });
+  jetPit.userData.wingVapor = [];
+  for (const s of [-1, 1]) {
+    const vp = new THREE.Mesh(new THREE.PlaneGeometry(0.46, 1.65), vMat);
+    vp.position.set(s * 0.88, -0.35, -2.05); vp.rotation.set(-PI / 2 + 0.08, 0, -s * 0.22);
+    g.add(vp); jetPit.userData.wingVapor.push(vp);
+  }
 }
 let jpT = 0, jhT = 0, jHeadX = 0, jHeadY = 0, jHeadZ = 0;
 function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaDeg, abK) {
@@ -543,16 +565,19 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaD
   x.lineTo(cx + Math.cos(ba - 0.04) * (br - 11), by + Math.sin(ba - 0.04) * (br - 11));
   x.lineTo(cx + Math.cos(ba + 0.04) * (br - 11), by + Math.sin(ba + 0.04) * (br - 11)); x.closePath(); x.fill();
   // Left airspeed box + G-load + AOA + Mach + AB Gate
+  const mach = j.vel.length() / 340;
   x.fillStyle = gLoad >= 7.2 ? red : gLoad >= 4.8 ? amber : green; x.font = "bold 14px monospace"; x.textAlign = "right";
-  x.fillText(`${gLoad.toFixed(1)}G`, 82, cy - 46);
-  x.fillStyle = green; x.fillText(`α ${aoaDeg.toFixed(1)}°`, 82, cy - 28);
+  x.fillText(`${gLoad.toFixed(1)}G${gLoad >= 7.0 ? " !" : ""}`, 82, cy - 46);
+  x.fillStyle = aoaDeg >= 16 ? amber : green; x.fillText(`α ${aoaDeg.toFixed(1)}°`, 82, cy - 28);
   x.font = "bold 20px monospace";
   x.strokeRect(14, cy - 18, 72, 32); x.fillText(String(Math.round(spdKmh)), 80, cy + 5);
   x.font = "bold 14px monospace";
-  x.fillText(`M ${(j.vel.length() / 340).toFixed(2)}`, 82, cy + 32);
+  x.fillStyle = mach >= 0.98 ? amber : green;
+  x.fillText(`M ${mach.toFixed(2)}`, 82, cy + 32);
   x.fillStyle = abOn ? amber : green;
   x.fillText(abOn ? `AB ${thrPct}%` : `THR ${thrPct}%`, 82, cy + 50);
   if (abOn) { x.strokeStyle = amber; x.strokeRect(24, cy + 56, 60, 18); x.font = "bold 12px monospace"; x.fillText("AB GATE", 80, cy + 69); }
+  if (mach >= 0.98) { x.fillStyle = amber; x.font = "bold 11px monospace"; x.fillText("SUPERSONIC", 82, cy + (abOn ? 84 : 66)); }
   // Right altitude box + vertical speed cue
   x.fillStyle = green; x.strokeStyle = green; x.textAlign = "left";
   x.font = "bold 20px monospace"; x.strokeRect(W - 86, cy - 18, 72, 32);
@@ -564,7 +589,7 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaD
   x.font = "bold 16px monospace"; x.textAlign = "center";
   x.strokeRect(cx - 28, 12, 56, 24); x.fillText(String(Math.round(hdg)).padStart(3, "0"), cx, 30);
   x.beginPath(); x.moveTo(cx - 110, 46); x.lineTo(cx + 110, 46); x.moveTo(cx - 6, 40); x.lineTo(cx, 46); x.lineTo(cx + 6, 40); x.stroke();
-  // Dynamic gun pipper + AAM lock / RWR / pull-up alerts
+  // Dynamic gun pipper + AAM lock / RWR / pull-up / OVER-G alerts
   const fire = !!(info.firing && j.gun > 0);
   if (fire || info.gunHit > 0) {
     const r = fire ? 22 + Math.sin(performance.now() * 0.04) * 3 : 20;
@@ -584,6 +609,8 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaD
     x.fillStyle = red; x.strokeStyle = red; x.lineWidth = 3;
     x.beginPath(); x.moveTo(cx - 56, cy - 72); x.lineTo(cx + 56, cy + 56); x.moveTo(cx + 56, cy - 72); x.lineTo(cx - 56, cy + 56); x.stroke();
     x.font = "bold 20px monospace"; x.fillText("PULL UP", cx, cy - 82);
+  } else if (gLoad >= 7.2 && Math.floor(performance.now() / 220) % 2 === 0) {
+    x.fillStyle = amber; x.font = "bold 15px monospace"; x.fillText("OVER G", cx, cy - 78);
   }
   if (info.rwr) {
     x.fillStyle = red; x.strokeStyle = red; x.lineWidth = 2;
@@ -602,6 +629,7 @@ export function updateJetPit(j, dt, info = {}) {
   JV_U.set(0, 1, 0).applyQuaternion(j.q);
   JV_R.set(0, 0, 1).applyQuaternion(j.q);
   const spdMs = j.vel.length(), spdKmh = spdMs * 3.6, altM = j.pos.y, thrPct = clamp(Math.round(((j.thr - 110) / 220) * 100), 0, 100);
+  const mach = spdMs / 340;
   const truePitch = Math.asin(clamp(JV_F.y, -1, 1)), trueRoll = Math.atan2(-JV_R.y, JV_U.y);
   const hdg = info.hdg ?? ((Math.atan2(JV_F.x, -JV_F.z) * 180 / PI + 360) % 360);
   const angRate = j._prevF ? JV_F.angleTo(j._prevF) / Math.max(dt, 1e-3) : 0;
@@ -614,14 +642,21 @@ export function updateJetPit(j, dt, info = {}) {
   const stickPitch = info.pitch || clamp(angRate * 0.5, -1, 1);
   jetPit.userData.stick.rotation.set(-stickPitch * 0.28, 0, -stickRoll * 0.28);
   jetPit.userData.thr.position.z = -0.48 - (thrPct / 100) * 0.13;
-  // G-force inertial head lag + afterburner longitudinal kick + Vulcan muzzle recoil/buffet
+  // G-force inertial head lag + transonic compressibility & high-AoA buffet + Vulcan muzzle recoil
   const firing = !!(info.firing && j.gun > 0), gBuf = Math.max(0, (j._g - 2.2) * 0.22);
-  const vib = (firing ? 0.0042 : 0) + (ab ? 0.0014 : 0.0004) + gBuf * 0.0018;
+  const transBuf = mach >= 0.94 && mach <= 1.06 ? 1 - Math.abs(mach - 1.0) / 0.06 : 0;
+  const aoaBuf = clamp((aoaDeg - 11) / 10, 0, 1);
+  const vib = (firing ? 0.0042 : 0) + (ab ? 0.0014 : 0.0004) + gBuf * 0.0018 + transBuf * 0.0014 + aoaBuf * 0.0016;
   jHeadX += (clamp(-trueRoll * 0.014, -0.018, 0.018) - jHeadX) * Math.min(1, dt * 6);
   jHeadY += (clamp(-(j._g - 1) * 0.0045, -0.022, 0.012) - jHeadY) * Math.min(1, dt * 6);
   jHeadZ += (clamp(-abK * 0.014, -0.016, 0.006) - jHeadZ) * Math.min(1, dt * 5);
   jetPit.position.set(jHeadX + (Math.random() - 0.5) * vib, jHeadY + (Math.random() - 0.5) * vib, jHeadZ + (firing ? (Math.random() - 0.5) * 0.003 : 0));
   if (jetPit.userData.gunGlow) jetPit.userData.gunGlow.material.opacity = firing ? 0.18 + Math.random() * 0.25 : 0;
+  if (jetPit.userData.gVig) jetPit.userData.gVig.material.opacity = clamp((j._g - 5.2) / 4.2, 0, 0.72);
+  if (jetPit.userData.wingVapor?.length) {
+    const vOp = clamp(Math.max(aoaBuf * 0.42, transBuf * 0.52), 0, 0.55);
+    jetPit.userData.wingVapor[0].material.opacity = vOp > 0.02 ? vOp * (0.85 + Math.random() * 0.3) : 0;
+  }
   const blink = Math.floor(performance.now() / 180) % 2 === 0;
   if (jetPit.userData.mcLamp) jetPit.userData.mcLamp.material.color.setHex((j.hit || (altM < 65 && j.vel.y < -8)) && blink ? 0xffb326 : 0x2a1408);
   if (jetPit.userData.rwrLamp) jetPit.userData.rwrLamp.material.color.setHex(info.rwr && blink ? 0xff3b2f : 0x2a0808);
