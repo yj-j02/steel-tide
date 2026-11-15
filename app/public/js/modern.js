@@ -75,8 +75,9 @@ export function launch(S, key, target) {
     mesh: mesh(W, S.side, W.role === "asm" ? 1.25 : W.role === "pd" ? 0.7 : 1), apex: W.alt === "ball" ? 9000 : 0 };
   if (W.role === "pd" && target) m.vel.copy(target.pos).sub(p).normalize().multiplyScalar(300);
   M.list.push(m);
-  flash.spawn({ x: p.x, y: p.y + 2, z: p.z, life: 0.35, s0: 5, s1: 12, a: 1, c: 0xffd27a });
-  for (let i = 0; i < (W.role === "pd" ? 2 : 6); i++) smoke.spawn({ x: p.x + gauss(), y: p.y + rnd() * 3, z: p.z + gauss(), vx: gauss(), vy: 3 + rnd() * 4, vz: gauss(), life: 3.5, s0: 3, s1: 12, a: 0.65, c: 0xe8e8e8 });
+  flash.spawn({ x: p.x, y: p.y + 2, z: p.z, life: 0.4, s0: W.role === "pd" ? 4 : 7, s1: W.role === "pd" ? 9 : 16, a: 1, c: 0xffc668 });
+  if (W.role !== "pd") for (let i = 0; i < 6; i++) spark.spawn({ x: p.x + gauss(), y: p.y + 1, z: p.z + gauss(), vx: gauss() * 14, vy: 12 + rnd() * 22, vz: gauss() * 14, g: 12, life: 0.7, s0: 1.6, s1: 0.5, a: 1, c: 0xffa644 });
+  for (let i = 0; i < (W.role === "pd" ? 2 : 9); i++) smoke.spawn({ x: p.x + gauss() * 1.4, y: p.y + rnd() * 3, z: p.z + gauss() * 1.4, vx: gauss() * 2, vy: 4 + rnd() * 5, vz: gauss() * 2, life: 4.2, s0: 3.5, s1: 14, a: 0.7, c: i % 2 ? 0xeae6dc : 0xc8c4ba });
   const d = p.distanceTo(camera.position); at(d, () => (m.air || W.role === "asm" ? (d < 6000 ? sfx.mslLaunch(d) : sfx.flak(d)) : d < 2500 ? sfx.torpLaunch() : sfx.flak(d)));
   return m;
 }
@@ -115,8 +116,15 @@ export function stepMissiles(dt, onHit) {
     if (!m.alive) { M.list.splice(i, 1); continue; }
     const W = m.W; m.t += dt;
     const boost = W.role !== "pd" && !m.air && m.t < 1.1;
-    if (boost) { m.vel.y = Math.min(m.vel.y + 160 * dt, 160); }
-    else {
+    if (boost) {
+      m.vel.y = Math.min(m.vel.y + 160 * dt, 160);
+      if (rnd() < dt * 28) smoke.spawn({ x: m.pos.x, y: m.pos.y, z: m.pos.z, vx: gauss() * 2, vy: -4, vz: gauss() * 2, life: 2.2, s0: 2.2, s1: 8, a: 0.5, c: 0xdedad0 });
+    } else {
+      if (W.role !== "pd" && !m.air && !m.boostDone) {
+        m.boostDone = true;
+        flash.spawn({ x: m.pos.x, y: m.pos.y, z: m.pos.z, life: 0.25, s0: 4, s1: 10, a: 0.95, c: 0xffb858 });
+        for (let k = 0; k < 4; k++) spark.spawn({ x: m.pos.x, y: m.pos.y, z: m.pos.z, vx: gauss() * 18, vy: -8 - rnd() * 14, vz: gauss() * 18, g: 9.8, life: 0.8, s0: 1.4, s1: 0.4, a: 1, c: 0xff9a3a });
+      }
       const want = W.role === "asm" ? (W.sprint && m.target && m.pos.distanceTo(m.target.pos) < 7000 ? W.sprint : W.v) : W.v;
       const v = m.vel.length(); m.vel.setLength(v + (want - v) * Math.min(1, dt * (W.role === "asm" ? 0.8 : 2.5)));
       if (W.role === "asm") {
@@ -150,9 +158,12 @@ export function stepMissiles(dt, onHit) {
       }
     }
     m.pos.addScaledVector(m.vel, dt); m.dist += m.vel.length() * dt;
+    if (W.role === "asm" && W.alt === "skim" && !boost && m.pos.y < 14 && rnd() < dt * 20) {
+      spray.spawn({ x: m.pos.x + gauss() * 1.5, y: 0.8, z: m.pos.z + gauss() * 1.5, vx: gauss() * 4, vy: 4 + rnd() * 6, vz: gauss() * 4, life: 0.7, s0: 2.2, s1: 7.5, a: 0.48, c: 0xeaf4f8 });
+    }
     if (m.pos.y < 0.5 && !boost) { kill(m, "sea"); continue; }
     if (m.dist > W.range * (W.role === "asm" ? 1.15 : 1.3)) { if (W.role === "asm") { m.vel.y -= 30 * dt; } else { kill(m, "air"); continue; } }
-    m.mesh.position.copy(m.pos); m.mesh.quaternion.setFromUnitVectors(X, tmp.copy(m.vel).normalize()); m.mesh.userData.fl.scale.x = 1.4 + Math.random() * 0.8;
+    m.mesh.position.copy(m.pos); m.mesh.quaternion.setFromUnitVectors(X, tmp.copy(m.vel).normalize()); m.mesh.userData.fl.scale.x = (W.cls === "hyp" || (W.sprint && m.vel.length() > W.v * 1.15) ? 2.4 : 1.45) + Math.random() * 0.9;
     m.trT -= dt; if (m.trT <= 0 && !W.drone) { m.trT = 0.1; m.trail.push(m.pos.clone()); if (m.trail.length > (W.role === "asm" ? 40 : 18)) m.trail.shift(); }
     const c = m.side === "us" ? (W.role === "asm" ? [0.95, 0.95, 0.95] : [0.65, 0.85, 1]) : [1, 0.55, 0.45];
     for (let j = 0; j + 1 < m.trail.length && n < TR_MAX; j++) { const a = m.trail[j], b = m.trail[j + 1]; tp.set([a.x, a.y, a.z, b.x, b.y, b.z], n * 6); tc.set([...c, ...c], n * 6); n++; }
@@ -333,7 +344,11 @@ export function stepFlares(dt) {
 export function jetGun(j) {
   const f = j.q ? new THREE.Vector3(1, 0, 0).applyQuaternion(j.q) : j.vel.clone().normalize(), o = j.pos.clone().addScaledVector(f, 9);
   const v = f.clone().multiplyScalar(1050).add(j.vel); v.x += gauss() * 5; v.y += gauss() * 5; v.z += gauss() * 5;
-  spark.spawn({ x: o.x, y: o.y - 0.6, z: o.z, vx: v.x, vy: v.y, vz: v.z, g: 9.8, life: 1.5, s0: 1.3, s1: 0.9, a: 1, c: 0xffe08a });
+  spark.spawn({ x: o.x, y: o.y - 0.6, z: o.z, vx: v.x, vy: v.y, vz: v.z, g: 9.8, life: 1.5, s0: 1.4, s1: 0.9, a: 1, c: 0xffe48e });
+  if (j.gun % 4 === 0) {
+    flash.spawn({ x: o.x, y: o.y - 0.5, z: o.z, life: 0.055, s0: 2.2, s1: 0.8, a: 0.85, c: 0xffcc66 });
+    smoke.spawn({ x: o.x, y: o.y - 0.5, z: o.z, vx: j.vel.x * 0.25 + gauss() * 2, vy: j.vel.y * 0.25 + 1, vz: j.vel.z * 0.25 + gauss() * 2, life: 0.45, s0: 1.1, s1: 3.4, a: 0.28, c: 0xd0d0cc });
+  }
   let res = null;
   for (const t of [...M.jets, ...M.list]) { if (!t.alive || t.side === j.side || (!t.isJet && t.W.role !== "asm")) continue;
     const d = t.pos.clone().sub(j.pos), L = d.length(); if (L > 1700 || L < 30) continue;
@@ -341,12 +356,19 @@ export function jetGun(j) {
       const r0 = o.clone().sub(t.pos), rv = v.clone().sub(t.vel || r0.clone().set(0, 0, 0)), s = clamp(-r0.dot(rv) / Math.max(rv.lengthSq(), 1e-6), 0, 1.7); if (r0.addScaledVector(rv, s).length() > (t.isJet ? 14 : 9)) continue; }
     else { const ang = Math.acos(clamp(d.dot(f) / L, -1, 1)); if (ang > 0.02 + 14 / L) continue; if (rnd() > 0.32) continue; } /* AI pilots keep the old cone and odds */
     t.gh = (t.gh || 0) + 1; res = res || "hit";
-    flash.spawn({ x: t.pos.x, y: t.pos.y, z: t.pos.z, life: 0.15, s0: 3, s1: 7, a: 1, c: 0xffc070 });
+    flash.spawn({ x: t.pos.x, y: t.pos.y, z: t.pos.z, life: 0.16, s0: 3.5, s1: 8, a: 1, c: 0xffba55 });
+    for (let k = 0; k < 3; k++) spark.spawn({ x: t.pos.x, y: t.pos.y, z: t.pos.z, vx: gauss() * 22, vy: gauss() * 16, vz: gauss() * 22, g: 9.8, life: 0.65, s0: 1.4, s1: 0.5, a: 1, c: 0xffd068 });
+    if (j.pilot) sfx.hitTick();
     if (t.gh >= (t.isJet ? 5 : 1)) { if (t.pilot && !t.hit) { t.hit = true; t.gh = 0; G.onJetHit?.(t); continue; } t.killedBy = j; kill(t, "boom"); res = "kill"; } }
   // strafing a warship: 20 mm rounds knock out its search radar, then its CIWS (not the hull)
   if (j.pilot) for (const S of G.ships) { if (!S.alive || S.side === j.side || !S.spec.modern) continue;
     const d = S.pos.clone().setY(S.spec.fb + 6).sub(j.pos), L = d.length(); if (L > 1700 || L < 40) continue; const ang = Math.acos(clamp(d.dot(f) / L, -1, 1)); if (ang > 0.03 + S.spec.L * 0.35 / L) continue;
-    if (rnd() > 0.4) continue; S.strafe = (S.strafe || 0) + 1; res = res || "hit"; flash.spawn({ x: S.pos.x + gauss() * 8, y: S.spec.fb + 6 + rnd() * 8, z: S.pos.z + gauss() * 8, life: 0.15, s0: 2, s1: 5, a: 1, c: 0xffc070 });
+    if (rnd() > 0.4) continue; S.strafe = (S.strafe || 0) + 1; res = res || "hit";
+    const hx = S.pos.x + gauss() * 8, hy = S.spec.fb + 6 + rnd() * 8, hz = S.pos.z + gauss() * 8;
+    flash.spawn({ x: hx, y: hy, z: hz, life: 0.16, s0: 2.5, s1: 6, a: 1, c: 0xffc070 });
+    spark.spawn({ x: hx, y: hy, z: hz, vx: gauss() * 14, vy: 8 + rnd() * 12, vz: gauss() * 14, g: 9.8, life: 0.6, s0: 1.2, s1: 0.4, a: 1, c: 0xffd27a });
+    if (S.strafe % 3 === 0) smoke.spawn({ x: hx, y: hy, z: hz, vy: 3, life: 2.5, s0: 2, s1: 6, a: 0.4, c: 0x353535 });
+    sfx.hitThunk();
     if (S.strafe === 25 && !S.radarDead) { S.radarDead = true; S.radarOn = false; G.onStrafe?.(S, "radar"); }
     if (S.strafe === 50 && !S.ciwsDead) { S.ciwsDead = true; G.onStrafe?.(S, "ciws"); } }
   return res;

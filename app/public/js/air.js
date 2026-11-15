@@ -153,7 +153,8 @@ export class Plane {
         const g = GUNS6[this.gunI++ % 6], m = o.localToWorld(new THREE.Vector3(...g)), conv = o.position.clone().addScaledVector(f, 260);
         const dir = conv.sub(m).normalize(); dir.x += gauss() * 0.004; dir.y += gauss() * 0.004; dir.z += gauss() * 0.004;
         air.bullets.push({ p: m, v: f.clone().multiplyScalar(this.speed).addScaledVector(dir, 870), t: 0, side: this.side, by: this, own: this === G.plane });
-        if (this.gunI % 3 === 0) flash.spawn({ x: m.x, y: m.y, z: m.z, life: 0.05, s0: 1.1, s1: 0.7, a: 0.9, c: 0xffd890 });
+        if (this.gunI % 2 === 0) flash.spawn({ x: m.x, y: m.y, z: m.z, life: 0.055, s0: 1.25, s1: 0.7, a: 0.95, c: 0xffd27a });
+        if (this.gunI % 6 === 0) smoke.spawn({ x: m.x, y: m.y, z: m.z, vx: this.vel.x * 0.2 + gauss(), vy: this.vel.y * 0.2, vz: this.vel.z * 0.2 + gauss(), life: 0.45, s0: 0.9, s1: 2.6, a: 0.25, c: 0xd8d6cf });
         if (this.gunI % 2 === 0) { const d = this === G.plane ? 0 : camera.position.distanceTo(o.position); if (d < 30) sfx.mgShot(0); else if (this.gunI % 6 === 0) at(d, () => sfx.mgShot(d)); }
       }
     } else this.fireT = 0;
@@ -172,14 +173,14 @@ export class Plane {
     if (!this.alive || this.bombs <= 0 || this.bombCD > 0) return false;
     this.bombs--; this.bombCD = 0.6; if (this.side === "us" && G.stats) G.stats.bombsDropped = (G.stats.bombsDropped || 0) + 1; const o = this.obj, m = new THREE.Mesh(bombGeo, bombMat);
     const p = o.localToWorld(new THREE.Vector3(this.bombs ? 1.2 : -1.2, -0.7, 0.6)); m.position.copy(p); scene.add(m);
-    air.bombs.push({ p, v: this.vel, m, side: this.side, trail: [p.clone()], tt: 0, from: this }); if (this === G.plane) sfx.click(); return true;
+    air.bombs.push({ p, v: this.vel, m, side: this.side, trail: [p.clone()], tt: 0, from: this }); if (this === G.plane) sfx.hitThunk(); return true;
   }
   /** Decoy flares (game feature, not WWII equipment): AA lays on the flare for a few seconds. */
   dropFlare() {
     if (!this.alive || this.flares <= 0 || this.flareCD > 0) return false;
     this.flares--; this.flareCD = 1.2; this.flareT = 4;
     for (const s of [-1, 1]) { const p = this.obj.localToWorld(new THREE.Vector3(s * 0.8, -0.6, -2)), v = this.vel.multiplyScalar(0.55).add(new THREE.Vector3(gauss() * 6, -4, gauss() * 6)); const f = { p, v, t: 5 }; air.flares.push(f); this.flareP = f; }
-    if (this === G.plane) sfx.click(); return true;
+    if (this === G.plane) sfx.flare(); return true;
   }
   damage(n, by = null) {
     if (!this.alive) return; this.hp -= n; if (this.ai && this.hp < 80 && rnd() < 0.08) this.dropFlare();
