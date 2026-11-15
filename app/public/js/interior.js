@@ -488,6 +488,7 @@ export const aaGun = new THREE.Group(); aaGun.visible = false; ovScene.add(aaGun
   const flashTex = new THREE.CanvasTexture(fCan);
   const barrels = new THREE.Group(); g.add(barrels);
   aaGun.userData.barrels = []; aaGun.userData.muzzles = []; aaGun.userData.clips = []; aaGun.userData.casings = [];
+  const aaHeatM = M(0x16191b, { metalness: 0.48, roughness: 0.48 }); aaGun.userData.heatM = aaHeatM;
   for (const s of [1, -1]) {
     // stationary twin recoil cradle & hydraulic recuperator cylinder under each barrel
     const cradle = new THREE.Mesh(new THREE.CylinderGeometry(0.082, 0.088, 0.72, 12), olive);
@@ -499,8 +500,8 @@ export const aaGun = new THREE.Group(); aaGun.visible = false; ovScene.add(aaGun
     const b = new THREE.Group(); b.position.set(s * 0.36, -0.6, -0.75); barrels.add(b); aaGun.userData.barrels.push(b);
     const tube = new THREE.Mesh(new THREE.CylinderGeometry(0.032, 0.046, 2.25, 12), gun); tube.rotation.x = PI / 2; tube.position.z = -1.12; b.add(tube);
     // stepped Bofors conical flash hider + dark bore aperture
-    const hider = new THREE.Mesh(new THREE.CylinderGeometry(0.064, 0.044, 0.28, 12), blk); hider.rotation.x = PI / 2; hider.position.z = -2.32; b.add(hider);
-    const hiderLip = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.008, 6, 16), blk); hiderLip.position.z = -2.45; b.add(hiderLip);
+    const hider = new THREE.Mesh(new THREE.CylinderGeometry(0.064, 0.044, 0.28, 12), aaHeatM); hider.rotation.x = PI / 2; hider.position.z = -2.32; b.add(hider);
+    const hiderLip = new THREE.Mesh(new THREE.TorusGeometry(0.062, 0.008, 6, 16), aaHeatM); hiderLip.position.z = -2.45; b.add(hiderLip);
     // cooling sleeve + machined spring/cooling ribs along barrel base
     const jacket = new THREE.Mesh(new THREE.CylinderGeometry(0.072, 0.075, 0.68, 12), olive); jacket.rotation.x = PI / 2; jacket.position.z = -0.22; b.add(jacket);
     for (let f = 0; f < 5; f++) {
@@ -543,6 +544,7 @@ export const aaGun = new THREE.Group(); aaGun.visible = false; ovScene.add(aaGun
   const innerM = new THREE.MeshBasicMaterial({ color: 0x15181a, transparent: true, opacity: 0.24 });
   aaGun.userData.ringM = ringM; aaGun.userData.innerM = innerM;
   const aaLight = new THREE.PointLight(0xff4228, 0, 3.2); aaLight.position.set(0, -0.15, -0.4); g.add(aaLight); aaGun.userData.nLight = aaLight;
+  const aaMzLight = new THREE.PointLight(0xffb450, 0, 4.4); aaMzLight.position.set(0, -0.42, -2.55); g.add(aaMzLight); aaGun.userData.mzLight = aaMzLight;
   {
     const t = new THREE.Mesh(new THREE.TorusGeometry(0.175, 0.0012, 6, 64), ringM); t.position.set(0, 0, -1.1); g.add(t);
     const t2 = new THREE.Mesh(new THREE.TorusGeometry(0.088, 0.0009, 6, 48), innerM); t2.position.set(0, 0, -1.1); g.add(t2);
@@ -552,6 +554,7 @@ export const aaGun = new THREE.Group(); aaGun.visible = false; ovScene.add(aaGun
     }
   }
 }
+let aaHeat = 0;
 export function updateAAGun(recoil) {
   const { night, storm } = syncOvLight();
   if (aaGun.userData.ringM) {
@@ -572,7 +575,7 @@ export function updateAAGun(recoil) {
       cs.m.visible = r > 0.12;
       if (cs.m.visible) {
         const t = 1 - r;
-        cs.m.position.set(cs.s * (0.36 + t * 0.08), -0.58 - t * t * 0.42, -0.88 - t * 0.45);
+        cs.m.position.set(cs.s * (0.36 + t * 0.12), -0.58 - t * t * 0.42, -0.88 - t * 0.45);
         cs.m.rotation.set(t * 11, t * 5, cs.s * 0.8);
       }
     }
@@ -591,6 +594,9 @@ export function updateAAGun(recoil) {
       }
     }
   });
+  aaHeat = active > 0 ? clamp(aaHeat + 0.045, 0, 1) : Math.max(0, aaHeat - 0.012);
+  if (aaGun.userData.heatM) aaGun.userData.heatM.emissive.setRGB(aaHeat * 0.38, aaHeat * 0.09, 0);
+  if (aaGun.userData.mzLight) aaGun.userData.mzLight.intensity = active > 0 ? 1.15 + active * 0.95 + Math.random() * 0.8 : 0;
   aaGun.position.set(active ? (Math.random() - 0.5) * 0.004 : 0, active ? (Math.random() - 0.5) * 0.003 : 0, 0);
 }
 

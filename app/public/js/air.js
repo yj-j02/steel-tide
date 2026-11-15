@@ -198,7 +198,13 @@ export class Plane {
     if (this === G.plane) sfx.flare(); return true;
   }
   damage(n, by = null) {
-    if (!this.alive) return; this.hp -= n; if (this.ai && this.hp < 80 && rnd() < 0.08) this.dropFlare();
+    if (!this.alive) return; this.hp -= n;
+    if (this === G.plane && this.hp > 0 && G.time >= (this._hitSfxT || 0)) {
+      this._hitSfxT = G.time + 0.12;
+      G.shake = Math.max(G.shake || 0, Math.min(0.45, 0.16 + n * 0.03));
+      sfx.ricochet ? sfx.ricochet(0, 0.48) : sfx.hitThunk?.();
+    }
+    if (this.ai && this.hp < 80 && rnd() < 0.08) this.dropFlare();
     if (this.ai && by && by.alive && this.mode !== "home" && this.ammo > 0 && this.mode !== "dogfight" && this.role !== "strike") { this.mode = "dogfight"; this.bandit = by; this.modeT = 0; }
     if (this.hp <= 0) {
       this.hp = 0; this.alive = false; hitFX(this.pos, 0.15); if (by && (by.own || by === G.plane)) { air.killMark = 2; G.shake = Math.max(G.shake || 0, 0.45); flash.spawn({ x: this.pos.x, y: this.pos.y, z: this.pos.z, life: 0.45, s0: 10, s1: 26, a: 1, c: 0xff8a30 }); for (let k = 0; k < 14; k++) spark.spawn({ x: this.pos.x, y: this.pos.y, z: this.pos.z, vx: gauss() * 30, vy: gauss() * 20 + 8, vz: gauss() * 30, g: GRAV, life: 2.2, s0: 2.2, s1: 0.8, a: 1, c: k % 3 ? 0xffb050 : 0x555548 }); const d = camera.position.distanceTo(this.pos); at(d * 0.5, () => sfx.explode(d * 0.5)); }
@@ -282,7 +288,13 @@ function stepBullets(list, dt) {
         const hit = hullHit(b.p, null);
         if (hit && hit.ship.side !== b.side) {
           if (b.side === "us") { bulletHit(hit.ship, b.p); if (b.own) { air.hits++; air.hitMark = 0.25; sfx.hitTick(); } }
-          else hit.ship.damage(0.015 * clamp(40 / hit.ship.spec.belt, 0.04, 1) * hit.ship.armorK);
+          else {
+            if (hit.ship.isPlayer) {
+              bulletHit(hit.ship, b.p);
+              if (G.time >= (hit.ship._strafeSfxT || 0)) { hit.ship._strafeSfxT = G.time + 0.14; sfx.ricochet?.(hit.ship.pos.distanceTo(camera.position), 0.3); }
+            }
+            hit.ship.damage(0.015 * clamp(40 / hit.ship.spec.belt, 0.04, 1) * hit.ship.armorK);
+          }
           dead = true;
         } else if (hit) dead = true;
       }
