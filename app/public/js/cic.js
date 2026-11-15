@@ -1,7 +1,7 @@
 // ── commander's CIC (지휘통제실): tactical KNTDS C4I room for joint support & ESM/ISR coordination ─────────
 // ` toggles minimized ↔ PiP window; Shift+` or double-click toggles fullscreen CIC; drag header to move, wheel to resize/zoom.
 // Click the CIC map (or a tracked target row, or Ctrl+click battle sea) to designate a strike/recon point, pick asset, approve with Y.
-import { THREE, PI, TAU, clamp, rnd, brg, G, scene, camera, landAt, flash, rings } from "./core.js";
+import { THREE, PI, TAU, clamp, rnd, gauss, brg, G, scene, camera, landAt, flash, rings, smoke, spark } from "./core.js";
 import { M, WPN, launch, launchJet } from "./modern.js";
 import { sfx } from "./audio.js";
 
@@ -187,6 +187,11 @@ function resolve(ok) {
       const m = launch(src, b.key, T && T.pos.distanceTo(pt) < 5000 ? T.ship : null); if (m && !(T && T.pos.distanceTo(pt) < 5000)) m.est = pt.clone();
       flash.spawn({ x: b.pos.x, y: b.pos.y + 18, z: b.pos.z, life: 0.45, s0: 14, s1: 38, a: 0.95, c: 0xffb858 });
       rings.spawn({ x: b.pos.x, z: b.pos.z, w0: 8, l0: 8, w1: 95, l1: 95, life: 1.5, a: 0.55, c: 0xffb858 });
+      for (let k = 0; k < 6; k++) smoke.spawn({ x: b.pos.x + gauss() * 8, y: b.pos.y + 12 + rnd() * 14, z: b.pos.z + gauss() * 8, vx: gauss() * 10, vy: 8 + rnd() * 14, vz: gauss() * 10, life: 4.2, s0: 9, s1: 28, a: 0.55, c: 0xdcdcdc });
+      for (let k = 0; k < 12; k++) spark.spawn({ x: b.pos.x + gauss() * 4, y: b.pos.y + 16, z: b.pos.z + gauss() * 4, vx: gauss() * 24, vy: 12 + rnd() * 26, vz: gauss() * 24, g: 9.8, life: 0.9, s0: 2.2, s1: 0.6, a: 1, c: 0xffc060 });
+      const bd = Math.hypot(b.pos.x - camera.position.x, b.pos.z - camera.position.z);
+      sfx.mslLaunch?.(Math.max(120, bd), false);
+      C.pulses.push({ x: b.pos.x, z: b.pos.z, t: 0, dur: 1.8, maxR: 2600, col: "#ff8c52" });
     }, 400 + i * 900);
     C.pulses.push({ x: pt.x, z: pt.z, t: 0, dur: 4.5, maxR: 5000, col: "#ff8c52" });
     say(`${b.name} 4발 일제 발사 승인! 지정 해역으로 저공 스키밍 비행 중.`); C.deps.log(`${b.name} 4발 발사 승인`, "hit");
@@ -311,7 +316,8 @@ export function cicStep(dt, marks) {
       } else if (a.id === "recon") {
         eta = ` · <span class="eta">기함 ${(Math.hypot(pt.x - P.pos.x, pt.z - P.pos.z) / 1000).toFixed(1)}km · 즉시 스캔</span>`;
       } else {
-        eta = ` · <span class="eta">지정점 ${(Math.hypot(pt.x - P.pos.x, pt.z - P.pos.z) / 1000).toFixed(1)}km</span>`;
+        const A = AIR[C.deps.nat] || AIR.us;
+        eta = ` · <span class="eta">지정점 ${(Math.hypot(pt.x - P.pos.x, pt.z - P.pos.z) / 1000).toFixed(1)}km · ${a.id === "heavy" ? `${A.heavy.n}발 포화` : `${A.fighter.asm} 공대함`}</span>`;
       }
     }
     const st = !a.ok ? "불가" : u <= 0 ? "소진" : cd ? `${cd}s` : `${u}회`;
@@ -418,6 +424,10 @@ function drawMap(marks) {
   }
   for (const j of M.jets) {
     if (!j.alive) continue; const [u, v] = S(j.pos);
+    if (j.support && j.aimPt && !j.rtb) {
+      const [au, av] = S(j.aimPt); x.save(); x.strokeStyle = "rgba(242,181,68,.42)"; x.setLineDash([4, 4]); x.lineWidth = 1.1;
+      x.beginPath(); x.moveTo(u, v); x.lineTo(au, av); x.stroke(); x.restore();
+    }
     x.strokeStyle = j.side === "us" ? "#9ff3e5" : "#ff8a7a"; x.lineWidth = 1.6;
     x.beginPath(); x.moveTo(u - 5, v + 4); x.lineTo(u, v - 5); x.lineTo(u + 5, v + 4); x.stroke();
     if (j.support || big) placeLbl(j.name.replace(" (가정)", ""), u + 7, v + 1, j.side === "us" ? "#a6f5e8" : "#ff9b8d");
@@ -445,7 +455,8 @@ function drawMap(marks) {
     }
     if (m.side === "foe" && m.target?.side === "us" && (big || m.pos.distanceTo(m.target.pos) < 12000)) {
       warnShips.add(m.target);
-      const [tu, tv] = S(m.target.pos); x.save(); x.strokeStyle = "rgba(255,95,82,.38)"; x.setLineDash([2, 3]); x.beginPath(); x.moveTo(u, v); x.lineTo(tu, tv); x.stroke(); x.restore();
+      const md = m.pos.distanceTo(m.target.pos), [tu, tv] = S(m.target.pos); x.save(); x.strokeStyle = "rgba(255,95,82,.38)"; x.setLineDash([2, 3]); x.beginPath(); x.moveTo(u, v); x.lineTo(tu, tv); x.stroke(); x.restore();
+      if (big && mv > 1 && md < 16000) placeLbl(`${Math.max(1, Math.round(md / mv))}s`, u + 6, v - 5, "#ff9b8d");
     }
   }
   for (const ws of warnShips) if (ws.alive) {
@@ -474,7 +485,10 @@ function drawMap(marks) {
   const pt = C.deps.md.supPt;
   if (pt) {
     const [u, v] = S(pt), pulseR = 13 + Math.sin(G.time * 4.5) * 2.5;
-    x.save(); x.strokeStyle = "rgba(242,181,68,.5)"; x.setLineDash([5, 4]); x.lineWidth = 1.3;
+    const ptKm = (Math.hypot(pt.x - P.pos.x, pt.z - P.pos.z) / 1000).toFixed(1), ptBrg = brg(Math.atan2(pt.z - P.pos.z, pt.x - P.pos.x));
+    x.save();
+    if (C.pend?.id === "recon") { x.strokeStyle = "rgba(77,232,212,.34)"; x.setLineDash([4, 4]); x.lineWidth = 1.4; x.beginPath(); x.arc(u, v, 11000 * sc, 0, TAU); x.stroke(); }
+    x.strokeStyle = "rgba(242,181,68,.5)"; x.setLineDash([5, 4]); x.lineWidth = 1.3;
     x.beginPath(); x.moveTo(cx, cy); x.lineTo(u, v); x.stroke();
     if (C.battery && Math.hypot(pt.x - C.battery.pos.x, pt.z - C.battery.pos.z) <= WPN[C.battery.key].range) {
       const [bu, bv] = S(C.battery.pos); x.strokeStyle = "rgba(255,140,82,.45)"; x.beginPath(); x.moveTo(bu, bv); x.lineTo(u, v); x.stroke();
@@ -483,7 +497,7 @@ function drawMap(marks) {
     x.strokeStyle = "#f2b544"; x.lineWidth = 2; x.beginPath(); x.arc(u, v, pulseR, 0, TAU);
     x.moveTo(u - 21, v); x.lineTo(u - 7, v); x.moveTo(u + 7, v); x.lineTo(u + 21, v);
     x.moveTo(u, v - 21); x.lineTo(u, v - 7); x.moveTo(u, v + 7); x.lineTo(u, v + 21); x.stroke();
-    x.fillStyle = "#ffe08a"; x.fillText("타격 지점", u + 16, v - 14);
+    x.fillStyle = "#ffe08a"; x.fillText(`타격 지점 ${ptKm}km · ${ptBrg}`, u + 16, v - 14);
   }
   if (big) { x.fillStyle = "#8cb4af"; x.font = "11px 'Noto Sans KR'"; x.fillText("상황판 클릭: 타격·정찰 지정 · 휠: 축척 · 위=북(N) · 기함 중심 KNTDS", 12, H - 10); }
 }

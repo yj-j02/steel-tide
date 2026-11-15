@@ -210,6 +210,27 @@ export const sfx = {
     noiseShape(0.14, 0.068, 3900, 1050, "bandpass", 0.95, 0, 0.25);
     metalClank(0.024, 1680 + Math.random() * 240, 760, 0.02, 0.01, false);
   },
+  ciws(d = 0) {
+    // Phalanx 20mm CIWS: high-RPM 4,500rpm rotary drone, supersonic muzzle snap & brass cascade
+    const a = atten(d * 2.2); if (A.muted || a <= 0.03) return;
+    const lp = d < 550 ? 1350 : 520 + 1800 * a;
+    voiceTone(a * 0.14, 0.058, 242, 188, "sawtooth", 0, lp);
+    voiceTone(a * 0.085, 0.052, 121, 108, "sawtooth", 0, lp * 0.45);
+    noiseShape(a * 0.15, 0.062, d < 550 ? 4400 : 1200 + 2800 * a, 920, "bandpass", 1.1, 0, 0.24);
+    if (d < 550) {
+      subBoom(a * 0.11, 175, 58, 0.055, 0, 0.18);
+      metalClank(a * 0.024, 1920 + Math.random() * 280, 820, 0.018, 0.008, false);
+    }
+  },
+  chaff(d = 0) {
+    // Mk 36 SRBOC / Nulka soft-kill rocket mortar + overhead metallic dipole cloud burst
+    const a = atten(d * 2); if (A.muted || a <= 0.02) return;
+    subBoom(a * 0.24, 152, 46, 0.13, 0, 0.28);
+    metalClank(a * 0.095, 460, 165, 0.06, 0, false);
+    noiseShape(a * 0.16, 0.28, 2800, 740, "bandpass", 0.9, 0.018, 0.35);
+    noiseShape(a * 0.14, 0.38, 5200, 1850, "highpass", 0.85, 0.21, 0.32);
+    metalClank(a * 0.05, 2950, 1380, 0.045, 0.21, true);
+  },
   gun(cal) {
     const k = Math.min(1.15, cal / 406);
     play("gun_near", { vol: 0.45 + 0.55 * k, rate: 1 + (1 - k) * 0.72 });

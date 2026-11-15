@@ -219,7 +219,13 @@ export function stepMissiles(dt, onHit) {
     if (n < TR_MAX && m.trail.length) { const a = m.trail[m.trail.length - 1]; tp.set([a.x, a.y, a.z, m.pos.x, m.pos.y, m.pos.z], n * 6); tc.set([...c, ...c], n * 6); n++; }
   }
   trGeo.setDrawRange(0, n * 2); trGeo.attributes.position.needsUpdate = true; trGeo.attributes.color.needsUpdate = true;
-  for (let i = M.decoys.length - 1; i >= 0; i--) { const d = M.decoys[i]; d.t -= dt; if (d.t <= 0) M.decoys.splice(i, 1); else if (rnd() < dt * 3) flash.spawn({ x: d.pos.x, y: d.pos.y + rnd() * 20, z: d.pos.z, life: 0.3, s0: 2, s1: 5, a: 0.9, c: 0xfff0c0 }); }
+  for (let i = M.decoys.length - 1; i >= 0; i--) {
+    const d = M.decoys[i]; d.t -= dt;
+    if (d.t <= 0) { M.decoys.splice(i, 1); continue; }
+    if (rnd() < dt * 3.5) flash.spawn({ x: d.pos.x + gauss() * 14, y: d.pos.y + rnd() * 24, z: d.pos.z + gauss() * 14, life: 0.28, s0: 2, s1: 5.5, a: 0.88, c: 0xfff0c0 });
+    if (rnd() < dt * 14) spark.spawn({ x: d.pos.x + gauss() * 22, y: Math.max(4, d.pos.y + gauss() * 12), z: d.pos.z + gauss() * 22, vx: gauss() * 3, vy: -1.5 + rnd() * 3, vz: gauss() * 3, life: 0.48, s0: 1.4, s1: 0.3, a: 0.85, c: rnd() < 0.7 ? 0xe8f4ff : 0xffe096 });
+    if (d.t > 8 && rnd() < dt * 2.5) smoke.spawn({ x: d.pos.x + gauss() * 18, y: 12 + rnd() * 22, z: d.pos.z + gauss() * 18, vx: gauss() * 1.4, vy: 0.6, vz: gauss() * 1.4, life: 4.5, s0: 8, s1: 22, a: 0.24, c: 0xd8e2ea });
+  }
 }
 function impact(m, S, lx, onHit) {
   const W = m.W; kill(m, "hit"); const p = m.pos.clone(); hitFX(p, 1.1);
@@ -264,14 +270,26 @@ export function defend(dt, mode = "auto") {
         D.ciT = 0.05; S.tilt.updateWorldMatrix(true, false);
         const o = S.pos.clone().setY(S.spec.fb + 9), dir = m.pos.clone().sub(o), dl = Math.max(dir.length(), 1); dir.divideScalar(dl);
         flash.spawn({ x: o.x, y: o.y, z: o.z, life: 0.06, s0: 2.2, s1: 0.9, a: 0.85, c: 0xffd478 });
-        if ((D.ciN = (D.ciN || 0) + 1) % 3 === 0) smoke.spawn({ x: o.x, y: o.y, z: o.z, vx: dir.x * 8 + 1.5, vy: 2.2, vz: dir.z * 8 + 1, life: 0.8, s0: 1.4, s1: 4.5, a: 0.25, c: 0xd0d4d8 });
+        D.ciN = (D.ciN || 0) + 1;
+        if (D.ciN % 3 === 0) smoke.spawn({ x: o.x, y: o.y, z: o.z, vx: dir.x * 8 + 1.5, vy: 2.2, vz: dir.z * 8 + 1, life: 0.8, s0: 1.4, s1: 4.5, a: 0.25, c: 0xd0d4d8 });
+        if (D.ciN % 2 === 0) spark.spawn({ x: o.x, y: o.y - 0.5, z: o.z, vx: -dir.z * (4 + rnd() * 4) + gauss(), vy: 2.5 + rnd() * 3, vz: dir.x * (4 + rnd() * 4) + gauss(), g: 9.8, life: 0.55, s0: 0.55, s1: 0.2, a: 0.8, c: 0xffd272 });
+        if (D.ciN % 5 === 0) {
+          flash.spawn({ x: m.pos.x + gauss() * 16, y: Math.max(4, m.pos.y + gauss() * 10), z: m.pos.z + gauss() * 16, life: 0.09, s0: 3.2, s1: 9, a: 0.72, c: 0xffe4a0 });
+          smoke.spawn({ x: m.pos.x + gauss() * 14, y: Math.max(4, m.pos.y + gauss() * 9), z: m.pos.z + gauss() * 14, vy: 1.5, life: 0.9, s0: 2.2, s1: 7.5, a: 0.34, c: 0x3a3e44 });
+        }
         for (let t = 0; t < 3; t++) {
           const k = (t + rnd()) / 3, bx = o.x + dir.x * dl * k, by = o.y + dir.y * dl * k, bz = o.z + dir.z * dl * k;
           spark.spawn({ x: bx, y: by, z: bz, vx: dir.x * 420 + gauss() * 14, vy: dir.y * 420 + gauss() * 14, vz: dir.z * 420 + gauss() * 14, life: 0.2, s0: 1.4, s1: 0.6, a: 1, c: t === 0 ? 0xffef9e : 0xffb858 });
         }
-        const dd = o.distanceTo(camera.position); if (dd < 2600 && rnd() < 0.45) at(dd, () => (dd < 450 && sfx.vulcan ? sfx.vulcan() : sfx.mgShot(dd)));
+        const dd = o.distanceTo(camera.position); if (dd < 2800 && rnd() < 0.55) at(dd, () => (sfx.ciws ? sfx.ciws(dd) : (dd < 450 && sfx.vulcan ? sfx.vulcan() : sfx.mgShot(dd))));
       }
-      if (rnd() < dt * (m.W.drone ? 0.22 : m.W.cls === "sub" ? 0.4 : m.W.cls === "sup" ? 0.22 : 0.1) * satK(m.side)) { m.killedBy = S; kill(m, "boom"); } break;
+      if (rnd() < dt * (m.W.drone ? 0.22 : m.W.cls === "sub" ? 0.4 : m.W.cls === "sup" ? 0.22 : 0.1) * satK(m.side)) {
+        flash.spawn({ x: m.pos.x, y: m.pos.y, z: m.pos.z, life: 0.24, s0: 8, s1: 26, a: 0.95, c: 0xffd27a });
+        for (let i = 0; i < 10; i++) spark.spawn({ x: m.pos.x, y: m.pos.y, z: m.pos.z, vx: gauss() * 28, vy: gauss() * 24, vz: gauss() * 28, g: 9.8, life: 0.85, s0: 1.8, s1: 0.4, a: 1, c: 0xffb858 });
+        for (let i = 0; i < 3; i++) smoke.spawn({ x: m.pos.x + gauss() * 3, y: m.pos.y + gauss() * 3, z: m.pos.z + gauss() * 3, vy: 4, life: 3.2, s0: 5, s1: 18, a: 0.58, c: 0x26282c });
+        const kd = m.pos.distanceTo(camera.position); at(kd, () => sfx.flak(kd * 0.45));
+        m.killedBy = S; kill(m, "boom");
+      } break;
     }
     // soft kill: AI ships throw a decoy when a missile is inside 5 km
     if (!mine && D.decoyCd <= 0 && th[0].d < 5000) { decoy(S); D.decoyCd = 35; }
@@ -285,7 +303,14 @@ export function pickSam(S, d) {
 /** Nulka / chaff: spoofs some of the missiles heading for this ship. */
 export function decoy(S) {
   const a = rnd() * PI * 2, p = S.pos.clone().add(new THREE.Vector3(Math.cos(a) * 420, 15, Math.sin(a) * 420)), D = { pos: p, t: 22, alive: true, vel: new THREE.Vector3() };
-  M.decoys.push(D); for (let i = 0; i < 10; i++) spray.spawn({ x: p.x + gauss() * 20, y: 10 + rnd() * 30, z: p.z + gauss() * 20, life: 6, s0: 6, s1: 18, a: 0.5, fade: 0.6, c: 0xdedede });
+  M.decoys.push(D);
+  const dy = (S.spec?.fb || 4) + 3, dx = Math.cos(a) * 42, dz = Math.sin(a) * 42;
+  flash.spawn({ x: S.pos.x, y: dy, z: S.pos.z, life: 0.14, s0: 3.5, s1: 9, a: 0.9, c: 0xffd27a });
+  smoke.spawn({ x: S.pos.x, y: dy + 1, z: S.pos.z, vx: dx * 0.35, vy: 8, vz: dz * 0.35, life: 1.6, s0: 2.5, s1: 9, a: 0.45, c: 0xd8dfe6 });
+  for (let i = 0; i < 12; i++) spark.spawn({ x: p.x + gauss() * 18, y: 12 + rnd() * 24, z: p.z + gauss() * 18, vx: gauss() * 8, vy: rnd() * 6, vz: gauss() * 8, life: 1.1, s0: 1.8, s1: 0.4, a: 0.95, c: rnd() < 0.7 ? 0xf0f7ff : 0xffe29a });
+  for (let i = 0; i < 6; i++) smoke.spawn({ x: p.x + gauss() * 16, y: 14 + rnd() * 20, z: p.z + gauss() * 16, vy: 1.2, life: 5.5, s0: 8, s1: 24, a: 0.35, c: 0xdbe6f0 });
+  for (let i = 0; i < 8; i++) spray.spawn({ x: p.x + gauss() * 20, y: 10 + rnd() * 30, z: p.z + gauss() * 20, life: 6, s0: 6, s1: 18, a: 0.48, fade: 0.6, c: 0xdedede });
+  const dd = S.pos.distanceTo(camera.position); if (dd < 4500) at(dd, () => sfx.chaff?.(dd));
   let n = 0; for (const m of M.list) if (m.alive && m.W.role === "asm" && m.side !== S.side && m.target === S && !m.decoy && m.pos.distanceTo(S.pos) < 9000 && rnd() < (m.W.cls === "hyp" ? 0.15 : 0.45)) { m.decoy = D; n++; }
   return n;
 }
