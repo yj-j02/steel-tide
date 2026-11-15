@@ -15,7 +15,7 @@ export const RADIO_KEYS = ["battle", "sunk", "torp_warn", "ally_sunk", "launch",
 function loopNoise(buf, type, freq, q, gain) {
   const c = A.ctx, s = c.createBufferSource(); s.buffer = buf; s.loop = true; s.loopStart = Math.random(); s.start(0, Math.random() * 2);
   const f = c.createBiquadFilter(); f.type = type; f.frequency.value = freq; f.Q.value = q;
-  const g = c.createGain(); g.gain.value = gain; s.connect(f).connect(g).connect(A.master); return g;
+  const g = c.createGain(); g.gain.value = gain; s.connect(f).connect(g).connect(A.master); g.filter = f; return g;
 }
 function lfo(param, hz, depth) { const c = A.ctx, o = c.createOscillator(); o.frequency.value = hz; const g = c.createGain(); g.gain.value = depth; o.connect(g).connect(param); o.start(); }
 
@@ -101,9 +101,17 @@ export function jetSound(level, thr = 0.5) {
     o.type = "sawtooth"; o2.type = "sine"; g.gain.value = 0;
     const f = c.createBiquadFilter(); f.type = "bandpass"; f.frequency.value = 2800; f.Q.value = 2.6;
     o.connect(f); o2.connect(f); f.connect(g).connect(A.master); o.start(); o2.start();
-    JET = { roar, ab, rush, whine: g, o, o2 };
+    JET = { roar, ab, rush, whine: g, o, o2, wasAb: false };
   }
   const t = c.currentTime, k = 0.12, mil = Math.max(0, (thr - 0.65) / 0.35);
+  JET.roar.filter?.frequency.setTargetAtTime(440 + 480 * thr, t, k);
+  JET.rush.filter?.frequency.setTargetAtTime(1800 + 1600 * thr, t, k);
+  const abOn = level > 0.05 && thr >= 0.78;
+  if (abOn && !JET.wasAb) {
+    JET.wasAb = true;
+    subBoom(0.18 * level, 125, 42, 0.22, 0, 0.3);
+    noiseShape(0.14 * level, 0.32, 1400, 340, "bandpass", 0.9, 0.01, 0.35);
+  } else if (level <= 0.02 || thr < 0.70) JET.wasAb = false;
   JET.roar.gain.setTargetAtTime(level * (0.34 + 0.52 * thr), t, k);
   JET.ab.gain.setTargetAtTime(level * mil * mil * 0.48, t, 0.08);
   JET.rush.gain.setTargetAtTime(level * (0.025 + 0.075 * thr), t, k);

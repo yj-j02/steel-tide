@@ -494,8 +494,14 @@ const JV_F = new THREE.Vector3(), JV_U = new THREE.Vector3(), JV_R = new THREE.V
   const lampM = (col) => new THREE.MeshBasicMaterial({ color: col });
   const mcLamp = new THREE.Mesh(new THREE.PlaneGeometry(0.055, 0.018), lampM(0x2a1408)); mcLamp.position.set(-0.22, -0.285, -0.755); mcLamp.rotation.x = -0.22; g.add(mcLamp);
   const rwrLamp = new THREE.Mesh(new THREE.PlaneGeometry(0.055, 0.018), lampM(0x2a0808)); rwrLamp.position.set(0.22, -0.285, -0.755); rwrLamp.rotation.x = -0.22; g.add(rwrLamp);
-  // Vulcan muzzle glare across lower windscreen & canopy rails
-  const gunGlow = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.35), new THREE.MeshBasicMaterial({ color: 0xffb85c, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+  // Vulcan muzzle glare across lower windscreen & canopy rails (feathered radial gradient)
+  const jgCan = document.createElement("canvas"); jgCan.width = 64; jgCan.height = 64;
+  {
+    const jc = jgCan.getContext("2d"), jg = jc.createRadialGradient(32, 32, 2, 32, 32, 31);
+    jg.addColorStop(0, "rgba(255,200,110,0.92)"); jg.addColorStop(0.5, "rgba(255,145,55,0.38)"); jg.addColorStop(1, "rgba(255,110,30,0)");
+    jc.fillStyle = jg; jc.fillRect(0, 0, 64, 64);
+  }
+  const gunGlow = new THREE.Mesh(new THREE.PlaneGeometry(1.05, 0.42), new THREE.MeshBasicMaterial({ map: new THREE.CanvasTexture(jgCan), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
   gunGlow.position.set(0, -0.24, -1.06); gunGlow.rotation.x = -1.1; g.add(gunGlow);
   jetPit.userData.ufc = { c: uc, x: uc.getContext("2d"), t: ut };
   jetPit.userData.mcLamp = mcLamp; jetPit.userData.rwrLamp = rwrLamp; jetPit.userData.gunGlow = gunGlow;
@@ -618,10 +624,23 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaD
   x.font = "bold 14px monospace";
   const vv = Math.round(j.vel.y);
   x.fillText(`${vv >= 0 ? "+" : ""}${vv}m/s`, W - 84, cy + 32);
-  // Top compass heading tape
-  x.font = "bold 16px monospace"; x.textAlign = "center";
-  x.strokeRect(cx - 28, 12, 56, 24); x.fillText(String(Math.round(hdg)).padStart(3, "0"), cx, 30);
-  x.beginPath(); x.moveTo(cx - 110, 46); x.lineTo(cx + 110, 46); x.moveTo(cx - 6, 40); x.lineTo(cx, 46); x.lineTo(cx + 6, 40); x.stroke();
+  // Top sliding compass heading tape
+  x.fillStyle = green; x.strokeStyle = green; x.lineWidth = 1.8; x.textAlign = "center";
+  x.font = "bold 15px monospace";
+  x.strokeRect(cx - 28, 6, 56, 22); x.fillText(String(Math.round(hdg)).padStart(3, "0"), cx, 22);
+  x.beginPath(); x.moveTo(cx - 108, 37); x.lineTo(cx + 108, 37); x.moveTo(cx - 5, 30); x.lineTo(cx, 36); x.lineTo(cx + 5, 30); x.stroke();
+  x.save(); x.beginPath(); x.rect(cx - 108, 36, 216, 24); x.clip();
+  x.font = "bold 11px monospace";
+  const baseDeg = Math.floor((hdg - 35) / 5) * 5;
+  for (let d = baseDeg; d <= hdg + 35; d += 5) {
+    const tx = cx + (d - hdg) * 3.2, deg = ((d % 360) + 360) % 360, major = deg % 10 === 0;
+    x.beginPath(); x.moveTo(tx, 37); x.lineTo(tx, major ? 45 : 41); x.stroke();
+    if (major) {
+      const lbl = deg === 0 ? "N" : deg === 90 ? "E" : deg === 180 ? "S" : deg === 270 ? "W" : String(deg / 10).padStart(2, "0");
+      x.fillText(lbl, tx, 55);
+    }
+  }
+  x.restore();
   // Dynamic gun pipper + AAM lock / RWR / pull-up / OVER-G alerts
   const fire = !!(info.firing && j.gun > 0);
   if (fire || info.gunHit > 0) {
@@ -650,7 +669,12 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaD
     x.strokeRect(cx - 72, H - 82, 144, 24);
     x.font = "bold 15px monospace"; x.fillText(`RWR MISSILE x${info.rwr}`, cx, H - 65);
   }
-  // Bottom stores status
+  // Bottom stores status + BINGO FUEL cue
+  const fuelRem = Math.max(0, Math.ceil((j.endur || 260) + 120 - (j.t || 0)));
+  if (fuelRem < 45 && Math.floor(performance.now() / 320) % 2 === 0) {
+    x.fillStyle = amber; x.font = "bold 14px monospace"; x.textAlign = "left";
+    x.fillText(`BINGO ${fuelRem}s`, 18, H - 38);
+  }
   x.fillStyle = green; x.font = "bold 14px monospace";
   x.textAlign = "left"; x.fillText(`GUN ${Math.max(0, j.gun)}  FLR ${j.flares}`, 18, H - 20);
   x.textAlign = "right"; x.fillText(`AAM ${j.aam}  ASM ${j.asm}`, W - 18, H - 20);
@@ -713,13 +737,22 @@ export function updateJetPit(j, dt, info = {}) {
     L.x.fillStyle = "#79c888"; L.x.font = "11px monospace"; L.x.fillText(lbl, cx, cy + 26);
   };
   drawArc(64, 72, 30, thrPct / 100, "RPM N1", `${thrPct}%`);
-  const fuelPct = clamp((j.endur + 120 - j.t) / Math.max(1, j.endur + 120), 0, 1);
-  drawArc(188, 72, 30, fuelPct, "FUEL", `${Math.max(0, Math.ceil(j.endur + 120 - j.t))}s`);
+  const fuelSec = Math.max(0, Math.ceil((j.endur || 260) + 120 - (j.t || 0)));
+  const fuelPct = clamp(fuelSec / Math.max(1, (j.endur || 260) + 120), 0, 1);
+  drawArc(188, 72, 30, fuelPct, "FUEL", `${fuelSec}s`);
+  const egt = Math.round(540 + thrPct * 4.2 + (ab ? 110 : 0)), noz = Math.round(25 + thrPct * 0.75);
   L.x.textAlign = "left"; L.x.fillStyle = "#7ef07a"; L.x.font = "bold 14px monospace";
   L.x.fillText(`IAS ${Math.round(spdKmh)} km/h`, 14, 134);
   L.x.fillText(`ALT ${Math.round(altM)} m`, 14, 156);
-  L.x.fillStyle = j.hit ? "#ff5a4e" : (ab ? "#ffd04d" : "#7ef07a");
-  L.x.fillText(j.hit ? "WARN: AIRFRAME DMG" : (ab ? "AFTERBURNER ON" : "FCS NORMAL"), 14, 184);
+  L.x.font = "bold 12px monospace"; L.x.fillStyle = ab ? "#ffd04d" : "#7ef07a";
+  L.x.fillText(`EGT ${egt}C  NZ ${noz}%`, 136, 132);
+  L.x.fillStyle = "#163b21"; L.x.fillRect(136, 139, 104, 7);
+  L.x.fillStyle = egt > 960 ? "#ff6854" : ab ? "#ffd04d" : "#6eff82";
+  L.x.fillRect(136, 139, Math.round(104 * clamp((egt - 500) / 580, 0.08, 1)), 7);
+  L.x.fillStyle = "#9ae69f"; L.x.fillText(`G ${j._g.toFixed(1)}   M ${mach.toFixed(2)}`, 136, 160);
+  L.x.font = "bold 14px monospace";
+  L.x.fillStyle = j.hit ? "#ff5a4e" : (fuelSec < 45 ? "#ffd04d" : (ab ? "#ffd04d" : "#7ef07a"));
+  L.x.fillText(j.hit ? "WARN: AIRFRAME DMG" : (fuelSec < 45 ? "WARN: BINGO FUEL" : (ab ? "AFTERBURNER ON" : "FCS NORMAL")), 14, 186);
   // Center MFD: HSD B-Scope Tactical Radar with sweep sector, range labels & lock cue
   bg(C, info.lock ? `HSD LOCK ${info.lock}` : "HSD SEARCH");
   const cw = C.c.width, ch = C.c.height, cx = cw / 2, cy = ch - 18, maxR = ch - 52;
@@ -774,15 +807,23 @@ export function updateJetPit(j, dt, info = {}) {
   }
   R.x.fillStyle = info.rwr ? "#ff5a4e" : "#7ef07a"; R.x.font = "bold 12px monospace"; R.x.textAlign = "center";
   R.x.fillText(info.rwr ? `MSL ${info.rwr}` : "RWR CLR", rx, ry + 56);
-  // Up-Front Controller scratchpad
+  // Up-Front Controller scratchpad + tactile option keys
   const U = jetPit.userData.ufc;
   if (U) {
     U.x.fillStyle = "#061109"; U.x.fillRect(0, 0, U.c.width, U.c.height);
     U.x.strokeStyle = "#225a32"; U.x.lineWidth = 3; U.x.strokeRect(2, 2, U.c.width - 4, U.c.height - 4);
-    U.x.fillStyle = info.rwr ? "#ff6854" : "#7cff8a"; U.x.font = "bold 24px monospace"; U.x.textAlign = "center";
-    U.x.fillText(info.rwr ? "!! MSL WARN !!" : (info.lock ? "FOX-2 LOCKED" : "MASTER ARM ON"), U.c.width / 2, 46);
-    U.x.fillStyle = "#9ae69f"; U.x.font = "bold 19px monospace";
-    U.x.fillText(`HDG ${String(Math.round(hdg)).padStart(3, "0")}  AAM ${j.aam}  ASM ${j.asm}`, U.c.width / 2, 92);
+    U.x.fillStyle = info.rwr ? "#ff6854" : (fuelSec < 45 ? "#ffd04d" : "#7cff8a"); U.x.font = "bold 22px monospace"; U.x.textAlign = "center";
+    U.x.fillText(info.rwr ? "!! MSL WARN !!" : (fuelSec < 45 ? "!! BINGO FUEL !!" : (info.lock ? "FOX-2 LOCKED" : "MASTER ARM ON")), U.c.width / 2, 36);
+    U.x.fillStyle = "#9ae69f"; U.x.font = "bold 17px monospace";
+    U.x.fillText(`HDG ${String(Math.round(hdg)).padStart(3, "0")}  AAM ${j.aam}  ASM ${j.asm}`, U.c.width / 2, 68);
+    const keys = ["IFF", "TCN", "DLNK", "AP"];
+    for (let k = 0; k < keys.length; k++) {
+      const kx = 11 + k * 60;
+      U.x.fillStyle = "rgba(25,75,40,0.45)"; U.x.fillRect(kx, 86, 54, 30);
+      U.x.strokeStyle = "#2f854a"; U.x.lineWidth = 1.5; U.x.strokeRect(kx, 86, 54, 30);
+      U.x.fillStyle = "#7cff8a"; U.x.font = "bold 12px monospace";
+      U.x.fillText(keys[k], kx + 27, 105);
+    }
     U.t.needsUpdate = true;
   }
   for (const m of jmfd) m.t.needsUpdate = true;
