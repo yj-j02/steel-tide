@@ -101,12 +101,12 @@
       #opsP .wz-next { width:100%; margin-top:10px; }
       #wzSum { margin-top:10px; font-size:12px; color:var(--cream2); line-height:1.5; background:rgba(8,11,9,.52); border:1px solid var(--gline-soft); padding:8px 10px; } #wzSum b { color:var(--gold); } #wzSum .go { width:100%; margin-top:8px; }
       #era { grid-template-columns:1fr !important; }
-      #cic { position:fixed; z-index:40; left:14px; top:118px; width:380px; background:var(--glass-deep); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border:1px solid var(--gline); border-top:2px solid var(--gold); border-radius:0; color:var(--cream); font-family:'Noto Sans KR',sans-serif; display:flex; flex-direction:column; overflow:hidden; box-shadow:var(--panel-shadow); }
-      #cic[data-size=s] { width:320px; } #cic[data-size=l] { width:520px; }
+      #cic { position:fixed; z-index:40; left:14px; top:118px; width:408px; background:var(--glass-deep); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border:1px solid var(--gline); border-top:2px solid var(--gold); border-radius:0; color:var(--cream); font-family:'Noto Sans KR',sans-serif; display:flex; flex-direction:column; overflow:hidden; box-shadow:var(--panel-shadow); }
+      #cic[data-size=s] { width:336px; } #cic[data-size=l] { width:520px; }
       #cic.alert { border-color:#ff6a55; border-top-color:#ff5a45; }
       body.jetfly #cic, body:not(.playing) #cic { display:none !important; }
-      #cic .cic-h { display:flex; justify-content:space-between; align-items:center; padding:7px 10px; background:rgba(24,28,22,.94); border-bottom:1px solid var(--gline-soft); cursor:move; font-size:12.5px; }
-      #cic .cic-h b { color:var(--gold); font-weight:700; } #cic .cic-k { font-size:11px; color:var(--cream2); }
+      #cic .cic-h { display:flex; justify-content:space-between; align-items:center; gap:8px; padding:7px 10px; background:rgba(24,28,22,.94); border-bottom:1px solid var(--gline-soft); cursor:move; font-size:12.5px; }
+      #cic .cic-h b { color:var(--gold); font-weight:700; white-space:nowrap; flex:none; } #cic .cic-k { font-size:10.5px; color:var(--cream2); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; }
       #cic .cic-b { display:grid; grid-template-columns:110px 1fr; gap:8px; padding:9px 10px; }
       #cic .cic-face { display:flex; flex-direction:column; gap:6px; grid-row:span 2; }
       #cic .cic-fw { position:relative; width:110px; height:110px; border:1px solid var(--gline); transform-origin:50% 100%; animation:cicIdle 5.2s ease-in-out infinite; }
@@ -293,6 +293,8 @@
       body.noglass #pauseBtn, body.noglass #autoModeBtn { backdrop-filter:none; background:rgba(14,18,15,.94); }
       #autoBtn { display:none !important; }
       #toast { border-radius:0; background:rgba(14,18,15,.92); backdrop-filter:blur(10px); border:1px solid var(--gold); color:#fff2c4; font:600 13px "Noto Sans KR",sans-serif; box-shadow:var(--panel-shadow); }
+      body.playing:not(.jetfly) #toast { top:92px; padding:6px 14px; }
+      body.jetfly #toast { top:18px; padding:6px 14px; }
       #takeBtn { border-radius:0; padding:8px 18px; font:700 13px/1.1 "Noto Sans KR",sans-serif; letter-spacing:.04em; background:rgba(242,202,92,.3); border:1px solid var(--gold); color:#fff4cf; box-shadow:var(--panel-shadow); } #takeBtn:hover { background:rgba(242,202,92,.48); }
       /* menus: top bar with tabs */
       #topbar { position:fixed; left:0; right:0; top:0; height:66px; z-index:6; display:flex; align-items:center; gap:18px; padding:0 26px; box-sizing:border-box; border-width:0 0 1px 0; background:var(--glass-deep); }
@@ -309,7 +311,7 @@
       #flagP { position:absolute; right:26px; top:82px; width:356px; padding:16px 18px; box-sizing:border-box; display:flex; flex-direction:column; gap:9px; border-top:2px solid var(--gold); }
       #flagP .fh { display:flex; align-items:center; gap:8px; font:600 12px "Noto Sans KR",sans-serif; color:var(--gold); } #flagP .nm { font:400 30px "Black Han Sans"; color:#fff8e4; } #flagP .cap { font:500 13px/1.45 "Noto Sans KR",sans-serif; color:var(--cream2); word-break:keep-all; }
       #flagP .grid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px; font:500 12.5px "Noto Sans KR",sans-serif; font-variant-numeric:tabular-nums; border-top:1px dashed var(--gline-soft); padding-top:10px; }
-      #flagP .grid > div { background:rgba(8,11,9,.56); border:1px solid var(--gline-soft); padding:6px 8px; display:flex; flex-direction:column; gap:2px; }
+      #flagP .grid > div, #flagP .grid > span { background:rgba(8,11,9,.56); border:1px solid var(--gline-soft); padding:6px 8px; display:flex; align-items:center; justify-content:space-between; gap:4px; }
       #launchBar { position:absolute; left:26px; right:26px; bottom:46px; min-height:70px; display:flex; align-items:center; gap:20px; padding:0 16px; box-sizing:border-box; border-top:1px solid var(--gline); }
       #launchBar .lb { display:flex; flex-direction:column; gap:2px; padding-right:18px; border-right:1px dashed var(--gline-soft); } #launchBar .lb span { font:600 11.5px "Noto Sans KR",sans-serif; color:var(--cream2); } #record { font:700 14.5px "Noto Sans KR",monospace; font-variant-numeric:tabular-nums; color:var(--cream); min-height:0; white-space:nowrap; } #rankTxt { font:500 12px "Noto Sans KR",sans-serif; color:var(--cream2); text-align:left; margin:0; white-space:nowrap; }
       #launchBar .btns { margin-left:auto; display:flex; gap:10px; }
