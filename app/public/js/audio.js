@@ -198,6 +198,24 @@ export const sfx = {
   rwr() {
     for (const d of [0, 0.075, 0.15]) { voiceTone(0.085, 0.055, 2240, 2060, "triangle", d, 3200); voiceTone(0.04, 0.055, 1120, 1030, "sine", d); }
   },
+  cockpitWarn(kind = "pullup") {
+    if (A.muted) return;
+    if (kind === "pullup") {
+      for (const d of [0, 0.26]) {
+        voiceTone(0.085, 0.21, 920, 1480, "sawtooth", d, 2400);
+        voiceTone(0.055, 0.21, 1840, 2200, "triangle", d, 3200);
+      }
+    } else if (kind === "overg") {
+      for (const d of [0, 0.085, 0.17]) voiceTone(0.075, 0.055, 980, 980, "square", d, 1900);
+    } else {
+      voiceTone(0.08, 0.14, 784, 780, "triangle", 0, 2000);
+      voiceTone(0.08, 0.18, 587, 580, "triangle", 0.15, 2000);
+    }
+  },
+  storeDrop() {
+    metalClank(0.13, 380, 120, 0.08, 0, false);
+    subBoom(0.17, 135, 42, 0.14, 0.01, 0.22);
+  },
   flare() {
     metalClank(0.11, 520, 190, 0.05, 0, false); subBoom(0.14, 175, 70, 0.06, 0, 0.15);
     noiseShape(0.16, 0.48, 3800, 880, "bandpass", 0.95, 0.015, 0.3);

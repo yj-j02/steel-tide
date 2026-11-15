@@ -6,6 +6,7 @@
  */
 import { THREE, PI, TAU, DEG, KN, clamp, ovScene, G } from "./core.js";
 import { TELE } from "./ships.js";
+import { sfx } from "./audio.js";
 
 let _ovHemi = null, _ovDir = null;
 function syncOvLight() {
@@ -344,6 +345,14 @@ function drawPanel(pl, dt) {
   bx(g, 1.16, 0.6, 0.03, blackM, 0, -0.47, -0.76, -0.1);
   const panelGlow = new THREE.Mesh(new THREE.PlaneGeometry(1.06, 0.48), new THREE.MeshBasicMaterial({ map: bounceTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
   panelGlow.position.set(0, -0.46, -0.732); panelGlow.rotation.x = -0.1; g.add(panelGlow); cockpit.userData.panelGlow = panelGlow;
+  cockpit.userData.wingFlash = [];
+  for (const s of [-1, 1]) {
+    const wf = new THREE.Mesh(new THREE.PlaneGeometry(0.95, 0.55), new THREE.MeshBasicMaterial({ map: bounceTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false }));
+    wf.position.set(s * 0.76, -0.26, -1.15); wf.rotation.set(-1.15, 0, s * -0.22);
+    g.add(wf); cockpit.userData.wingFlash.push(wf);
+  }
+  const warnLamp = new THREE.Mesh(new THREE.BoxGeometry(0.032, 0.016, 0.014), new THREE.MeshBasicMaterial({ color: 0x280a08 }));
+  warnLamp.position.set(-0.26, -0.182, -0.705); g.add(warnLamp); cockpit.userData.warnLamp = warnLamp;
   // Mk 8 optical reflector gunsight: cylindrical projector barrel, micrometer knob, sun-filter bracket & collimated reticle
   bx(g, 0.06, 0.045, 0.13, blackM, 0, -0.17, -0.66);
   const sightTube = new THREE.Mesh(new THREE.CylinderGeometry(0.026, 0.03, 0.12, 14), blackM); sightTube.rotation.x = PI / 2; sightTube.position.set(0, -0.13, -0.65); g.add(sightTube);
@@ -433,6 +442,11 @@ export function updateCockpit(pl, dt) {
   cockpit.rotation.z = cRoll;
   if (cockpit.userData.cowlFlash) cockpit.userData.cowlFlash.material.opacity = fire ? 0.18 + Math.random() * 0.26 : 0;
   if (cockpit.userData.panelGlow) cockpit.userData.panelGlow.material.opacity = fire ? 0.05 + Math.random() * 0.08 : 0;
+  if (cockpit.userData.wingFlash?.length) for (const wf of cockpit.userData.wingFlash) wf.material.opacity = fire ? (Math.random() < 0.72 ? 0.14 + Math.random() * 0.28 : 0.04) : 0;
+  if (cockpit.userData.warnLamp) {
+    const low = ((pl.ammo ?? 999) < 120 || pl.hp < 50) && Math.floor(performance.now() / 180) % 2 === 0;
+    cockpit.userData.warnLamp.material.color.setHex(low ? 0xff3824 : 0x280a08);
+  }
   if (cockpit.userData.chargers) for (const ch of cockpit.userData.chargers) ch.position.z = fire ? -0.668 + (Math.random() - 0.5) * 0.016 : -0.67;
   if (cockpit.userData.exFlames) {
     const thr = pl.throttle || 0;
@@ -782,6 +796,25 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaD
     x.font = "bold 12px monospace";
     x.fillStyle = tcnKm < 2.2 && altM < 220 ? amber : green;
     x.fillText(tcnKm < 2.2 && altM < 220 ? `ILS ${tcnKm.toFixed(1)}km` : `TCN ${tcnKm.toFixed(1)}km`, W - 84, cy + 50);
+    if ((tcnKm < 4.5 && altM < 340) || j.landT > 0 || j.home) {
+      x.save();
+      const locX = cx + clamp(dBrg * 2.2, -36, 36);
+      const gsY = fpvY + clamp((altM - (tcnKm * 62 + 18)) * 0.45, -26, 26);
+      x.strokeStyle = Math.abs(dBrg) < 6 && Math.abs(gsY - fpvY) < 8 ? green : amber;
+      x.lineWidth = 1.6;
+      x.beginPath();
+      x.moveTo(locX, fpvY - 26); x.lineTo(locX, fpvY + 26);
+      x.moveTo(cx - 26, gsY); x.lineTo(cx + 26, gsY);
+      x.stroke();
+      x.strokeStyle = Math.abs(aoaDeg - 8) < 2.5 ? green : amber;
+      x.lineWidth = 2;
+      x.beginPath();
+      x.moveTo(cx - 26, fpvY - 10); x.lineTo(cx - 32, fpvY - 10);
+      x.lineTo(cx - 32, fpvY + 10); x.lineTo(cx - 26, fpvY + 10);
+      x.moveTo(cx - 32, fpvY); x.lineTo(cx - 27, fpvY);
+      x.stroke();
+      x.restore();
+    }
   }
   if (altM < 180) {
     x.font = "bold 12px monospace";
@@ -822,6 +855,10 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaD
     x.fillStyle = amber; x.font = "bold 14px monospace"; x.textAlign = "center";
     x.fillText("FOX-2 AWAY", cx, cy + 44);
   }
+  if (j._asmFlash > 0 && Math.floor(performance.now() / 130) % 2 === 0) {
+    x.fillStyle = amber; x.font = "bold 14px monospace"; x.textAlign = "center";
+    x.fillText("ASM AWAY", cx, cy + 58);
+  }
   if (info.lock) {
     x.strokeStyle = amber; x.fillStyle = amber; x.lineWidth = 2.4;
     x.beginPath(); x.moveTo(cx, cy - 34); x.lineTo(cx + 28, cy); x.lineTo(cx, cy + 34); x.lineTo(cx - 28, cy); x.closePath(); x.stroke();
@@ -855,6 +892,7 @@ function drawJetHud(j, info, spdKmh, altM, thrPct, roll, pitch, hdg, gLoad, aoaD
   t.needsUpdate = true;
 }
 /** j = the jet, info = { rwr, lock, blips, ab, roll, pitch, firing, lockPct, gunHit } */
+let jWarnCd = 0;
 export function updateJetPit(j, dt, info = {}) {
   const { night, storm } = syncOvLight();
   if (jetPit.userData.nvLight) {
@@ -874,6 +912,14 @@ export function updateJetPit(j, dt, info = {}) {
   const rawG = clamp(Math.cos(truePitch) * Math.cos(trueRoll) + (spdMs * angRate) / 9.81, -2.5, 9.2);
   j._g = (j._g ?? 1) + (rawG - (j._g ?? 1)) * Math.min(1, dt * 8);
   const aoaDeg = clamp(Math.asin(clamp(JV_F.y - j.vel.y / Math.max(spdMs, 1), -0.45, 0.45)) * 180 / PI + Math.max(0, j._g - 1) * 1.15, -4, 24);
+  if (j._prevAsm !== undefined && j.asm < j._prevAsm) { j._asmFlash = 2.0; sfx.storeDrop?.(); }
+  j._prevAsm = j.asm;
+  if (j._asmFlash > 0) j._asmFlash = Math.max(0, j._asmFlash - dt);
+  jWarnCd = Math.max(0, jWarnCd - dt);
+  const fuelRemS = Math.ceil((j.endur || 260) + 120 - (j.t || 0));
+  if (altM < 65 && j.vel.y < -8 && jWarnCd <= 0) { jWarnCd = 1.65; sfx.cockpitWarn?.("pullup"); }
+  else if (j._g >= 7.2 && jWarnCd <= 0) { jWarnCd = 2.0; sfx.cockpitWarn?.("overg"); }
+  else if (fuelRemS < 45 && !j._bingoPlayed && jWarnCd <= 0) { j._bingoPlayed = true; jWarnCd = 1.5; sfx.cockpitWarn?.("bingo"); }
   const abK = info.ab ?? (thrPct >= 88 ? 1 : 0), ab = abK > 0.35 || thrPct >= 88;
   const stickRoll = info.roll || clamp(angRate * Math.sign(trueRoll || 1) * 0.4, -1, 1);
   const stickPitch = info.pitch || clamp(angRate * 0.5, -1, 1);
