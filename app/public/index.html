@@ -211,7 +211,7 @@
       body.noglass #jetP { backdrop-filter:none; -webkit-backdrop-filter:none; background:rgba(14,18,15,.94); }
       body.modern #jetP { display:block; } #jetP:empty { display:none !important; } body.cinema #jetP { display:none !important; } #jetP .sortie { width:100%; margin:6px 0; }
       @media (max-width:1180px) { #jetP { max-height:calc(100vh - 390px); } }
-      #flyBack { display:none; position:fixed; top:14px; left:50%; transform:translateX(-50%); z-index:50; background:rgba(24,26,20,.92); color:#fbe9b0; border:1px solid var(--gold); border-bottom:2px solid var(--gold); border-radius:0; padding:7px 16px; font:700 13px 'Noto Sans KR',sans-serif; cursor:pointer; } body.jetfly #flyBack { display:block; }
+      #flyBack { display:none; position:fixed; top:10px; left:50%; transform:translateX(-50%); z-index:50; background:rgba(24,26,20,.92); color:#fbe9b0; border:1px solid var(--gold); border-bottom:2px solid var(--gold); border-radius:0; padding:7px 16px; font:700 13px 'Noto Sans KR',sans-serif; cursor:pointer; } body.jetfly #flyBack { display:block; }
       .natnote { font-size:11px; color:var(--cream2); margin:0 0 4px 38px; line-height:1.35; }
       #keysM { background:radial-gradient(ellipse at center,rgba(10,14,12,.76),rgba(6,10,8,.94)); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
       #keysM .box { width:min(580px,calc(100vw - 40px)); max-height:calc(100vh - 40px); overflow:auto; padding:22px 28px; box-sizing:border-box; display:flex; flex-direction:column; gap:12px; align-items:center; }
@@ -338,8 +338,8 @@
       body.noglass #pauseBtn, body.noglass #autoModeBtn { backdrop-filter:none; background:rgba(14,18,15,.94); }
       #autoBtn { display:none !important; }
       #toast { border-radius:0; background:rgba(14,18,15,.92); backdrop-filter:blur(10px); border:1px solid var(--gold); color:#fff2c4; font:600 13px "Noto Sans KR",sans-serif; box-shadow:var(--panel-shadow); }
-      body.playing:not(.jetfly) #toast { top:92px; padding:6px 14px; }
-      body.jetfly #toast { top:54px; padding:6px 14px; }
+      body.playing:not(.jetfly):not(.flying) #toast { top:92px; padding:6px 14px; }
+      body.jetfly #toast, body.flying #toast { top:62px; padding:6px 14px; }
       #takeBtn { border-radius:0; padding:8px 18px; font:700 13px/1.1 "Noto Sans KR",sans-serif; letter-spacing:.04em; background:rgba(242,202,92,.3); border:1px solid var(--gold); color:#fff4cf; box-shadow:var(--panel-shadow); } #takeBtn:hover { background:rgba(242,202,92,.48); }
       /* menus: top bar with tabs */
       #topbar { position:fixed; left:0; right:0; top:0; height:66px; z-index:6; display:flex; align-items:center; gap:18px; padding:0 26px; box-sizing:border-box; border-width:0 0 1px 0; background:var(--glass-deep); }

@@ -237,6 +237,27 @@ export const sfx = {
     if (big >= 1) metalClank(a * 0.12 * big, 210, 68, 0.22, 0.035);
     subBoom(a * (0.28 + 0.26 * big), 108, 28, 0.28, 0.008, 0.45);
   },
+  ricochet(d = 0, k = 1) {
+    const c = A.ctx, a = atten(d) * clamp(0.45 + 0.55 * k, 0.4, 1.15); if (!c || A.muted || a <= 0.02) return;
+    const t = c.currentTime, o = c.createOscillator(), g = c.createGain(), f = c.createBiquadFilter();
+    o.type = "triangle"; f.type = "bandpass"; f.Q.value = 3.6;
+    o.frequency.setValueAtTime(1650, t);
+    o.frequency.exponentialRampToValueAtTime(2900, t + 0.045);
+    o.frequency.exponentialRampToValueAtTime(940, t + 0.24);
+    f.frequency.setValueAtTime(2200, t); f.frequency.exponentialRampToValueAtTime(1100, t + 0.24);
+    g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(a * 0.24, t + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.25);
+    o.connect(f).connect(g).connect(A.master);
+    if (A.revSend) { const rg = c.createGain(); rg.gain.value = 0.4; g.connect(rg).connect(A.revSend); }
+    o.start(t); o.stop(t + 0.27);
+    metalClank(a * 0.12, 3150, 2100, 0.14, 0.005, true);
+  },
+  citadel(d = 0, k = 1) {
+    const a = atten(d) * clamp(0.5 + 0.5 * k, 0.45, 1.2); if (A.muted || a <= 0.02) return;
+    subBoom(a * 0.44, 54, 18, 0.42, 0, 0.6);
+    metalClank(a * 0.22, 240, 74, 0.26, 0.015, false);
+    subBoom(a * 0.36, 78, 22, 0.52, 0.13, 0.72);
+    noiseShape(a * 0.2, 0.32, 620, 140, "lowpass", 0.9, 0.13, 0.65);
+  },
   explode(d) {
     const a = atten(d);
     play("explode", { vol: a, lp: 700 + 7000 * a });

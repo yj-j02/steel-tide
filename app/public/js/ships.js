@@ -880,7 +880,7 @@ function launch(ship, q) {
   const sh = new Shell(ship, pos, vel, q.salvo); sh.he = !!q.he; G.shells.push(sh);
   if (t.bars?.[q.b]) t.bars[q.b].rec = 1;
   muzzleFX(pos, f, el, g.cal, ship);
-  if (ship.isPlayer) { G.stats.shots++; if (q.first) { if (G.plane) { const d = pos.distanceTo(camera.position); at(d, () => sfx.farGun(d, g.cal)); } else sfx.gun(g.cal); } }
+  if (ship.isPlayer) { G.stats.shots++; if (G.plane) { if (q.first) { const d = pos.distanceTo(camera.position); at(d, () => sfx.farGun(d, g.cal)); } } else sfx.gun(q.first ? g.cal : g.cal * 0.68); }
   else if (q.first) { const d = pos.distanceTo(camera.position); at(d, () => sfx.farGun(d, g.cal)); }
 }
 export function hullTop(spec, lx) {
@@ -954,12 +954,15 @@ function resolveHit(ship, s, lx) {
     return;
   }
   if (rnd() > pen) {
+    at(d, () => sfx.ricochet?.(d, k));
     for (let i = 0; i < 10; i++) spark.spawn({ x: s.pos.x, y: s.pos.y + 1, z: s.pos.z, vx: gauss() * 18 - dxn * 18, vy: 22 + rnd() * 28, vz: gauss() * 18 - dzn * 18, g: GRAV, life: 0.75 + rnd() * 0.4, s0: 1.6, s1: 0.4, a: 1, c: 0xfff0a8 });
     deal(g.dmg[0] * 0.25 * ship.armorK, "도탄"); G.log(`${tag} — 도탄`, cls); return;
   }
   let dmg = (g.dmg[0] + rnd() * (g.dmg[1] - g.dmg[0])) * ship.armorK;
   if (penK > 6 && rnd() < 0.45) { deal(dmg * 0.3, "과관통"); G.log(`${tag} — 과관통`, cls); return; }
   const c = critical(ship, lx, who(ship)); deal(dmg + c.dmg, "관통");
+  at(d, () => sfx.citadel?.(d, k));
+  flash.spawn({ x: s.pos.x, y: s.pos.y + 1.5, z: s.pos.z, life: 0.28, s0: 14 * k + 4, s1: 32 * k + 6, a: 0.9, c: 0xff5a18 });
   if (mine) for (const [k, r] of [["화재", "화재 발생"], ["침수", "침수 유발"], ["포탑", "포탑 파괴"], ["기관", "기관 손상"], ["유폭", "탄약고 유폭"]]) if (c.note.includes(k)) G.ribbon?.(r);
   G.log(`${tag}! ${c.note}`, cls);
 }
@@ -1084,6 +1087,7 @@ export function fireTorps(ship, b) {
     const mesh = new THREE.Mesh(TORP_GEO, TORP_MAT); mesh.position.copy(p); scene.add(mesh);
     G.torps.push({ owner: ship, pos: p, start: p.clone(), pts: [p.clone()], ang: tube, course: a, dir: new THREE.Vector3(Math.cos(tube), 0, Math.sin(tube)), v: T.v * KN * G.SPD, range: T.range, run: 0, mesh, bubT: 0, dmg: T.dmg, warned: false });
     spray.spawn({ x: p.x + Math.cos(tube) * 8, y: 1, z: p.z + Math.sin(tube) * 8, vy: 4, g: GRAV, life: 1.4, s0: 3, s1: 8, a: 0.8, fade: 0.6, c: 0xffffff });
+    smoke.spawn({ x: p.x + Math.cos(tube) * 5, y: 1.8, z: p.z + Math.sin(tube) * 5, vx: Math.cos(tube) * 14, vy: 2.5, vz: Math.sin(tube) * 14, drag: 1.2, life: 1.3, s0: 2.5, s1: 9, a: 0.45, c: 0xdfe8ec });
   }
   const d = ship.pos.distanceTo(camera.position); at(d, () => sfx.splash(d, 0.25));
   if (ship.isPlayer) G.stats.torps = (G.stats.torps || 0) + T.n;
