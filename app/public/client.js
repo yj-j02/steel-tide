@@ -1490,7 +1490,7 @@ $("#postOn").checked = post.on; $("#postOn").addEventListener("change", (e) => {
 $("#glassOn").addEventListener("change", (e) => { glassOn = e.target.checked; document.body.classList.toggle("noglass", !glassOn); try { localStorage.setItem("steeltide:glass", glassOn ? "1" : "0"); } catch {} });
 $("#sens").value = SENS; $("#sensV").textContent = SENS.toFixed(2);
 $("#sens").addEventListener("input", (e) => { SENS = +e.target.value; $("#sensV").textContent = SENS.toFixed(2); try { localStorage.setItem("steeltide:sens", String(SENS)); } catch {} });
-window.addEventListener("pointerdown", () => initAudio(), { once: true });
+window.addEventListener("pointerdown", () => initAudio(), { once: true }); for (const ev of ["click", "keydown"]) window.addEventListener(ev, () => initAudio()); /* resume sound (and the music) if the browser kept it suspended */
 /** Flight lock-on: the nearest enemy fighter in front, else the enemy ship nearest the nose. */
 function flightTarget() {
   const pl = G.plane, cd = camera.getWorldDirection(new THREE.Vector3()); let best = null, s = Infinity;
@@ -2261,7 +2261,7 @@ function frameOnce(dt) {
 window.__st = { aa, aimAAAt: (p) => { const o = aaMount(), v = p.clone().sub(o); aa.yaw = Math.atan2(v.z, v.x); aa.pitch = Math.atan2(v.y, Math.hypot(v.x, v.z)); }, aaMslFire, KCAMP, openBrief, get kProg() { return kProg; }, opsDebug, get weapon() { return weapon; }, setJetRole, setFlyAuto, get kc() { return G.kc; }, cycleForm, get formI() { return formI; }, CAMP, get campProg() { return campProg; }, setCamp: (i) => { campSel = i; const c = CAMP[i]; mission = c.m; theater = c.map; }, setWx: (t, w) => { todSel = t; wxSel = w; }, conceal, get tut() { return tut; }, setKey, get keyPhys() { return keyPhys; }, flyControl, flyFlare, md, MSL2: MSL, frameOnce, takeJet, releaseFly, flyFire, flyStrike, get flyLock() { return md.flyLock; }, know, sortieJets, myAir, landAt, setSel, get sel() { return sel; }, get lock() { return lock; }, setLock: (v) => { lock = v; }, sensorStep, bestContact, SR, WPN, G, air, cam, aa, MSL, md, fireSalvo, modernKey, setNat: (a, b) => { natUs = a; natFoe = b; }, toAuto, takeOver, setTheater: (t) => { theater = t; }, get cmdr() { return cmdr; }, toggleAA, cap, startBoard, toggleCapFps, canBoard, lockShip: (s) => lockShip(s), setRole, setSortieRole: (r) => { sortieRole = r; }, renderAirPanel, fc, get profile() { return profile; }, start, step, frame: (dt) => { step(dt); updateCamera(dt); }, tryFire, sortie, openYard, openMenu, act, setPause, forfeit,
   moveOrder, aimAtPoint, lockShip, setSpeed, cycleCam, enterFlight, pick, useRepair, setMission: (m) => { mission = m; }, get lock() { return lock; }, get weapon() { return weapon; }, setWeapon: (w) => { weapon = w; },
   get paused() { return paused; }, get torpThreat() { return torpThreat; }, get radioSub() { return radioSub; }, keys, fireTorps, intercept, leadPoint, myRank, steer, setLockOn: (t) => { lockOn = t; }, get lockOn() { return lockOn; }, help: (v) => { helpOn = v; } };
-loadModels(); showcase(profile.ship); refreshMenus(); connect();
+loadModels(); showcase(profile.ship); refreshMenus(); connect(); bgm("menu"); /* the first port screen is not opened through openMenu, so ask for its music here (it starts on the first click) */
 if (params.has("autostart")) { if (MISSIONS[params.get("mission")]) mission = params.get("mission"); start(params.get("autostart") === "watch"); }
 loop();
 if (!cmdrSet) setTimeout(() => { if (G.state === "menu") openCmdr(); }, 900);

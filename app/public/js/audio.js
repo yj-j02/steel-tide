@@ -20,7 +20,7 @@ function loopNoise(buf, type, freq, q, gain) {
 function lfo(param, hz, depth) { const c = A.ctx, o = c.createOscillator(); o.frequency.value = hz; const g = c.createGain(); g.gain.value = depth; o.connect(g).connect(param); o.start(); }
 
 export function initAudio() {
-  if (A.ctx) { A.ctx.resume?.(); return; }
+  if (A.ctx) { if (A.ctx.state !== "running") { A.ctx.resume?.(); syncBgm(); } return; }
   try { A.ctx = new (window.AudioContext || window.webkitAudioContext)(); } catch { return; }
   const c = A.ctx;
   A.master = c.createGain(); A.master.gain.value = A.muted ? 0 : A.vol.sfx;
