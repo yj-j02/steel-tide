@@ -1244,11 +1244,13 @@ $("#shipCard").addEventListener("click", (e) => { e.stopPropagation(); const b =
 // modern air group panel (right side, like the WWII one): default mission, sortie, each jet's mission, fly, recall
 let jetSig = "", jetSeq = 0;
 const jetState = (j) => j === md.fly ? (md.flyAuto ? (j.support ? "공군 지원 (시점 관전)" : "자동 조종 (카메라)") : "직접 조종") : j.landT > 0 ? "착함·재무장" : j.home ? (j.support ? "발사 완료 · 귀환 중" : "귀환 중") : j.msl ? "미사일 요격" : j.heavy ? `공군 대형기 · ${j.asm}발 침투 중` : j.support ? `공군 지원 · ${j.asm}발 침투 중` : `${JR[j.role] || j.role} 임무`;
+const jetDmg = (j) => { const g = Math.min(5, j.gh || 0); return Math.min(100, j.pilot ? (j.hit ? 50 : 0) + g * 10 : Math.max(j.hit ? 50 : 0, g * 20)); }; /* airframe damage % toward a kill: AI jets die at 5 gun hits or 1 missile; the flown jet survives one blow (50 %), then 5 more hits */
+const jetDmgCol = (d) => (d >= 60 ? "#ff6b5e" : d >= 30 ? "#ffc857" : "#9be06a");
 function renderJetPanel() {
   const el = $("#jetP"); if (!el) return; if (!G.modern || G.state !== "playing") { if (el.innerHTML) { el.innerHTML = ""; jetSig = ""; } return; }
   const C = myAir(), js = MSL.jets.filter((j) => j.alive && j.side === "us"), foeN = MSL.jets.filter((j) => j.alive && j.side === "foe" && mSeen(j, "us")).length;
   for (const j of js) j.id ??= ++jetSeq;
-  const row = (j) => [j.id, j.name, jetState(j), j.role, j.aam, j.asm, j.flares, Math.round(Math.max(0, 1 - j.t / j.endur) * 100), j.hit ? 1 : 0];
+  const row = (j) => [j.id, j.name, jetState(j), j.role, j.aam, j.asm, j.flares, Math.round(Math.max(0, 1 - j.t / j.endur) * 100), jetDmg(j)];
   const sig = JSON.stringify([C ? [C.jetsReady, C.rearm?.length] : 0, md.role, G.sortieRes || 0, foeN, md.fly ? md.fly.id : 0, md.flyAuto, js.map(row)]); if (sig === jetSig) return; jetSig = sig;
   const rb = (cur, val, attrs) => `<button class="rb${cur === val ? " on" : ""}" ${attrs}>${JR[val]}</button>`;
   let h = `<div class="ah"><b>항공대 · ${C ? C.name || "비행장" : "없음"}</b><span>대기 ${C?.jetsReady ?? 0}${C?.rearm?.length ? ` · 정비 ${C.rearm.length}` : ""}${G.sortieRes ? ` · 예약 ${G.sortieRes}${C && !C.jetsReady ? (C.rearm?.length ? ` (재무장 ${Math.ceil(Math.min(...C.rearm))}초)` : " (착함 대기)") : ""}` : ""} · 비행 ${js.length}${foeN ? ` · <i>적기 ${foeN}</i>` : ""}</span></div>`;
@@ -1256,7 +1258,8 @@ function renderJetPanel() {
   h += `<button class="sortie" data-jact="sortie">${!C ? "탑재 전투기 없음" : C.jetsReady ? `F 출격 · ${JR[md.role]} (2기)` : "F 출격 예약 (재무장 대기)"}</button>`;
   if (js.length) h += `<div class="ar all">전체 ${["cap", "strike", "multi"].map((r) => `<button class="rb" data-jall="${r}">${JR[r]}</button>`).join("")}<button class="rb home" data-jallhome="1">귀환</button></div>`;
   for (const j of js) { const fuel = Math.round(Math.max(0, 1 - j.t / j.endur) * 100);
-    h += `<div class="pl${j === md.fly ? " sel" : ""}"><div class="pn">${j.name}${j.support ? " · 공군" : ""}<small>${jetState(j)} · 공대공 ${j.aam} · 대함 ${j.asm} · 플레어 ${j.flares ?? 0} · 연료 ${fuel}%${j.hit ? " · 손상" : ""}</small></div>`
+    h += `<div class="pl${j === md.fly ? " sel" : ""}"><div class="pn">${j.name}${j.support ? " · 공군" : ""}<small>${jetState(j)} · 공대공 ${j.aam} · 대함 ${j.asm} · 플레어 ${j.flares ?? 0} · 연료 ${fuel}%</small></div>`
+      + (() => { const dm = jetDmg(j), c = jetDmgCol(dm); return `<div style="flex:1 0 100%;display:flex;align-items:center;gap:6px;font:600 10.5px 'Noto Sans KR',sans-serif;font-variant-numeric:tabular-nums;color:${c}">손상<span style="flex:1;height:5px;background:rgba(255,255,255,.12)"><b style="display:block;height:100%;width:${dm}%;background:${c}"></b></span>${dm}%</div>`; })()
       + (j.support ? `<div class="ar"><button class="rb${j === md.fly ? " on" : ""}" data-jwatch="${j.id}">${j === md.fly ? "본함 복귀" : "🎥 시점 보기"}</button></div>` : `<div class="ar">${["cap", "strike", "multi"].map((r) => rb(j.role, r, `data-jp="${j.id}" data-r="${r}"`)).join("")}<button class="rb" data-jfly="${j.id}">${j === md.fly ? "복귀" : "조종"}</button><button class="rb home" data-jhome="${j.id}">귀환</button></div>`) + `</div>`; }
   h += `<div class="cm">I: 조종/복귀 · K: 자동 조종 · N: 임무 · F: 출격</div>`;
   el.innerHTML = h;
@@ -1770,7 +1773,8 @@ function drawFlyHUD() {
   const T = md.flyLock; if (T) { const q = proj(T.pos); if (q && q.on) { txt("LOCKED — Space 발사", q.x, q.y + 30, "#ff6b5e", "bold 11px 'Noto Sans KR', sans-serif", "center"); hx.strokeStyle = "#ff3b30"; hx.lineWidth = 2; hx.strokeRect(q.x - 14, q.y - 14, 28, 28); txt(`LOCK ${T.isJet ? T.name : T.W.name} ${(T.pos.distanceTo(j.pos) / 1000).toFixed(1)} km`, q.x, q.y - 24, "#ff6b5e", "bold 11px 'Noto Sans KR', sans-serif", "center"); } }
   const py = md.flyFP ? 200 : H - 150;
   panel(W / 2 - 390, py, 780, 46);
-  txt(`${j.name} · ${(j.vel.length() * 3.6).toFixed(0)} km/h · 고도 ${j.pos.y.toFixed(0)} m · 기관포 ${Math.max(0, j.gun)} · 공대공 ${j.aam} · 대함 ${j.asm} · 플레어 ${j.flares}${j.hit ? " · 손상" : ""} · 연료 ${Math.max(0, Math.ceil(j.endur + 120 - j.t))}초`, W / 2, py + 14, "#fff", "bold 12px 'Noto Sans KR', sans-serif", "center");
+  txt(`${j.name} · ${(j.vel.length() * 3.6).toFixed(0)} km/h · 고도 ${j.pos.y.toFixed(0)} m · 기관포 ${Math.max(0, j.gun)} · 공대공 ${j.aam} · 대함 ${j.asm} · 플레어 ${j.flares} · 연료 ${Math.max(0, Math.ceil(j.endur + 120 - j.t))}초`, W / 2, py + 14, "#fff", "bold 12px 'Noto Sans KR', sans-serif", "center");
+  { const dm = jetDmg(j), c = jetDmgCol(dm), bx = W / 2 - 376, by = py + 29; txt(`기체 손상 ${dm}%`, bx, by + 5, c, "bold 11px 'Noto Sans KR', sans-serif"); hx.fillStyle = "rgba(255,255,255,.14)"; hx.fillRect(bx + 88, by, 130, 10); hx.fillStyle = c; hx.fillRect(bx + 88, by, 1.3 * dm, 10); } /* airframe damage bar */
   if (md.flyAuto && !(j.landT > 0)) {
     if (j.support) {
       const ref = j.aimPt || j.pos, dKm = (Math.hypot(ref.x - j.pos.x, ref.z - j.pos.z) / 1000).toFixed(1);

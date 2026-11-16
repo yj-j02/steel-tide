@@ -526,7 +526,7 @@ export function stepJets(dt, know, onEvent) {
     j.t += dt; j.aamCd -= dt;
     if (j.pilot && j.landT > 0) { const o = j.owner; j.landT -= dt; j.pos.copy(o.pos).add(new THREE.Vector3(0, o.spec.fb + 10, 0)); j.vel.copy(o.vel || new THREE.Vector3()); j.mesh.position.copy(j.pos);
       for (const br of j.mesh.userData.ab?.burners || []) { br.glow.visible = false; br.plume.visible = false; }
-      if (j.landT <= 0) { j.gun = 480; j.aam = 10; j.asm = j.asmKey ? 2 : 0; j.flares = flaresOf(j.name); j.hit = false; j.t = 0; j.thr = 240; j.vel.copy(o.fwd).multiplyScalar(200); j.pos.addScaledVector(o.fwd, o.spec.L * 0.4); j.pos.y = 70; j.q.setFromUnitVectors(X, o.fwd); onEvent?.(j, "relaunch"); } continue; }
+      if (j.landT <= 0) { j.gun = 480; j.aam = 10; j.asm = j.asmKey ? 2 : 0; j.flares = flaresOf(j.name); j.hit = false; j.gh = 0; j.t = 0; j.thr = 240; j.vel.copy(o.fwd).multiplyScalar(200); j.pos.addScaledVector(o.fwd, o.spec.L * 0.4); j.pos.y = 70; j.q.setFromUnitVectors(X, o.fwd); onEvent?.(j, "relaunch"); } continue; }
     if (j.pilot) { // flown by the player: fly where the stick points
       const want = new THREE.Vector3(1, 0, 0).applyQuaternion(j.q).multiplyScalar(Math.min(j.thr, j.hit ? 250 : 999));
       j.vel.lerp(want, Math.min(1, dt * 2.6)); j.pos.addScaledVector(j.vel, dt); j.W.alt = j.pos.y < 300 ? "skim" : "high"; j.flareT = Math.max(0, (j.flareT || 0) - dt);
