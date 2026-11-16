@@ -113,6 +113,7 @@ export function cicStart(deps) {
   C.el.style.display = ""; C.el.className = "cic min"; $(".cic-fw").innerHTML = deps.face; const sk = deps.faceSkin || "#d8b08a";
   $(".cic-fw").insertAdjacentHTML("beforeend", `<svg class="cic-anim" viewBox="0 0 100 100"><g class="lids"><ellipse cx="42.5" cy="40.6" rx="5" ry="3.4" fill="${sk}"/><ellipse cx="57.5" cy="40.6" rx="5" ry="3.4" fill="${sk}"/></g><ellipse class="mouth" cx="50" cy="59.8" rx="3.6" ry="1.8" fill="#3a1d16"/></svg>`);
   C.battery = placeBattery(); say(`${deps.cmdrName} 사령관, KNTDS 합동지휘망 연결 완료. 공군·해안포대·위성정찰·TOT 동시탄착 대기 중.`);
+  C.tab?.classList.add("ping"); setTimeout(() => { if (C.on && C.mode === "min") C.deps.toast?.("` 지휘통제실 열기 — 위성 ISR 스캔 · TOT 동시탄착 · WCS 방공통제(FREE/TIGHT/HOLD) · 공군·해안포대 지원", 5); }, 3000); /* point new players at the CIC */
 }
 export function cicStop() { C.on = false; C.pulses = []; C.tots = []; C.capZones = []; C.feed = null; clearIsr3d(); document.body.classList.remove("cicfeed-on"); if (C.el) C.el.style.display = "none"; document.body.classList.remove("cicbig", "cicmin"); if (C.battery?.mesh) C.battery.mesh.parent?.remove(C.battery.mesh); C.battery = null; }
 function setMode(m) { if (!C.on) return; C.tab?.classList.remove("ping"); C.mode = m; C.el.className = `cic ${m}`; document.body.classList.toggle("cicbig", m === "big"); document.body.classList.toggle("cicmin", m === "min"); C.el.style.left = C.el.style.top = C.el.style.right = C.el.style.bottom = ""; sfx.click(); C.sig = ""; C.lSig = ""; C.tSig = ""; }
@@ -185,56 +186,58 @@ function clearIsr3d() {
   for (const d of g.disposables || []) d.dispose?.();
   C.isr3d = null;
 }
-function spawnIsr3d(pt, ships) {
+function spawnIsr3d(pt, ships) { /* satellite ISR scan: satellite point, wireframe scan pyramid, three pulsing rings with a turning tick ring, sweep curtain, two-layer Link-16 beams; fog off so it reads at 15-30 km */
   clearIsr3d();
-  const grp = new THREE.Group(), disposables = [];
-  const matRing = new THREE.MeshBasicMaterial({ color: 0x4de8d4, transparent: true, opacity: 0.42, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
-  const gRing = new THREE.RingGeometry(10840, 11000, 72); gRing.rotateX(-PI / 2);
-  const ring = new THREE.Mesh(gRing, matRing); ring.position.set(pt.x, 4, pt.z); grp.add(ring);
-  const matCurt = new THREE.MeshBasicMaterial({ color: 0x4de8d4, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
-  const gCurt = new THREE.PlaneGeometry(22000, 1100);
-  const curtain = new THREE.Mesh(gCurt, matCurt); curtain.position.set(pt.x, 550, pt.z - 11000); grp.add(curtain);
-  const gLine = new THREE.PlaneGeometry(22000, 110); gLine.rotateX(-PI / 2);
-  const matLine = new THREE.MeshBasicMaterial({ color: 0xaffff1, transparent: true, opacity: 0.65, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
-  const line = new THREE.Mesh(gLine, matLine); line.position.set(pt.x, 5, pt.z - 11000); grp.add(line);
-  disposables.push(matRing, gRing, matCurt, gCurt, gLine, matLine);
-  const gBeam = new THREE.CylinderGeometry(18, 56, 2200, 12, 1, true);
-  const gTr = new THREE.RingGeometry(130, 170, 32); gTr.rotateX(-PI / 2);
-  const matBeam = new THREE.MeshBasicMaterial({ color: 0x4de8d4, transparent: true, opacity: 0.34, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
-  disposables.push(gBeam, gTr, matBeam);
-  const beams = (ships || []).map((ship) => {
-    const beam = new THREE.Mesh(gBeam, matBeam), tr = new THREE.Mesh(gTr, matLine);
-    beam.position.set(ship.pos.x, 1100, ship.pos.z); tr.position.set(ship.pos.x, 4, ship.pos.z);
-    grp.add(beam, tr); return { ship, beam, tr };
-  });
+  const R = 11000, SAT_Y = 6500, grp = new THREE.Group(), disposables = [];
+  const mk = (color, opacity, extra = {}) => { const m = new THREE.MeshBasicMaterial({ color, transparent: true, opacity, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending, fog: false, ...extra }); disposables.push(m); return m; };
+  const rings = [0.35, 0.7, 1].map((f, i) => { const g = new THREE.RingGeometry(R * f - 70 - i * 30, R * f + 70 + i * 30, 96); g.rotateX(-PI / 2); disposables.push(g); const m = mk(0x4de8d4, 0.5); const r = new THREE.Mesh(g, m); r.position.set(pt.x, 4 + i, pt.z); grp.add(r); return { mesh: r, mat: m, f }; });
+  const gTick = new THREE.RingGeometry(R * 1.04, R * 1.1, 180, 1, 0, PI * 1.5); gTick.rotateX(-PI / 2); disposables.push(gTick);
+  const matTick = mk(0xaffff1, 0.55, { wireframe: true }), tick = new THREE.Mesh(gTick, matTick); tick.position.set(pt.x, 6, pt.z); grp.add(tick);
+  const gCone = new THREE.ConeGeometry(R, SAT_Y, 4, 6, true); gCone.rotateY(PI / 4); disposables.push(gCone);
+  const matCone = mk(0x4de8d4, 0.28, { wireframe: true }), cone = new THREE.Mesh(gCone, matCone); cone.position.set(pt.x, SAT_Y / 2, pt.z); cone.rotation.x = PI; grp.add(cone);
+  const matConeFill = mk(0x1fb5a6, 0.06), coneFill = new THREE.Mesh(gCone, matConeFill); coneFill.position.copy(cone.position); coneFill.rotation.x = PI; grp.add(coneFill);
+  const gSat = new THREE.OctahedronGeometry(90); disposables.push(gSat); const matSat = mk(0xe6fffb, 0.95); const sat = new THREE.Mesh(gSat, matSat); sat.position.set(pt.x, SAT_Y, pt.z); grp.add(sat);
+  const matCurt = mk(0x4de8d4, 0.22), gCurt = new THREE.PlaneGeometry(R * 2, 1100); disposables.push(gCurt);
+  const curtain = new THREE.Mesh(gCurt, matCurt); curtain.position.set(pt.x, 550, pt.z - R); grp.add(curtain);
+  const gLine = new THREE.PlaneGeometry(R * 2, 110); gLine.rotateX(-PI / 2); disposables.push(gLine);
+  const matLine = mk(0xaffff1, 0.65), line = new THREE.Mesh(gLine, matLine); line.position.set(pt.x, 5, pt.z - R); grp.add(line);
+  const gCore = new THREE.CylinderGeometry(16, 16, SAT_Y, 10, 1, true), gHalo = new THREE.CylinderGeometry(60, 110, SAT_Y, 16, 1, true), gTr = new THREE.RingGeometry(150, 200, 40); gTr.rotateX(-PI / 2); disposables.push(gCore, gHalo, gTr);
+  const matCore = mk(0xe6fffb, 0.7), matBeam = mk(0x4de8d4, 0.22);
+  const beams = (ships || []).map((ship) => { const core = new THREE.Mesh(gCore, matCore), beam = new THREE.Mesh(gHalo, matBeam), tr = new THREE.Mesh(gTr, matLine); grp.add(core, beam, tr); return { ship, core, beam, tr }; });
   scene.add(grp);
-  C.isr3d = { grp, center: pt.clone(), scanT: 0, dur: 5.5, life: 30, ring, curtain, line, beams, matRing, matCurt, matLine, matBeam, disposables };
+  C.isr3d = { grp, center: pt.clone(), scanT: 0, dur: 5.5, life: 30, rings, tick, matTick, cone, coneFill, matCone, matConeFill, sat, matSat, curtain, line, beams, matCurt, matLine, matBeam, matCore, disposables, R, SAT_Y };
 }
 function updateIsr3d(dt) {
   for (const e of G.enemies) if (e.isrBoostT > 0) e.isrBoostT = Math.max(0, e.isrBoostT - dt);
   const g = C.isr3d; if (!g) return;
   g.scanT += dt; g.life -= dt;
-  const u = clamp(g.scanT / g.dur, 0, 1), sweepZ = g.center.z - 11000 + 22000 * u, cf = g.scanT < g.dur ? Math.sin(u * PI) : 0;
+  const u = clamp(g.scanT / g.dur, 0, 1), sweepZ = g.center.z - g.R + 2 * g.R * u, cf = g.scanT < g.dur ? Math.sin(u * PI) : 0;
   g.curtain.position.z = sweepZ; g.line.position.z = sweepZ;
-  g.matCurt.opacity = 0.24 * cf; g.matLine.opacity = 0.72 * cf;
+  g.matCurt.opacity = 0.24 * cf; g.matLine.opacity = 0.72 * cf + 0.25;
   g.curtain.visible = g.line.visible = g.scanT < g.dur;
-  const ringFade = clamp(g.life / 4, 0, 1);
-  g.matRing.opacity = 0.38 * ringFade * (0.85 + 0.15 * Math.sin(G.time * 4));
-  g.matBeam.opacity = 0.34 * ringFade * (0.82 + 0.18 * Math.sin(G.time * 6));
+  const fade = clamp(g.life / 4, 0, 1), grow = clamp(g.scanT / 1.6, 0, 1);
+  for (const r of g.rings) { const ph = (G.time * 0.6 + r.f) % 1; r.mesh.scale.setScalar(grow * (0.96 + 0.04 * Math.sin(G.time * 2 + r.f * 6))); r.mat.opacity = fade * (0.32 + 0.3 * (1 - ph)); }
+  g.tick.rotation.y += dt * 0.25; g.tick.scale.setScalar(grow); g.matTick.opacity = 0.5 * fade;
+  const coneOn = clamp(1 - Math.max(0, g.scanT - 8) / 6, 0.25, 1) * fade; g.matCone.opacity = 0.3 * coneOn; g.matConeFill.opacity = 0.06 * coneOn * (0.7 + 0.3 * Math.sin(G.time * 3));
+  g.sat.rotation.y += dt * 1.4; g.matSat.opacity = 0.95 * fade;
+  g.matBeam.opacity = 0.24 * fade * (0.8 + 0.2 * Math.sin(G.time * 6)); g.matCore.opacity = 0.75 * fade * (0.85 + 0.15 * Math.sin(G.time * 9));
   for (const b of g.beams) {
     const on = b.ship.alive && (b.ship.isrBoostT || 0) > 0 && g.life > 0;
-    b.beam.visible = b.tr.visible = on;
-    if (on) { b.beam.position.set(b.ship.pos.x, 1100, b.ship.pos.z); b.tr.position.set(b.ship.pos.x, 4, b.ship.pos.z); }
+    b.core.visible = b.beam.visible = b.tr.visible = on;
+    if (on) { const h = g.SAT_Y / 2; b.core.position.set(b.ship.pos.x, h, b.ship.pos.z); b.beam.position.set(b.ship.pos.x, h, b.ship.pos.z); b.tr.position.set(b.ship.pos.x, 4, b.ship.pos.z); b.tr.rotation.y += dt; }
   }
   if (g.life <= 0) clearIsr3d();
 }
 function triggerFeed(kind, target, dur, title) {
   if (!C.feedCam) C.feedCam = new THREE.PerspectiveCamera(40, 236 / 128, 4, 90000);
-  C.feed = { kind, target, endT: G.battleT + dur, t0: G.battleT, title };
+  C.feed = { kind, target, endT: G.battleT + Math.max(dur, 12), t0: G.battleT, title }; /* at least 12 s so the hit or the ramp drop is not missed */
   const tEl = document.getElementById("cicFeedTitle"); if (tEl) tEl.textContent = title;
   if (C.on && C.mode !== "big" && !document.body.classList.contains("jetfly")) document.body.classList.add("cicfeed-on");
 }
 function updateFeed(dt) {
+  if (C.on && C.mode !== "big" && (C.feed || C.tots.length)) { /* terminal cut-in: a friendly anti-ship missile within 3 km of its target */
+    const m = M.list.find((x) => x.alive && x.side === "us" && x.W.role === "asm" && !x.cutDone && x.target?.pos && x.pos.distanceTo(x.target.pos) < 3000);
+    if (m && !(C.feed?.kind === "msl" && C.feed.term && C.feed.target?.alive)) { m.cutDone = true; triggerFeed("msl", m, 7, `종말 돌입 · ${m.W.name} → ${m.target.name || "표적"}`); C.feed.term = true; } }
   const f = C.feed;
   if (!f || !C.on || C.mode === "big" || G.battleT > f.endT || document.body.classList.contains("jetfly")) {
     document.body.classList.remove("cicfeed-on"); return;
@@ -657,13 +660,17 @@ function drawMap(marks) {
   for (const tot of C.tots) {
     const tPos = tot.target?.alive ? tot.target.pos : tot.pt, [tu, tv] = S(tPos), rem = Math.max(0, Math.ceil(tot.endAt - G.battleT));
     x.save(); x.strokeStyle = "rgba(77,232,212,.68)"; x.setLineDash([5, 4]); x.lineWidth = 1.3;
-    for (const r of tot.rays) {
+    let k = 0; for (const r of tot.rays) { /* curved firing arcs like the tactical plot, alternating sides so they fan out */
       if (!r.S.alive) continue;
-      const [su, sv] = S(r.S.pos); x.beginPath(); x.moveTo(su, sv); x.lineTo(tu, tv); x.stroke();
+      const [su, sv] = S(r.S.pos), dx = tu - su, dy = tv - sv, sg = k++ % 2 ? -1 : 1, cu = (su + tu) / 2 - dy * 0.28 * sg, cv = (sv + tv) / 2 + dx * 0.28 * sg;
+      x.beginPath(); x.moveTo(su, sv); x.quadraticCurveTo(cu, cv, tu, tv); x.stroke();
+      x.save(); x.setLineDash([]); x.fillStyle = "#affff1"; x.font = "bold 9px monospace"; x.fillText(`${(r.S.name || "").slice(0, 6)} ${r.n ? r.n + "발" : ""}`, cu + 3, cv); x.restore();
     }
     x.restore();
     x.strokeStyle = "#4de8d4"; x.lineWidth = 1.6; x.beginPath(); x.arc(tu, tv, 11 + Math.sin(G.time * 6) * 2, 0, TAU); x.stroke();
     placeLbl(`TOT T-${rem}s (${tot.n})`, tu + 12, tv - 8, "#affff1");
+    { const tot0 = tot.t0 ?? (tot.t0 = G.battleT), fr = clamp((G.battleT - tot0) / Math.max(1, tot.endAt - tot0), 0, 1), bw = 54; /* time-on-target progress: launch -> flight -> impact */
+      x.fillStyle = "rgba(7,20,22,.85)"; x.fillRect(tu + 12, tv + 2, bw, 5); x.fillStyle = fr > 0.85 ? "#ffd166" : "#4de8d4"; x.fillRect(tu + 12, tv + 2, bw * fr, 5); x.strokeStyle = "rgba(175,255,241,.6)"; x.lineWidth = 1; x.strokeRect(tu + 12.5, tv + 2.5, bw - 1, 4); }
   }
   const warnShips = new Set();
   for (const m of M.list) {
@@ -685,7 +692,8 @@ function drawMap(marks) {
     }
     if (m.side === "foe" && m.target?.side === "us" && (big || m.pos.distanceTo(m.target.pos) < 12000)) {
       warnShips.add(m.target);
-      const md = m.pos.distanceTo(m.target.pos), [tu, tv] = S(m.target.pos); x.save(); x.strokeStyle = m.pri ? "rgba(255,224,102,.65)" : "rgba(255,95,82,.38)"; x.setLineDash([2, 3]); x.beginPath(); x.moveTo(u, v); x.lineTo(tu, tv); x.stroke(); x.restore();
+      const md = m.pos.distanceTo(m.target.pos), [tu, tv] = S(m.target.pos); x.save(); x.strokeStyle = m.pri ? "rgba(255,224,102,.65)" : "rgba(255,95,82,.38)"; x.setLineDash([2, 3]); x.beginPath(); x.moveTo(u, v); x.quadraticCurveTo((u + tu) / 2 - (tv - v) * 0.18, (v + tv) / 2 + (tu - u) * 0.18, tu, tv); x.stroke(); x.restore(); /* curved track to its target with time to impact */
+      if (m.side === "us" || m.pri) { x.save(); x.fillStyle = m.pri ? "#ffe066" : "#ffd0c8"; x.font = "bold 9px monospace"; x.fillText(`${m.W.name.slice(0, 6)} T-${Math.max(0, Math.round(md / Math.max(50, m.vel?.length() || m.W.v)))}s`, u + 6, v - 6); x.restore(); }
       if (big && mv > 1 && md < 16000) placeLbl(`${Math.max(1, Math.round(md / mv))}s`, u + 6, v - 5, "#ff9b8d");
     }
   }
