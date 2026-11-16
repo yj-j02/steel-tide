@@ -3,6 +3,7 @@
  * islands, particle/decal systems and small mesh helpers.
  */
 import * as THREE from "/vendor/three.module.min.js";
+import { buildSouthPacific } from "./terrain.js";
 export { THREE };
 
 export const $ = (s) => document.querySelector(s);
@@ -42,8 +43,14 @@ sunLight.castShadow = true; sunLight.shadow.mapSize.set(2048, 2048);
 Object.assign(sunLight.shadow.camera, { left: -190, right: 190, top: 190, bottom: -190, near: 100, far: 1000 });
 sunLight.shadow.bias = -0.0005; sunLight.shadow.normalBias = 0.7;
 
+const coastCv = document.createElement("canvas"); coastCv.width = coastCv.height = 1024;
+const coastCtx = coastCv.getContext("2d");
+coastCtx.fillStyle = "#000"; coastCtx.fillRect(0, 0, 1024, 1024);
+export const COAST_TEX = new THREE.CanvasTexture(coastCv);
+COAST_TEX.flipY = false; COAST_TEX.minFilter = THREE.LinearFilter; COAST_TEX.magFilter = THREE.LinearFilter;
+
 const v4 = () => Array.from({ length: 8 }, () => new THREE.Vector4());
-export const U = { time: { value: 0 }, sunDir: { value: SUN }, skyTint: { value: new THREE.Vector3(1, 1, 1) }, seaTint: { value: new THREE.Vector3(1, 1, 1) }, fogK: { value: 0.00004 }, cloud: { value: 0 }, uLin: { value: 0 }, shipA: { value: v4() }, shipB: { value: v4() } };
+export const U = { time: { value: 0 }, sunDir: { value: SUN }, skyTint: { value: new THREE.Vector3(1, 1, 1) }, seaTint: { value: new THREE.Vector3(1, 1, 1) }, fogK: { value: 0.00004 }, cloud: { value: 0 }, uLin: { value: 0 }, uCoast: { value: COAST_TEX }, shipA: { value: v4() }, shipB: { value: v4() } };
 
 const NOISE_GLSL = `
   float hash(vec2 p){ vec3 p3 = fract(vec3(p.xyx) * 0.1031); p3 += dot(p3, p3.yzx + 33.33); return fract((p3.x + p3.y) * p3.z); }
@@ -97,7 +104,7 @@ const SEA_VERT = `uniform float time; uniform float uPatch; varying vec3 vW; ${S
     if (uPatch > 0.5) { float fade = (1.0 - smoothstep(850.0, 1330.0, distance(w.xz, cameraPosition.xz))) * (1.0 - hullMask(w.xz));
       w.y += fade * (wh(w.xz,vec2(0.6,0.8),53.0,0.55,9.0) + wh(w.xz,vec2(-0.9,0.35),89.0,0.80,11.0) + wh(w.xz,vec2(0.2,-1.0),160.0,1.20,15.0) + wh(w.xz,vec2(1.0,0.15),290.0,1.70,20.0)); }
     vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
-const SEA_FRAG = `uniform float uPatch; varying vec3 vW; ${SKY_GLSL} ${SHIP_GLSL}
+const SEA_FRAG = `uniform float uPatch; uniform sampler2D uCoast; varying vec3 vW; ${SKY_GLSL} ${SHIP_GLSL}
   vec2 wv(vec2 p, vec2 d, float len, float amp, float spd){ d = normalize(d); float k = 6.2831853/len; return d * (amp*k*cos(dot(p,d)*k + time*spd*k)); }
   float shipFoam(vec2 p){
     float f = 0.0;
@@ -146,7 +153,11 @@ const SEA_FRAG = `uniform float uPatch; varying vec3 vW; ${SKY_GLSL} ${SHIP_GLSL
     vec3 N = normalize(vec3(-g.x, 1.0, -g.y));
     float fres = 0.025 + 0.975 * pow(1.0 - max(dot(N,V),0.0), 5.0);
     vec3 R = reflect(-V, N); R.y = abs(R.y);
-    vec3 deep = vec3(0.010,0.052,0.095) * seaTint, lit = vec3(0.030,0.180,0.215) * seaTint; // a deeper, less candy-coloured ocean
+    vec2 cuv = clamp(vec2(vW.x, vW.z) / 110000.0 + 0.5, 0.001, 0.999);
+    vec2 cval = texture2D(uCoast, cuv).rg;
+    float shoal = smoothstep(0.05, 0.72, cval.r);
+    vec3 deep = mix(vec3(0.010,0.052,0.095), vec3(0.025,0.34,0.38), shoal * 0.85) * seaTint;
+    vec3 lit = mix(vec3(0.030,0.180,0.215), vec3(0.09,0.62,0.58), shoal * 0.92) * seaTint; // deeper ocean to bright tropical shallow shoals
     float sss = clamp(0.5 + dot(N.xz, sunDir.xz)*2.2, 0.0, 1.0) * (0.55 + 0.45*clamp(vW.y*0.3 + 0.5, 0.0, 1.0));
     vec3 col = mix(mix(deep, lit, sss), skyBase(R), fres);
     float rs = max(dot(R,sunDir),0.0);
@@ -154,7 +165,10 @@ const SEA_FRAG = `uniform float uPatch; varying vec3 vW; ${SKY_GLSL} ${SHIP_GLSL
     float cap = fbm(p*0.06 + time*0.03);
     float foam = smoothstep(0.70, 0.84, cap + clamp(vW.y, 0.0, 3.0)*0.04) * f2 * (0.25 + 0.75*noise(p*0.8 - time*0.1)) * 0.6;
     float sf = shipFoam(p) * (0.45 + 1.1*noise(p*0.45 + time*vec2(0.4,0.1)) * noise(p*0.13 - time*0.05) * 1.6);
-    col = mix(col, vec3(0.90,0.94,0.95), clamp(foam*0.55 + sf, 0.0, 0.93));
+    float surfBand = smoothstep(0.24, 0.88, cval.g);
+    float surfWave = pow(max(0.0, sin(cval.r * 34.0 - time * 1.85 + fbm(p0 * 0.007) * 1.4)), 3.0);
+    float surfFoam = surfBand * (0.32 + 0.68 * surfWave) * (0.65 + 0.35 * noise(p * 0.25));
+    col = mix(col, vec3(0.92,0.95,0.96), clamp(foam*0.55 + sf + surfFoam * 0.85, 0.0, 0.94));
     float fog = 1.0 - exp(-dist*fogK);
     col = mix(col, vec3(0.80,0.84,0.86) * skyTint, fog);
     gl_FragColor = vec4(uLin > 0.5 ? pow(col, vec3(2.2)) : col, 1.0);
@@ -198,7 +212,7 @@ export function addIsland(x, z, r, h) { const m = islandMesh(r, h); m.position.s
 /** Theatres: island layout + sea/sky tint. Landmarks are stylised, not survey-accurate. */
 /** Each theatre has its own weather and light so they read differently at a glance (stylised, not a weather record). */
 export const MAPS = {
-  arch: { n: "남태평양 군도", d: "섬이 흩어진 기본 전장 · 한낮", sky: [1, 1, 1], sea: [1, 1, 1], fog: 0xc4cfd4, sun: [0.55, 0.34, -0.76], light: [0xffecd0, 3.0], hemi: 0xcfe2ee, fogK: 0.00004, cloud: 0, pal: [0xb8a986, 0x46603c, 0x6e6a5c] },
+  arch: { n: "남태평양 군도", d: "화산섬·산호 환초·열대 해안 비행장이 펼쳐진 남태평양 전장 · 쾌청", sky: [1.03, 1.07, 1.14], sea: [0.64, 1.16, 1.18], fog: 0xc8dce4, sun: [0.58, 0.42, -0.68], light: [0xfff0d4, 3.15], hemi: 0xd6ecfa, fogK: 0.000032, cloud: -0.04, pal: [0xeadcb6, 0x2a612d, 0x524e47] },
   pearl: { n: "진주만 · 하와이", d: "오아후 섬 남쪽 앞바다 · 맑은 아침, 청록빛 바다", sky: [1.0, 1.05, 1.12], sea: [0.72, 1.32, 1.22], fog: 0xd4e6ee, sun: [-0.78, 0.24, -0.42], light: [0xffdcb0, 3.1], hemi: 0xd8f0fa, fogK: 0.000026, cloud: -0.1, pal: [0xe6dab4, 0x2c6e34, 0x5a6a4e] },
   okinawa: { n: "오키나와", d: "오키나와 본섬 서쪽 앞바다 · 잔뜩 흐린 장마 하늘", sky: [0.7, 0.75, 0.8], sea: [0.62, 0.95, 0.9], fog: 0x939fa4, sun: [0.3, 0.6, -0.45], light: [0xd6dde2, 1.5], hemi: 0xa9b6be, fogK: 0.00006, cloud: 0.26, pal: [0xcfc7a8, 0x37573a, 0x585e58] },
   uswest: { n: "미국 서해안", d: "샌디에이고 앞바다 · 짙은 해무, 마른 황금빛 언덕", sky: [0.9, 0.94, 0.99], sea: [0.74, 0.86, 0.98], fog: 0xb2bcc4, sun: [0.2, 0.45, 0.86], light: [0xf0eee8, 1.9], hemi: 0xc4ced8, fogK: 0.00007, cloud: 0.12, pal: [0xcdb88c, 0x9a8448, 0x7c6a54] },
@@ -266,8 +280,9 @@ function vn2(x, z) { const xi = Math.floor(x), zi = Math.floor(z), fx = x - xi, 
   const a = vnoise(xi, zi), b = vnoise(xi + 1, zi), c = vnoise(xi, zi + 1), d = vnoise(xi + 1, zi + 1); return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v; }
 function fbm2(x, z) { let s = 0, a = 0.5; for (let i = 0; i < 5; i++) { s += a * vn2(x, z); x = x * 2.03 + 17; z = z * 2.03 + 9; a *= 0.5; } return s; }
 /** tiling ground detail (multiplied over vertex colours) */
-const GROUND = canvasTex(256, (x) => { const R = seeded(77); x.fillStyle = "#c8c8c8"; x.fillRect(0, 0, 256, 256);
-  for (let i = 0; i < 2600; i++) { const v = (150 + R() * 105) | 0; x.fillStyle = `rgba(${v},${v},${v},0.5)`; const r = 1 + R() * 3.5; x.beginPath(); x.arc(R() * 256, R() * 256, r, 0, 6.283); x.fill(); } }, true);
+const GROUND = canvasTex(512, (x) => { const R = seeded(77); x.fillStyle = "#c8c8c8"; x.fillRect(0, 0, 512, 512);
+  for (let i = 0; i < 12000; i++) { const v = (128 + R() * 124) | 0; x.fillStyle = `rgba(${v},${v},${v},0.42)`; const r = 0.8 + R() * 3.4; x.beginPath(); x.arc(R() * 512, R() * 512, r, 0, 6.283); x.fill(); }
+  for (let i = 0; i < 1800; i++) { const v = R() < 0.5 ? 78 : 235; x.fillStyle = `rgba(${v},${v},${v},0.16)`; x.fillRect(R() * 512, R() * 512, 2 + R() * 6, 1.2 + R() * 2.5); } }, true);
 function geoLand(g, L) {
   const k = Math.cos(g.lat0 * DEG), to = ([lo, la]) => [(la - g.lat0) * 110540 * g.S, (lo - g.lon0) * 111320 * k * g.S];
   const P = L.o.map(to), pk = L.p.map((q) => [...to(q), q[2] * Math.sqrt(g.S), q[3] * g.S]); // heights shrink less than distances so the skyline still reads
@@ -295,18 +310,43 @@ function geoLand(g, L) {
   const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors: true, map: GROUND, roughness: 1, envMapIntensity: 0.25 })); m.receiveShadow = false; scene.add(m); islands.push(m);
   let cx = 0, cz = 0; for (const [x, z] of P) { cx += x; cz += z; } G.islands.push({ x: cx / P.length, z: cz / P.length, r: 0, poly: P, bb: [x0, x1, z0, z1] });
 }
+function bakeCoastMap() {
+  const c = coastCtx, W = 1024, S = W / 110000;
+  const tx = (x) => x * S + W * 0.5, ty = (z) => z * S + W * 0.5;
+  c.save();
+  c.filter = "none"; c.fillStyle = "#000000"; c.fillRect(0, 0, W, W);
+  const drawShapes = () => {
+    for (const s of G.islands) {
+      c.beginPath();
+      if (s.poly) { s.poly.forEach(([x, z], i) => (i ? c.lineTo(tx(x), ty(z)) : c.moveTo(tx(x), ty(z)))); c.closePath(); }
+      else if (s.r) c.arc(tx(s.x), ty(s.z), s.r * S, 0, TAU);
+      c.fill(); c.stroke();
+    }
+  };
+  c.globalCompositeOperation = "lighter";
+  c.filter = "blur(10px)"; c.fillStyle = "#ff0000"; c.strokeStyle = "#ff0000"; c.lineWidth = 8; drawShapes();
+  c.filter = "blur(2.5px)"; c.fillStyle = "#00ff00"; c.strokeStyle = "#00ff00"; c.lineWidth = 3; drawShapes();
+  c.restore();
+  COAST_TEX.needsUpdate = true;
+}
 export function makeIslands(id = "arch") {
-  for (const m of islands) { scene.remove(m); m.geometry.dispose(); } islands.length = 0; G.islands = []; setMapLook(id);
+  for (const m of islands) {
+    scene.remove(m);
+    if (m.traverse) m.traverse((o) => { o.geometry?.dispose?.(); if (o.material) (Array.isArray(o.material) ? o.material : [o.material]).forEach((mt) => mt !== GROUND && mt.dispose?.()); });
+    else m.geometry?.dispose?.();
+  }
+  islands.length = 0; G.islands = []; setMapLook(id);
   const I = addIsland;
-  if (GEO[id]) { for (const L of GEO[id].land) geoLand(GEO[id], L); return; }
-  if (id === "pearl") { I(0, -30000, 15000, 1000); I(-15000, -26000, 7000, 750); I(13000, -25000, 6000, 500); I(-34000, 6000, 5000, 600); I(36000, -4000, 4000, 400); I(24000, 30000, 2500, 260); I(-22000, 34000, 1800, 200); return; }
+  if (GEO[id]) { for (const L of GEO[id].land) geoLand(GEO[id], L); bakeCoastMap(); return; }
+  if (id === "arch") { buildSouthPacific({ GROUND, fbm2, vnoise, inPoly, edgeDist, PAL, G, islands, scene, rnd, clamp }); bakeCoastMap(); return; }
+  if (id === "pearl") { I(0, -30000, 15000, 1000); I(-15000, -26000, 7000, 750); I(13000, -25000, 6000, 500); I(-34000, 6000, 5000, 600); I(36000, -4000, 4000, 400); I(24000, 30000, 2500, 260); I(-22000, 34000, 1800, 200); bakeCoastMap(); return; }
   if (id === "okinawa") { const ux = 0.8, uz = 0.6, nx = -0.6, nz = 0.8;
     for (let t = -60000; t <= 60000; t += 6500) { const big = Math.abs(t) < 15000, r = big ? 5200 : 1500 + rnd() * 2500; I(ux * t + nx * -24000, uz * t + nz * -24000, r, big ? 480 : 120 + rnd() * 250); }
-    for (let i = 0; i < 6; i++) I(-26000 + gauss() * 4000, 22000 + gauss() * 4000, 600 + rnd() * 1200, 80 + rnd() * 150); return; }
+    for (let i = 0; i < 6; i++) I(-26000 + gauss() * 4000, 22000 + gauss() * 4000, 600 + rnd() * 1200, 80 + rnd() * 150); bakeCoastMap(); return; }
   if (id === "uswest") { for (let z = -70000; z <= 70000; z += 11000) I(42000 + gauss() * 2500, z, 15000 + rnd() * 3000, 700 + rnd() * 600);
-    I(22000, 6000, 2600, 60); I(-30000, 12000, 5500, 550); I(-24000, -26000, 3500, 400); return; }
+    I(22000, 6000, 2600, 60); I(-30000, 12000, 5500, 550); I(-24000, -26000, 3500, 400); bakeCoastMap(); return; }
   if (id === "jeju") { I(-13000, -34000, 14000, 600); I(0, -36000, 16000, 1700); I(13000, -34000, 14000, 600); I(25000, -27000, 1500, 120); I(-4000, -19500, 700, 40); I(-6500, -21000, 1000, 40);
-    I(0, -85000, 32000, 900); I(-40000, -70000, 9000, 500); I(-20000, -60000, 1500, 200); I(38000, 22000, 2500, 200); return; }
+    I(0, -85000, 32000, 900); I(-40000, -70000, 9000, 500); I(-20000, -60000, 1500, 200); I(38000, 22000, 2500, 200); bakeCoastMap(); return; }
   const n = 22, a0 = rnd() * TAU;
   for (let i = 0; i < n; i++) {
     const a = a0 + (i / n) * TAU + (rnd() - 0.5) * 0.22, d = 19000 + rnd() * 13000, r = 1200 + rnd() * 3600, h = 180 + rnd() * 650;
@@ -314,6 +354,7 @@ export function makeIslands(id = "arch") {
     if (rnd() < 0.6) { const b = a + (rnd() - 0.5) * 0.12, e = d + (rnd() - 0.5) * 3000; addIsland(Math.cos(b) * e, Math.sin(b) * e, 400 + rnd() * 900, 80 + rnd() * 220); } // islets
   }
   for (const k of [0, 1]) { const a = a0 + PI * k + 0.9, d = 44000 + rnd() * 6000; addIsland(Math.cos(a) * d, Math.sin(a) * d, 11000 + rnd() * 5000, 900 + rnd() * 700); }
+  bakeCoastMap();
 }
 
 // ── textures + mesh helpers ─────────────────────────────────────────────────

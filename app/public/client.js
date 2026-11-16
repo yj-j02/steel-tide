@@ -2305,6 +2305,13 @@ window.__st = { cicWcs, cicSetWcs, cicFeedInfo, aa, aimAAAt: (p) => { const o = 
   moveOrder, aimAtPoint, lockShip, setSpeed, cycleCam, enterFlight, pick, useRepair, setMission: (m) => { mission = m; }, get lock() { return lock; }, get weapon() { return weapon; }, setWeapon: (w) => { weapon = w; },
   get paused() { return paused; }, get torpThreat() { return torpThreat; }, get radioSub() { return radioSub; }, keys, fireTorps, intercept, leadPoint, myRank, steer, setLockOn: (t) => { lockOn = t; }, get lockOn() { return lockOn; }, help: (v) => { helpOn = v; } };
 loadModels(); showcase(profile.ship); refreshMenus(); connect(); bgm("menu"); /* the first port screen is not opened through openMenu, so ask for its music here (it starts on the first click) */
-if (params.has("autostart")) { if (MISSIONS[params.get("mission")]) mission = params.get("mission"); start(params.get("autostart") === "watch"); }
+if (params.has("autostart")) {
+  if (MISSIONS[params.get("mission")]) mission = params.get("mission");
+  if (MAPS[params.get("theater")]) theater = params.get("theater");
+  start(params.get("autostart") === "watch");
+  const foc = params.get("focus");
+  if (foc === "outpost" && G.outpost) { cam.free = true; cam.tgt = null; cam.focus.set(G.outpost.x, 32, G.outpost.z); cam.dist = +(params.get("dist") || 1650); cam.pitch = +(params.get("pitch") || 0.34); cam.yaw = +(params.get("yaw") ?? (G.outpost.yaw ?? 1.1)); paused = true; }
+  else if (foc === "caldera" && G.islands[1]) { cam.free = true; cam.tgt = null; cam.focus.set(G.islands[1].x, 45, G.islands[1].z); cam.dist = +(params.get("dist") || 3800); cam.pitch = +(params.get("pitch") || 0.42); cam.yaw = +(params.get("yaw") || 0.7); paused = true; }
+}
 loop();
 if (!cmdrSet) setTimeout(() => { if (G.state === "menu") openCmdr(); }, 900);
