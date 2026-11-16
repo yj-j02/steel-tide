@@ -89,12 +89,6 @@
       #brief .brief-btns { display:flex; gap:10px; margin-top:14px; }
       #camp .stars { color:var(--gold); font-size:12px; } #camp .kfail { color:var(--bad); font-size:12px; }
       #opsP .wz { display:none; } #opsP .wz.on { display:block; }
-      #opsP .wz[data-step="era"], #opsP .wz[data-step="mode"] { display:block !important; }
-      #opsP:not(:has(.wz[data-step="camp"].on)) .wz[data-step="ops"],
-      #opsP:not(:has(.wz[data-step="camp"].on)) .wz[data-step="nat"],
-      #opsP:not(:has(.wz[data-step="camp"].on)) .wz[data-step="map"] { display:block !important; }
-      #opsP:not(:has(.wz[data-step="camp"].on)) .wz-nav,
-      #opsP:not(:has(.wz[data-step="camp"].on)) .wz-next { display:none !important; }
       #opsP .wz-nav { display:flex; align-items:center; gap:8px; min-height:26px; padding-bottom:6px; border-bottom:1px dashed var(--gline-soft); }
       #opsP .wz-back { background:rgba(10,13,10,.6); color:var(--cream); border:1px solid var(--gline); border-radius:0; padding:3px 9px; cursor:pointer; font:600 12px 'Noto Sans KR',sans-serif; }
       #opsP .wz-back:disabled { visibility:hidden; }
