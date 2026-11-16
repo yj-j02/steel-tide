@@ -294,7 +294,7 @@ function newBattle() {
   const CS = campSel != null ? CAMPS()[campSel] : null; G.camp = campSel; G.campEra = campEra; G.hard = !!(CS && campEra === "modern" && campSel > 0 && !CS.bonus && kFail[campSel - 1]); G.tod = CS ? CS.tod || "day" : mission === "modern:emcon" ? "night" : todSel; G.wx = CS ? CS.wx || "clear" : wxSel; setWeather(G.tod, G.wx);
   G.visK = (G.tod === "night" ? 0.55 : 1) * (G.wx === "storm" ? 0.7 : 1); G.wxDisp = G.wx === "storm" ? 1.35 : 1; G.kc = null; formI = 0;
   const id = profile.ship, spec = SHIPS[id], rk = myRank(), tier = spec.tier;
-  G.dryT = null; G.lastHitT = 0; G.mission = mission; G.result = null; G.goal = null; G.foeLaunched = false; G.events = []; G.foeSquad = 0; G.foePlaneCD = 0;
+  G.dryT = null; G.lastHitT = 0; G.mission = mission; G.result = null; G.goal = null; G.waves = null; G.foeLaunched = false; G.events = []; G.foeSquad = 0; G.foePlaneCD = 0;
   const modern = isModernOp(mission), OP = modern ? mission : null; G.modern = modern; G.mop = OP; if (modern) G.mission = "modern"; // economy and results count every modern operation as "modern" modern && (MSL.cam = null);
   const pSpec = modern ? MODERN[NATIONS[natUs].ships[0]] : spec;
   const P = new Ship(pSpec, 0, 0, 0, "us", modern ? {} : profile.upg[id]); P.isPlayer = true; P.name = pSpec.short; P.nav = []; P.lv = 3; P.lastLv = 3; if (modern) { P.nation = natUs; mArm(P); }
@@ -335,9 +335,12 @@ function newBattle() {
     G.events.push({ t: 6, fn: wave(8) }, { t: 95, fn: wave(8 + (tier >= 3 ? 1 : 0)) },
       { t: 190, fn: () => { wave(9)(); const a = from + 0.9; foeGroup([Math.min(tier, 2), 1, 1], Math.cos(a) * 9400, Math.sin(a) * 9400, a + PI, false, true); log("적 수상 함대 접근!", "bad"); } });
   } else {
-    const fleet = [...FLEETS[tier], 1], E = ENEMIES[fleet[0]]; /* one more destroyer than before; enemy refits now follow ours (foeUpg) */
+    const fleet = mission === "fleet" && !CS ? FLEETS[tier] : [...FLEETS[tier], 1], E = ENEMIES[fleet[0]]; /* wave battle starts with the usual fleet; campaign stages get one more destroyer */
     const b = (28 + rnd() * 30) * DEG * (rnd() < 0.5 ? -1 : 1), r = E.range[0] + rnd() * (E.range[1] - E.range[0]) + 3500, eh = wrap(PI + b + (rnd() - 0.5) * 1.2);
     foeGroup(fleet, Math.cos(b) * r * 0.67, Math.sin(b) * r * 0.67, eh, tier >= 3 || !!CS?.cv); aiFleets(tier, b);
+    if (mission === "fleet" && !CS) { /* fleet battle: three enemy fleets one after another on the way, and the flagship must reach the destination */
+      let gx = Math.cos(b) * 12000, gz = Math.sin(b) * 12000, k = 0; while (landAt(gx, gz, 1500) && k++ < 40) { gx *= 0.95; gz *= 0.95; }
+      G.goal = { x: gx, z: gz, label: "목적지" }; G.waves = { n: 1, max: 3, tier, pending: false, told: false }; }
     if (tier < 3) G.events.push({ t: 75, fn: () => { const a = b + (rnd() - 0.5) * 0.6; spawnRaid(Math.cos(a) * 15000, Math.sin(a) * 15000, a + PI, 8); log("적 육상기 편대 8기 접근! 대공 전투 배치", "bad"); G.radio("battle"); sfx.alarm(); } });
   }
   for (const s of G.ships) { let k = 0; const L = Math.hypot(s.pos.x, s.pos.z) || 1; while (landAt(s.pos.x, s.pos.z, 1200) && k++ < 80) { s.pos.x -= (s.pos.x / L) * 500; s.pos.z -= (s.pos.z / L) * 500; } } // spawned on land: slide toward the open battle area
@@ -350,6 +353,7 @@ function newBattle() {
   log(`전장: ${MAPS[mapId].n}${G.tod === "night" ? " · 야간" : ""}${G.wx === "storm" ? " · 폭풍" : ""} · ${ECON_RANKS[myRank()]} ${cmdr.name} 사령관 지휘 개시`);
   if (CS) log(`${campEra === "modern" ? "한반도 시나리오" : "캠페인"} ${CS.bonus ? "보너스" : `${campSel + 1}단계`} — ${CS.n}: ${CS.d}${G.hard ? " · 난이도 상승" : ""}`, "hit");
   if (G.tod === "night" || G.wx === "storm") log(`시정 불량 — 피탐 거리 ×${G.visK.toFixed(2)}${G.wxDisp > 1 ? " · 포 산포 +35%" : ""}`);
+  if (G.waves) log(`함대 결전 — 적 함대 ${G.waves.max}개가 차례로 막아선다. 모두 격파하고 기함을 목적지(${fmt(Math.hypot(G.goal.x, G.goal.z))} m)까지 보내라`, "hit");
   log(mission === "raid" ? "진주만 — 정박 중. 적 공습 예상!" : mission === "convoy" ? `호송 작전 개시 — 집결지까지 ${fmt(G.goal.x)} m` : `${first ? `${first.spec.name} 외 ${G.enemies.length - 1}척 접근 중. 전투 배치!` : `작전: ${MISSIONS[G.mop]?.n || ""} — ${MISSIONS[G.mop]?.d || ""}`}`);
   G.radio("battle");
   if (modern) { const F = CMDR_FACES[cmdr.face] || CMDR_FACES[0]; cicStart({ md, face: face(cmdr.face, 110), faceSkin: F.skin?.[0], cmdrName: `${ECON_RANKS[myRank()]} ${cmdr.name}`, nat: natUs, theater: mapId, toast, log, radio: G.radio, know, watchJet, watchMsl, isWatching: (j) => md.fly === j }); } else cicStop();
@@ -497,11 +501,32 @@ function dryCheck() {
 }
 /** WWII battles that stall: nobody has hit anything for 3 minutes and no aircraft are attacking → the enemy breaks off. */
 function stallCheck() {
-  if (G.modern || G.battleT < 240) return null;
+  if (G.modern || G.waves || G.battleT < 240) return null; /* the wave battle ends at the destination */
   const quiet = G.battleT - (G.lastHitT || 0), raid = G.events.length > 0, foePl = air.planes.some((p) => p.side === "foe" && p.alive && p.mode !== "home");
   if (quiet < 180 || raid || foePl) return null;
   const lost = G.enemies.filter((e) => !e.alive).length, n = G.enemies.length;
   return { won: true, why: `적 ${n - lost}척 퇴각 — 3분간 교전 없음 (격침 ${lost} / ${n})`, retreat: true };
+}
+/** Fleet battle waves: when a fleet is sunk the next one appears between the flagship and the destination; after the last one, reach the destination. */
+const WAVE_FLEETS = (tier, n) => (n === 2 ? FLEETS[tier] : [...FLEETS[tier], 2, 1]); /* the last fleet is the biggest (and brings a carrier from tier 3) */
+function nextWave() {
+  const W = G.waves, P = G.player; W.n++; W.pending = false; const fleet = WAVE_FLEETS(W.tier, W.n), E = ENEMIES[fleet[0]];
+  const g = Math.atan2(G.goal.z - P.pos.z, G.goal.x - P.pos.x) + (rnd() - 0.5) * 0.8, r = (E.range[0] + rnd() * (E.range[1] - E.range[0]) + 3500) * 0.67;
+  const out = foeGroup(fleet, P.pos.x + Math.cos(g) * r, P.pos.z + Math.sin(g) * r, wrap(g + PI + (rnd() - 0.5) * 0.8), W.n === W.max && W.tier >= 3);
+  for (const e of out) { let k = 0; while (landAt(e.pos.x, e.pos.z, 1200) && k++ < 80) { const dx = P.pos.x - e.pos.x, dz = P.pos.z - e.pos.z, L = Math.hypot(dx, dz) || 1; e.pos.x += dx / L * 500; e.pos.z += dz / L * 500; } }
+  uniq(G.enemies.filter((e) => !e.isCarrier)); assignCaptains();
+  log(`적 제${W.n}함대 출현 — ${out[0].spec.name} 외 ${out.length - 1}척${W.n === W.max ? " (마지막 함대)" : ""}`, "bad"); toast(`적 제${W.n}함대 접근!`, 3); sfx.alarm(); G.radio("battle");
+}
+function patchUp() { /* between fleets: our ships get 30% hull back, fires out, flooding halved, and the emergency repairs refilled */
+  for (const s of G.ships) if (s.alive && s.side === "us" && !s.sinking) { s.hp = Math.min(s.maxHp, s.hp + s.maxHp * 0.3); s.fires.length = 0; s.flooding *= 0.5; }
+  rep.n = Math.max(rep.n, 2); }
+function waveCheck(P, foesAlive) {
+  const W = G.waves, at = d2(P.pos, G.goal) < 1500;
+  if (foesAlive) { if (at && !W.toldGoal) { W.toldGoal = true; toast("목적지 도착 — 남은 적 함대를 격파하라", 3); } return null; }
+  if (W.n < W.max) { if (!W.pending) { W.pending = true; patchUp(); log(`적 제${W.n}함대 전멸! 응급 정비로 선체 30% 회복 · 수리 횟수 보충 — 다음 함대가 다가온다`, "hit"); toast(`제${W.n}함대 격파 — 15초 뒤 다음 함대`, 3); G.events.push({ t: G.battleT + 15, fn: nextWave }); } return null; }
+  if (at) return { won: true, why: `적 ${W.max}개 함대 격파 · 목적지 도달` };
+  if (!W.told) { W.told = true; log("모든 적 함대 격파! 기함을 목적지까지 보내라", "hit"); toast("모든 적 함대 격파 — 목적지로!", 4); sfx.bell(); }
+  return null;
 }
 function missionCheck() {
   if (G.state !== "playing") return;
@@ -511,6 +536,7 @@ function missionCheck() {
   else if (!G.modern && G.mission !== "modern" && stallCheck()) res = stallCheck();
   else if (G.mission === "modern" && foesAlive && dryCheck()) { const hp = (side) => { const L = G.ships.filter((s) => s.side === side && s.spec.modern && !s.spec.jets); return L.reduce((n, s) => n + (s.alive ? s.hp / s.maxHp : 0), 0) / Math.max(1, L.length); }, a = hp("us"), b = hp("foe");
     res = { won: a >= b, why: `양측 미사일 소진 · 포격전 종료 — 판정${a >= b ? "승" : "패"} (잔존 선체 아군 ${Math.round(a * 100)}% / 적 ${Math.round(b * 100)}%)` }; }
+  else if (G.waves) res = waveCheck(P, foesAlive);
   else if (G.mission === "fleet" || G.mission === "modern") { if (!foesAlive) res = { won: true, why: G.mission === "modern" ? "적 수상함 전멸 — 해상 우세 확보" : "적 함대 전멸" }; }
   else if (G.mission === "convoy") {
     const alive = G.convoy.filter((c) => c.alive);
@@ -1949,7 +1975,7 @@ function drawCommandHUD(mode) {
       for (const h of MSL.helos) if (h.alive) { const q = proj(h.pos.clone().setY(2)); if (q && q.on) { ntds(hx, q.x, q.y, 9, h.side === "foe", h.side === "foe" ? "#ff8a7a" : "#cfe7ff", false, true); txt(`${h.name} ${Math.max(0, Math.ceil(h.endur - h.t))}초`, q.x, q.y + 14, "#cfe7ff", "10px 'Noto Sans KR', sans-serif", "center"); } }
     }
     for (const e of G.enemies) if (!G.modern && e.alive && !e.root.visible && e.last) { const q = proj(new THREE.Vector3(e.last.x, 2, e.last.z)); if (q && q.on) { hx.globalAlpha = clamp(1 - (G.time - e.last.t) / 120, 0.3, 0.9); txt("?", q.x, q.y, "#aab4ba", "bold 18px 'Noto Sans KR', sans-serif", "center"); txt(`${e.name} (마지막 위치)`, q.x, q.y + 16, "#aab4ba", "10px 'Noto Sans KR', sans-serif", "center"); hx.globalAlpha = 1; } }
-    if (G.goal) { const q = proj(new THREE.Vector3(G.goal.x, 2, G.goal.z)); if (q && q.on) { hx.strokeStyle = "#7ff0e0"; hx.lineWidth = 2; hx.strokeRect(q.x - 12, q.y - 12, 24, 24); txt("집결지", q.x, q.y - 22, "#7ff0e0", "bold 12px 'Noto Sans KR', sans-serif", "center"); } }
+    if (G.goal) { const q = proj(new THREE.Vector3(G.goal.x, 2, G.goal.z)); if (q && q.on) { hx.strokeStyle = "#7ff0e0"; hx.lineWidth = 2; hx.strokeRect(q.x - 12, q.y - 12, 24, 24); txt(G.goal.label || "집결지", q.x, q.y - 22, "#7ff0e0", "bold 12px 'Noto Sans KR', sans-serif", "center"); } }
     const sc = proj(cam.focus.clone().setY(1)), sc2 = proj(cam.focus.clone().setY(1).add(new THREE.Vector3(Math.sin(cam.yaw) * -1000, 0, Math.cos(cam.yaw) * 1000)));
     if (sc && sc2) { const px = Math.abs(sc2.x - sc.x) || 1, km = px > 160 ? 1 : px > 60 ? 2 : 5, L = (px * km); hx.strokeStyle = "#e8f0f2"; hx.lineWidth = 2; const X0 = W - plotCss - 40 - L, Y0 = 14 + plotCss + 110; hx.beginPath(); hx.moveTo(X0, Y0); hx.lineTo(X0 + L, Y0); hx.moveTo(X0, Y0 - 6); hx.lineTo(X0, Y0 + 6); hx.moveTo(X0 + L, Y0 - 6); hx.lineTo(X0 + L, Y0 + 6); hx.stroke(); txt(`${km} km`, X0 + L / 2, Y0 - 12, "#e8f0f2", "bold 11px 'Noto Sans KR', sans-serif", "center"); }
   }
@@ -2156,7 +2182,7 @@ function updateMapIn() {
   { const nx = c - sy * 0 , n = M(P.pos.x + 1, P.pos.z); void nx; const a = Math.atan2(n[1] - c, n[0] - c); pctx.fillStyle = "rgba(200,220,230,.7)"; pctx.font = "bold 20px 'Noto Sans KR', sans-serif"; pctx.textAlign = "center"; pctx.textBaseline = "middle"; pctx.fillText("N", c + Math.cos(a) * (c - 16), c + Math.sin(a) * (c - 16)); }
   const tri = (x, z, h, color, s = 13) => { const [px, py] = M(x, z); pctx.save(); pctx.translate(px, py); pctx.rotate(h - cam.yaw); pctx.fillStyle = color; pctx.beginPath(); pctx.moveTo(0, -s); pctx.lineTo(s * 0.46, s * 0.7); pctx.lineTo(-s * 0.46, s * 0.7); pctx.closePath(); pctx.fill(); pctx.restore(); };
   pctx.fillStyle = "rgba(48,78,44,.62)"; pctx.strokeStyle = "rgba(150,230,140,.6)"; pctx.lineWidth = 2; for (const isl of G.islands) { if (isl.poly) { pctx.beginPath(); isl.poly.forEach(([px, pz], i) => { const [x, y] = M(px, pz); i ? pctx.lineTo(x, y) : pctx.moveTo(x, y); }); pctx.closePath(); pctx.fill(); pctx.stroke(); continue; } /* land: dark fill, bright coastline echo */ const [x, y] = M(isl.x, isl.z), r = isl.r * plotSc; if (x + r < 0 || y + r < 0 || x - r > W || y - r > W) continue; pctx.beginPath(); pctx.arc(x, y, Math.max(r, 1.5), 0, TAU); pctx.fill(); }
-  if (G.goal) { const [gx, gy] = M(G.goal.x, G.goal.z); pctx.strokeStyle = "#7ff0e0"; pctx.lineWidth = 2; pctx.strokeRect(gx - 9, gy - 9, 18, 18); pctx.fillStyle = "#7ff0e0"; pctx.font = "16px 'Noto Sans KR', sans-serif"; pctx.fillText("집결지", gx, gy - 20); }
+  if (G.goal) { const [gx, gy] = M(G.goal.x, G.goal.z); pctx.strokeStyle = "#7ff0e0"; pctx.lineWidth = 2; pctx.strokeRect(gx - 9, gy - 9, 18, 18); pctx.fillStyle = "#7ff0e0"; pctx.font = "16px 'Noto Sans KR', sans-serif"; pctx.fillText(G.goal.label || "집결지", gx, gy - 20); }
   if (P.nav.length) { pctx.strokeStyle = "#8ef07a"; pctx.setLineDash([6, 6]); pctx.lineWidth = 2; pctx.beginPath(); pctx.moveTo(c, c); for (const w of P.nav) pctx.lineTo(...M(w.x, w.z)); pctx.stroke(); pctx.setLineDash([]); }
   if (P.alive && !G.plane) { const tp = weapon === "torp" && P.spec.torp ? { x: P.pos.x + Math.cos(torpB) * P.spec.torp.range, z: P.pos.z + Math.sin(torpB) * P.spec.torp.range } : P.aimPoint(), [ax, ay] = M(tp.x, tp.z); pctx.strokeStyle = weapon === "torp" ? "#9be06a" : "#fff2c4"; pctx.lineWidth = 1.5; pctx.beginPath(); pctx.moveTo(c, c); pctx.lineTo(ax, ay); pctx.stroke(); pctx.beginPath(); pctx.arc(ax, ay, 6, 0, TAU); pctx.stroke(); }
   for (const e of G.enemies) {
@@ -2216,7 +2242,8 @@ function step(dt) {
       if (P.alive && G.enemy && G.enemy.root.visible && G.state === "playing") brain(P, G.enemy, ap, dt, false);
     }
     fleetAI(dt);
-    if (G.auto && P.alive && G.state === "playing") { const t = G.enemy || P; ap.blind = !(G.enemy && G.enemy.root.visible); brain(P, t, ap, dt); }
+    if (G.auto && P.alive && G.state === "playing") { if (G.waves && G.goal && !G.enemies.some((e) => e.alive)) { const w = Math.atan2(G.goal.z - P.pos.z, G.goal.x - P.pos.x); P.rudderCmd = clamp(wrap(w - P.heading) * 2.2, -1, 1); P.tele = 4; } /* automatic battle: no fleet left, head for the destination */
+      else { const t = G.enemy || P; ap.blind = !(G.enemy && G.enemy.root.visible); brain(P, t, ap, dt); } }
     for (const s of G.ships) s.update(dt);
     updateShells(dt); updateTorps(dt); updateAir(dt); torpWatch(dt);
     if (P.alive && P.hp / P.maxHp < 0.3 && !hullWarned) { hullWarned = true; G.radio("hull"); }
