@@ -37,9 +37,11 @@ export function cicInit(deps) { // deps: { md, face, faceSkin, cmdrName, nat, th
   window.addEventListener("mousemove", (e) => { if (!C.drag) return; C.el.style.left = clamp(e.clientX - C.drag.dx, 0, innerWidth - 120) + "px"; C.el.style.top = clamp(e.clientY - C.drag.dy, 0, innerHeight - 60) + "px"; C.el.style.right = C.el.style.bottom = "auto"; });
   window.addEventListener("mouseup", () => { C.drag = null; });
   C.el.addEventListener("wheel", (e) => {
-    e.preventDefault(); e.stopPropagation();
-    if (C.mode === "pip" && !e.target.closest(".cic-mapw")) { const s = ["s", "m", "l"], i = s.indexOf(C.el.dataset.size || "m"); C.el.dataset.size = s[clamp(i + (e.deltaY < 0 ? 1 : -1), 0, 2)]; }
-    else C.zoom = clamp(C.zoom * (e.deltaY < 0 ? 1.2 : 1 / 1.2), 0.4, 4);
+    e.stopPropagation();
+    if (e.target.closest(".cic-mapw")) {
+      e.preventDefault();
+      C.zoom = clamp(C.zoom * (e.deltaY < 0 ? 1.2 : 1 / 1.2), 0.4, 4);
+    }
   }, { passive: false });
   C.el.addEventListener("mousedown", (e) => e.stopPropagation());
   C.map.addEventListener("mousemove", (e) => {
@@ -71,7 +73,11 @@ export function cicInit(deps) { // deps: { md, face, faceSkin, cmdrName, nat, th
     C.deps.md.supPt = { x: t.x, z: t.z }; sfx.click();
     say(`표적 지정 [${t.name}] (${t.km} km · ${t.brg}) — 지원 수단 선택 후 승인 바랍니다.`);
   });
-  $(".cic-cards").addEventListener("click", (e) => { const b = e.target.closest("[data-sup]"); if (b) request(b.dataset.sup); });
+  $(".cic-cards").addEventListener("click", (e) => {
+    const w = e.target.closest("[data-watch]");
+    if (w) { e.stopPropagation(); watchSupport(w.dataset.watch); return; }
+    const b = e.target.closest("[data-sup]"); if (b) request(b.dataset.sup);
+  });
   $(".cic-ask").addEventListener("click", (e) => { const b = e.target.closest("[data-ok]"); if (b) resolve(b.dataset.ok === "1"); });
   // in the big CIC the battle view is the small window: a click on it swaps back
   window.addEventListener("mousedown", (e) => { if (C.mode === "big" && C.on && e.target.id === "gl") { e.stopImmediatePropagation(); e.preventDefault(); setMode("pip"); } }, true);
@@ -150,11 +156,24 @@ function placeBattery() {
 }
 function assets() {
   const n = C.deps.nat, A = AIR[n] || AIR.us, out = [];
-  out.push({ id: "fighter", t: `공군 전투기 편대 · ${A.fighter.type}`, d: `2기 · ${WPN[A.fighter.asm]?.name || A.fighter.asm} 공격 · 도착 약 40초`, ok: true });
-  out.push({ id: "heavy", t: `공군 대형기 · ${A.heavy.type}`, d: `${A.heavy.n}발 · ${WPN[A.heavy.asm]?.name || A.heavy.asm} · 도착 약 60초`, ok: true });
-  out.push(C.battery ? { id: "battery", t: C.battery.name, d: `4발 일제 · 사거리 ${(WPN[C.battery.key].range / 1000) | 0} km · 재요청 90초`, ok: true } : { id: "battery", t: "지대함 포대", d: "이 전장·국가에선 지원 불가 (한반도=해성 · 오키나와=12식 · 미 서부=NMESIS)", ok: false });
-  out.push({ id: "recon", t: "위성 · 합동 ISR 정찰", d: "반경 11 km 은폐·ESM 적함 정밀 식별 (30초) · 쿨타임 75초", ok: true });
+  out.push({ id: "fighter", t: `공군 전투기 편대 · ${A.fighter.type}`, d: `지정 해역으로 2기 출격 → 적함 포착 시 ${WPN[A.fighter.asm]?.name || A.fighter.asm} 공대함미사일 각 2발 자동 발사`, ok: true });
+  out.push({ id: "heavy", t: `공군 대형기 · ${A.heavy.type}`, d: `원거리 상공 진입 → 지정 해역 적함에 ${WPN[A.heavy.asm]?.name || A.heavy.asm} ${A.heavy.n}발 일제 포화 발사 후 이탈`, ok: true });
+  out.push(C.battery ? { id: "battery", t: C.battery.name, d: `아군 해안 기지에서 지정 좌표로 ${WPN[C.battery.key]?.name || C.battery.key} 4발 연속 발사 · 사거리 ${(WPN[C.battery.key].range / 1000) | 0}km`, ok: true } : { id: "battery", t: "지대함 포대", d: "이 전장·국가에선 지원 불가 (한반도=해성 · 오키나와=12식 · 미 서부=NMESIS)", ok: false });
+  out.push({ id: "recon", t: "위성 · 합동 ISR 정찰", d: "지정 반경 11km 내 은폐·연막·미식별 적함을 30초간 즉시 정밀 식별해 미사일·함포 조준 연동", ok: true });
   return out;
+}
+function watchSupport(id) {
+  if (id === "heavy" || id === "fighter") {
+    const j = M.jets.find((x) => x.alive && x.side === "us" && (id === "heavy" ? x.heavy : (x.support && !x.heavy)));
+    if (!j) { sfx.deny(); return; }
+    if (C.mode === "big") setMode("pip");
+    C.deps.watchJet?.(j);
+  } else if (id === "battery" && C.battery) {
+    const m = M.list.find((x) => x.alive && x.side === "us" && x.owner?.name === C.battery.name);
+    if (!m) { sfx.deny(); return; }
+    if (C.mode === "big") setMode("pip");
+    C.deps.watchMsl?.(m);
+  }
 }
 function request(id) {
   const a = assets().find((x) => x.id === id); if (!a || !a.ok) { sfx.deny(); say("해당 지원은 이 전장에서 쓸 수 없습니다."); return; }
@@ -173,13 +192,13 @@ function resolve(ok) {
   C.uses[p.id]--; C.used = (C.used || 0) + 1; C.cd[p.id] = G.battleT + CD_SEC[p.id]; C.deps.radio?.("launch");
   const pt = new THREE.Vector3(p.pt.x, 0, p.pt.z), P = G.player, A = AIR[C.deps.nat] || AIR.us;
   if (p.id === "fighter" || p.id === "heavy") {
-    const back = P.pos.clone().sub(pt).setY(0).normalize(), base = P.pos.clone().addScaledVector(back, p.id === "heavy" ? 26000 : 18000).setY(p.id === "heavy" ? 6000 : 2000);
+    const back = P.pos.clone().sub(pt).setY(0).normalize(), base = P.pos.clone().addScaledVector(back, p.id === "heavy" ? 14000 : 11000).setY(p.id === "heavy" ? 950 : 450);
     const n = p.id === "heavy" ? 1 : 2;
     for (let i = 0; i < n; i++) { const cv = p.id === "heavy" ? { type: A.heavy.type, asm: A.heavy.asm, aam: "AIM-120" } : { type: A.fighter.type, asm: A.fighter.asm, aam: A.fighter.aam };
       const src = { side: "us", pos: base.clone().add(new THREE.Vector3(i * 300, 0, i * 300)), heading: Math.atan2(pt.z - base.z, pt.x - base.x), spec: { fb: 0 }, alive: true, cv, fwd: back.clone().negate(), name: "공군" };
       const j = launchJet(src, "strike", cv, src.pos); j.pos.copy(src.pos); j.aimPt = pt.clone(); j.support = true; j.endur = 400; if (p.id === "heavy") { j.asm = A.heavy.n; j.aam = 0; j.mesh.scale.setScalar(4.2); j.heavy = true; } }
     C.pulses.push({ x: pt.x, z: pt.z, t: 0, dur: 4, maxR: 6000, col: "#f2b544" });
-    say(p.id === "heavy" ? `${A.heavy.type} 출격 확인 — 약 60초 후 다연장 공대함 발사 예정.` : `${A.fighter.type} 2기 출격 확인 — 약 40초 후 목표 해역 진입.`);
+    say(p.id === "heavy" ? `${A.heavy.type} 출격 확인 — 목표 해역 진입 후 ${WPN[A.heavy.asm]?.name || A.heavy.asm} ${A.heavy.n}발 발사 예정. 카드의 [🎥 시점 보기]로 비행 및 발사 장면을 직접 볼 수 있습니다.` : `${A.fighter.type} 2기 출격 확인 — 카드의 [🎥 시점 보기]로 비행 및 발사 장면을 직접 볼 수 있습니다.`);
     C.deps.log(`합동 지원 승인 — ${p.a.t}`, "hit");
   } else if (p.id === "battery") {
     const b = C.battery, T = C.deps.know("us").sort((x, y) => x.pos.distanceToSquared(pt) - y.pos.distanceToSquared(pt))[0];
@@ -305,6 +324,9 @@ export function cicStep(dt, marks) {
   updateTele(P, incoming, airborneJets, etaSec);
   updateTracks(P, marks);
   const pt = C.deps.md.supPt;
+  const actHeavy = M.jets.find((j) => j.alive && j.side === "us" && j.heavy);
+  const actFighter = M.jets.find((j) => j.alive && j.side === "us" && j.support && !j.heavy);
+  const actBatMsl = C.battery ? M.list.filter((m) => m.alive && m.side === "us" && m.owner?.name === C.battery.name) : [];
   const cards = assets().map((a) => {
     const cd = Math.max(0, Math.ceil((C.cd[a.id] || 0) - G.battleT)), maxCd = CD_SEC[a.id] || 60, u = C.uses[a.id] ?? 0, maxU = MAX_USES[a.id] || 1;
     const pips = a.ok ? `<span class="pips">${"●".repeat(u)}${"○".repeat(Math.max(0, maxU - u))}</span>` : "";
@@ -320,9 +342,18 @@ export function cicStep(dt, marks) {
         eta = ` · <span class="eta">지정점 ${(Math.hypot(pt.x - P.pos.x, pt.z - P.pos.z) / 1000).toFixed(1)}km · ${a.id === "heavy" ? `${A.heavy.n}발 포화` : `${A.fighter.asm} 공대함`}</span>`;
       }
     }
+    let liveHtml = "";
+    if ((a.id === "heavy" && actHeavy) || (a.id === "fighter" && actFighter)) {
+      const j = a.id === "heavy" ? actHeavy : actFighter, ref = j.aimPt || P.pos, dKm = (Math.hypot(ref.x - j.pos.x, ref.z - j.pos.z) / 1000).toFixed(1);
+      const actTxt = j.asm > 0 && !j.home ? `▶ 작전 중: 목표 해역 접근 (${dKm}km · ${WPN[j.asmKey]?.name || j.asmKey} ${j.asm}발 발사 대기)` : `▶ 작전 중: 대함미사일 발사 완료 · 기지 이탈 중`;
+      const watching = C.deps.isWatching?.(j);
+      liveHtml = `<div class="sup-act"><span>${actTxt}</span><span class="sup-watch" data-watch="${a.id}">${watching ? "🎥 본함 복귀" : "🎥 시점 보기"}</span></div>`;
+    } else if (a.id === "battery" && actBatMsl.length) {
+      liveHtml = `<div class="sup-act"><span>▶ 작전 중: 지대함 미사일 ${actBatMsl.length}발 목표 비행 중</span><span class="sup-watch" data-watch="battery">🎥 미사일 시점</span></div>`;
+    }
     const st = !a.ok ? "불가" : u <= 0 ? "소진" : cd ? `${cd}s` : `${u}회`;
     const pct = cd > 0 ? clamp(1 - cd / maxCd, 0, 1) * 100 : 0;
-    return `<button class="sup${a.ok && u > 0 && !cd ? "" : " off"}${C.pend?.id === a.id ? " pend" : ""}" data-sup="${a.id}"><b>${a.t}${pips}</b><small>${a.d}${eta}</small><i>${st}</i>${cd > 0 ? `<span class="cdbar"><span style="width:${pct.toFixed(1)}%"></span></span>` : ""}</button>`;
+    return `<button class="sup${a.ok && u > 0 && !cd ? "" : " off"}${C.pend?.id === a.id ? " pend" : ""}" data-sup="${a.id}"><b>${a.t}${pips}</b><small>${a.d}${eta}</small>${liveHtml}<i>${st}</i>${cd > 0 ? `<span class="cdbar"><span style="width:${pct.toFixed(1)}%"></span></span>` : ""}</button>`;
   }).join("");
   const snap = pt ? nearestSnap(pt.x, pt.z, 2600) : null;
   const ptDesc = pt ? `${snap ? snap.name : "해역"} (${(Math.hypot(pt.x - P.pos.x, pt.z - P.pos.z) / 1000).toFixed(1)} km · ${brg(Math.atan2(pt.z - P.pos.z, pt.x - P.pos.x))})` : "";

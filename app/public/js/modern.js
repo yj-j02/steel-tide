@@ -462,7 +462,7 @@ export function stepJets(dt, know, onEvent) {
     }
     if (j.flares > 0 && (j.aiFlCd || 0) <= G.time && M.list.some((m) => m.alive && m.target === j && m.pos.distanceTo(j.pos) < 4500)) { const n = Math.min(j.flares, 6); j.flares -= n; j.aiFlCd = G.time + 1.6; jetFlare(j, n); } // AI: a 6-cartridge program, again while the threat stays
     if (j.t > j.endur || !j.owner.alive || (j.role === "multi" && !j.asm && !j.aam)) j.home = true; j.W.alt = j.pos.y < 300 ? "skim" : "high"; // low flyers stay under the radar horizon longer
-    let goal = null, alt = j.role === "strike" ? 160 : 1800, spd = 240;
+    let goal = null, alt = j.heavy ? 950 : j.role === "strike" ? 160 : 1800, spd = j.support ? 285 : 240;
     const foes = M.jets.filter((o) => o.alive && o.side !== j.side), near = foes.sort((a, b) => a.pos.distanceToSquared(j.pos) - b.pos.distanceToSquared(j.pos))[0];
     if (!j.home && j.aam > 0 && near && near.pos.distanceTo(j.pos) < (j.role !== "strike" ? 25000 : 9000)) { // engage aircraft (strike jets only in self-defence)
       goal = near.pos.clone().addScaledVector(near.vel, 2); alt = near.pos.y;
@@ -474,8 +474,13 @@ export function stepJets(dt, know, onEvent) {
       if (j.aamCd <= 0 && m.pos.distanceTo(j.pos) < 7000) { const a = launch(j, j.aamKey, m); if (a) { j.aam--; m.engaged++; j.aamCd = 4; onEvent?.(j, "aam", m); } }
     } else if (!j.home && j.role !== "cap" && j.asm > 0) {
       const ref = j.aimPt || j.pos, c = know(j.side).sort((a, b) => a.pos.distanceToSquared(ref) - b.pos.distanceToSquared(ref))[0]; // support strikes go for the contact nearest the commander's strike point
-      if (c) { goal = c.pos.clone(); const d = Math.hypot(c.pos.x - j.pos.x, c.pos.z - j.pos.z);
-        if (d < WPN[j.asmKey].range * 0.75) { for (let k = 0; k < j.asm; k++) { const m = launch(j, j.asmKey, c.ship); if (m && !c.firm) m.est = c.pos.clone(); } onEvent?.(j, "strike", c.ship); j.asm = 0; j.home = j.role === "strike" || !j.aam; } }
+      if (c) {
+        goal = c.pos.clone(); const d = Math.hypot(c.pos.x - j.pos.x, c.pos.z - j.pos.z);
+        if (d < WPN[j.asmKey].range * 0.75) { for (let k = 0; k < j.asm; k++) { const m = launch(j, j.asmKey, c.ship); if (m && !c.firm) m.est = c.pos.clone(); } onEvent?.(j, "strike", c.ship); j.asm = 0; j.home = j.role === "strike" || !j.aam; }
+      } else if (j.support && j.aimPt) {
+        goal = j.aimPt.clone(); const d = Math.hypot(j.aimPt.x - j.pos.x, j.aimPt.z - j.pos.z);
+        if (d < WPN[j.asmKey].range * 0.65) { for (let k = 0; k < j.asm; k++) { const m = launch(j, j.asmKey, null); if (m) m.est = j.aimPt.clone(); } onEvent?.(j, "strike", { name: "지정 해역" }); j.asm = 0; j.home = true; }
+      }
     }
     if (!goal && !j.home) { const o = j.owner, a = j.t * 0.14; goal = o.pos.clone().add(new THREE.Vector3(Math.cos(a) * 4000, 0, Math.sin(a) * 4000)); } // orbit over the fleet (strike jets wait here for a contact)
     if (j.home) { goal = j.owner.pos.clone(); alt = 60; const d = Math.hypot(goal.x - j.pos.x, goal.z - j.pos.z); spd = d < 3000 ? 90 : 240;
