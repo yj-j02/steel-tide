@@ -562,6 +562,7 @@ function refreshMenus() {
   $("#record").textContent = profile.battles ? `${profile.wins}승 / ${profile.battles}전 · 명중률 ${acc}%` : "첫 출격 대기 중";
   renderRecord();
   const era = isModernOp(mission) ? "modern" : "ww2";
+  document.body.classList.toggle("modern", era === "modern");
   $("#era").innerHTML = `<button class="er${era === "ww2" ? " on" : ""}" data-era="ww2"><b>2차 세계대전</b><small>1941–45 · 전함 포격전 · 함재기 · 캠페인</small></button><button class="er${era === "modern" ? " on" : ""}" data-era="modern"><b>현대전</b><small>이지스함 · 대함미사일 · 전투기 · 국가 선택</small></button>`;
   $("#modeSel").innerHTML = `<button class="er" data-mode="camp"><b>${era === "ww2" ? "태평양 전역 캠페인" : "한반도 시나리오"}</b><small>${era === "ww2" ? "진주만부터 오키나와까지 5단계 · 순서대로 열림" : "가상 시나리오 · 서해부터 제주 남방까지 5단계 + 보너스 · 브리핑과 별점"}</small></button><button class="er" data-mode="ops"><b>단일 작전</b><small>${era === "ww2" ? "함대 결전 · 호송 · 진주만 방어 중 하나를 골라 바로 출항" : "미사일 해전 · 대잠전 · 탄도미사일 방어 · 드론 · 상륙 지원 · 호송 · EMCON"}</small></button>`;
   $("#wzSum").innerHTML = `선택: <b>${era === "ww2" ? "2차대전" : "현대전"}</b> · <b>${MISSIONS[mission]?.n || ""}</b>${isModernOp(mission) ? ` · <b>${NATIONS[natUs].n} vs ${NATIONS[natFoe].n}</b>` : ""} · <b>${MAPS[mission === "raid" ? "pearl" : theater]?.n || ""}</b> · ${todSel === "night" ? "야간" : "주간"}/${wxSel === "storm" ? "폭풍" : "맑음"}<button class="go" type="button" data-wzgo="1">이대로 출항</button>`;
@@ -1732,10 +1733,10 @@ function drawFlyKeys(j) { // visual key legend while flying a jet (H hides it)
     : [["비행", [[["W", "S"], "기수 내림/올림", 0, ["KeyW", "KeyS"]], [["마우스"], "기수·방향 조종"], [["휠"], "출력(속력) +/−"], [["A", "D"], "롤", 0, ["KeyA", "KeyD"]], [["Q", "E"], "러더", 0, ["KeyQ", "KeyE"]]]],
       ["무장", [[["클릭"], `기관포 ${Math.max(0, j.gun ?? 0)}`, !(j.gun > 0)], [["B"], `공대공 ${j.aam}${md.flyLock ? " · LOCK" : md.lockCand ? ` · 록온 ${Math.round(((md.lockT || 0) / LOCK_T) * 100)}%` : ""}`, !j.aam], [["T"], "록온 표적 전환"], [["Space"], `대함 ${j.asm} (2발씩)`, !j.asm], [["X"], `플레어·채프 ${j.flares ?? 0} (4발씩)`, !j.flares]]],
       ["임무", [[["K"], "자동 조종"], [["N"], `임무: ${JR[j.role] || j.role}`], [["L"], "착함 (어디서나 · 20초 재무장)"], [["V"], "조종석/외부"], [["Alt"], "둘러보기"], [["Tab"], "본함 복귀 (I도 가능)"]]]];
-  const rows = groups.reduce((n, g) => n + g[1].length + 1, 0), w = 250, h = rows * 22 + 24, x = 12, y = H - h - 96;
+  const rows = groups.reduce((n, g) => n + g[1].length + 1, 0), rh = H <= 760 ? 19 : 22, w = 244, h = rows * rh + 22, x = 12, y = H - h - (H <= 760 ? 14 : 86);
   panel(x, y, w, h); let yy = y + 12; txt("조종 키 (H 숨김)", x + w - 10, yy + 2, "#7f9aa8", "10px 'Noto Sans KR', sans-serif", "right");
-  for (const [title, items] of groups) { txt(title, x + 10, yy + 4, "#ffd166", "bold 11px 'Noto Sans KR', sans-serif"); yy += 20;
-    for (const [ks, label, dim, codes] of items) { let xx = x + 12; ks.forEach((k, i) => { xx += keycap(xx, yy - 8, k, codes ? keys.has(codes[i]) : false, dim) + 4; }); txt(label, Math.max(xx + 4, x + 104), yy + 2, dim ? "#7c858c" : "#dfe8ec", "12px 'Noto Sans KR', sans-serif"); yy += 22; } yy += 2; }
+  for (const [title, items] of groups) { txt(title, x + 10, yy + 4, "#ffd166", "bold 11px 'Noto Sans KR', sans-serif"); yy += rh - 2;
+    for (const [ks, label, dim, codes] of items) { let xx = x + 12; ks.forEach((k, i) => { xx += keycap(xx, yy - 8, k, codes ? keys.has(codes[i]) : false, dim) + 4; }); txt(label, Math.max(xx + 4, x + 100), yy + 2, dim ? "#7c858c" : "#dfe8ec", "11.5px 'Noto Sans KR', sans-serif"); yy += rh; } yy += 2; }
 }
 /** Where to put the gun cross so the rounds meet target T: rounds leave at 1050 m/s along the nose plus the jet's own velocity,
  * so relative to the jet they fly straight along the nose and only the target's motion relative to the jet needs leading. */
@@ -1785,10 +1786,10 @@ function drawFlyHUD() {
   const Cn = md.lockCand; if (Cn && !md.flyLock && !md.flyAuto) { const q = proj(Cn.pos); if (q && q.on) { const p = (md.lockT || 0) / LOCK_T; hx.strokeStyle = "#ffd23a"; hx.lineWidth = 2; hx.beginPath(); hx.moveTo(q.x, q.y - 18); hx.lineTo(q.x + 18, q.y); hx.lineTo(q.x, q.y + 18); hx.lineTo(q.x - 18, q.y); hx.closePath(); hx.stroke();
     hx.beginPath(); hx.arc(q.x, q.y, 24, -PI / 2, -PI / 2 + TAU * p); hx.stroke(); txt(`LOCKING ${Math.round(p * 100)}% · ${Cn.isJet ? Cn.name : Cn.W.name} ${(Cn.pos.distanceTo(md.fly.pos) / 1000).toFixed(1)} km`, q.x, q.y - 34, "#ffd23a", "bold 11px 'Noto Sans KR', sans-serif", "center"); } }
   const T = md.flyLock; if (T) { const q = proj(T.pos); if (q && q.on) { txt("LOCKED — B 발사", q.x, q.y + 30, "#ff6b5e", "bold 11px 'Noto Sans KR', sans-serif", "center"); hx.strokeStyle = "#ff3b30"; hx.lineWidth = 2; hx.strokeRect(q.x - 14, q.y - 14, 28, 28); txt(`LOCK ${T.isJet ? T.name : T.W.name} ${(T.pos.distanceTo(j.pos) / 1000).toFixed(1)} km`, q.x, q.y - 24, "#ff6b5e", "bold 11px 'Noto Sans KR', sans-serif", "center"); } }
-  const py = md.flyFP ? 200 : H - 150;
-  panel(W / 2 - 390, py, 780, 74);
+  const py = H - 88, sw = Math.min(760, W - 540);
+  panel(W / 2 - sw / 2 - 10, py, sw + 20, 74);
   txt(`${j.name} · ${(j.vel.length() * 3.6).toFixed(0)} km/h · 고도 ${j.pos.y.toFixed(0)} m`, W / 2, py + 13, "#fff", "bold 12px 'Noto Sans KR', sans-serif", "center");
-  drawStores(j, W / 2 - 380, py + 26, 760); /* gun, missiles, flares, fuel and damage as gauges */
+  drawStores(j, W / 2 - sw / 2, py + 26, sw); /* gun, missiles, flares, fuel and damage as gauges */
   if (md.flyAuto && !(j.landT > 0)) {
     if (j.support) {
       const ref = j.aimPt || j.pos, dKm = (Math.hypot(ref.x - j.pos.x, ref.z - j.pos.z) / 1000).toFixed(1);
@@ -2013,7 +2014,7 @@ function drawCommandHUD(mode) {
   ribbons.forEach((r, i) => { const x = cx + (i - (ribbons.length - 1) / 2) * 104, y = H - 104; hx.globalAlpha = clamp(r.t, 0, 1);
     rr(x - 48, y - 13, 96, 26, 4); hx.fillStyle = /격침|격추/.test(r.k) ? "rgba(180,40,30,.9)" : r.k === "도탄" ? "rgba(60,70,80,.85)" : "rgba(30,60,90,.88)"; hx.fill();
     txt(r.n > 1 ? `${r.k} ×${r.n}` : r.k, x, y, "#fff", "bold 12px 'Noto Sans KR', sans-serif", "center"); hx.globalAlpha = 1; });
-  if (hintT > 0 && mode !== "watch") { hx.globalAlpha = clamp(hintT, 0, 1); txt(G.modern ? "우클릭: 이동 · 더블클릭: 함포·미사일 목표 · Space 발사 · Q 무기 · F 전투기 · I 직접 조종 · G 대공 사격 · ` 지휘통제실 · M 지도 · H 조작법" : "좌클릭 끌기: 시점 이동 · Alt+끌기/클릭: 함선 선택 · 우클릭: 이동 · 더블클릭: 조준/적함 고정 · A/D·W/S 사선 · Space 발사 · M 지도 · H 조작법", cx, 104, "#e8f0f2", "bold 13px 'Noto Sans KR', sans-serif", "center"); hx.globalAlpha = 1; }
+  if (hintT > 0 && mode !== "watch") { hx.globalAlpha = clamp(hintT, 0, 1); txt(G.modern ? "우클릭: 이동 · 더블클릭: 함포·미사일 목표 · Space 발사 · Q 무기 · F 전투기 · I 직접 조종 · G 대공 사격 · ` 지휘통제실 · M 지도 · H 조작법" : "좌클릭 끌기: 시점 이동 · Alt+끌기/클릭: 함선 선택 · 우클릭: 이동 · 더블클릭: 조준/적함 고정 · A/D·W/S 사선 · Space 발사 · M 지도 · H 조작법", cx, H - 118, "#e8f0f2", "bold 12.5px 'Noto Sans KR', sans-serif", "center"); hx.globalAlpha = 1; }
 }
 function drawWatchCaption(p) {
   const W = hud.width, cx = W / 2, B = p.bandit && p.mode === "dogfight" ? ` — ${p.bandit.callsign} 추격` : "";
@@ -2104,7 +2105,7 @@ function tutDone() { try { localStorage.setItem(`steeltide:tut:${tut.mode}`, "1"
 function tutStep(dt) {
   if (!tut.mode || G.state !== "playing" || G.auto) return; const L = TUT[tut.mode], s = L[tut.i]; tut.t += dt;
   if (s[1] ? s[1]() && tut.t > 1 : tut.t > 9) { tut.i++; tut.t = 0; sfx.ready(); if (tut.i >= L.length) { tutDone(); return; } }
-  const W = hud.width, w = 470, x = W / 2 - w / 2, y = hud.height - 210; panel(x, y, w, 44); hx.textBaseline = "middle";
+  const W = hud.width, w = 470, x = W / 2 - w / 2, y = md.fly ? 52 : hud.height - 156; panel(x, y, w, 44); hx.textBaseline = "middle";
   txt(`튜토리얼 ${Math.min(tut.i + 1, L.length)}/${L.length} — ${L[tut.i][0]}`, W / 2, y + 16, "#ffd166", "bold 12.5px 'Noto Sans KR', sans-serif", "center");
   txt("Esc: 튜토리얼 건너뛰기", W / 2, y + 33, "#cfd8dc", "11px 'Noto Sans KR', sans-serif", "center");
 }
