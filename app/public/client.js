@@ -79,7 +79,7 @@ const NATIONS = {
   us: { n: "미국", cv: "ford", ships: ["burke", "burke2"], bloc: "w", names: ["대니얼 리브스", "마이클 오하라", "케빈 브래들리", "스티븐 카터"], rk: "대령" },
   kr: { n: "대한민국", cv: "dokdo", ships: ["jeongjo", "jeongjo2"], bloc: "w", names: ["김태준", "박성호", "이재원", "최민석"], rk: "대령" },
   jp: { n: "일본", cv: "kaga", ships: ["maya", "haguro"], bloc: "w", names: ["사토 겐이치", "다나카 히로시", "와타나베 료", "스즈키 마코토"], rk: "1등해좌" },
-  cn: { n: "중국", cv: "shandong", ships: ["t055", "t055b"], bloc: "e", names: ["왕젠궈", "리웨이", "장하이펑", "류청"], rk: "대교" },
+  cn: { n: "중국", cv: "shandong", base: { type: "J-16 (지상 발진)", asm: "YJ-83K", aam: "PL-12", n: 4 }, ships: ["t055", "t055b"], bloc: "e", names: ["왕젠궈", "리웨이", "장하이펑", "류청"], rk: "대교" },
   nk: { n: "북한", base: { type: "MiG-29 (지상 발진)", asm: "금성-3", aam: "R-27", n: 4 }, ships: ["choehyon", "kangkon"], bloc: "e", names: ["림철진", "강명수", "한광혁", "박영일"], rk: "대좌" },
 };
 const FLAGSVG = {
@@ -1633,9 +1633,9 @@ function modernStep(dt) {
   for (const s of [...G.ships, ...(G.bases || [])]) if (s.rearm?.length) { for (let i = s.rearm.length - 1; i >= 0; i--) { s.rearm[i] -= dt; if (s.rearm[i] <= 0) { s.rearm.splice(i, 1); s.jetsReady++; } } }
   stepJets(dt, know, (j, ev, x, n) => { if (ev === "relaunch") { toast(`${j.name} 재출격 — 무장 완충`, 3); return; } if (ev === "lost") log(`${j.side === "us" ? "아군" : "적"} ${j.name} 격추${x ? ` — ${x.isJet ? `${x.side === "us" ? "아군" : "적"} ${x.name}의 공대공 미사일` : `${x.name}의 대공 방어`}` : ""}`, j.side === "us" ? "bad" : "hit"); else if (ev === "strike") { log(`${j.side === "us" ? "아군" : "적"} ${j.name} 편대 ${WPN[j.asmKey].name}${n ? ` ${n}발` : ""} 발사 → ${x.name}`, j.side === "us" ? "hit" : "bad"); if (j.side === "us" && j.support) toast(`${j.name} — ${WPN[j.asmKey].name} 일제 발사! → ${x.name} (T: 미사일 추적)`, 4); } else if (ev === "land") log(`${j.name} 착함 — 재무장 60초`); });
   for (const s of [...G.ships, ...(G.bases || [])]) if (s.cv && s.alive && (s.side === "foe" || G.auto || autoFire)) { // computer air wing: CAP early, strikes when it knows where we are
-    s.airT = (s.airT ?? 12 + rnd() * 10) - dt; if (s.airT > 0) continue; s.airT = 25;
+    s.airT = (s.airT ?? (s.side === "foe" ? 6 + rnd() * 8 : 12 + rnd() * 10)) - dt; if (s.airT > 0) continue; s.airT = 25;
     const up = MSL.jets.filter((j) => j.alive && j.owner === s).length;
-    if (up < 2 && s.jetsReady >= 2) { sortieJets(s, "multi"); s.airT = 45; }
+    if (up < (s.side === "foe" ? 4 : 2) && s.jetsReady >= 2) { sortieJets(s, "multi"); s.airT = 45; } /* enemy air wings keep up to four jets up and launch early */
   }
   stepHelos(dt, (h, ev, by) => log(ev === "land" ? `${h.name} 귀함 — 정비 40초` : `${h.name} 격추됨${by ? ` — ${by.name}의 함대공미사일` : ""}`, ev === "land" ? "" : "bad"));
   // offence: every modern ship with anti-ship missiles fires salvos at a seen enemy inside range (the player's only with AUTO or in auto battle)

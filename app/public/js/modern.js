@@ -44,7 +44,7 @@ export const satK = (side) => 1 / (1 + 0.14 * Math.max(0, (M.sat?.[side] || 0) -
 export const M = { list: [], decoys: [], helos: [], jets: [], flares: [], cam: null };
 // expendables per jet (flare + chaff cartridges, game counts). Public figures: ALE-47 buckets hold 30 cartridges each; an F-16 Block 50 can carry up to 60 flares,
 // Hornet/Super Hornet dispensers about 60 cartridges. F-35, J-15 loads are not public — the numbers here are estimates.
-export const FLARES = { "F/A-18E": 60, "F-35B": 48, "F-35B (가정)": 48, "J-15": 48, "MiG-29 (지상 발진)": 30 };
+export const FLARES = { "F/A-18E": 60, "F-35B": 48, "F-35B (가정)": 48, "J-15": 48, "MiG-29 (지상 발진)": 30, "J-16 (지상 발진)": 48 };
 export const flaresOf = (type) => FLARES[type] ?? 40;
 /** sensor ranges (game scale): ship radar vs surface ships, ESM intercept of a radiating ship, eyes, helicopter radar, EO/IR when not radiating, missile seeker */
 export const SENS = { surf: 13000, esm: 28000, vis: 7000, helo: 12000, eo: 4000, seek: 9000 };
@@ -316,7 +316,7 @@ function impact(m, S, lx, onHit) {
   for (let i = 0; i < 30; i++) spark.spawn({ x: p.x, y: p.y + 2, z: p.z, vx: gauss() * 25, vy: 10 + rnd() * 30, vz: gauss() * 25, g: 9.8, life: 2.4, s0: 2.6, s1: 0.8, a: 1, c: 0xffa040 });
   for (let i = 0; i < 6; i++) smoke.spawn({ x: p.x + gauss() * 3, y: p.y + 3, z: p.z + gauss() * 3, vy: 6, life: 10, s0: 8, s1: 30, a: 0.75, c: 0x1e1e1e });
   const d = p.distanceTo(camera.position); at(d, () => sfx.explode(d)); if (S.isPlayer) G.shake = 2;
-  const n = W.dmg * (0.85 + rnd() * 0.3) * (W.cls === "hyp" ? 1 : 1.5); S.fires.push(40); // x1.5: three or four hits sink a destroyer, so battles end
+  const n = W.dmg * (0.85 + rnd() * 0.3) * (W.cls === "hyp" ? 1 : 1.5) * (m.air ? 0.55 : 1); S.fires.push(40); /* air-launched anti-ship missiles hit for 55%: a jet carries many more of them than a ship */ // x1.5: three or four hits sink a destroyer, so battles end
   if (rnd() < 0.5) { S.flooding += 1; S.listSide = S.listSide || (lx >= 0 ? 1 : -1); }
   onHit?.(S, m, n); S.damage(n);
 }
@@ -455,7 +455,7 @@ export function stepHelos(dt, onEvent) {
   }
 }
 // ── jets: CAP fighters hunt enemy aircraft with AAMs; strike pairs fly at a known (or estimated) ship, fire their two anti-ship missiles and go home ──
-export const JET_US = { aam: 5, asm: 15 }; // friendly jet loadout (enemy jets keep 10 AAM and 2 ASM)
+export const JET_US = { aam: 15, asm: 15 }; // friendly jet loadout (enemy jets keep 10 AAM and 2 ASM)
 export function launchJet(S, role, cv, pos, heavy = false) {
   const mesh = heavy ? heavyMesh(S.side === "foe") : jetMesh(S.side === "foe"); mesh.scale.setScalar(heavy ? 1.35 : 1.4); scene.add(mesh);
   const p = pos ? pos.clone() : S.pos.clone().setY((S.spec?.fb || 0) + 14), h = S.heading ?? 0;
@@ -556,7 +556,7 @@ export function stepJets(dt, know, onEvent) {
     j.t += dt; j.aamCd -= dt;
     if (j.pilot && j.landT > 0) { const o = j.owner; j.landT -= dt; j.pos.copy(o.pos).add(new THREE.Vector3(0, o.spec.fb + 10, 0)); j.vel.copy(o.vel || new THREE.Vector3()); j.mesh.position.copy(j.pos);
       for (const br of j.mesh.userData.ab?.burners || []) { br.glow.visible = false; br.plume.visible = false; }
-      if (j.landT <= 0) { j.gun = 480; j.aam = JET_US.aam; j.asm = j.asmKey ? JET_US.asm : 0; j.flares = flaresOf(j.name); j.hit = false; j.gh = 0; j.t = 0; j.thr = 240; j.vel.copy(o.fwd).multiplyScalar(200); j.pos.addScaledVector(o.fwd, o.spec.L * 0.4); j.pos.y = 70; j.q.setFromUnitVectors(X, o.fwd); onEvent?.(j, "relaunch"); } continue; }
+      if (j.landT <= 0) { const us = j.side === "us"; j.gun = 480; j.aam = us ? JET_US.aam : 10; j.asm = j.asmKey ? (us ? JET_US.asm : 2) : 0; /* enemy jets rearm with their own loadout */ j.flares = flaresOf(j.name); j.hit = false; j.gh = 0; j.t = 0; j.thr = 240; j.vel.copy(o.fwd).multiplyScalar(200); j.pos.addScaledVector(o.fwd, o.spec.L * 0.4); j.pos.y = 70; j.q.setFromUnitVectors(X, o.fwd); onEvent?.(j, "relaunch"); } continue; }
     if (j.pilot) { // flown by the player: fly where the stick points
       const maxSpd = j.heavy ? 185 : j.hit ? 250 : 999;
       const want = new THREE.Vector3(1, 0, 0).applyQuaternion(j.q).multiplyScalar(Math.min(j.thr, maxSpd));
@@ -582,7 +582,7 @@ export function stepJets(dt, know, onEvent) {
       if (c) {
         goal = c.pos.clone(); const d = Math.hypot(c.pos.x - j.pos.x, c.pos.z - j.pos.z);
         j.asmCd = (j.asmCd || 0) - dt; const pair = j.side === "us" && !j.support; /* friendly jets fire two at a time and stay on the attack until empty; enemy and support jets fire everything at once */
-        if (d < WPN[j.asmKey].range * 0.75 && j.asmCd <= 0) { const n = pair ? Math.min(2, j.asm) : j.asm; for (let k = 0; k < n; k++) { const m = launch(j, j.asmKey, c.ship); if (m && !c.firm) m.est = c.pos.clone(); } onEvent?.(j, "strike", c.ship, n); j.asm -= n; j.asmCd = 5; if (j.asm <= 0) { j.asm = 0; if (!j.capZone || j.t >= (j.capDur || 90)) j.home = j.role === "strike" || !j.aam; } }
+        if (d < WPN[j.asmKey].range * 0.75 && j.asmCd <= 0) { const n = pair ? Math.min(2, j.asm) : j.asm; for (let k = 0; k < n; k++) { const m = launch(j, j.asmKey, c.ship); if (m && !c.firm) m.est = c.pos.clone(); } onEvent?.(j, "strike", c.ship, n); j.asm -= n; j.asmCd = pair ? 25 : 5; /* friendly jets: two missiles, then 25 s before the next pair */ if (j.asm <= 0) { j.asm = 0; if (!j.capZone || j.t >= (j.capDur || 90)) j.home = j.role === "strike" || !j.aam; } }
       } else if (j.support && j.aimPt && !j.capZone) {
         goal = j.aimPt.clone(); const d = Math.hypot(j.aimPt.x - j.pos.x, j.aimPt.z - j.pos.z);
         if (d < WPN[j.asmKey].range * 0.65) { for (let k = 0; k < j.asm; k++) { const m = launch(j, j.asmKey, null); if (m) m.est = j.aimPt.clone(); } onEvent?.(j, "strike", { name: "지정 해역" }); j.asm = 0; j.home = true; }
