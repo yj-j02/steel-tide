@@ -225,19 +225,24 @@ export function stepMissiles(dt, onHit) {
       const want = W.role === "asm" ? (W.sprint && m.target && m.pos.distanceTo(m.target.pos) < 7000 ? W.sprint : W.v) : W.v;
       const v = m.vel.length(); m.vel.setLength(v + (want - v) * Math.min(1, dt * (W.role === "asm" ? 0.8 : 2.5)));
       if (W.role === "asm") {
-        if (m.jamT > 0) m.jamT -= dt;
+        if (m.jamT > 0) m.jamT -= dt * (m.target?.isrBoostT > 0 ? 2.2 : 1);
+        if (m.side === "us" && m.target?.alive && m.target.isrBoostT > 0 && m.est) m.est = null;
         let T = m.jamT > 0 ? null : m.decoy || m.target;
-        if (!m.decoy && !m.est && !(m.jamT > 0) && (!T || !T.alive)) { const c = enemiesOf(m.side).sort((a, b) => a.pos.distanceToSquared(m.pos) - b.pos.distanceToSquared(m.pos))[0]; m.target = T = c && c.pos.distanceTo(m.pos) < 12000 ? c : null; }
-        if (m.est && !m.decoy) { // fired at an estimated position: fly there, then switch the seeker on and take the nearest ship it finds
+        if (!m.decoy && !m.est && !m.flankPt && !(m.jamT > 0) && (!T || !T.alive)) { const c = enemiesOf(m.side).sort((a, b) => a.pos.distanceToSquared(m.pos) - b.pos.distanceToSquared(m.pos))[0]; m.target = T = c && c.pos.distanceTo(m.pos) < 12000 ? c : null; }
+        if (m.flankPt && !m.decoy) {
+          if (m.pos.distanceTo(m.flankPt) > 1900 && m.t < 42) T = { pos: m.flankPt, vel: null };
+          else m.flankPt = null;
+        }
+        if (!m.flankPt && m.est && !m.decoy) { // fired at an estimated position: fly there, then switch the seeker on and take the nearest ship it finds
           if (m.pos.distanceTo(m.est) > SENS.seek * 0.7) T = { pos: m.est, vel: null };
           else { m.est = null; const c = enemiesOf(m.side).filter((s) => s.pos.distanceTo(m.pos) < SENS.seek).sort((a, b) => a.pos.distanceToSquared(m.pos) - b.pos.distanceToSquared(m.pos))[0]; m.target = T = c || null; m.seekMiss = !c; }
         }
         if (T) {
-          const aim = lead(m, T, m.vel.length()).clone(), d = m.pos.distanceTo(T.pos);
+          const aim = lead(m, T, m.vel.length()).clone(), d = m.pos.distanceTo(T.pos), boostK = m.side === "us" && T.isrBoostT > 0 ? 1.35 : 1;
           if (W.alt === "skim") aim.y = d > 2500 ? 9 : 4;
           else if (W.alt === "drone") aim.y = d > 1600 ? 120 : 3;
           else if (W.alt === "ball") { const frac = clamp(m.dist / Math.max(1, m.dist + d), 0, 1); aim.y = d > 6000 ? Math.max(200, m.apex * Math.sin(Math.PI * Math.min(frac + 0.15, 1))) : 0; }
-          steer(m, aim, dt, W.alt === "ball" ? 0.9 : d < 3000 ? 2.4 : 1.1);
+          steer(m, aim, dt, (W.alt === "ball" ? 0.9 : d < 3000 ? 2.4 : 1.1) * boostK);
           if (W.alt === "skim" && m.pos.y < 3) m.vel.y = Math.max(m.vel.y, 2);
         }
         const h = m.pos.y < 40 ? hullHit(m.pos, null) : null;
@@ -320,17 +325,20 @@ function threatsFor(S) {
   const out = [];
   for (const m of M.list) if (m.alive && m.W.role === "asm" && m.side !== S.side && !m.decoy && seen(m, S.side)) { const d = m.pos.distanceTo(S.pos); if (d < 34000) out.push({ m, d }); }
   for (const m of M.jets) if (m.alive && m.side !== S.side && seen(m, S.side)) { const d = m.pos.distanceTo(S.pos); if (d < (m.pos.y < 300 ? 9000 : 13000)) out.push({ m, d }); } // aircraft: SAMs fire at them only close in (they jink, jam and fly low)
-  return out.sort((a, b) => a.d / (a.m.vel.length() + 1) - b.d / (b.m.vel.length() + 1));
+  return out.sort((a, b) => (b.m.pri ? 1 : 0) - (a.m.pri ? 1 : 0) || a.d / (a.m.vel.length() + 1) - b.d / (b.m.vel.length() + 1));
 }
-/** mode: "auto" | "manual" | "hold" (player's ships only). */
+/** mode: "auto" (FREE) | "tight" (TIGHT) | "hold" (HOLD) — player fleet WCS. */
 export function defend(dt, mode = "auto") {
   for (const S of G.ships) {
     if (!S.alive || !S.spec.modern || !S.mag) continue;
     const D = S.def || (S.def = { cd: 0, pdCd: 0, ciT: 0, decoyCd: 8 + rnd() * 10 }); D.cd -= dt; D.pdCd -= dt; D.decoyCd -= dt;
     const th = threatsFor(S); if (!th.length) continue;
-    const mine = S.side === "us" && mode !== "auto" && !G.auto;
+    const isUs = S.side === "us" && !G.auto;
+    const holdSam = isUs && (mode === "hold" || mode === "manual");
+    const tightSam = isUs && mode === "tight";
     for (const { m, d } of th) {
-      if (D.cd > 0 || mine) break;
+      if (D.cd > 0 || holdSam) break;
+      if (tightSam && !m.pri && m.W?.role === "asm" && m.W.cls === "sub" && d > 9500) continue;
       if (m.engaged >= need(m)) continue;
       if (m.W.drone && (d > 5000 || m.engaged >= 1)) continue; // small radar return: SAMs only take drones close in, one each
       const k = pickSam(S, d); if (!k) continue;
@@ -371,8 +379,8 @@ export function defend(dt, mode = "auto") {
         m.killedBy = S; kill(m, "boom");
       } break;
     }
-    // soft kill: AI ships throw a decoy when a missile is inside 5 km
-    if (!mine && D.decoyCd <= 0 && th[0].d < 5000) { decoy(S); D.decoyCd = 35; }
+    // soft kill: throw a decoy when a missile is inside 5 km (unless WEAPONS HOLD / manual)
+    if (!holdSam && D.decoyCd <= 0 && th[0].d < 5000) { decoy(S); D.decoyCd = 35; }
   }
 }
 export function pickSam(S, d) {
@@ -557,7 +565,7 @@ export function stepJets(dt, know, onEvent) {
       j.mesh.position.copy(j.pos); j.mesh.quaternion.copy(j.q); syncJetPylons(j); updateJetFX(j, dt, j.vel.length()); continue;
     }
     if (j.flares > 0 && (j.aiFlCd || 0) <= G.time && M.list.some((m) => m.alive && m.target === j && m.pos.distanceTo(j.pos) < 4500)) { const n = Math.min(j.flares, 6); j.flares -= n; j.aiFlCd = G.time + 1.6; jetFlare(j, n); } // AI: a 6-cartridge program, again while the threat stays
-    if (j.t > j.endur || !j.owner.alive || (j.role === "multi" && !j.asm && !j.aam)) j.home = true; j.W.alt = j.pos.y < 300 ? "skim" : "high"; // low flyers stay under the radar horizon longer
+    if (j.t > j.endur || !j.owner.alive || (j.role === "multi" && !j.asm && !j.aam && !(j.capZone && j.t < (j.capDur || 90)))) j.home = true; j.W.alt = j.pos.y < 300 ? "skim" : "high"; // low flyers stay under the radar horizon longer
     let goal = null, alt = j.heavy ? 950 : j.role === "strike" ? 160 : 1800, spd = j.heavy ? 165 : j.support ? 265 : 240;
     const foes = M.jets.filter((o) => o.alive && o.side !== j.side), near = foes.sort((a, b) => a.pos.distanceToSquared(j.pos) - b.pos.distanceToSquared(j.pos))[0];
     if (!j.home && j.aam > 0 && near && near.pos.distanceTo(j.pos) < (j.role !== "strike" ? 25000 : 9000)) { // engage aircraft (strike jets only in self-defence)
@@ -565,21 +573,24 @@ export function stepJets(dt, know, onEvent) {
       { const dd = near.pos.distanceTo(j.pos), fw = j.vel.clone().normalize(), ang = Math.acos(clamp(near.pos.clone().sub(j.pos).dot(fw) / Math.max(dd, 1), -1, 1));
         j.gunT = (j.gunT || 0) - dt; if (dd < 1500 && ang < 0.12 && j.gunT <= 0) { j.gunT = 0.09; jetGun(j); if (camera.position.distanceTo(j.pos) < 1500 && rnd() < 0.3) sfx.vulcan?.(); } }
       if (j.aamCd <= 0 && near.pos.distanceTo(j.pos) < WPN[j.aamKey].range * 0.8 && near.engaged < 1) { const m = launch(j, j.aamKey, near); if (m) { j.aam--; near.engaged++; j.aamCd = 6; onEvent?.(j, "aam", near); } }
-    } else if (!j.home && j.role !== "strike" && j.aam > 0 && (() => { const m = M.list.filter((x) => x.alive && x.W.role === "asm" && x.side !== j.side && !x.engaged && x.pos.distanceTo(j.pos) < 9000).sort((a, b) => a.pos.distanceToSquared(j.pos) - b.pos.distanceToSquared(j.pos))[0]; j.msl = m; return !!m; })()) {
+    } else if (!j.home && j.role !== "strike" && j.aam > 0 && (() => { const rMax = j.capZone ? 14000 : 9000; const m = M.list.filter((x) => x.alive && x.W.role === "asm" && x.side !== j.side && !x.engaged && x.pos.distanceTo(j.pos) < rMax).sort((a, b) => a.pos.distanceToSquared(j.pos) - b.pos.distanceToSquared(j.pos))[0]; j.msl = m; return !!m; })()) {
       const m = j.msl; goal = m.pos.clone().addScaledVector(m.vel, 3); alt = Math.max(200, m.pos.y + 150); // CAP also shoots down incoming anti-ship missiles
-      if (j.aamCd <= 0 && m.pos.distanceTo(j.pos) < 7000) { const a = launch(j, j.aamKey, m); if (a) { j.aam--; m.engaged++; j.aamCd = 4; onEvent?.(j, "aam", m); } }
+      if (j.aamCd <= 0 && m.pos.distanceTo(j.pos) < 7500) { const a = launch(j, j.aamKey, m); if (a) { j.aam--; m.engaged++; j.aamCd = 4; onEvent?.(j, "aam", m); } }
     } else if (!j.home && j.role !== "cap" && j.asm > 0) {
       const ref = j.aimPt || j.pos, c = know(j.side).sort((a, b) => a.pos.distanceToSquared(ref) - b.pos.distanceToSquared(ref))[0]; // support strikes go for the contact nearest the commander's strike point
       if (c) {
         goal = c.pos.clone(); const d = Math.hypot(c.pos.x - j.pos.x, c.pos.z - j.pos.z);
         j.asmCd = (j.asmCd || 0) - dt; const pair = j.side === "us" && !j.support; /* friendly jets fire two at a time and stay on the attack until empty; enemy and support jets fire everything at once */
-        if (d < WPN[j.asmKey].range * 0.75 && j.asmCd <= 0) { const n = pair ? Math.min(2, j.asm) : j.asm; for (let k = 0; k < n; k++) { const m = launch(j, j.asmKey, c.ship); if (m && !c.firm) m.est = c.pos.clone(); } onEvent?.(j, "strike", c.ship, n); j.asm -= n; j.asmCd = 5; if (j.asm <= 0) { j.asm = 0; j.home = j.role === "strike" || !j.aam; } }
-      } else if (j.support && j.aimPt) {
+        if (d < WPN[j.asmKey].range * 0.75 && j.asmCd <= 0) { const n = pair ? Math.min(2, j.asm) : j.asm; for (let k = 0; k < n; k++) { const m = launch(j, j.asmKey, c.ship); if (m && !c.firm) m.est = c.pos.clone(); } onEvent?.(j, "strike", c.ship, n); j.asm -= n; j.asmCd = 5; if (j.asm <= 0) { j.asm = 0; if (!j.capZone || j.t >= (j.capDur || 90)) j.home = j.role === "strike" || !j.aam; } }
+      } else if (j.support && j.aimPt && !j.capZone) {
         goal = j.aimPt.clone(); const d = Math.hypot(j.aimPt.x - j.pos.x, j.aimPt.z - j.pos.z);
         if (d < WPN[j.asmKey].range * 0.65) { for (let k = 0; k < j.asm; k++) { const m = launch(j, j.asmKey, null); if (m) m.est = j.aimPt.clone(); } onEvent?.(j, "strike", { name: "지정 해역" }); j.asm = 0; j.home = true; }
       }
     }
-    if (!goal && !j.home) { const o = j.owner, a = j.t * 0.14; goal = o.pos.clone().add(new THREE.Vector3(Math.cos(a) * 4000, 0, Math.sin(a) * 4000)); } // orbit over the fleet (strike jets wait here for a contact)
+    if (!goal && !j.home) {
+      if (j.capZone) { const a = j.t * 0.28; goal = j.capZone.clone().add(new THREE.Vector3(Math.cos(a) * 3600, 0, Math.sin(a) * 3600)); alt = 750; }
+      else { const o = j.owner, a = j.t * 0.14; goal = o.pos.clone().add(new THREE.Vector3(Math.cos(a) * 4000, 0, Math.sin(a) * 4000)); }
+    } // CAP patrols designated umbrella; strike jets orbit the carrier while waiting for contacts
     if (j.home) { goal = j.owner.pos.clone(); alt = j.heavy ? 450 : 60; const d = Math.hypot(goal.x - j.pos.x, goal.z - j.pos.z); spd = j.heavy ? 150 : d < 3000 ? 90 : 240;
       if (d < 400) { j.alive = false; j.gone = true; scene.remove(j.mesh); if (j.owner.alive) { (j.owner.rearm ||= []).push(60); onEvent?.(j, "land"); } continue; } }
     goal.y = alt; const want = goal.sub(j.pos).normalize().multiplyScalar(spd);

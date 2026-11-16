@@ -7,8 +7,8 @@
 import { THREE, $, PI, TAU, DEG, KN, clamp, wrap, brg, fmt, params, rnd, gauss, G, camera, canvas, renderer, scene, ovScene, ovCam, makeIslands, MAPS, addIsland, clearFx, updateWorld, spray, spark, flash, spawnSplash } from "./js/core.js";
 import { A, initAudio, setMuted, setVolume, sfx, updateAudio, radio, bgm, setBgmOn, jetSound, droneSound } from "./js/audio.js";
 import { OPS, isModernOp, opsInit, opsStep, opsClear, opsCheck, opsMarks, opsShellLand, aswRocket, nearestSubContact, O as OPSO, opsDebug, opsStatus, jamDrones } from "./js/ops.js";
-import { cicStart, cicStop, cicStep, cicToggle, cicExpand, cicPending, cicResolve, cicUsed } from "./js/cic.js";
-import { post, renderFrame } from "./js/post.js";
+import { cicStart, cicStop, cicStep, cicToggle, cicExpand, cicPending, cicResolve, cicUsed, cicWcs, cicSetWcs, cicFeedInfo } from "./js/cic.js";
+import { post, renderFrame, renderPiP } from "./js/post.js";
 import { M as MSL, WPN, launch as mLaunch, JET_US, stepMissiles, defend, decoy as mDecoy, pickSam, seen as mSeen, clearMissiles, arm as mArm, SENS as SR, jetFlare, jetGun, killMissile, launchHelo as mHelo, stepHelos, launchJet, stepJets, stepFlares, flaresOf } from "./js/modern.js";
 import { landAt, setWeather, setMapLook } from "./js/core.js";
 import { MODERN, GUNS, SHIPS, CARRIER, ENEMIES, TRANSPORT, FOE_CARRIER, TELE, Ship, table, solve, leadPoint, brain, escort, mkBrain, updateShells, clearShells, paintName, loadModels, MODEL_CFG, RELOAD_K, fireTorps, updateTorps, clearTorps, intercept, torpMount, TORP_SPREAD, torpPath, tubeBearing, hitFX } from "./js/ships.js";
@@ -1254,7 +1254,7 @@ function updatePanels() {
   if (T && T.alive && T.root.visible && !G.auto) {
     tc.classList.remove("off");
     setHTML("#tgtCard", `<div class="row">${flagOf(T, 24)}<span class="st" style="font-size:15px">${lock ? "◆ " : ""}TARGET — ${T.isCarrier ? "항모" : T.spec.cls} ${T.name}</span><span class="km">${(d2(P.pos, T.pos) / 1000).toFixed(1)} KM</span></div>`
-      + `<div class="hbar"><i style="width:${Math.round((T.hp / T.maxHp) * 100)}%"></i></div><div class="sub tw" style="font-size:11.5px"><span>함장 ${T.captain || ""}</span><span>${P.ammo === "he" ? "HE" : "AP"} · ${lock ? fcGrade() : "더블클릭: 고정"}</span></div>${canBoard(T) ? "" : `<div class="sub" style="font-size:11.5px;color:#ffd166">⚓ B · 나포 가능 — 해병대 상륙정 발진</div>`}`);
+      + `<div class="hbar"><i style="width:${Math.round((T.hp / T.maxHp) * 100)}%"></i></div><div class="sub tw" style="font-size:11.5px"><span>함장 ${T.captain || ""}${T.isrBoostT > 0 ? ` · <b style="color:#4de8d4">SAT-ISR ${Math.ceil(T.isrBoostT)}s</b>` : ""}</span><span>${P.ammo === "he" ? "HE" : "AP"} · ${lock ? fcGrade() : "더블클릭: 고정"}</span></div>${canBoard(T) ? "" : `<div class="sub" style="font-size:11.5px;color:#ffd166">⚓ B · 나포 가능 — 해병대 상륙정 발진</div>`}`);
   } else tc.classList.add("off");
   const torp = P.spec.torp, st = (t) => (!t.alive ? (t.fixT > 0 ? "reload" : "dead") : t.reload > 0 ? "reload" : !t.inArc ? "arc" : t.onTarget ? "ready" : "turn");
   const tur = P.turrets.map((t) => { const k = st(t); return `<i><b style="width:${t.alive ? Math.round((1 - t.reload / P.reloadT) * 100) : 100}%;background:${TCOL[k]}"></b></i>`; }).join("");
@@ -1612,7 +1612,7 @@ function modernStep(dt) {
   { let dd = Infinity; for (const m of MSL.list) if (m.alive && m.W.drone) dd = Math.min(dd, m.pos.distanceTo(camera.position)); droneSound(paused || G.state !== "playing" ? 0 : clamp(1 - dd / 2000, 0, 1) ** 1.3 * 0.9); }
   if (G.dryT != null) G.dryT -= dt;
   for (let i = md.q.length - 1; i >= 0; i--) { const o = md.q[i]; o.t -= dt; if (o.t <= 0 && o.jet) { md.q.splice(i, 1); if (o.S.alive && G.state === "playing") launchJet(o.S, o.role, o.S.cv, o.S.isBase ? o.S.pos.clone().setY(300) : null); continue; } if (o.t <= 0) { md.q.splice(i, 1); if (o.S.alive && (!o.T || o.T.alive) && G.state === "playing") { const m = mLaunch(o.S, o.k, o.T); if (m && o.est) m.est = o.est.clone(); if (o.cam && m) MSL.last = m; } } }
-  md.mode = "auto"; md.salvo = 2; // air defence, decoys and salvo size are automatic
+  md.mode = cicWcs(); md.salvo = 2; // air defence WCS controlled by CIC (FREE / TIGHT / HOLD)
   if (md.fly) { const j = md.fly; if (!j.alive || G.state !== "playing") { md.fly = null; document.body.classList.remove("jetfly"); if (document.pointerLockElement) document.exitPointerLock(); if (j.gone) toast("자동 조종으로 착함 — 재무장 후 대기 · 함대 지휘로 복귀", 3); else if (!j.alive) toast("격추당했습니다 — 함대 지휘로 복귀", 3); md.flyAuto = false; }
     else if (md.flyAuto) { (j.q ??= new THREE.Quaternion()).copy(j.mesh.quaternion); const f = QX.clone().applyQuaternion(j.q); j.pyaw = Math.atan2(f.z, f.x); j.ppitch = Math.asin(clamp(f.y, -1, 1)); md.flyLock = null; }
     else { if (!(j.landT > 0)) flyControl(dt, j); lockStep(dt); if (j.t > j.endur + 120) { releaseFly(); j.home = true; toast("연료 부족 — 자동 귀환"); } } }
@@ -2295,9 +2295,13 @@ function frameOnce(dt) {
   }
   const ov = cockpit.visible || aaGun.visible || jetPit.visible || garandVM.visible || mgVM.visible; if (ov) { ovCam.fov = camera.fov; ovCam.updateProjectionMatrix(); }
   renderFrame(ov);
+  if (G.modern && G.state === "playing") {
+    const pip = cicFeedInfo();
+    if (pip && pip.cam && pip.rect) renderPiP(pip.cam, pip.rect);
+  }
 }
 
-window.__st = { aa, aimAAAt: (p) => { const o = aaMount(), v = p.clone().sub(o); aa.yaw = Math.atan2(v.z, v.x); aa.pitch = Math.atan2(v.y, Math.hypot(v.x, v.z)); }, aaMslFire, KCAMP, openBrief, get kProg() { return kProg; }, opsDebug, get weapon() { return weapon; }, setJetRole, setFlyAuto, get kc() { return G.kc; }, cycleForm, get formI() { return formI; }, CAMP, get campProg() { return campProg; }, setCamp: (i) => { campSel = i; const c = CAMP[i]; mission = c.m; theater = c.map; }, setWx: (t, w) => { todSel = t; wxSel = w; }, conceal, get tut() { return tut; }, setKey, get keyPhys() { return keyPhys; }, flyControl, flyFlare, md, MSL2: MSL, frameOnce, takeJet, releaseFly, flyFire, flyStrike, get flyLock() { return md.flyLock; }, know, sortieJets, myAir, landAt, setSel, get sel() { return sel; }, get lock() { return lock; }, setLock: (v) => { lock = v; }, sensorStep, bestContact, SR, WPN, G, air, cam, aa, MSL, md, fireSalvo, modernKey, setNat: (a, b) => { natUs = a; natFoe = b; }, toAuto, takeOver, setTheater: (t) => { theater = t; }, get cmdr() { return cmdr; }, toggleAA, cap, startBoard, toggleCapFps, canBoard, lockShip: (s) => lockShip(s), setRole, setSortieRole: (r) => { sortieRole = r; }, renderAirPanel, fc, get profile() { return profile; }, start, step, frame: (dt) => { step(dt); updateCamera(dt); }, tryFire, sortie, openYard, openMenu, act, setPause, forfeit,
+window.__st = { cicWcs, cicSetWcs, cicFeedInfo, aa, aimAAAt: (p) => { const o = aaMount(), v = p.clone().sub(o); aa.yaw = Math.atan2(v.z, v.x); aa.pitch = Math.atan2(v.y, Math.hypot(v.x, v.z)); }, aaMslFire, KCAMP, openBrief, get kProg() { return kProg; }, opsDebug, get weapon() { return weapon; }, setJetRole, setFlyAuto, get kc() { return G.kc; }, cycleForm, get formI() { return formI; }, CAMP, get campProg() { return campProg; }, setCamp: (i) => { campSel = i; const c = CAMP[i]; mission = c.m; theater = c.map; }, setWx: (t, w) => { todSel = t; wxSel = w; }, conceal, get tut() { return tut; }, setKey, get keyPhys() { return keyPhys; }, flyControl, flyFlare, md, MSL2: MSL, frameOnce, takeJet, releaseFly, flyFire, flyStrike, get flyLock() { return md.flyLock; }, know, sortieJets, myAir, landAt, setSel, get sel() { return sel; }, get lock() { return lock; }, setLock: (v) => { lock = v; }, sensorStep, bestContact, SR, WPN, G, air, cam, aa, MSL, md, fireSalvo, modernKey, setNat: (a, b) => { natUs = a; natFoe = b; }, toAuto, takeOver, setTheater: (t) => { theater = t; }, get cmdr() { return cmdr; }, toggleAA, cap, startBoard, toggleCapFps, canBoard, lockShip: (s) => lockShip(s), setRole, setSortieRole: (r) => { sortieRole = r; }, renderAirPanel, fc, get profile() { return profile; }, start, step, frame: (dt) => { step(dt); updateCamera(dt); }, tryFire, sortie, openYard, openMenu, act, setPause, forfeit,
   moveOrder, aimAtPoint, lockShip, setSpeed, cycleCam, enterFlight, pick, useRepair, setMission: (m) => { mission = m; }, get lock() { return lock; }, get weapon() { return weapon; }, setWeapon: (w) => { weapon = w; },
   get paused() { return paused; }, get torpThreat() { return torpThreat; }, get radioSub() { return radioSub; }, keys, fireTorps, intercept, leadPoint, myRank, steer, setLockOn: (t) => { lockOn = t; }, get lockOn() { return lockOn; }, help: (v) => { helpOn = v; } };
 loadModels(); showcase(profile.ship); refreshMenus(); connect(); bgm("menu"); /* the first port screen is not opened through openMenu, so ask for its music here (it starts on the first click) */

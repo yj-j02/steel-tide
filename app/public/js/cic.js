@@ -19,20 +19,40 @@ const AIR = {
   jp: { fighter: { type: "F-2", asm: "17식", aam: "AIM-120" }, heavy: { type: "C-130H 대형수송기", asm: "91식", n: 4 } },
 };
 const BATTERY = { "west:kr": { name: "해안 지대함 포대 (미사일사령부)", key: "해성 지상" }, "east:kr": { name: "해안 지대함 포대 (미사일사령부)", key: "해성 지상" }, "strait:kr": { name: "해안 지대함 포대 (미사일사령부)", key: "해성 지상" }, "jeju:kr": { name: "해안 지대함 포대 (미사일사령부)", key: "해성 지상" }, "okinawa:jp": { name: "육상자위대 12식 지대함 포대", key: "12식" }, "uswest:us": { name: "미 해병대 NMESIS 포대", key: "NSM 지상" } };
-const MAX_USES = { fighter: 2, heavy: 1, battery: 2, recon: 2 };
-const CD_SEC = { fighter: 60, heavy: 60, battery: 90, recon: 75 };
+const MAX_USES = { fighter: 2, heavy: 1, battery: 2, recon: 2, tot: 3 };
+const CD_SEC = { fighter: 60, heavy: 60, battery: 90, recon: 75, tot: 65 };
 
-const C = { mode: "pip", on: false, el: null, map: null, pend: null, talkT: 0, say: "", uses: {}, cd: {}, battery: null, zoom: 1, deps: null, sig: "", tSig: "", lSig: "", drag: null, hover: null, pulses: [], warnT: 0, trkList: [], lastMarks: [] };
+const C = { mode: "pip", on: false, el: null, map: null, pend: null, talkT: 0, say: "", uses: {}, cd: {}, battery: null, zoom: 1, deps: null, sig: "", tSig: "", lSig: "", drag: null, hover: null, pulses: [], warnT: 0, trkList: [], lastMarks: [], wcs: "auto", isr3d: null, tots: [], capZones: [], feed: null, feedCam: null, feedSig: "" };
 const $ = (s) => C.el.querySelector(s);
+export function cicWcs() { return C.on ? C.wcs : "auto"; }
+export function cicSetWcs(m) {
+  if (!["auto", "tight", "hold"].includes(m)) return;
+  C.wcs = m; C.tSig = ""; sfx.click();
+  say(m === "auto" ? "방공 교전수칙 [FREE] — 탐지된 모든 대함위협 자동 요격." : m === "tight" ? "방공 교전수칙 [TIGHT] — 초음속·우선표적 위주 SM 요격 (탄약 절약)." : "방공 교전수칙 [HOLD] — 장거리 SAM 발사 통제, CIWS 근접방어만 가동.");
+}
+export function cicFeedInfo() {
+  if (!C.on || C.mode === "big" || !C.feed || G.battleT > C.feed.endT || document.body.classList.contains("jetfly")) return null;
+  const view = document.getElementById("cicFeedView"); if (!view) return null;
+  return { cam: C.feedCam, rect: view.getBoundingClientRect(), feed: C.feed };
+}
 
 export function cicInit(deps) { // deps: { md, face, faceSkin, cmdrName, nat, theater, toast, log, radio, know }
   C.deps = deps; if (C.el) return;
   C.el = document.getElementById("cic"); C.map = $(".cic-map");
-  C.el.addEventListener("dblclick", (e) => { if (e.target.closest(".cic-cards,.cic-ask,.cic-map,.cic-mapw,.cic-tracks,.cic-tools,.cic-btn")) return; cicExpand(); });
+  C.el.addEventListener("dblclick", (e) => { if (e.target.closest(".cic-cards,.cic-ask,.cic-map,.cic-mapw,.cic-tracks,.cic-tools,.cic-btn,.cic-tele")) return; cicExpand(); });
   C.el.querySelector(".cic-h").insertAdjacentHTML("beforeend", `<span class="cic-btns"><button class="cic-btn" data-m="min" title="최소화 (\`)">─</button><button class="cic-btn" data-m="big" title="확대 (Shift+\`)">⤢</button></span>`);
   C.el.querySelector(".cic-btns").addEventListener("click", (e) => { const b = e.target.closest("[data-m]"); if (!b) return; e.stopPropagation(); b.dataset.m === "min" ? setMode("min") : cicExpand(); });
   C.tab = document.createElement("button"); C.tab.id = "cicTab"; C.tab.type = "button"; C.tab.textContent = "지휘통제실 열기 (`)"; document.body.appendChild(C.tab);
   C.tab.addEventListener("mousedown", (e) => e.stopPropagation()); C.tab.addEventListener("click", (e) => { e.stopPropagation(); setMode("pip"); });
+  document.getElementById("cicFeedClose")?.addEventListener("click", (e) => { e.stopPropagation(); C.feed = null; document.body.classList.remove("cicfeed-on"); sfx.click(); });
+  document.getElementById("cicFeedView")?.addEventListener("click", (e) => {
+    e.stopPropagation(); if (!C.feed) return;
+    const t = C.feed.target;
+    if (t?.isJet && t.alive) C.deps.watchJet?.(t);
+    else if (t?.W && t.alive) C.deps.watchMsl?.(t);
+    else if (C.feed.kind === "tot" || C.feed.kind === "recon") { const am = M.list.find((m) => m.alive && m.side === "us" && m.W.role === "asm"); if (am) C.deps.watchMsl?.(am); else sfx.click(); }
+  });
+  $(".cic-tele")?.addEventListener("click", (e) => { const b = e.target.closest("[data-wcs]"); if (!b) return; e.stopPropagation(); cicSetWcs(b.dataset.wcs); });
   $(".cic-h").addEventListener("mousedown", (e) => { if (C.mode !== "pip" || e.target.closest(".cic-btn")) return; const r = C.el.getBoundingClientRect(); C.drag = { dx: e.clientX - r.left, dy: e.clientY - r.top }; e.preventDefault(); e.stopPropagation(); });
   window.addEventListener("mousemove", (e) => { if (!C.drag) return; C.el.style.left = clamp(e.clientX - C.drag.dx, 0, innerWidth - 120) + "px"; C.el.style.top = clamp(e.clientY - C.drag.dy, 0, innerHeight - 60) + "px"; C.el.style.right = C.el.style.bottom = "auto"; });
   window.addEventListener("mouseup", () => { C.drag = null; });
@@ -54,6 +74,11 @@ export function cicInit(deps) { // deps: { md, face, faceSkin, cmdrName, nat, th
   C.map.addEventListener("mouseleave", () => { C.hover = null; const tip = $(".cic-hudtip"); if (tip) tip.textContent = ""; });
   C.map.addEventListener("mousedown", (e) => {
     e.preventDefault();
+    const w = mapWorld(e);
+    if (w) {
+      const mHit = M.list.find((m) => m.alive && m.side === "foe" && m.W.role === "asm" && Math.hypot(m.pos.x - w.x, m.pos.z - w.z) < 1500 / C.zoom);
+      if (mHit) { mHit.pri = !mHit.pri; sfx.click(); say(mHit.pri ? `요격 우선표적 지정 (${mHit.W.name}) — 방공체계가 최우선 요격합니다.` : "우선 요격 표적 지정을 해제했습니다."); return; }
+    }
     const pick = mapPick(e); if (!pick) return;
     C.deps.md.supPt = { x: pick.x, z: pick.z }; sfx.click();
     say(pick.snap ? `표적 고정 [${pick.snap}] (${pick.km} km · ${pick.brg}) — 지원 수단을 선택하십시오.` : `타격 지점 지정 (${pick.km} km · 방위 ${pick.brg}) — 지원 수단을 고르십시오.`);
@@ -83,13 +108,13 @@ export function cicInit(deps) { // deps: { md, face, faceSkin, cmdrName, nat, th
   window.addEventListener("mousedown", (e) => { if (C.mode === "big" && C.on && e.target.id === "gl") { e.stopImmediatePropagation(); e.preventDefault(); setMode("pip"); } }, true);
 }
 export function cicStart(deps) {
-  cicInit(deps); Object.assign(C.deps, deps); C.on = true; C.mode = "min"; C.pend = null; C.used = 0; C.uses = { ...MAX_USES }; C.cd = {}; C.sig = ""; C.tSig = ""; C.lSig = ""; C.pulses = []; C.warnT = 0; C.trkList = []; C.lastMarks = [];
+  cicInit(deps); Object.assign(C.deps, deps); C.on = true; C.mode = "min"; C.pend = null; C.used = 0; C.uses = { ...MAX_USES }; C.cd = {}; C.sig = ""; C.tSig = ""; C.lSig = ""; C.pulses = []; C.warnT = 0; C.trkList = []; C.lastMarks = []; C.wcs = "auto"; C.tots = []; C.capZones = []; C.feed = null; clearIsr3d(); document.body.classList.remove("cicfeed-on");
   document.body.classList.remove("cicbig"); document.body.classList.add("cicmin");
   C.el.style.display = ""; C.el.className = "cic min"; $(".cic-fw").innerHTML = deps.face; const sk = deps.faceSkin || "#d8b08a";
   $(".cic-fw").insertAdjacentHTML("beforeend", `<svg class="cic-anim" viewBox="0 0 100 100"><g class="lids"><ellipse cx="42.5" cy="40.6" rx="5" ry="3.4" fill="${sk}"/><ellipse cx="57.5" cy="40.6" rx="5" ry="3.4" fill="${sk}"/></g><ellipse class="mouth" cx="50" cy="59.8" rx="3.6" ry="1.8" fill="#3a1d16"/></svg>`);
-  C.battery = placeBattery(); say(`${deps.cmdrName} 사령관, KNTDS 합동지휘망 연결 완료. 공군·해안포대·위성정찰 대기 중.`);
+  C.battery = placeBattery(); say(`${deps.cmdrName} 사령관, KNTDS 합동지휘망 연결 완료. 공군·해안포대·위성정찰·TOT 동시탄착 대기 중.`);
 }
-export function cicStop() { C.on = false; C.pulses = []; if (C.el) C.el.style.display = "none"; document.body.classList.remove("cicbig", "cicmin"); if (C.battery?.mesh) C.battery.mesh.parent?.remove(C.battery.mesh); C.battery = null; }
+export function cicStop() { C.on = false; C.pulses = []; C.tots = []; C.capZones = []; C.feed = null; clearIsr3d(); document.body.classList.remove("cicfeed-on"); if (C.el) C.el.style.display = "none"; document.body.classList.remove("cicbig", "cicmin"); if (C.battery?.mesh) C.battery.mesh.parent?.remove(C.battery.mesh); C.battery = null; }
 function setMode(m) { if (!C.on) return; C.tab?.classList.remove("ping"); C.mode = m; C.el.className = `cic ${m}`; document.body.classList.toggle("cicbig", m === "big"); document.body.classList.toggle("cicmin", m === "min"); C.el.style.left = C.el.style.top = C.el.style.right = C.el.style.bottom = ""; sfx.click(); C.sig = ""; C.lSig = ""; C.tSig = ""; }
 /** ` : minimized ↔ small window (from the big view: back to the small window) */
 export function cicToggle() { setMode(C.mode === "min" ? "pip" : C.mode === "big" ? "pip" : "min"); }
@@ -154,12 +179,103 @@ function placeBattery() {
   g.userData = { dish, beacon };
   return { ...b, pos: new THREE.Vector3(best.x, y0, best.z), mesh: g };
 }
+function clearIsr3d() {
+  const g = C.isr3d; if (!g) return;
+  scene.remove(g.grp);
+  for (const d of g.disposables || []) d.dispose?.();
+  C.isr3d = null;
+}
+function spawnIsr3d(pt, ships) {
+  clearIsr3d();
+  const grp = new THREE.Group(), disposables = [];
+  const matRing = new THREE.MeshBasicMaterial({ color: 0x4de8d4, transparent: true, opacity: 0.42, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
+  const gRing = new THREE.RingGeometry(10840, 11000, 72); gRing.rotateX(-PI / 2);
+  const ring = new THREE.Mesh(gRing, matRing); ring.position.set(pt.x, 4, pt.z); grp.add(ring);
+  const matCurt = new THREE.MeshBasicMaterial({ color: 0x4de8d4, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
+  const gCurt = new THREE.PlaneGeometry(22000, 1100);
+  const curtain = new THREE.Mesh(gCurt, matCurt); curtain.position.set(pt.x, 550, pt.z - 11000); grp.add(curtain);
+  const gLine = new THREE.PlaneGeometry(22000, 110); gLine.rotateX(-PI / 2);
+  const matLine = new THREE.MeshBasicMaterial({ color: 0xaffff1, transparent: true, opacity: 0.65, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
+  const line = new THREE.Mesh(gLine, matLine); line.position.set(pt.x, 5, pt.z - 11000); grp.add(line);
+  disposables.push(matRing, gRing, matCurt, gCurt, gLine, matLine);
+  const gBeam = new THREE.CylinderGeometry(18, 56, 2200, 12, 1, true);
+  const gTr = new THREE.RingGeometry(130, 170, 32); gTr.rotateX(-PI / 2);
+  const matBeam = new THREE.MeshBasicMaterial({ color: 0x4de8d4, transparent: true, opacity: 0.34, side: THREE.DoubleSide, depthWrite: false, blending: THREE.AdditiveBlending });
+  disposables.push(gBeam, gTr, matBeam);
+  const beams = (ships || []).map((ship) => {
+    const beam = new THREE.Mesh(gBeam, matBeam), tr = new THREE.Mesh(gTr, matLine);
+    beam.position.set(ship.pos.x, 1100, ship.pos.z); tr.position.set(ship.pos.x, 4, ship.pos.z);
+    grp.add(beam, tr); return { ship, beam, tr };
+  });
+  scene.add(grp);
+  C.isr3d = { grp, center: pt.clone(), scanT: 0, dur: 5.5, life: 30, ring, curtain, line, beams, matRing, matCurt, matLine, matBeam, disposables };
+}
+function updateIsr3d(dt) {
+  for (const e of G.enemies) if (e.isrBoostT > 0) e.isrBoostT = Math.max(0, e.isrBoostT - dt);
+  const g = C.isr3d; if (!g) return;
+  g.scanT += dt; g.life -= dt;
+  const u = clamp(g.scanT / g.dur, 0, 1), sweepZ = g.center.z - 11000 + 22000 * u, cf = g.scanT < g.dur ? Math.sin(u * PI) : 0;
+  g.curtain.position.z = sweepZ; g.line.position.z = sweepZ;
+  g.matCurt.opacity = 0.24 * cf; g.matLine.opacity = 0.72 * cf;
+  g.curtain.visible = g.line.visible = g.scanT < g.dur;
+  const ringFade = clamp(g.life / 4, 0, 1);
+  g.matRing.opacity = 0.38 * ringFade * (0.85 + 0.15 * Math.sin(G.time * 4));
+  g.matBeam.opacity = 0.34 * ringFade * (0.82 + 0.18 * Math.sin(G.time * 6));
+  for (const b of g.beams) {
+    const on = b.ship.alive && (b.ship.isrBoostT || 0) > 0 && g.life > 0;
+    b.beam.visible = b.tr.visible = on;
+    if (on) { b.beam.position.set(b.ship.pos.x, 1100, b.ship.pos.z); b.tr.position.set(b.ship.pos.x, 4, b.ship.pos.z); }
+  }
+  if (g.life <= 0) clearIsr3d();
+}
+function triggerFeed(kind, target, dur, title) {
+  if (!C.feedCam) C.feedCam = new THREE.PerspectiveCamera(40, 236 / 128, 4, 90000);
+  C.feed = { kind, target, endT: G.battleT + dur, t0: G.battleT, title };
+  const tEl = document.getElementById("cicFeedTitle"); if (tEl) tEl.textContent = title;
+  if (C.on && C.mode !== "big" && !document.body.classList.contains("jetfly")) document.body.classList.add("cicfeed-on");
+}
+function updateFeed(dt) {
+  const f = C.feed;
+  if (!f || !C.on || C.mode === "big" || G.battleT > f.endT || document.body.classList.contains("jetfly")) {
+    document.body.classList.remove("cicfeed-on"); return;
+  }
+  document.body.classList.add("cicfeed-on");
+  if ((f.kind === "jet" || f.kind === "msl") && f.target && !f.target.alive) {
+    const repl = f.kind === "jet" ? M.jets.find((x) => x.alive && x.side === "us" && x.support) : M.list.find((m) => m.alive && m.side === "us" && m.W.role === "asm");
+    if (repl) f.target = repl;
+  }
+  const cam = C.feedCam, t = f.target, age = G.battleT - f.t0, rem = Math.max(0, Math.ceil(f.endT - G.battleT));
+  let subL = "EO/IR FLIR", subR = `T-${rem}s`;
+  if (t && t.pos && t.vel && (t.isJet || t.W)) {
+    const dir = t.vel.lengthSq() > 1 ? t.vel.clone().normalize() : new THREE.Vector3(1, 0, 0);
+    const side = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
+    const back = t.heavy ? 64 : t.isJet ? 34 : 20, up = t.heavy ? 18 : t.isJet ? 10 : 5, lat = t.heavy ? 22 : t.isJet ? 11 : 7;
+    const desired = t.pos.clone().addScaledVector(dir, -back).addScaledVector(side, lat).add(new THREE.Vector3(0, up, 0));
+    desired.y = Math.max(desired.y, 12);
+    cam.position.lerp(desired, Math.min(1, dt * 8));
+    cam.lookAt(t.pos.clone().addScaledVector(dir, t.isJet ? 45 : 70));
+    const spd = Math.round(t.vel.length() * 3.6);
+    subL = `${Math.round(t.pos.y)}m · ${spd}km/h`; subR = `TRACKING · ${rem}s`;
+  } else {
+    const base = t?.pos ? t.pos : t;
+    if (base) {
+      const a = age * 0.45, R = 360;
+      cam.position.set(base.x + Math.cos(a) * R, 128, base.z + Math.sin(a) * R);
+      cam.lookAt(base.x, 10, base.z);
+      subL = t?.name ? t.name : "TARGET SECTOR";
+    }
+  }
+  const sEl = document.getElementById("cicFeedSub");
+  const sig = `${subL}|${subR}`;
+  if (sEl && sig !== C.feedSig) { C.feedSig = sig; sEl.innerHTML = `<span>${subL}</span><span>${subR}</span>`; }
+}
 function assets() {
   const n = C.deps.nat, A = AIR[n] || AIR.us, out = [];
-  out.push({ id: "fighter", t: `공군 전투기 편대 · ${A.fighter.type}`, d: `지정 해역으로 2기 출격 → 적함 포착 시 ${WPN[A.fighter.asm]?.name || A.fighter.asm} 공대함미사일 각 2발 자동 발사`, ok: true });
-  out.push({ id: "heavy", t: `공군 대형기 · ${A.heavy.type}`, d: `원거리 상공 진입 → 지정 해역 적함에 ${WPN[A.heavy.asm]?.name || A.heavy.asm} ${A.heavy.n}발 일제 포화 발사 후 이탈`, ok: true });
-  out.push(C.battery ? { id: "battery", t: C.battery.name, d: `아군 해안 기지에서 지정 좌표로 ${WPN[C.battery.key]?.name || C.battery.key} 4발 연속 발사 · 사거리 ${(WPN[C.battery.key].range / 1000) | 0}km`, ok: true } : { id: "battery", t: "지대함 포대", d: "이 전장·국가에선 지원 불가 (한반도=해성 · 오키나와=12식 · 미 서부=NMESIS)", ok: false });
-  out.push({ id: "recon", t: "위성 · 합동 ISR 정찰", d: "지정 반경 11km 내 은폐·연막·미식별 적함을 30초간 즉시 정밀 식별해 미사일·함포 조준 연동", ok: true });
+  out.push({ id: "fighter", t: `공군 전투기 편대 (CAP+타격) · ${A.fighter.type}`, d: `지정 해역 반경 11km 90초 방공우산(적기·미사일 요격) 및 ${WPN[A.fighter.asm]?.name || A.fighter.asm} 공대함 타격`, ok: true });
+  out.push({ id: "heavy", t: `공군 대형수송기 · ${A.heavy.type}`, d: `안전 공역 진입 후 후방 램프에서 ${WPN[A.heavy.asm]?.name || A.heavy.asm} ${A.heavy.n}발 원거리 포화 투하`, ok: true });
+  out.push(C.battery ? { id: "battery", t: `${C.battery.name} · 우회 기습`, d: `해안 발사 후 측후방 우회 경로로 ${WPN[C.battery.key]?.name || C.battery.key} 4발 기습 침투 · 사거리 ${(WPN[C.battery.key].range / 1000) | 0}km`, ok: true } : { id: "battery", t: "지대함 포대", d: "이 전장·국가에선 지원 불가 (한반도=해성 · 오키나와=12식 · 미 서부=NMESIS)", ok: false });
+  out.push({ id: "recon", t: "위성 · 합동 ISR 레이저 스캔", d: "11km 해역 3D 정찰 스캔 + Link-16 표적 빔 30초 연동 (적 함정 실시간 미사일 유도)", ok: true });
+  out.push({ id: "tot", t: "TOT · 함대 합동 동시탄착 사격", d: "기함·아군 구축함 대함미사일 발사 시차를 자동 계산해 모든 미사일이 같은 시각 표적에 동시 포화 돌입", ok: true });
   return out;
 }
 function watchSupport(id) {
@@ -181,6 +297,10 @@ function request(id) {
   if ((C.cd[id] || 0) > G.battleT) { sfx.deny(); say(`재요청까지 ${Math.ceil(C.cd[id] - G.battleT)}초 대기.`); return; }
   const pt = C.deps.md.supPt; if (!pt) { sfx.deny(); say("먼저 상황판이나 표적 목록에서 지점을 지정하십시오."); return; }
   if (id === "battery" && Math.hypot(pt.x - C.battery.pos.x, pt.z - C.battery.pos.z) > WPN[C.battery.key].range) { sfx.deny(); say("지정 지점이 해안 포대 최대 사거리 밖입니다."); return; }
+  if (id === "tot") {
+    const shooters = G.ships.filter((s) => s.alive && s.side === "us" && s.spec?.modern && s.spec.vls?.A?.[0] && (s.mag[s.spec.vls.A[0]] || 0) > 0 && Math.hypot(pt.x - s.pos.x, pt.z - s.pos.z) <= WPN[s.spec.vls.A[0]].range * 0.98);
+    if (!shooters.length) { sfx.deny(); say("TOT 사거리 내에 대함미사일 잔탄이 남은 아군 함정이 없습니다."); return; }
+  }
   C.pend = { id, a, pt: { ...pt } }; sfx.ready?.();
   const snap = nearestSnap(pt.x, pt.z, 2600);
   say(`${a.t} → ${snap ? `[${snap.name}] 부근` : "지정 해역"} 투입 준비 완료. 승인 바랍니다. (Y 승인 · N 보류)`);
@@ -193,17 +313,26 @@ function resolve(ok) {
   const pt = new THREE.Vector3(p.pt.x, 0, p.pt.z), P = G.player, A = AIR[C.deps.nat] || AIR.us;
   if (p.id === "fighter" || p.id === "heavy") {
     const back = P.pos.clone().sub(pt).setY(0).normalize(), base = P.pos.clone().addScaledVector(back, p.id === "heavy" ? 7500 : 11000).setY(p.id === "heavy" ? 750 : 450);
-    const n = p.id === "heavy" ? 1 : 2;
+    const n = p.id === "heavy" ? 1 : 2; let leadJet = null;
     for (let i = 0; i < n; i++) { const cv = p.id === "heavy" ? { type: A.heavy.type, asm: A.heavy.asm, aam: "AIM-120" } : { type: A.fighter.type, asm: A.fighter.asm, aam: A.fighter.aam };
       const src = { side: "us", pos: base.clone().add(new THREE.Vector3(i * 300, 0, i * 300)), heading: Math.atan2(pt.z - base.z, pt.x - base.x), spec: { fb: 0 }, alive: true, cv, fwd: back.clone().negate(), name: "공군" };
-      const j = launchJet(src, "strike", cv, src.pos, p.id === "heavy"); j.pos.copy(src.pos); j.aimPt = pt.clone(); j.support = true; j.endur = 400; if (p.id === "heavy") { j.asm = A.heavy.n; j.aam = 0; j.heavy = true; } else { j.asm = 2; j.aam = 10; } } /* support jets keep their own loadout, not the carrier jets' */
-    C.pulses.push({ x: pt.x, z: pt.z, t: 0, dur: 4, maxR: 6000, col: "#f2b544" });
-    say(p.id === "heavy" ? `${A.heavy.type} 출격 확인 — 목표 해역 진입 후 ${WPN[A.heavy.asm]?.name || A.heavy.asm} ${A.heavy.n}발 발사 예정. 카드의 [🎥 시점 보기]로 비행 및 발사 장면을 직접 볼 수 있습니다.` : `${A.fighter.type} 2기 출격 확인 — 카드의 [🎥 시점 보기]로 비행 및 발사 장면을 직접 볼 수 있습니다.`);
+      const j = launchJet(src, "strike", cv, src.pos, p.id === "heavy"); j.pos.copy(src.pos); j.aimPt = pt.clone(); j.support = true;
+      if (p.id === "heavy") { j.asm = A.heavy.n; j.aam = 0; j.heavy = true; j.endur = 400; }
+      else { j.asm = 2; j.aam = 10; j.capZone = pt.clone(); j.capDur = 90; j.endur = 420; }
+      if (!leadJet) leadJet = j;
+    }
+    if (p.id === "fighter") C.capZones.push({ x: pt.x, z: pt.z, endT: G.battleT + 90, label: A.fighter.type });
+    if (leadJet) triggerFeed("jet", leadJet, 6.5, p.id === "heavy" ? "EO/IR · C-130H 수송작전기" : "EO/IR · 공군 CAP 편대");
+    C.pulses.push({ x: pt.x, z: pt.z, t: 0, dur: 4, maxR: 6000, col: p.id === "heavy" ? "#f2b544" : "#4de8d4" });
+    say(p.id === "heavy" ? `${A.heavy.type} 출격 확인 — 램프 투하 ${WPN[A.heavy.asm]?.name || A.heavy.asm} ${A.heavy.n}발 발사 예정. 우상단 LIVE EO/IR 영상 송출 중.` : `${A.fighter.type} 2기 출격 — 90초간 11km 방공우산(CAP) 및 공대함 타격 개시!`);
     C.deps.log(`합동 지원 승인 — ${p.a.t}`, "hit");
   } else if (p.id === "battery") {
     const b = C.battery, T = C.deps.know("us").sort((x, y) => x.pos.distanceToSquared(pt) - y.pos.distanceToSquared(pt))[0];
-    for (let i = 0; i < 4; i++) setTimeout(() => { if (G.state !== "playing") return; const src = { isJet: true, side: "us", pos: b.pos.clone().setY(b.pos.y + 25), vel: pt.clone().sub(b.pos).setY(0).normalize().multiplyScalar(150).setY(90), alive: true, spec: { fb: 0 }, name: b.name };
-      const m = launch(src, b.key, T && T.pos.distanceTo(pt) < 5000 ? T.ship : null); if (m && !(T && T.pos.distanceTo(pt) < 5000)) m.est = pt.clone();
+    const dirToTgt = pt.clone().sub(b.pos).setY(0).normalize(), perp = new THREE.Vector3(-dirToTgt.z, 0, dirToTgt.x);
+    const mid = b.pos.clone().lerp(pt, 0.52), flankSign = rnd() < 0.5 ? 1 : -1, flankPt = mid.addScaledVector(perp, flankSign * 5800);
+    for (let i = 0; i < 4; i++) setTimeout(() => { if (G.state !== "playing") return; const src = { isJet: true, side: "us", pos: b.pos.clone().setY(b.pos.y + 25), vel: flankPt.clone().sub(b.pos).setY(0).normalize().multiplyScalar(150).setY(90), alive: true, spec: { fb: 0 }, name: b.name };
+      const m = launch(src, b.key, T && T.pos.distanceTo(pt) < 5000 ? T.ship : null);
+      if (m) { m.flankPt = flankPt.clone(); if (!(T && T.pos.distanceTo(pt) < 5000)) m.est = pt.clone(); if (i === 0) triggerFeed("msl", m, 6.5, "EO/IR · 지대함 측후방 우회"); }
       flash.spawn({ x: b.pos.x, y: b.pos.y + 18, z: b.pos.z, life: 0.45, s0: 14, s1: 38, a: 0.95, c: 0xffb858 });
       rings.spawn({ x: b.pos.x, z: b.pos.z, w0: 8, l0: 8, w1: 95, l1: 95, life: 1.5, a: 0.55, c: 0xffb858 });
       for (let k = 0; k < 6; k++) smoke.spawn({ x: b.pos.x + gauss() * 8, y: b.pos.y + 12 + rnd() * 14, z: b.pos.z + gauss() * 8, vx: gauss() * 10, vy: 8 + rnd() * 14, vz: gauss() * 10, life: 4.2, s0: 9, s1: 28, a: 0.55, c: 0xdcdcdc });
@@ -212,32 +341,62 @@ function resolve(ok) {
       sfx.mslLaunch?.(Math.max(120, bd), false);
       C.pulses.push({ x: b.pos.x, z: b.pos.z, t: 0, dur: 1.8, maxR: 2600, col: "#ff8c52" });
     }, 400 + i * 900);
+    C.pulses.push({ x: flankPt.x, z: flankPt.z, t: 0, dur: 4.5, maxR: 3500, col: "#ff8c52" });
     C.pulses.push({ x: pt.x, z: pt.z, t: 0, dur: 4.5, maxR: 5000, col: "#ff8c52" });
-    say(`${b.name} 4발 일제 발사 승인! 지정 해역으로 저공 스키밍 비행 중.`); C.deps.log(`${b.name} 4발 발사 승인`, "hit");
+    say(`${b.name} 4발 측후방 우회 기습 발사! 본함·교란과 반대 방위로 돌입합니다.`); C.deps.log(`${b.name} 4발 우회 발사`, "hit");
   } else if (p.id === "recon") {
-    let found = 0;
+    const revealed = [];
     for (const e of G.enemies) {
       if (!e.alive) continue;
       if (Math.hypot(e.pos.x - pt.x, e.pos.z - pt.z) <= 11000) {
-        e.revealT = Math.max(e.revealT || 0, 30); e.root.visible = true;
-        G.cts?.set(e, { q: 1, x: e.pos.x, z: e.pos.z, err: 35, src: "위성·정찰", h: e.heading });
-        found++;
+        e.revealT = Math.max(e.revealT || 0, 30); e.isrBoostT = Math.max(e.isrBoostT || 0, 30); e.root.visible = true;
+        G.cts?.set(e, { q: 1, x: e.pos.x, z: e.pos.z, err: 25, src: "위성·ISR", h: e.heading });
+        revealed.push(e);
       }
     }
-    if (!found) {
+    if (!revealed.length) {
       const near = G.enemies.filter((e) => e.alive).map((e) => ({ e, d: Math.hypot(e.pos.x - pt.x, e.pos.z - pt.z) })).sort((a, b) => a.d - b.d)[0];
       if (near && near.d <= 20000) {
-        const e = near.e; e.revealT = Math.max(e.revealT || 0, 26); e.root.visible = true;
-        G.cts?.set(e, { q: 1, x: e.pos.x, z: e.pos.z, err: 45, src: "위성·정찰", h: e.heading });
-        found = 1;
+        const e = near.e; e.revealT = Math.max(e.revealT || 0, 28); e.isrBoostT = Math.max(e.isrBoostT || 0, 28); e.root.visible = true;
+        G.cts?.set(e, { q: 1, x: e.pos.x, z: e.pos.z, err: 35, src: "위성·ISR", h: e.heading });
+        revealed.push(e);
       }
     }
-    C.pulses.push({ x: pt.x, z: pt.z, t: 0, dur: 5, maxR: 11000, col: "#4de8d4" });
+    spawnIsr3d(pt, revealed);
+    triggerFeed("recon", revealed[0] || { pos: pt }, 6.0, "SAT-ISR · 레이저 스캔 연동");
+    C.pulses.push({ x: pt.x, z: pt.z, t: 0, dur: 5.5, maxR: 11000, col: "#4de8d4" });
     rings.spawn({ x: pt.x, z: pt.z, w0: 30, l0: 30, w1: 900, l1: 900, life: 2.5, a: 0.65, c: 0x4de8d4 });
     flash.spawn({ x: pt.x, y: 80, z: pt.z, life: 0.7, s0: 35, s1: 120, a: 0.55, c: 0x4de8d4 });
     sfx.ready?.();
-    say(found ? `합동 정찰 완료 — 적함 ${found}척 30초간 정밀 식별. 사격통제 연동 완료!` : "정찰 스캔 완료 — 반경 11 km 내 적 수상함 미탐지.");
-    C.deps.log(`합동 위성·ISR 정찰 (${found}척 식별)`, "hit");
+    say(revealed.length ? `위성 레이저 스캔 완료 — 적함 ${revealed.length}척 3D Link-16 표적 빔 30초 연동!` : "위성 ISR 스캔 완료 — 반경 11 km 내 적 수상함 미탐지.");
+    C.deps.log(`합동 위성·ISR 3D 스캔 (${revealed.length}척 식별)`, "hit");
+  } else if (p.id === "tot") {
+    const knows = C.deps.know("us").sort((x, y) => x.pos.distanceToSquared(pt) - y.pos.distanceToSquared(pt));
+    const snapKnow = knows.find((c) => c.pos.distanceTo(pt) < 4200);
+    const tgtShip = snapKnow ? snapKnow.ship : null;
+    const shooters = G.ships.filter((s) => s.alive && s.side === "us" && s.spec?.modern && s.spec.vls?.A?.[0] && (s.mag[s.spec.vls.A[0]] || 0) > 0 && Math.hypot(pt.x - s.pos.x, pt.z - s.pos.z) <= WPN[s.spec.vls.A[0]].range * 0.98).slice(0, 3);
+    if (!shooters.length) { say("TOT 사격 가용 함정 없음."); return; }
+    const plan = shooters.map((S) => {
+      const k = S.spec.vls.A[0], v = WPN[k].v || 260, d = Math.hypot(pt.x - S.pos.x, pt.z - S.pos.z);
+      return { S, k, v, d, ft: d / v, n: Math.min(2, S.mag[k]) };
+    });
+    const maxT = Math.max(...plan.map((x) => x.ft)) + 0.8;
+    let totalMsl = 0; const rays = [];
+    for (const item of plan) {
+      const delay = Math.max(0, maxT - item.ft);
+      for (let i = 0; i < item.n; i++) {
+        C.deps.md.q.push({ t: delay + i * 0.45, S: item.S, k: item.k, T: tgtShip, est: tgtShip ? null : pt.clone() });
+        totalMsl++;
+      }
+      item.S.mag[item.k] -= item.n;
+      rays.push({ S: item.S, fireAt: G.battleT + delay });
+    }
+    C.tots.push({ pt: pt.clone(), name: tgtShip?.name || "지정 해역", target: tgtShip, endAt: G.battleT + maxT, rays, n: totalMsl });
+    triggerFeed("tot", tgtShip || { pos: pt }, Math.min(7.5, maxT), `TOT · ${totalMsl}발 동시탄착`);
+    C.pulses.push({ x: pt.x, z: pt.z, t: 0, dur: 5, maxR: 4800, col: "#4de8d4" });
+    sfx.ready?.();
+    say(`TOT 동시탄착 명령 — ${shooters.length}척(${totalMsl}발) 발사 시차 연동, T-${Math.ceil(maxT)}초 후 동시 포화 돌입!`);
+    C.deps.log(`TOT 동시탄착 (${shooters.length}척 · ${totalMsl}발 · ETA ${Math.ceil(maxT)}s)`, "hit");
   }
 }
 function mapWorld(e) {
@@ -271,11 +430,12 @@ function updateTele(P, incoming, airborneJets, etaSec = 0) {
   const tSec = Math.max(0, G.battleT | 0), mm = String((tSec / 60) | 0).padStart(2, "0"), ss = String(tSec % 60).padStart(2, "0");
   const cts = G.cts ? G.cts.size : 0, emcon = P.radarOn === false;
   const pt = C.deps.md.supPt, ptTxt = pt ? `${(Math.hypot(pt.x - P.pos.x, pt.z - P.pos.z) / 1000).toFixed(1)}km` : "미지정";
-  const sig = `${mm}:${ss}|${emcon}|${cts}|${incoming}|${etaSec}|${airborneJets}|${ptTxt}|${C.zoom.toFixed(1)}`;
+  const sig = `${mm}:${ss}|${emcon}|${cts}|${incoming}|${etaSec}|${airborneJets}|${ptTxt}|${C.zoom.toFixed(1)}|${C.wcs}`;
   if (sig === C.tSig) return; C.tSig = sig;
   const el = $(".cic-tele"); if (!el) return;
   const thTxt = incoming ? `<i>▲${incoming}${etaSec > 0 ? ` (${etaSec}s)` : ""}</i>` : "0";
-  el.innerHTML = `<span>T+<b>${mm}:${ss}</b></span><span>${emcon ? "<i>EMCON</i>" : "<b>RADAR</b>"}</span><span>표적 <b>${cts}</b></span><span>위협 ${thTxt}</span><span>편대 <b>${airborneJets}</b></span><span>목표 <b>${ptTxt}</b></span>`;
+  const wBtn = (k, lbl) => `<button type="button" class="wcs-b${C.wcs === k ? " on" : ""}" data-wcs="${k}">${lbl}</button>`;
+  el.innerHTML = `<span>T+<b>${mm}:${ss}</b></span><span>표적 <b>${cts}</b></span><span>위협 ${thTxt}</span><span>편대 <b>${airborneJets}</b></span><span>방공 <span class="wcs-grp">${wBtn("auto", "FREE")}${wBtn("tight", "TIGHT")}${wBtn("hold", "HOLD")}</span></span>`;
 }
 function updateTracks(P, marks) {
   const rows = []; let tn = 1;
@@ -308,6 +468,10 @@ function updateTracks(P, marks) {
 export function cicStep(dt, marks) {
   if (!C.on || !C.el) return; const P = G.player; if (!P) return;
   C.lastMarks = marks || [];
+  updateIsr3d(dt);
+  updateFeed(dt);
+  for (let i = C.capZones.length - 1; i >= 0; i--) if (G.battleT > C.capZones[i].endT) C.capZones.splice(i, 1);
+  for (let i = C.tots.length - 1; i >= 0; i--) if (G.battleT > C.tots[i].endAt + 2) C.tots.splice(i, 1);
   if (C.battery?.mesh?.userData?.dish) {
     C.battery.mesh.userData.dish.rotation.y += dt * 1.9;
     if (C.battery.mesh.userData.beacon) C.battery.mesh.userData.beacon.visible = Math.floor(G.time * 2) % 2 === 0;
@@ -319,7 +483,7 @@ export function cicStep(dt, marks) {
   const etaSec = incoming ? Math.max(1, Math.round(Math.min(...incList.map((m) => m.pos.distanceTo(m.target.pos) / Math.max(1, m.vel.length()))))) : 0;
   C.el.classList.toggle("alert", incoming > 0);
   C.warnT = Math.max(0, C.warnT - dt);
-  if (incoming > 0 && C.warnT <= 0 && !C.pend && C.talkT <= 0) { C.warnT = 15; say(`경보 — 적 대함·유도탄 ${incoming}발 근접 중 (${Math.min(...incList.map((m) => m.pos.distanceTo(m.target.pos) / 1000)).toFixed(1)} km · ${etaSec}초)! 요격 대기.`); }
+  if (incoming > 0 && C.warnT <= 0 && !C.pend && C.talkT <= 0) { C.warnT = 15; say(`경보 — 적 대함·유도탄 ${incoming}발 근접 중 (${Math.min(...incList.map((m) => m.pos.distanceTo(m.target.pos) / 1000)).toFixed(1)} km · ${etaSec}초)! 상황판 적색 미사일 클릭 시 우선 요격.`); }
   const airborneJets = M.jets.filter((j) => j.alive && j.side === "us").length;
   updateTele(P, incoming, airborneJets, etaSec);
   updateTracks(P, marks);
@@ -327,6 +491,7 @@ export function cicStep(dt, marks) {
   const actHeavy = M.jets.find((j) => j.alive && j.side === "us" && j.heavy);
   const actFighter = M.jets.find((j) => j.alive && j.side === "us" && j.support && !j.heavy);
   const actBatMsl = C.battery ? M.list.filter((m) => m.alive && m.side === "us" && m.owner?.name === C.battery.name) : [];
+  const actTot = C.tots[0];
   const cards = assets().map((a) => {
     const cd = Math.max(0, Math.ceil((C.cd[a.id] || 0) - G.battleT)), maxCd = CD_SEC[a.id] || 60, u = C.uses[a.id] ?? 0, maxU = MAX_USES[a.id] || 1;
     const pips = a.ok ? `<span class="pips">${"●".repeat(u)}${"○".repeat(Math.max(0, maxU - u))}</span>` : "";
@@ -334,26 +499,32 @@ export function cicStep(dt, marks) {
     if (pt && a.ok && u > 0) {
       if (a.id === "battery" && C.battery) {
         const bd = Math.hypot(pt.x - C.battery.pos.x, pt.z - C.battery.pos.z), br = WPN[C.battery.key].range;
-        eta = bd <= br ? ` · <span class="eta">포대 ${(bd / 1000).toFixed(1)}km · 탄착 ${(bd / (WPN[C.battery.key].v * 2.55)).toFixed(0)}s</span>` : ` · <span style="color:#ff8a7a">사거리 밖(${(bd / 1000).toFixed(1)}km)</span>`;
+        eta = bd <= br ? ` · <span class="eta">포대 ${(bd / 1000).toFixed(1)}km · 우회 돌입</span>` : ` · <span style="color:#ff8a7a">사거리 밖(${(bd / 1000).toFixed(1)}km)</span>`;
       } else if (a.id === "recon") {
-        eta = ` · <span class="eta">기함 ${(Math.hypot(pt.x - P.pos.x, pt.z - P.pos.z) / 1000).toFixed(1)}km · 즉시 스캔</span>`;
+        eta = ` · <span class="eta">기함 ${(Math.hypot(pt.x - P.pos.x, pt.z - P.pos.z) / 1000).toFixed(1)}km · 레이저 스캔</span>`;
+      } else if (a.id === "tot") {
+        const readyShips = G.ships.filter((s) => s.alive && s.side === "us" && s.spec?.modern && s.spec.vls?.A?.[0] && (s.mag[s.spec.vls.A[0]] || 0) > 0 && Math.hypot(pt.x - s.pos.x, pt.z - s.pos.z) <= WPN[s.spec.vls.A[0]].range * 0.98).length;
+        eta = readyShips ? ` · <span class="eta">${readyShips}척 동시타격 가용</span>` : ` · <span style="color:#ff8a7a">사거리 내 가용 함정 없음</span>`;
       } else {
         const A = AIR[C.deps.nat] || AIR.us;
-        eta = ` · <span class="eta">지정점 ${(Math.hypot(pt.x - P.pos.x, pt.z - P.pos.z) / 1000).toFixed(1)}km · ${a.id === "heavy" ? `${A.heavy.n}발 포화` : `${A.fighter.asm} 공대함`}</span>`;
+        eta = ` · <span class="eta">지정점 ${(Math.hypot(pt.x - P.pos.x, pt.z - P.pos.z) / 1000).toFixed(1)}km · ${a.id === "heavy" ? `${A.heavy.n}발 포화` : `CAP 90s`}</span>`;
       }
     }
     let liveHtml = "";
     if ((a.id === "heavy" && actHeavy) || (a.id === "fighter" && actFighter)) {
-      const j = a.id === "heavy" ? actHeavy : actFighter, ref = j.aimPt || P.pos, dKm = (Math.hypot(ref.x - j.pos.x, ref.z - j.pos.z) / 1000).toFixed(1);
-      const actTxt = j.asm > 0 && !j.home ? `▶ 작전 중: 목표 해역 접근 (${dKm}km · ${WPN[j.asmKey]?.name || j.asmKey} ${j.asm}발 발사 대기)` : `▶ 작전 중: 대함미사일 발사 완료 · 기지 이탈 중`;
+      const j = a.id === "heavy" ? actHeavy : actFighter, ref = j.capZone || j.aimPt || P.pos, dKm = (Math.hypot(ref.x - j.pos.x, ref.z - j.pos.z) / 1000).toFixed(1);
+      const capRem = j.capZone ? Math.max(0, Math.ceil((j.capDur || 90) - j.t)) : 0;
+      const actTxt = a.id === "fighter" && !j.home && j.capZone ? `▶ CAP 방공우산 (${capRem}s · AAM ${j.aam} · ASM ${j.asm})` : j.asm > 0 && !j.home ? `▶ 작전 중: 목표 접근 (${dKm}km · ${j.asm}발 대기)` : `▶ 발사 완료 · 기지 복귀 중`;
       const watching = C.deps.isWatching?.(j);
       liveHtml = `<div class="sup-act"><span>${actTxt}</span><span class="sup-watch" data-watch="${a.id}">${watching ? "🎥 본함 복귀" : "🎥 시점 보기"}</span></div>`;
     } else if (a.id === "battery" && actBatMsl.length) {
-      liveHtml = `<div class="sup-act"><span>▶ 작전 중: 지대함 미사일 ${actBatMsl.length}발 목표 비행 중</span><span class="sup-watch" data-watch="battery">🎥 미사일 시점</span></div>`;
+      liveHtml = `<div class="sup-act"><span>▶ 작전 중: 지대함 ${actBatMsl.length}발 측후방 우회 침투</span><span class="sup-watch" data-watch="battery">🎥 미사일 시점</span></div>`;
+    } else if (a.id === "tot" && actTot) {
+      liveHtml = `<div class="sup-act"><span>▶ TOT [${actTot.name}] · 동시 탄착 T-${Math.max(0, Math.ceil(actTot.endAt - G.battleT))}s (${actTot.n}발)</span></div>`;
     }
     const st = !a.ok ? "불가" : u <= 0 ? "소진" : cd ? `${cd}s` : `${u}회`;
     const pct = cd > 0 ? clamp(1 - cd / maxCd, 0, 1) * 100 : 0;
-    return `<button class="sup${a.ok && u > 0 && !cd ? "" : " off"}${C.pend?.id === a.id ? " pend" : ""}" data-sup="${a.id}"><b>${a.t}${pips}</b><small>${a.d}${eta}</small>${liveHtml}<i>${st}</i>${cd > 0 ? `<span class="cdbar"><span style="width:${pct.toFixed(1)}%"></span></span>` : ""}</button>`;
+    return `<button class="sup${a.id === "tot" ? " tot" : ""}${a.ok && u > 0 && !cd ? "" : " off"}${C.pend?.id === a.id ? " pend" : ""}" data-sup="${a.id}"><b>${a.t}${pips}</b><small>${a.d}${eta}</small>${liveHtml}<i>${st}</i>${cd > 0 ? `<span class="cdbar"><span style="width:${pct.toFixed(1)}%"></span></span>` : ""}</button>`;
   }).join("");
   const snap = pt ? nearestSnap(pt.x, pt.z, 2600) : null;
   const ptDesc = pt ? `${snap ? snap.name : "해역"} (${(Math.hypot(pt.x - P.pos.x, pt.z - P.pos.z) / 1000).toFixed(1)} km · ${brg(Math.atan2(pt.z - P.pos.z, pt.x - P.pos.x))})` : "";
@@ -475,18 +646,46 @@ function drawMap(marks) {
       placeLbl(h.name || "초계헬기", u + 8, v + 3, col);
     }
   }
+  // CAP 11km air-defence patrol rings
+  for (const cz of C.capZones) {
+    const [u, v] = S(cz), r = 11000 * sc;
+    x.save(); x.strokeStyle = "rgba(110,220,255,.55)"; x.fillStyle = "rgba(77,232,212,.06)"; x.setLineDash([6, 4]); x.lineWidth = 1.4;
+    x.beginPath(); x.arc(u, v, r, 0, TAU); x.fill(); x.stroke(); x.restore();
+    placeLbl(`CAP ${Math.max(0, Math.ceil(cz.endT - G.battleT))}s`, u + 8, v - r + 12, "#9be8ff");
+  }
+  // TOT simultaneous strike convergence arcs & countdowns
+  for (const tot of C.tots) {
+    const tPos = tot.target?.alive ? tot.target.pos : tot.pt, [tu, tv] = S(tPos), rem = Math.max(0, Math.ceil(tot.endAt - G.battleT));
+    x.save(); x.strokeStyle = "rgba(77,232,212,.68)"; x.setLineDash([5, 4]); x.lineWidth = 1.3;
+    for (const r of tot.rays) {
+      if (!r.S.alive) continue;
+      const [su, sv] = S(r.S.pos); x.beginPath(); x.moveTo(su, sv); x.lineTo(tu, tv); x.stroke();
+    }
+    x.restore();
+    x.strokeStyle = "#4de8d4"; x.lineWidth = 1.6; x.beginPath(); x.arc(tu, tv, 11 + Math.sin(G.time * 6) * 2, 0, TAU); x.stroke();
+    placeLbl(`TOT T-${rem}s (${tot.n})`, tu + 12, tv - 8, "#affff1");
+  }
   const warnShips = new Set();
   for (const m of M.list) {
     if (!m.alive) continue; const [u, v] = S(m.pos), mv = Math.hypot(m.vel.x, m.vel.z);
-    x.fillStyle = m.side === "us" ? "#e6f4f6" : "#ff5f52"; x.fillRect(u - 2, v - 2, 4, 4);
+    x.fillStyle = m.side === "us" ? "#e6f4f6" : m.pri ? "#ffe066" : "#ff5f52"; x.fillRect(u - 2, v - 2, 4, 4);
+    if (m.pri && m.side === "foe") {
+      x.strokeStyle = "#ffe066"; x.lineWidth = 1.5; x.strokeRect(u - 6, v - 6, 12, 12);
+      placeLbl("PRI", u + 8, v - 5, "#ffe066");
+    }
+    if (m.side === "us" && m.flankPt) {
+      const [fu, fv] = S(m.flankPt), [eu, ev] = S(m.target?.pos || m.est || m.pos);
+      x.save(); x.strokeStyle = "rgba(255,140,82,.42)"; x.setLineDash([3, 3]); x.lineWidth = 1.1;
+      x.beginPath(); x.moveTo(u, v); x.lineTo(fu, fv); x.lineTo(eu, ev); x.stroke(); x.restore();
+    }
     if (mv > 1) {
       const du = (m.vel.z / mv) * 10, dv = (-m.vel.x / mv) * 10;
-      x.strokeStyle = m.side === "us" ? "rgba(230,244,246,.7)" : "rgba(255,95,82,.85)"; x.lineWidth = 1.3;
+      x.strokeStyle = m.side === "us" ? "rgba(230,244,246,.7)" : m.pri ? "#ffe066" : "rgba(255,95,82,.85)"; x.lineWidth = 1.3;
       x.beginPath(); x.moveTo(u, v); x.lineTo(u + du, v + dv); x.stroke();
     }
     if (m.side === "foe" && m.target?.side === "us" && (big || m.pos.distanceTo(m.target.pos) < 12000)) {
       warnShips.add(m.target);
-      const md = m.pos.distanceTo(m.target.pos), [tu, tv] = S(m.target.pos); x.save(); x.strokeStyle = "rgba(255,95,82,.38)"; x.setLineDash([2, 3]); x.beginPath(); x.moveTo(u, v); x.lineTo(tu, tv); x.stroke(); x.restore();
+      const md = m.pos.distanceTo(m.target.pos), [tu, tv] = S(m.target.pos); x.save(); x.strokeStyle = m.pri ? "rgba(255,224,102,.65)" : "rgba(255,95,82,.38)"; x.setLineDash([2, 3]); x.beginPath(); x.moveTo(u, v); x.lineTo(tu, tv); x.stroke(); x.restore();
       if (big && mv > 1 && md < 16000) placeLbl(`${Math.max(1, Math.round(md / mv))}s`, u + 6, v - 5, "#ff9b8d");
     }
   }

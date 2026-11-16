@@ -2,7 +2,7 @@
  * Steel Tide — post-processing: HDR render target with 4x MSAA, gentle bloom (muzzle flashes, fires, sun glint),
  * ACES filmic tone mapping and a light grade + vignette. Toggle in settings; off = the old direct render.
  */
-import { THREE, renderer, scene, camera, ovScene, ovCam, U } from "./core.js";
+import { THREE, renderer, scene, camera, ovScene, ovCam, U, sky, sea, seaPatch } from "./core.js";
 import { EffectComposer } from "/vendor/addons/postprocessing/EffectComposer.js";
 import { RenderPass } from "/vendor/addons/postprocessing/RenderPass.js";
 import { ShaderPass } from "/vendor/addons/postprocessing/ShaderPass.js";
@@ -37,4 +37,23 @@ export function renderFrame(overlay) {
   if (post.on) { over.enabled = overlay; composer.render(); return; }
   renderer.render(scene, camera);
   if (overlay) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(ovScene, ovCam); renderer.autoClear = true; }
+}
+const _sv = new THREE.Vector3(), _ev = new THREE.Vector3(), _pv = new THREE.Vector3(), PSTEP = 2800 / 256;
+/** Render a secondary EO/IR PiP viewport onto the main framebuffer inside `rect` (DOMRect). */
+export function renderPiP(pipCam, rect) {
+  if (!pipCam || !rect || rect.width < 12 || rect.height < 12) return;
+  const x = Math.round(rect.left), y = Math.round(window.innerHeight - rect.bottom), w = Math.round(rect.width), h = Math.round(rect.height);
+  if (w <= 0 || h <= 0) return;
+  pipCam.aspect = w / h; pipCam.updateProjectionMatrix();
+  _sv.copy(sky.position); _ev.copy(sea.position); _pv.copy(seaPatch.position);
+  const p = pipCam.position;
+  sky.position.copy(p); sea.position.set(p.x, 0, p.z); seaPatch.position.set(Math.round(p.x / PSTEP) * PSTEP, 0, Math.round(p.z / PSTEP) * PSTEP);
+  const prevTm = renderer.toneMapping, prevLin = U.uLin.value;
+  U.uLin.value = 0; renderer.toneMapping = THREE.NoToneMapping;
+  renderer.setRenderTarget(null);
+  renderer.setScissorTest(true); renderer.setScissor(x, y, w, h); renderer.setViewport(x, y, w, h);
+  renderer.autoClear = false; renderer.clearDepth(); renderer.render(scene, pipCam); renderer.autoClear = true;
+  renderer.setScissorTest(false); renderer.setViewport(0, 0, window.innerWidth, window.innerHeight);
+  U.uLin.value = prevLin; renderer.toneMapping = prevTm;
+  sky.position.copy(_sv); sea.position.copy(_ev); seaPatch.position.copy(_pv);
 }
