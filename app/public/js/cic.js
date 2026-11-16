@@ -14,9 +14,9 @@ Object.assign(WPN, {
 });
 // game assumptions per nation (names are real equipment; ranges, counts and timings are game balance)
 const AIR = {
-  us: { fighter: { type: "F/A-18E (공군 지원 편대)", asm: "LRASM", aam: "AIM-120" }, heavy: { type: "B-1B", asm: "LRASM", n: 4 } },
-  kr: { fighter: { type: "KF-21 (가정)", asm: "해성", aam: "AIM-120" }, heavy: { type: "P-8A 해상초계기", asm: "하푼", n: 4 } },
-  jp: { fighter: { type: "F-2", asm: "17식", aam: "AIM-120" }, heavy: { type: "P-1 초계기", asm: "91식", n: 4 } },
+  us: { fighter: { type: "F/A-18E (공군 지원 편대)", asm: "LRASM", aam: "AIM-120" }, heavy: { type: "MC-130J 수송작전기 (래피드 드래곤)", asm: "LRASM", n: 4 } },
+  kr: { fighter: { type: "KF-21 (가정)", asm: "해성", aam: "AIM-120" }, heavy: { type: "C-130H 대형수송기 (래피드 드래곤)", asm: "하푼", n: 4 } },
+  jp: { fighter: { type: "F-2", asm: "17식", aam: "AIM-120" }, heavy: { type: "C-130H 대형수송기", asm: "91식", n: 4 } },
 };
 const BATTERY = { "west:kr": { name: "해안 지대함 포대 (미사일사령부)", key: "해성 지상" }, "east:kr": { name: "해안 지대함 포대 (미사일사령부)", key: "해성 지상" }, "strait:kr": { name: "해안 지대함 포대 (미사일사령부)", key: "해성 지상" }, "jeju:kr": { name: "해안 지대함 포대 (미사일사령부)", key: "해성 지상" }, "okinawa:jp": { name: "육상자위대 12식 지대함 포대", key: "12식" }, "uswest:us": { name: "미 해병대 NMESIS 포대", key: "NSM 지상" } };
 const MAX_USES = { fighter: 2, heavy: 1, battery: 2, recon: 2 };
@@ -192,11 +192,11 @@ function resolve(ok) {
   C.uses[p.id]--; C.used = (C.used || 0) + 1; C.cd[p.id] = G.battleT + CD_SEC[p.id]; C.deps.radio?.("launch");
   const pt = new THREE.Vector3(p.pt.x, 0, p.pt.z), P = G.player, A = AIR[C.deps.nat] || AIR.us;
   if (p.id === "fighter" || p.id === "heavy") {
-    const back = P.pos.clone().sub(pt).setY(0).normalize(), base = P.pos.clone().addScaledVector(back, p.id === "heavy" ? 14000 : 11000).setY(p.id === "heavy" ? 950 : 450);
+    const back = P.pos.clone().sub(pt).setY(0).normalize(), base = P.pos.clone().addScaledVector(back, p.id === "heavy" ? 7500 : 11000).setY(p.id === "heavy" ? 750 : 450);
     const n = p.id === "heavy" ? 1 : 2;
     for (let i = 0; i < n; i++) { const cv = p.id === "heavy" ? { type: A.heavy.type, asm: A.heavy.asm, aam: "AIM-120" } : { type: A.fighter.type, asm: A.fighter.asm, aam: A.fighter.aam };
       const src = { side: "us", pos: base.clone().add(new THREE.Vector3(i * 300, 0, i * 300)), heading: Math.atan2(pt.z - base.z, pt.x - base.x), spec: { fb: 0 }, alive: true, cv, fwd: back.clone().negate(), name: "공군" };
-      const j = launchJet(src, "strike", cv, src.pos); j.pos.copy(src.pos); j.aimPt = pt.clone(); j.support = true; j.endur = 400; if (p.id === "heavy") { j.asm = A.heavy.n; j.aam = 0; j.mesh.scale.setScalar(4.2); j.heavy = true; } else { j.asm = 2; j.aam = 10; } } /* support jets keep their own loadout, not the carrier jets' */
+      const j = launchJet(src, "strike", cv, src.pos, p.id === "heavy"); j.pos.copy(src.pos); j.aimPt = pt.clone(); j.support = true; j.endur = 400; if (p.id === "heavy") { j.asm = A.heavy.n; j.aam = 0; j.heavy = true; } else { j.asm = 2; j.aam = 10; } } /* support jets keep their own loadout, not the carrier jets' */
     C.pulses.push({ x: pt.x, z: pt.z, t: 0, dur: 4, maxR: 6000, col: "#f2b544" });
     say(p.id === "heavy" ? `${A.heavy.type} 출격 확인 — 목표 해역 진입 후 ${WPN[A.heavy.asm]?.name || A.heavy.asm} ${A.heavy.n}발 발사 예정. 카드의 [🎥 시점 보기]로 비행 및 발사 장면을 직접 볼 수 있습니다.` : `${A.fighter.type} 2기 출격 확인 — 카드의 [🎥 시점 보기]로 비행 및 발사 장면을 직접 볼 수 있습니다.`);
     C.deps.log(`합동 지원 승인 — ${p.a.t}`, "hit");

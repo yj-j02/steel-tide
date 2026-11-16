@@ -1441,7 +1441,7 @@ window.addEventListener("wheel", (e) => {
   if (e.target === plot) { plotZoom = clamp(plotZoom * f, 0.25, 4); return; }
   if (screen !== "battle") cam.orbDist = clamp(cam.orbDist * f, 60, 2200);
   else if (aa.on) aa.fov = clamp(aa.fov * f, 14, 80);
-  else if (G.modern && md.fly && !md.flyAuto) md.fly.thr = clamp((md.fly.thr || 240) - Math.sign(e.deltaY) * 16, 110, md.fly.hit ? 250 : 330);
+  else if (G.modern && md.fly && !md.flyAuto) md.fly.thr = clamp((md.fly.thr || (md.fly.heavy ? 165 : 240)) - Math.sign(e.deltaY) * (md.fly.heavy ? 8 : 16), md.fly.heavy ? 125 : 110, md.fly.heavy ? 185 : md.fly.hit ? 250 : 330);
   else if (G.plane) G.plane.throttle = clamp(G.plane.throttle - Math.sign(e.deltaY) * 0.08, 0, 1);
   else if (isPlane(cam.tgt)) cam.pDist = clamp(cam.pDist * f, 18, 600);
   else if (cam.map) cam.mapDist = clamp(cam.mapDist * f, 3000, 45000);
@@ -1663,13 +1663,24 @@ function know(side) {
 // left button = 20 mm cannon, Space/right button = air-to-air missile, X = flares, Alt + mouse = look around (behind).
 const QZ = new THREE.Vector3(0, 0, 1), QX = new THREE.Vector3(1, 0, 0), QY = new THREE.Vector3(0, 1, 0), dq = new THREE.Quaternion();
 function flyControl(dt, j) {
-  const k = (a, b) => (keys.has(a) ? 1 : 0) - (keys.has(b) ? 1 : 0), sp = clamp(j.vel.length() / 240, 0.5, 1.2);
-  const msens = 0.0026; // mouse is the stick (up/down pitch, left/right turn); the settings sensitivity is already in mdx/mdy
-  const pitch = (k("KeyS", "KeyW") * 1.45 * dt - (md.mdy || 0) * msens) * sp, roll = k("KeyD", "KeyA") * 2.8 * dt, yaw = k("KeyE", "KeyQ") * 0.5 * dt + (md.mdx || 0) * msens * 0.8; md.mdx = md.mdy = 0;
+  const k = (a, b) => (keys.has(a) ? 1 : 0) - (keys.has(b) ? 1 : 0), sp = clamp(j.vel.length() / (j.heavy ? 165 : 240), 0.5, 1.2);
+  const msens = j.heavy ? 0.0011 : 0.0026; // heavy transport: slower control response, no aerobatics
+  const rate = j.heavy ? 0.36 : 1;
+  const pitch = (k("KeyS", "KeyW") * 1.45 * rate * dt - (md.mdy || 0) * msens) * sp, roll = k("KeyD", "KeyA") * 2.8 * rate * dt, yaw = (k("KeyE", "KeyQ") * 0.5 * dt + (md.mdx || 0) * msens * 0.8) * (j.heavy ? 0.55 : 1); md.mdx = md.mdy = 0;
   j.q.multiply(dq.setFromAxisAngle(QZ, pitch)).multiply(dq.setFromAxisAngle(QX, roll)).multiply(dq.setFromAxisAngle(QY, -yaw)).normalize();
-  j.gT = Math.abs(pitch) + Math.abs(yaw) > 0.5 * dt ? 0.8 : Math.max(0, (j.gT || 0) - dt); // hard manoeuvring makes you harder to hit
+  if (j.heavy) {
+    // No aerobatics: clamp pitch (±20°) and roll/bank (±30°), and gently auto-level bank when A/D are released
+    eu.setFromQuaternion(j.q, "YXZ");
+    const minP = -0.35, maxP = 0.35, maxR = 0.52;
+    const fx = QX.clone().applyQuaternion(j.q), upV = QY.clone().applyQuaternion(j.q);
+    const py = -Math.atan2(fx.z, fx.x), pp = clamp(Math.asin(clamp(fx.y, -1, 1)), minP, maxP);
+    const rt = new THREE.Vector3(-Math.sin(-py), 0, Math.cos(-py)), pr = clamp(Math.asin(clamp(upV.dot(rt), -1, 1)), -maxR, maxR);
+    const bank = Math.abs(roll) < 1e-4 ? pr * Math.max(0, 1 - dt * 1.4) : pr;
+    j.q.setFromAxisAngle(QY, py).multiply(dq.setFromAxisAngle(QZ, pp)).multiply(dq.setFromAxisAngle(QX, bank)).normalize();
+  }
+  j.gT = !j.heavy && Math.abs(pitch) + Math.abs(yaw) > 0.5 * dt ? 0.8 : Math.max(0, (j.gT || 0) - dt); // hard manoeuvring makes you harder to hit
   const f = QX.clone().applyQuaternion(j.q); j.pyaw = Math.atan2(f.z, f.x); j.ppitch = Math.asin(clamp(f.y, -1, 1));
-  j.thr = clamp(j.thr + ((shiftDown() ? 1 : 0) - (keys.has("KeyC") ? 1 : 0)) * 130 * dt, 110, j.hit ? 250 : 330); // wheel (or Shift/C): throttle
+  j.thr = clamp(j.thr + ((shiftDown() ? 1 : 0) - (keys.has("KeyC") ? 1 : 0)) * (j.heavy ? 65 : 130) * dt, j.heavy ? 125 : 110, j.heavy ? 185 : j.hit ? 250 : 330); // wheel (or Shift/C): throttle
   if (!altDown() && !md.lookHeld) { md.lookYaw = (md.lookYaw || 0) * Math.max(0, 1 - dt * 10); md.lookPitch = (md.lookPitch || 0) * Math.max(0, 1 - dt * 10); }
   j.gunT = (j.gunT || 0) - dt; let burst = false;
   if (lDown && document.pointerLockElement === canvas && !altDown() && !md.lookHeld) { if (j.gun <= 0) { if (j.gunT <= 0) { sfx.deny(); j.gunT = 0.6; } } else while (j.gunT <= 0) { j.gunT += 0.045; j.gun -= 2; burst = true; const r = jetGun(j); if (r) { md.gunHit = 0.25; if (r === "kill") log(`${j.name} 기관포로 격추!`, "hit"); } } }
@@ -1698,7 +1709,7 @@ function watchJet(j) {
   if (!j || !j.alive) return;
   if (md.fly === j) { releaseFly(); return; }
   if (md.fly) releaseFly();
-  j.q = j.mesh.quaternion.clone(); j.thr ??= 285; j.gun ??= 0; j.flares ??= flaresOf(j.name);
+  j.q = j.mesh.quaternion.clone(); j.thr ??= j.heavy ? 165 : 285; j.gun ??= 0; j.flares ??= flaresOf(j.name);
   const f = QX.clone().applyQuaternion(j.q); j.pyaw = Math.atan2(f.z, f.x); j.ppitch = Math.asin(clamp(f.y, -1, 1));
   md.fly = j; md.flyAuto = true; md.flyFP = false;
   document.body.classList.add("jetfly"); j.pilot = false;
@@ -1749,8 +1760,9 @@ function flyCamera(dt) {
     for (const o of [...MSL.jets, ...MSL.list.filter((m) => m.W.role === "asm")]) { if (!o.alive || o === j) continue; const d = o.pos.clone().sub(j.pos); if (d.length() > 20000) continue; bl.push({ x: clamp(d.dot(rt) / 20000, -1, 1), y: clamp(d.dot(f0) / 20000, 0, 1), foe: o.side === "foe" }); }
     updateJetPit(j, dt, { rwr: md.rwr, lock: md.flyLock ? (md.flyLock.isJet ? md.flyLock.name : md.flyLock.W.name) : null, lockPct: md.lockCand ? (md.lockT || 0) / LOCK_T : 0, firing: lDown && document.pointerLockElement === canvas && !altDown() && !md.lookHeld && j.gun > 0, gunHit: md.gunHit || 0, blips: bl, ab: abK, roll: (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0), pitch: (keys.has("KeyS") ? 1 : 0) - (keys.has("KeyW") ? 1 : 0) }); }
   if (md.flyFP && !(j.landT > 0)) { setNear(0.5); camera.fov += ((72 + abK * 6.5) - camera.fov) * Math.min(1, dt * 6); camera.updateProjectionMatrix(); camera.up.copy(up); camera.position.copy(j.pos).addScaledVector(QX.clone().applyQuaternion(j.q), 5).addScaledVector(up, 1.3); camera.lookAt(camera.position.clone().addScaledVector(f, 200)); return; }
-  setNear(1); camera.fov += ((62 + abK * 7) - camera.fov) * Math.min(1, dt * 6); camera.updateProjectionMatrix(); camera.up.lerp(up, Math.min(1, dt * 5)).normalize();
-  const want = j.pos.clone().addScaledVector(f, -40 - abK * 5).addScaledVector(up, 8.2 - abK * 0.6); if (looking) camera.position.copy(want); else camera.position.lerp(want, Math.min(1, dt * 9)); camera.lookAt(j.pos.clone().addScaledVector(f, 160));
+  setNear(1); camera.fov += ((62 + (j.heavy ? 0 : abK * 7)) - camera.fov) * Math.min(1, dt * 6); camera.updateProjectionMatrix(); camera.up.lerp(up, Math.min(1, dt * 5)).normalize();
+  const cDist = j.heavy ? 68 : 40 + abK * 5, cUp = j.heavy ? 13.5 : 8.2 - abK * 0.6;
+  const want = j.pos.clone().addScaledVector(f, -cDist).addScaledVector(up, cUp); if (looking) camera.position.copy(want); else camera.position.lerp(want, Math.min(1, dt * 9)); camera.lookAt(j.pos.clone().addScaledVector(f, 160));
 }
 function keycap(x, y, k, on, dim) { hx.font = "bold 11px 'Noto Sans KR', sans-serif"; const w = Math.max(24, hx.measureText(k).width + 12);
   hx.fillStyle = on ? "rgba(142,240,122,.9)" : dim ? "rgba(40,46,52,.55)" : "rgba(235,240,245,.92)"; hx.beginPath(); hx.roundRect(x, y, w, 20, 4); hx.fill();
@@ -2090,8 +2102,8 @@ function drawFlightHUD(pl, mode) {
   hx.fillStyle = "rgba(220,235,240,.8)"; hx.font = "12px 'Noto Sans KR', sans-serif"; hx.fillText(document.pointerLockElement === canvas ? "마우스·W/S 비행 · 휠 출력(속력) · Space 기총 · Q 락온 · B 폭탄 · X 플레어 · V 조종석 · Enter 자동조종 · F 귀환" : "화면을 클릭하면 마우스로 비행합니다 (Esc: 커서 해제)", cx, ck ? 48 : H - 36);
 }
 // ── key remapping: a capture listener turns the physical key into the game's default code before any handler sees it ──
-const KEY_ACTIONS = [["주무장 발사 (주포 / 대함미사일) · 기관포", "Space"], ["지휘통제실 (현대전 합동 지원)", "Backquote"], ["무기 전환 (주포↔어뢰 / 함포↔미사일)", "KeyQ"], ["자동 공격", "KeyZ"], ["전투기 출격", "KeyF"], ["전투기 임무 변경", "KeyN"], ["전투기 직접 조종 / 복귀", "KeyI"], ["자동 조종 (비행 중)", "KeyK"],
-  ["대공 사수 (2차대전)", "KeyG"], ["함대 진형 (2차대전)", "KeyE"], ["나포 · 비행 중 폭탄/대함", "KeyB"], ["직접 전투·시점 전환", "KeyV"], ["자동 전투 전환", "KeyJ"], ["지도 시점", "KeyM"], ["기함 카메라", "KeyC"], ["표시 숨김", "KeyU"], ["수리", "KeyR"],
+const KEY_ACTIONS = [["주무장 발사 (주포 / 대함미사일) · 기관포 · 비행 중 대함", "Space"], ["지휘통제실 (현대전 합동 지원)", "Backquote"], ["무기 전환 (주포↔어뢰 / 함포↔미사일)", "KeyQ"], ["자동 공격", "KeyZ"], ["전투기 출격", "KeyF"], ["전투기 임무 변경", "KeyN"], ["전투기 직접 조종 / 복귀", "KeyI"], ["자동 조종 (비행 중)", "KeyK"],
+  ["대공 사수 (2차대전)", "KeyG"], ["함대 진형 (2차대전)", "KeyE"], ["나포 · 비행 중 폭탄/공대공", "KeyB"], ["직접 전투·시점 전환", "KeyV"], ["자동 전투 전환", "KeyJ"], ["지도 시점", "KeyM"], ["기함 카메라", "KeyC"], ["표시 숨김", "KeyU"], ["수리", "KeyR"],
   ["일시정지", "KeyP"], ["도움말 / 조종 키 표시", "KeyH"], ["카메라 순환", "Tab"], ["사선 왼쪽 / 롤 왼쪽", "KeyA"], ["사선 오른쪽 / 롤 오른쪽", "KeyD"], ["사거리 + / 기수 내림", "KeyW"], ["사거리 − / 기수 올림", "KeyS"],
   ["러더 왼쪽", "KeyQ2"], ["플레어", "KeyX"], ["착함", "KeyL"], ["미사일 추적 카메라 (현대전)", "KeyT"], ["레이더 (현대전)", "KeyO"], ["헬기 정찰 (현대전)", "KeyY"]].filter((a) => a[1] !== "KeyQ2");
 let keyBind = {}; try { keyBind = JSON.parse(localStorage.getItem("steeltide:keys") || "{}") || {}; } catch {}

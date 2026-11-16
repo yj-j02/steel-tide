@@ -528,6 +528,86 @@ export function jetMesh(foe) {
   g.userData.ab = { burners, glowMat, outerMat, coreMat, diaMat, strobe, vCone, vcMat };
   return g;
 }
+/** 4-engine heavy turboprop transport / maritime strike aircraft (C-130 Hercules silhouette), ~30 m, nose +x. */
+const HG_C = (() => {
+  const P = [[0, -14.2], [0.55, -13.6], [1.45, -8.5], [2.15, -3.5], [2.25, 7.2], [2.05, 10.0], [1.55, 11.8], [0.85, 13.4], [0, 14.2]].map(([r, y]) => new THREE.Vector2(r, y));
+  const fus = new THREE.LatheGeometry(P, 16); fus.rotateZ(-PI / 2); fus.scale(1, 0.94, 0.96);
+  const cockpitGlass = new THREE.BoxGeometry(1.5, 0.72, 2.35);
+  const radome = new THREE.SphereGeometry(0.92, 12, 8); radome.scale(1.45, 0.85, 0.92);
+  const flir = new THREE.SphereGeometry(0.42, 10, 8);
+  const sponson = new THREE.CapsuleGeometry(0.75, 5.8, 6, 10); sponson.rotateZ(-PI / 2); sponson.scale(1, 0.82, 0.72);
+  const wing = (() => {
+    const s = new THREE.Shape(); s.moveTo(2.4, 0); s.lineTo(1.1, 20.5); s.lineTo(-1.8, 20.5); s.lineTo(-2.6, 0); s.closePath();
+    const g = new THREE.ExtrudeGeometry(s, { depth: 0.34, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05, bevelSegments: 1 }); g.rotateX(PI / 2); return g;
+  })();
+  const tailFin = (() => {
+    const s = new THREE.Shape(); s.moveTo(4.2, 0); s.lineTo(0.8, 1.4); s.lineTo(-2.6, 7.6); s.lineTo(-4.8, 7.6); s.lineTo(-4.2, 0); s.closePath();
+    return new THREE.ExtrudeGeometry(s, { depth: 0.28, bevelEnabled: false });
+  })();
+  const hStab = (() => {
+    const s = new THREE.Shape(); s.moveTo(1.6, 0); s.lineTo(-0.3, 7.4); s.lineTo(-2.3, 7.4); s.lineTo(-2.0, 0); s.closePath();
+    const g = new THREE.ExtrudeGeometry(s, { depth: 0.2, bevelEnabled: false }); g.rotateX(PI / 2); return g;
+  })();
+  const nac = new THREE.CylinderGeometry(0.48, 0.62, 4.2, 10); nac.rotateZ(-PI / 2);
+  const spin = new THREE.ConeGeometry(0.4, 0.85, 10); spin.rotateZ(-PI / 2); spin.translate(2.5, 0, 0);
+  const intake = new THREE.BoxGeometry(1.1, 0.45, 0.62);
+  const blade = new THREE.BoxGeometry(0.06, 2.05, 0.19); blade.translate(0, 1.15, 0);
+  const propDisc = new THREE.CircleGeometry(2.15, 22); propDisc.rotateY(PI / 2);
+  const dropTank = new THREE.CapsuleGeometry(0.38, 3.4, 4, 10); dropTank.rotateZ(-PI / 2);
+  const ramp = new THREE.BoxGeometry(4.4, 0.22, 2.5); ramp.translate(-2.2, 0, 0);
+  const bayMsl = new THREE.CylinderGeometry(0.24, 0.24, 3.2, 8); bayMsl.rotateZ(-PI / 2);
+  return { fus, cockpitGlass, radome, flir, sponson, wing, tailFin, hStab, nac, spin, intake, blade, propDisc, dropTank, ramp, bayMsl };
+})();
+const HM_C = {
+  body: new THREE.MeshStandardMaterial({ color: 0x5c656b, roughness: 0.62, metalness: 0.22 }),
+  belly: new THREE.MeshStandardMaterial({ color: 0x454d52, roughness: 0.68, metalness: 0.24 }),
+  foe: new THREE.MeshStandardMaterial({ color: 0x676f68, roughness: 0.65, metalness: 0.22 }),
+  dark: new THREE.MeshStandardMaterial({ color: 0x1f2428, roughness: 0.45, metalness: 0.45 }),
+  glass: new THREE.MeshStandardMaterial({ color: 0x182832, roughness: 0.08, metalness: 0.88 }),
+  disc: new THREE.MeshBasicMaterial({ color: 0xd8e4ea, transparent: true, opacity: 0.16, side: THREE.DoubleSide, depthWrite: false }),
+  beacon: new THREE.MeshBasicMaterial({ color: 0xff3b30 }),
+  bay: new THREE.MeshBasicMaterial({ color: 0x0d1114 }),
+};
+export function heavyMesh(foe) {
+  const g = new THREE.Group(), bm = foe ? HM_C.foe : HM_C.body, dm = HM_C.belly;
+  const put = (geo, m, x, y, z, sh = true) => { const o = new THREE.Mesh(geo, m); o.position.set(x, y, z); if (sh) o.castShadow = true; g.add(o); return o; };
+  put(HG_C.fus, bm, 0, 0, 0);
+  put(HG_C.radome, HM_C.dark, 13.5, -0.35, 0);
+  put(HG_C.flir, HM_C.dark, 13.2, -1.65, 0, false);
+  const cg = put(HG_C.cockpitGlass, HM_C.glass, 11.4, 1.12, 0, false); cg.rotation.z = -0.34;
+  put(HG_C.wing, bm, 0.8, 2.05, 0);
+  const wL = put(HG_C.wing, bm, 0.8, 2.05, 0); wL.scale.z = -1;
+  put(HG_C.tailFin, dm, -9.8, 1.4, -0.14);
+  put(HG_C.hStab, dm, -12.1, 1.65, 0);
+  const hL = put(HG_C.hStab, dm, -12.1, 1.65, 0); hL.scale.z = -1;
+  // Main landing-gear sponsons + underwing pylons/tanks + wingtip nav lights
+  for (const s of [1, -1]) {
+    put(HG_C.sponson, dm, 0.2, -1.45, s * 2.15);
+    put(HG_C.dropTank, dm, 0.5, 0.75, s * 15.8);
+    put(JG.nav, s > 0 ? JM.navG : JM.navR, 0.5, 2.0, s * 20.4, false);
+  }
+  // 4 wing-mounted turboprop nacelles & spinning 6-blade propellers
+  const props = [];
+  for (const z of [-12.6, -6.5, 6.5, 12.6]) {
+    put(HG_C.nac, dm, 2.8, 1.55, z);
+    put(HG_C.spin, HM_C.dark, 2.8, 1.55, z, false);
+    put(HG_C.intake, HM_C.dark, 4.1, 1.02, z, false);
+    const hub = new THREE.Group(); hub.position.set(5.1, 1.55, z); g.add(hub);
+    for (let i = 0; i < 6; i++) { const b = new THREE.Mesh(HG_C.blade, HM_C.dark); b.rotation.x = (i / 6) * TAU; hub.add(b); }
+    hub.add(new THREE.Mesh(HG_C.propDisc, HM_C.disc));
+    props.push(hub);
+  }
+  // Rear upswept cargo bay + hinged drop ramp + internal palletized missile racks
+  const bayVoid = put(new THREE.BoxGeometry(4.2, 1.5, 2.3), HM_C.bay, -9.8, -0.35, 0, false); void bayVoid;
+  const ramp = new THREE.Group(); ramp.position.set(-7.8, -1.25, 0); g.add(ramp);
+  ramp.add(new THREE.Mesh(HG_C.ramp, dm));
+  const bayMsls = [];
+  for (const z of [-0.65, 0.65]) { const bm2 = put(HG_C.bayMsl, JM.msl, -9.8, -0.55, z, false); bayMsls.push(bm2); }
+  const strobe = put(JG.strobe, HM_C.beacon, -13.8, 8.95, 0, false); strobe.scale.setScalar(1.8);
+  g.userData.props = props; g.userData.ramp = ramp; g.userData.bayMsls = bayMsls;
+  g.userData.ab = { burners: [], strobe };
+  return g;
+}
 function foeDD(g, spec) {
   const U = spec.upper, y = spec.fb, B = spec.B;
   box(g, 11, 3.4, B * 0.6, U, 22, y, 0); box(g, 6, 3, B * 0.5, U, 23, y + 3.4, 0); box(g, 3, 1.6, B * 0.7, U, 24, y + 6.4, 0);
