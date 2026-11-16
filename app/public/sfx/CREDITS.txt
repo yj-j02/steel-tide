@@ -5,8 +5,9 @@ Sound sources (all from Wikimedia Commons; edited: trimmed, pitched, filtered, r
 - "Oceanwavescrushing.ogg" — Luftrum — CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/) (used for the shell-splash sound)
 
 Background music (Wikimedia Commons; licence checked via the Commons API imageinfo/extmetadata on 2026-11-12; re-encoded mono MP3)
-- bgm_menu.mp3 — "06-United States Navy Band-Victory at Sea-Anchors Aweigh.mp3", performed by the United States Navy Band — Public domain (work of the U.S. federal government)
-  https://commons.wikimedia.org/wiki/File:06-United_States_Navy_Band-Victory_at_Sea-Anchors_Aweigh.mp3
+- bgm_menu.mp3 — track supplied by the game's owner (2026-11-16), who confirmed it may be used; re-encoded mono MP3, loudness-normalised.
+  (Earlier menu track: "06-United States Navy Band-Victory at Sea-Anchors Aweigh.mp3", United States Navy Band — Public domain,
+  https://commons.wikimedia.org/wiki/File:06-United_States_Navy_Band-Victory_at_Sea-Anchors_Aweigh.mp3)
 - bgm_battle.mp3 — "Holst- mars.ogg": Gustav Holst, "Mars, the Bringer of War" (The Planets), transcription by Merlin Patterson, performed by the United States Air Force Band (CD "Frontiers", 1998) — Public domain
   https://commons.wikimedia.org/wiki/File:Holst-_mars.ogg
 
