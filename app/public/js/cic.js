@@ -196,7 +196,7 @@ function resolve(ok) {
     const n = p.id === "heavy" ? 1 : 2;
     for (let i = 0; i < n; i++) { const cv = p.id === "heavy" ? { type: A.heavy.type, asm: A.heavy.asm, aam: "AIM-120" } : { type: A.fighter.type, asm: A.fighter.asm, aam: A.fighter.aam };
       const src = { side: "us", pos: base.clone().add(new THREE.Vector3(i * 300, 0, i * 300)), heading: Math.atan2(pt.z - base.z, pt.x - base.x), spec: { fb: 0 }, alive: true, cv, fwd: back.clone().negate(), name: "공군" };
-      const j = launchJet(src, "strike", cv, src.pos); j.pos.copy(src.pos); j.aimPt = pt.clone(); j.support = true; j.endur = 400; if (p.id === "heavy") { j.asm = A.heavy.n; j.aam = 0; j.mesh.scale.setScalar(4.2); j.heavy = true; } }
+      const j = launchJet(src, "strike", cv, src.pos); j.pos.copy(src.pos); j.aimPt = pt.clone(); j.support = true; j.endur = 400; if (p.id === "heavy") { j.asm = A.heavy.n; j.aam = 0; j.mesh.scale.setScalar(4.2); j.heavy = true; } else { j.asm = 2; j.aam = 10; } } /* support jets keep their own loadout, not the carrier jets' */
     C.pulses.push({ x: pt.x, z: pt.z, t: 0, dur: 4, maxR: 6000, col: "#f2b544" });
     say(p.id === "heavy" ? `${A.heavy.type} 출격 확인 — 목표 해역 진입 후 ${WPN[A.heavy.asm]?.name || A.heavy.asm} ${A.heavy.n}발 발사 예정. 카드의 [🎥 시점 보기]로 비행 및 발사 장면을 직접 볼 수 있습니다.` : `${A.fighter.type} 2기 출격 확인 — 카드의 [🎥 시점 보기]로 비행 및 발사 장면을 직접 볼 수 있습니다.`);
     C.deps.log(`합동 지원 승인 — ${p.a.t}`, "hit");

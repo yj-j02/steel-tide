@@ -440,11 +440,12 @@ export function stepHelos(dt, onEvent) {
   }
 }
 // ── jets: CAP fighters hunt enemy aircraft with AAMs; strike pairs fly at a known (or estimated) ship, fire their two anti-ship missiles and go home ──
+export const JET_US = { aam: 5, asm: 15 }; // friendly jet loadout (enemy jets keep 10 AAM and 2 ASM)
 export function launchJet(S, role, cv, pos) {
   const mesh = jetMesh(S.side === "foe"); mesh.scale.setScalar(1.4); scene.add(mesh);
   const p = pos ? pos.clone() : S.pos.clone().setY((S.spec?.fb || 0) + 14), h = S.heading ?? 0;
   const j = { isJet: true, side: S.side, owner: S, role, name: cv.type, W: { cls: "jet", alt: "high", name: cv.type }, pos: p, vel: new THREE.Vector3(Math.cos(h) * 120, 25, Math.sin(h) * 120), t: 0, endur: 260, home: false, alive: true, engaged: 0, mesh,
-    asm: role !== "cap" || S.side === "us" ? 2 : 0, asmKey: cv.asm, aam: 10, aamKey: cv.aam, aamCd: 2, trail: [], flares: flaresOf(cv.type) };
+    asm: S.side === "us" ? JET_US.asm : role !== "cap" ? 2 : 0, asmKey: cv.asm, aam: S.side === "us" ? JET_US.aam : 10, aamKey: cv.aam, aamCd: 2, trail: [], flares: flaresOf(cv.type) };
   M.jets.push(j); return j;
 }
 const V_NOZ = new THREE.Vector3(), V_TIP = new THREE.Vector3(), V_FW = new THREE.Vector3();
@@ -526,7 +527,7 @@ export function stepJets(dt, know, onEvent) {
     j.t += dt; j.aamCd -= dt;
     if (j.pilot && j.landT > 0) { const o = j.owner; j.landT -= dt; j.pos.copy(o.pos).add(new THREE.Vector3(0, o.spec.fb + 10, 0)); j.vel.copy(o.vel || new THREE.Vector3()); j.mesh.position.copy(j.pos);
       for (const br of j.mesh.userData.ab?.burners || []) { br.glow.visible = false; br.plume.visible = false; }
-      if (j.landT <= 0) { j.gun = 480; j.aam = 10; j.asm = j.asmKey ? 2 : 0; j.flares = flaresOf(j.name); j.hit = false; j.gh = 0; j.t = 0; j.thr = 240; j.vel.copy(o.fwd).multiplyScalar(200); j.pos.addScaledVector(o.fwd, o.spec.L * 0.4); j.pos.y = 70; j.q.setFromUnitVectors(X, o.fwd); onEvent?.(j, "relaunch"); } continue; }
+      if (j.landT <= 0) { j.gun = 480; j.aam = JET_US.aam; j.asm = j.asmKey ? JET_US.asm : 0; j.flares = flaresOf(j.name); j.hit = false; j.gh = 0; j.t = 0; j.thr = 240; j.vel.copy(o.fwd).multiplyScalar(200); j.pos.addScaledVector(o.fwd, o.spec.L * 0.4); j.pos.y = 70; j.q.setFromUnitVectors(X, o.fwd); onEvent?.(j, "relaunch"); } continue; }
     if (j.pilot) { // flown by the player: fly where the stick points
       const want = new THREE.Vector3(1, 0, 0).applyQuaternion(j.q).multiplyScalar(Math.min(j.thr, j.hit ? 250 : 999));
       j.vel.lerp(want, Math.min(1, dt * 2.6)); j.pos.addScaledVector(j.vel, dt); j.W.alt = j.pos.y < 300 ? "skim" : "high"; j.flareT = Math.max(0, (j.flareT || 0) - dt);
@@ -550,7 +551,8 @@ export function stepJets(dt, know, onEvent) {
       const ref = j.aimPt || j.pos, c = know(j.side).sort((a, b) => a.pos.distanceToSquared(ref) - b.pos.distanceToSquared(ref))[0]; // support strikes go for the contact nearest the commander's strike point
       if (c) {
         goal = c.pos.clone(); const d = Math.hypot(c.pos.x - j.pos.x, c.pos.z - j.pos.z);
-        if (d < WPN[j.asmKey].range * 0.75) { for (let k = 0; k < j.asm; k++) { const m = launch(j, j.asmKey, c.ship); if (m && !c.firm) m.est = c.pos.clone(); } onEvent?.(j, "strike", c.ship); j.asm = 0; j.home = j.role === "strike" || !j.aam; }
+        j.asmCd = (j.asmCd || 0) - dt; const pair = j.side === "us" && !j.support; /* friendly jets fire two at a time and stay on the attack until empty; enemy and support jets fire everything at once */
+        if (d < WPN[j.asmKey].range * 0.75 && j.asmCd <= 0) { const n = pair ? Math.min(2, j.asm) : j.asm; for (let k = 0; k < n; k++) { const m = launch(j, j.asmKey, c.ship); if (m && !c.firm) m.est = c.pos.clone(); } onEvent?.(j, "strike", c.ship, n); j.asm -= n; j.asmCd = 5; if (j.asm <= 0) { j.asm = 0; j.home = j.role === "strike" || !j.aam; } }
       } else if (j.support && j.aimPt) {
         goal = j.aimPt.clone(); const d = Math.hypot(j.aimPt.x - j.pos.x, j.aimPt.z - j.pos.z);
         if (d < WPN[j.asmKey].range * 0.65) { for (let k = 0; k < j.asm; k++) { const m = launch(j, j.asmKey, null); if (m) m.est = j.aimPt.clone(); } onEvent?.(j, "strike", { name: "지정 해역" }); j.asm = 0; j.home = true; }
