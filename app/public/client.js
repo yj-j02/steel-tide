@@ -1074,6 +1074,7 @@ const markers = []; { const g = new THREE.RingGeometry(0.8, 1, 40); g.rotateX(-P
   for (let i = 0; i < 40; i++) { const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color: 0xffe066, transparent: true, opacity: 0, depthTest: false })); m.visible = false; m.renderOrder = 4; scene.add(m); markers.push({ m, t: 0, text: "", hit: false }); } }
 let markerN = 0;
 G.onImpact = (pos, dr, hit, rec) => {
+  if (G.modern && !hit) { if (rec && fc.tgt && fc.tgt.alive) { fc.n++; fc.sig = Math.max(fc.sig * 0.5, 0.2); fcDraw(); } return; } /* modern: no ring or 협차/근탄/원탄 label for misses, only hits are marked */
   const k = markers[markerN++ % markers.length]; k.t = 6; k.pos = pos.setY(0.8); k.hit = hit; k.text = hit ? "명중" : (Math.abs(dr) < 60 ? "협차" : dr > 0 ? "원탄 +" + fmt(dr) : "근탄 −" + fmt(-dr));
   k.m.position.copy(k.pos); k.m.scale.setScalar(G.player ? G.player.gun.cal / 406 * 28 + 8 : 20); k.m.material.color.setHex(hit ? 0xff6b5e : Math.abs(dr) < 150 ? 0x9be06a : 0xffe066); k.m.visible = true;
   if (rec && fc.tgt && fc.tgt.alive) { fc.n++; fc.sig = Math.max(fc.sig * 0.5, 0.2); fcDraw(); }
