@@ -444,7 +444,7 @@ export function launchJet(S, role, cv, pos) {
   const mesh = jetMesh(S.side === "foe"); mesh.scale.setScalar(1.4); scene.add(mesh);
   const p = pos ? pos.clone() : S.pos.clone().setY((S.spec?.fb || 0) + 14), h = S.heading ?? 0;
   const j = { isJet: true, side: S.side, owner: S, role, name: cv.type, W: { cls: "jet", alt: "high", name: cv.type }, pos: p, vel: new THREE.Vector3(Math.cos(h) * 120, 25, Math.sin(h) * 120), t: 0, endur: 260, home: false, alive: true, engaged: 0, mesh,
-    asm: role !== "cap" ? 2 : 0, asmKey: cv.asm, aam: 10, aamKey: cv.aam, aamCd: 2, trail: [], flares: flaresOf(cv.type) };
+    asm: role !== "cap" || S.side === "us" ? 2 : 0, asmKey: cv.asm, aam: 10, aamKey: cv.aam, aamCd: 2, trail: [], flares: flaresOf(cv.type) };
   M.jets.push(j); return j;
 }
 const V_NOZ = new THREE.Vector3(), V_TIP = new THREE.Vector3(), V_FW = new THREE.Vector3();

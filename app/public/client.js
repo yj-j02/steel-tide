@@ -1285,7 +1285,7 @@ $("#jetP").addEventListener("click", (e) => {
   else if (b.dataset.jact) modernKey("KeyF");
   else if (b.dataset.jall) setJetRole(b.dataset.jall);
   else if (b.dataset.jallhome) { for (const j of MSL.jets) if (j.alive && j.side === "us" && !j.support && j !== md.fly) j.home = true; sfx.click(); toast("전 전투기 귀환 명령"); }
-  else if (b.dataset.jp) { const j = find(b.dataset.jp); if (j) { j.role = b.dataset.r; if (j.home && j.t < j.endur && (j.role === "strike" ? j.asm > 0 : j.aam > 0)) j.home = false; if (j.role === "strike" && !j.asm && !j.pilot) j.home = true; sfx.click(); log(`${j.name} 임무 변경 — ${JR[j.role]}`); } }
+  else if (b.dataset.jp) { const j = find(b.dataset.jp); if (j) { j.role = b.dataset.r; if (j.home && j.t < j.endur && (j.role === "strike" ? j.asm > 0 : j.aam > 0)) j.home = false; if (j.role === "strike" && !j.asm && !j.pilot) { j.home = true; toast(`${j.name} — 대함탄 소진, 귀환해 재무장`, 3); } sfx.click(); log(`${j.name} 임무 변경 — ${JR[j.role]}`); } }
   else if (b.dataset.jfly) { const j = find(b.dataset.jfly); if (j === md.fly) releaseFly(); else if (j) takeJet(j); }
   else if (b.dataset.jwatch) { const j = find(b.dataset.jwatch); if (j) watchJet(j); }
   else if (b.dataset.jhome) { const j = find(b.dataset.jhome); if (j) { if (j === md.fly) releaseFly(); j.home = true; sfx.click(); toast(`${j.name} 귀환`); } }
