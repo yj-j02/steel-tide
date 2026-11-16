@@ -618,9 +618,21 @@ const JV_F = new THREE.Vector3(), JV_U = new THREE.Vector3(), JV_R = new THREE.V
     const wroot = bx(g, 1.65, 0.06, 1.25, skin, s * 1.95, -0.48, -2.35, 0.03); wroot.rotation.y = -s * 0.48;
   }
   // instrument panel + sculpted matte anti-glare shroud + brow lip
-  bx(g, 1.54, 0.3, 0.04, body, 0, -0.45, -0.74, -0.35);
-  bx(g, 1.24, 0.036, 0.24, pad, 0, -0.29, -0.87, -0.08);
+  bx(g, 1.54, 0.34, 0.04, body, 0, -0.46, -0.74, -0.35);
+  bx(g, 1.24, 0.036, 0.26, pad, 0, -0.285, -0.87, -0.08);
   bx(g, 0.32, 0.055, 0.18, trim, 0, -0.26, -0.86, -0.06); // HUD collimator lens bezel
+  // twin curved glare-shield grab handles ("towel racks") flanking HUD collimator
+  for (const s of [-1, 1]) {
+    const rack = new THREE.Group(); rack.position.set(s * 0.25, -0.245, -0.78);
+    const barM = trim;
+    const hRod = new THREE.Mesh(new THREE.CylinderGeometry(0.011, 0.011, 0.15, 10), barM);
+    hRod.rotation.z = PI / 2; hRod.rotation.y = s * -0.22; rack.add(hRod);
+    for (const end of [-0.068, 0.068]) {
+      const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.01, 0.01, 0.05, 8), barM);
+      leg.position.set(end, -0.022, 0); rack.add(leg);
+    }
+    g.add(rack);
+  }
   // collimated green HUD combiner + live holographic canvas (512x512)
   const hc = document.createElement("canvas"); hc.width = 512; hc.height = 512;
   const ht = new THREE.CanvasTexture(hc); ht.colorSpace = THREE.SRGBColorSpace;
@@ -634,12 +646,44 @@ const JV_F = new THREE.Vector3(), JV_U = new THREE.Vector3(), JV_R = new THREE.V
     bx(g, 0.011, 0.21, 0.014, trim, s * 0.122, -0.105, -0.88, -0.22);
     bx(g, 0.014, 0.03, 0.045, M(0x3a434c, { metalness: 0.4 }), s * 0.122, -0.205, -0.86);
   }
-  // Up-Front Controller (UFC) keypad & backlit amber/red Master Caution / RWR annunciators
-  const uc = document.createElement("canvas"); uc.width = 256; uc.height = 128;
+  // Up-Front Controller (UFC) / ICP 4x4 keypad with sun-hood & left-side rotary knobs
+  const uc = document.createElement("canvas"); uc.width = 384; uc.height = 240;
   const ut = new THREE.CanvasTexture(uc); ut.colorSpace = THREE.SRGBColorSpace;
-  const ufcM = new THREE.Mesh(new THREE.PlaneGeometry(0.16, 0.08), new THREE.MeshBasicMaterial({ map: ut }));
-  ufcM.position.set(0, -0.295, -0.735); ufcM.rotation.x = -0.28; g.add(ufcM);
-  bx(g, 0.175, 0.095, 0.025, body, 0, -0.295, -0.75, -0.28);
+  const ufcM = new THREE.Mesh(new THREE.PlaneGeometry(0.21, 0.13), new THREE.MeshBasicMaterial({ map: ut }));
+  ufcM.position.set(0, -0.275, -0.725); ufcM.rotation.x = -0.24; g.add(ufcM);
+  bx(g, 0.23, 0.146, 0.028, body, 0, -0.275, -0.74, -0.24);
+  bx(g, 0.236, 0.012, 0.05, pad, 0, -0.198, -0.725, -0.18); // UFC top glare hood
+  for (const s of [-1, 1]) bx(g, 0.012, 0.14, 0.045, pad, s * 0.116, -0.275, -0.728, -0.24);
+  for (let rk = 0; rk < 4; rk++) {
+    const kn = new THREE.Mesh(new THREE.CylinderGeometry(0.0085, 0.0095, 0.016, 10), trim);
+    kn.rotation.x = PI / 2 - 0.24; kn.position.set(-0.122, -0.22 - rk * 0.034, -0.712); g.add(kn);
+  }
+  // Analog-digital hybrid standby instrument cluster flanking the 3 MFDs
+  const instCan = document.createElement("canvas"); instCan.width = 512; instCan.height = 256;
+  const instTex = new THREE.CanvasTexture(instCan); instTex.colorSpace = THREE.SRGBColorSpace;
+  const instMesh = new THREE.Mesh(new THREE.PlaneGeometry(0.98, 0.27), new THREE.MeshBasicMaterial({ map: instTex }));
+  instMesh.position.set(0, -0.415, -0.722); instMesh.rotation.x = -0.35; g.add(instMesh);
+  jetPit.userData.inst = { c: instCan, x: instCan.getContext("2d"), t: instTex };
+  // Canopy strut pods: left AoA 3-lamp indexer + right threat/lock circular lamp stack
+  jetPit.userData.aoaLamps = []; jetPit.userData.strutLamps = [];
+  {
+    const lPod = bx(g, 0.044, 0.11, 0.042, body, -0.44, -0.04, -0.88, -0.08);
+    lPod.rotation.z = -0.22;
+    for (const [ly, col] of [[0.032, 0x1e3818], [0, 0x3b2c0a], [-0.032, 0x3b1210]]) {
+      const m = new THREE.MeshBasicMaterial({ color: col });
+      const lp = new THREE.Mesh(new THREE.CircleGeometry(0.011, 12), m);
+      lp.position.set(0, ly, 0.022); lPod.add(lp); jetPit.userData.aoaLamps.push(m);
+    }
+    const rPod = bx(g, 0.046, 0.135, 0.044, body, 0.44, -0.04, -0.88, -0.08);
+    rPod.rotation.z = 0.22;
+    for (const [ly, col] of [[0.04, 0x3b280a], [0, 0x16381c], [-0.04, 0x421010]]) {
+      const m = new THREE.MeshBasicMaterial({ color: col });
+      const bezel = new THREE.Mesh(new THREE.TorusGeometry(0.015, 0.003, 6, 16), trim);
+      bezel.position.set(0, ly, 0.022); rPod.add(bezel);
+      const lp = new THREE.Mesh(new THREE.CircleGeometry(0.012, 12), m);
+      lp.position.set(0, ly, 0.023); rPod.add(lp); jetPit.userData.strutLamps.push(m);
+    }
+  }
   const lampM = (col) => new THREE.MeshBasicMaterial({ color: col });
   const mcLamp = new THREE.Mesh(new THREE.PlaneGeometry(0.055, 0.018), lampM(0x2a1408)); mcLamp.position.set(-0.22, -0.285, -0.755); mcLamp.rotation.x = -0.22; g.add(mcLamp);
   const rwrLamp = new THREE.Mesh(new THREE.PlaneGeometry(0.055, 0.018), lampM(0x2a0808)); rwrLamp.position.set(0.22, -0.285, -0.755); rwrLamp.rotation.x = -0.22; g.add(rwrLamp);
@@ -654,21 +698,38 @@ const JV_F = new THREE.Vector3(), JV_U = new THREE.Vector3(), JV_R = new THREE.V
   gunGlow.position.set(0, -0.24, -1.06); gunGlow.rotation.x = -1.1; g.add(gunGlow);
   jetPit.userData.ufc = { c: uc, x: uc.getContext("2d"), t: ut };
   jetPit.userData.mcLamp = mcLamp; jetPit.userData.rwrLamp = rwrLamp; jetPit.userData.gunGlow = gunGlow;
-  // three glass MFDs (ENG/FCS left, HSD radar center, SMS+RWR right)
+  // three glass MFDs (ENG/FCS left, HSD radar center, SMS+RWR right) with 20 physical 3D OSB keys
+  const osbM = M(0x2a3138, { roughness: 0.5, metalness: 0.35 });
   const mk = (x, y, w, h, rx) => {
     const c = document.createElement("canvas"); c.width = 256; c.height = Math.round(256 * h / w);
     const t = new THREE.CanvasTexture(c); t.colorSpace = THREE.SRGBColorSpace;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t }));
-    m.position.set(x, y, -0.715); m.rotation.x = rx; g.add(m);
-    bx(g, w + 0.028, h + 0.028, 0.01, trim, x, y - 0.004, -0.722, rx);
+    const grp = new THREE.Group(); grp.position.set(x, y, -0.706); grp.rotation.x = rx;
+    grp.add(new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ map: t })));
+    bx(grp, w + 0.032, h + 0.032, 0.012, trim, 0, 0, -0.007);
+    for (let i = -2; i <= 2; i++) {
+      bx(grp, 0.012, 0.008, 0.009, osbM, i * (w * 0.21), h / 2 + 0.009, 0.002);
+      bx(grp, 0.012, 0.008, 0.009, osbM, i * (w * 0.21), -h / 2 - 0.009, 0.002);
+      bx(grp, 0.008, 0.012, 0.009, osbM, -w / 2 - 0.009, i * (h * 0.2), 0.002);
+      bx(grp, 0.008, 0.012, 0.009, osbM, w / 2 + 0.009, i * (h * 0.2), 0.002);
+    }
+    for (const [cx, cy] of [[-1, 1], [1, 1], [-1, -1], [1, -1]]) {
+      const ck = new THREE.Mesh(new THREE.CylinderGeometry(0.0055, 0.0055, 0.009, 8), pad);
+      ck.rotation.x = PI / 2; ck.position.set(cx * (w / 2 + 0.01), cy * (h / 2 + 0.01), 0.002); grp.add(ck);
+    }
+    g.add(grp);
     jmfd.push({ c, x: c.getContext("2d"), t });
   };
-  mk(-0.33, -0.41, 0.21, 0.17, -0.35); mk(0, -0.435, 0.23, 0.175, -0.35); mk(0.33, -0.41, 0.21, 0.17, -0.35);
-  // stealth canopy glass reflection, arch frame, grab rails & triple rear-view mirrors
+  mk(-0.34, -0.415, 0.21, 0.165, -0.35); mk(0, -0.448, 0.225, 0.165, -0.35); mk(0.34, -0.415, 0.21, 0.165, -0.35);
+  // stealth canopy glass reflection, sculpted arch frame + locking lugs, grab rails & triple rear-view mirrors
   const frame = M(0x13171a, { roughness: 0.7 });
   const canopyGlass = new THREE.Mesh(new THREE.PlaneGeometry(1.4, 0.72), new THREE.MeshBasicMaterial({ map: glassTex, transparent: true, opacity: 0.55, depthWrite: false, color: 0xd6e8cc }));
   canopyGlass.position.set(0, 0.06, -0.98); canopyGlass.rotation.x = -0.45; g.add(canopyGlass);
-  const bow = new THREE.Mesh(new THREE.TorusGeometry(1.18, 0.015, 8, 48, PI), frame); bow.position.set(0, -0.62, -1.08); bow.rotation.x = 0.12; g.add(bow);
+  const bow = new THREE.Mesh(new THREE.TorusGeometry(1.12, 0.024, 10, 48, PI), trim); bow.position.set(0, -0.58, -1.04); bow.rotation.x = 0.12; g.add(bow);
+  for (let l = 0; l < 8; l++) {
+    const la = 0.28 + (l / 7) * (PI - 0.56);
+    const lug = bx(bow, 0.032, 0.024, 0.042, frame, Math.cos(la) * 1.105, Math.sin(la) * 1.105, 0.015);
+    lug.rotation.z = la - PI / 2;
+  }
   const rearBow = new THREE.Mesh(new THREE.TorusGeometry(1.06, 0.016, 8, 48, PI), frame); rearBow.position.set(0, -0.5, 0.18); g.add(rearBow);
   bx(g, 0.024, 0.024, 1.32, frame, 0, 0.54, -0.44);
   for (const [mx, my, ry] of [[-0.22, 0.42, 0.28], [0, 0.48, 0], [0.22, 0.42, -0.28]]) {
@@ -676,11 +737,42 @@ const JV_F = new THREE.Vector3(), JV_U = new THREE.Vector3(), JV_R = new THREE.V
     const mg = new THREE.Mesh(new THREE.PlaneGeometry(0.095, 0.032), M(0x7c93a6, { metalness: 0.92, roughness: 0.06 })); mg.position.set(0, 0, 0.012); mh.add(mg);
   }
   bx(g, 0.028, 0.028, 1.5, frame, -0.96, -0.32, -0.4); bx(g, 0.028, 0.028, 1.5, frame, 0.96, -0.32, -0.4);
-  // HOTAS stick, throttle levers with AB detent, side consoles, ejection seat handle
-  const stick = new THREE.Group(); stick.position.set(0.28, -0.62, -0.48); g.add(stick); bx(stick, 0.035, 0.18, 0.035, trim, 0, 0.09, 0); bx(stick, 0.052, 0.085, 0.065, body, 0, 0.2, 0); bx(stick, 0.026, 0.02, 0.03, pitotM, 0, 0.25, -0.01); g.userData.stick = stick;
+  // Center-mounted fighter control stick, throttle with AB detent, left yellow-black handle, right sill clock & switch-rich side consoles
+  const stick = new THREE.Group(); stick.position.set(0, -0.535, -0.53); stick.rotation.x = 0.14; g.add(stick);
+  const sBoot = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.065, 10), pad); sBoot.position.set(0, 0.02, 0); stick.add(sBoot);
+  bx(stick, 0.026, 0.13, 0.026, trim, 0, 0.075, 0);
+  bx(stick, 0.042, 0.068, 0.052, body, 0, 0.145, 0.008);
+  bx(stick, 0.018, 0.015, 0.022, M(0xc83228), 0, 0.178, -0.008); // red pickle/weapon button
+  bx(stick, 0.016, 0.016, 0.016, osbM, 0.014, 0.176, 0.006); // trim hat
+  g.userData.stick = stick;
   const thr = new THREE.Group(); thr.position.set(-0.42, -0.58, -0.48); g.add(thr); bx(thr, 0.075, 0.068, 0.095, body, 0, 0.05, 0); bx(thr, 0.02, 0.018, 0.04, M(0xb82820), 0.028, 0.09, -0.01); g.userData.thr = thr;
-  bx(g, 0.22, 0.03, 0.56, trim, -0.54, -0.6, -0.45); bx(g, 0.22, 0.03, 0.56, trim, 0.54, -0.6, -0.45);
-  const ejectLoop = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.008, 6, 16), M(0xe6b822)); ejectLoop.position.set(0, -0.66, -0.54); ejectLoop.rotation.x = 0.7; g.add(ejectLoop);
+  bx(g, 0.24, 0.03, 0.62, trim, -0.54, -0.6, -0.45); bx(g, 0.24, 0.03, 0.62, trim, 0.54, -0.6, -0.45);
+  // Left & right side console toggle switches, rotary rheostats & indicator strips
+  for (const s of [-1, 1]) {
+    for (let k = 0; k < 5; k++) {
+      bx(g, 0.007, 0.018, 0.007, pitotM, s * 0.49, -0.575, -0.62 + k * 0.065, 0.22);
+      const rDial = new THREE.Mesh(new THREE.CylinderGeometry(0.014, 0.015, 0.012, 10), body);
+      rDial.position.set(s * 0.56, -0.58, -0.60 + k * 0.075); g.add(rDial);
+    }
+    bx(g, 0.036, 0.006, 0.18, M(0x3a2a0a, { emissive: 0x553b08 }), s * 0.52, -0.582, -0.26);
+  }
+  // Left-sill yellow/black striped emergency jettison handle
+  {
+    const jGrp = new THREE.Group(); jGrp.position.set(-0.43, -0.25, -0.64); jGrp.rotation.set(0.25, 0.2, 0.35);
+    for (let st = 0; st < 5; st++) bx(jGrp, 0.022, 0.024, 0.022, M(st % 2 === 0 ? 0xe6b822 : 0x141618), 0, -0.048 + st * 0.024, 0);
+    g.add(jGrp);
+  }
+  // Right-sill analog chronograph / stopwatch pod
+  {
+    const clk = new THREE.Group(); clk.position.set(0.44, -0.26, -0.66); clk.rotation.set(-0.28, -0.35, 0);
+    const cBody = new THREE.Mesh(new THREE.CylinderGeometry(0.038, 0.04, 0.03, 18), body); cBody.rotation.x = PI / 2; clk.add(cBody);
+    const cDial = new THREE.Mesh(new THREE.CircleGeometry(0.033, 18), M(0x101416)); cDial.position.z = 0.016; clk.add(cDial);
+    const cBez = new THREE.Mesh(new THREE.TorusGeometry(0.031, 0.002, 6, 18), M(0xd8e2ec)); cBez.position.z = 0.017; clk.add(cBez);
+    bx(clk, 0.003, 0.022, 0.002, M(0xf0f4f8), 0, 0.008, 0.018);
+    bx(clk, 0.018, 0.003, 0.002, M(0xe6b822), 0.008, 0, 0.018);
+    g.add(clk);
+  }
+  const ejectLoop = new THREE.Mesh(new THREE.TorusGeometry(0.045, 0.009, 6, 16), M(0xe6b822)); ejectLoop.position.set(0, -0.49, -0.51); ejectLoop.rotation.x = 0.7; g.add(ejectLoop);
   // Peripheral G-LOC dark vignette (center 100% clear) + high-AoA / transonic LERX condensation ribbons
   const gvCan = document.createElement("canvas"); gvCan.width = 128; gvCan.height = 128;
   {
@@ -929,7 +1021,7 @@ export function updateJetPit(j, dt, info = {}) {
   const abK = info.ab ?? (thrPct >= 88 ? 1 : 0), ab = abK > 0.35 || thrPct >= 88;
   const stickRoll = info.roll || clamp(angRate * Math.sign(trueRoll || 1) * 0.4, -1, 1);
   const stickPitch = info.pitch || clamp(angRate * 0.5, -1, 1);
-  jetPit.userData.stick.rotation.set(-stickPitch * 0.28, 0, -stickRoll * 0.28);
+  jetPit.userData.stick.rotation.set(0.14 - stickPitch * 0.28, 0, -stickRoll * 0.28);
   jetPit.userData.thr.position.z = -0.48 - (thrPct / 100) * 0.13;
   // G-force inertial head lag + transonic compressibility & high-AoA buffet + Vulcan muzzle recoil
   const firing = !!(info.firing && j.gun > 0), gBuf = Math.max(0, (j._g - 2.2) * 0.22);
@@ -954,6 +1046,18 @@ export function updateJetPit(j, dt, info = {}) {
   const blink = Math.floor(performance.now() / 180) % 2 === 0;
   if (jetPit.userData.mcLamp) jetPit.userData.mcLamp.material.color.setHex((j.hit || (altM < 65 && j.vel.y < -8)) && blink ? 0xffb326 : 0x2a1408);
   if (jetPit.userData.rwrLamp) jetPit.userData.rwrLamp.material.color.setHex(info.rwr && blink ? 0xff3b2f : 0x2a0808);
+  if (jetPit.userData.aoaLamps?.length === 3) {
+    const [hiL, onL, loL] = jetPit.userData.aoaLamps;
+    hiL.color.setHex(aoaDeg > 10.5 ? 0x6eff82 : 0x1e3818);
+    onL.color.setHex(aoaDeg >= 6.5 && aoaDeg <= 10.5 ? 0xffc840 : 0x3b2c0a);
+    loL.color.setHex(aoaDeg < 6.5 ? 0xff4a3c : 0x3b1210);
+  }
+  if (jetPit.userData.strutLamps?.length === 3) {
+    const [lkL, flL, rwL] = jetPit.userData.strutLamps;
+    lkL.color.setHex(info.lock ? 0xffc840 : (info.lockPct || 0) > 0.25 && blink ? 0xd99b26 : 0x3b280a);
+    flL.color.setHex(j.flares > 0 ? 0x5be38c : 0x16381c);
+    rwL.color.setHex(info.rwr && blink ? 0xff4032 : 0x421010);
+  }
   // 30 Hz collimated HUD combiner update
   jhT -= dt;
   if (jhT <= 0) { jhT = 0.033; drawJetHud(j, info, spdKmh, altM, thrPct, trueRoll, truePitch, hdg, j._g, aoaDeg, abK); }
@@ -1044,25 +1148,82 @@ export function updateJetPit(j, dt, info = {}) {
   }
   R.x.fillStyle = info.rwr ? "#ff5a4e" : "#7ef07a"; R.x.font = "bold 12px monospace"; R.x.textAlign = "center";
   R.x.fillText(info.rwr ? `MSL ${info.rwr}` : "RWR CLR", rx, ry + 56);
-  // Up-Front Controller scratchpad + tactile option keys
+  // Up-Front Controller (UFC/ICP) 4x4 green backlit matrix + top scratchpad
   const U = jetPit.userData.ufc;
   if (U) {
-    U.x.fillStyle = "#061109"; U.x.fillRect(0, 0, U.c.width, U.c.height);
-    U.x.strokeStyle = "#225a32"; U.x.lineWidth = 3; U.x.strokeRect(2, 2, U.c.width - 4, U.c.height - 4);
-    U.x.fillStyle = info.rwr ? "#ff6854" : (fuelSec < 45 ? "#ffd04d" : "#7cff8a"); U.x.font = "bold 22px monospace"; U.x.textAlign = "center";
-    U.x.fillText(info.rwr ? "!! MSL WARN !!" : (fuelSec < 45 ? "!! BINGO FUEL !!" : (info.lock ? "FOX-2 LOCKED" : "MASTER ARM ON")), U.c.width / 2, 36);
-    U.x.fillStyle = "#9ae69f"; U.x.font = "bold 17px monospace";
-    U.x.fillText(`HDG ${String(Math.round(hdg)).padStart(3, "0")}  AAM ${j.aam}  ASM ${j.asm}`, U.c.width / 2, 68);
+    const ux = U.x, uw = U.c.width, uh = U.c.height;
+    ux.fillStyle = "#08120c"; ux.fillRect(0, 0, uw, uh);
+    ux.strokeStyle = "#225a32"; ux.lineWidth = 3; ux.strokeRect(2, 2, uw - 4, uh - 4);
+    ux.fillStyle = "#040d07"; ux.fillRect(10, 8, uw - 20, 56);
+    ux.strokeStyle = "#27693a"; ux.lineWidth = 1.5; ux.strokeRect(10, 8, uw - 20, 56);
+    ux.fillStyle = info.rwr ? "#ff6854" : (fuelSec < 45 ? "#ffd04d" : "#7cff8a"); ux.font = "bold 20px monospace"; ux.textAlign = "center";
+    ux.fillText(info.rwr ? "!! MSL WARN !!" : (fuelSec < 45 ? "!! BINGO FUEL !!" : (info.lock ? "FOX-2 LOCKED" : "MASTER ARM ON")), uw / 2, 32);
+    ux.fillStyle = "#9ae69f"; ux.font = "bold 14px monospace";
+    ux.fillText(`HDG ${String(Math.round(hdg)).padStart(3, "0")}   AAM ${j.aam}   ASM ${j.asm}`, uw / 2, 54);
     const tcnNear = !!(j.owner && j.owner.alive && Math.hypot(j.owner.pos.x - j.pos.x, j.owner.pos.z - j.pos.z) < 3500);
-    const keys = [["IFF", true], ["TCN", tcnNear], ["DLNK", (info.blips?.length || 0) > 0], ["AP", !!(j.landT > 0 || j.home)]];
-    for (let k = 0; k < keys.length; k++) {
-      const kx = 11 + k * 60, [lbl, on] = keys[k];
-      U.x.fillStyle = on ? "rgba(46,135,68,0.68)" : "rgba(25,75,40,0.35)"; U.x.fillRect(kx, 86, 54, 30);
-      U.x.strokeStyle = on ? "#7cff8a" : "#286b3d"; U.x.lineWidth = on ? 2 : 1.5; U.x.strokeRect(kx, 86, 54, 30);
-      U.x.fillStyle = on ? "#d9ffe0" : "#68b878"; U.x.font = "bold 12px monospace";
-      U.x.fillText(lbl, kx + 27, 105);
+    const grid = [
+      [["1", "T-ILS"], ["2", "ALOW"], ["3", ""], ["RCL", ""]],
+      [["4", "STPT"], ["5", "CRUS"], ["6", "TIME"], ["ENTR", ""]],
+      [["7", "MARK"], ["8", "FIX"], ["9", "A-CAL"], ["0", "M-SEL"]],
+      [["IFF", "", true], ["TCN", "", tcnNear], ["DLNK", "", (info.blips?.length || 0) > 0], ["AP", "", !!(j.landT > 0 || j.home)]],
+    ];
+    for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
+      const kx = 14 + c * 90, ky = 72 + r * 40, [k1, k2, on] = grid[r][c];
+      ux.fillStyle = on ? "rgba(52,155,78,0.68)" : "rgba(18,52,28,0.45)"; ux.fillRect(kx, ky, 82, 34);
+      ux.strokeStyle = on ? "#8cff9c" : "#2f8a48"; ux.lineWidth = on ? 2 : 1.5; ux.strokeRect(kx, ky, 82, 34);
+      ux.fillStyle = on ? "#e6ffe8" : "#7cff8a"; ux.font = "bold 13px monospace";
+      ux.fillText(k1, kx + 41, ky + (k2 ? 15 : 22));
+      if (k2) { ux.fillStyle = "#5ad46c"; ux.font = "bold 10px monospace"; ux.fillText(k2, kx + 41, ky + 28); }
     }
     U.t.needsUpdate = true;
+  }
+  // Analog-digital hybrid standby gauges flanking Center MFD + yellow/black caution strips
+  const IP = jetPit.userData.inst;
+  if (IP) {
+    const ix = IP.x, iw = IP.c.width, ih = IP.c.height;
+    ix.fillStyle = "#171c20"; ix.fillRect(0, 0, iw, ih);
+    ix.strokeStyle = "#2b333a"; ix.lineWidth = 2;
+    for (const gx of [140, 322]) { ix.fillStyle = "#11161a"; ix.fillRect(gx, 10, 50, ih - 20); ix.strokeRect(gx, 10, 50, ih - 20); }
+    const dial = (dx, dy, r, frac, lbl, val) => {
+      ix.fillStyle = "#0a0e10"; ix.beginPath(); ix.arc(dx, dy, r, 0, TAU); ix.fill();
+      ix.strokeStyle = "#48545e"; ix.lineWidth = 1.6; ix.stroke();
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * TAU; ix.beginPath(); ix.moveTo(dx + Math.cos(a) * (r - 4), dy + Math.sin(a) * (r - 4)); ix.lineTo(dx + Math.cos(a) * (r - 1), dy + Math.sin(a) * (r - 1)); ix.stroke();
+      }
+      const na = -PI * 0.75 + clamp(frac, 0, 1) * PI * 1.5;
+      ix.strokeStyle = "#f2f6f8"; ix.lineWidth = 2; ix.beginPath(); ix.moveTo(dx, dy); ix.lineTo(dx + Math.cos(na) * (r - 5), dy + Math.sin(na) * (r - 5)); ix.stroke();
+      ix.fillStyle = "#8ca2b0"; ix.font = "bold 7.5px monospace"; ix.textAlign = "center"; ix.fillText(lbl, dx, dy + 8);
+      ix.fillStyle = "#d8e6ee"; ix.fillText(val, dx, dy + 16);
+    };
+    // Left flank: Standby Attitude Ball + Standby Airspeed Dial
+    {
+      const dx = 165, dy = 66, r = 20;
+      ix.save(); ix.beginPath(); ix.arc(dx, dy, r, 0, TAU); ix.clip();
+      ix.translate(dx, dy + clamp(truePitch * 20, -15, 15)); ix.rotate(-trueRoll);
+      ix.fillStyle = "#246696"; ix.fillRect(-30, -35, 60, 35);
+      ix.fillStyle = "#5c3b1e"; ix.fillRect(-30, 0, 60, 35);
+      ix.strokeStyle = "#f4f8ff"; ix.lineWidth = 1.5; ix.beginPath(); ix.moveTo(-24, 0); ix.lineTo(24, 0); ix.stroke();
+      ix.restore();
+      ix.strokeStyle = "#48545e"; ix.lineWidth = 1.8; ix.beginPath(); ix.arc(dx, dy, r, 0, TAU); ix.stroke();
+      ix.strokeStyle = "#ffd04d"; ix.lineWidth = 1.6; ix.beginPath(); ix.moveTo(dx - 8, dy); ix.lineTo(dx + 8, dy); ix.stroke();
+      dial(165, 134, 20, spdKmh / 1400, "IAS", String(Math.round(spdKmh)));
+    }
+    // Right flank: Standby Altimeter + Engine/Fuel Gauges
+    dial(347, 66, 20, (altM % 1000) / 1000, "ALT", String(Math.round(altM)));
+    dial(347, 134, 20, thrPct / 100, "N1", `${thrPct}%`);
+    // Yellow/black hazard striping + caution bars positioned cleanly above bottom viewport frame
+    for (const bx0 of [143, 325]) {
+      ix.save(); ix.beginPath(); ix.rect(bx0, 174, 44, 12); ix.clip();
+      for (let s = -20; s < 64; s += 10) {
+        ix.fillStyle = "#e6b822"; ix.beginPath(); ix.moveTo(bx0 + s, 186); ix.lineTo(bx0 + s + 5, 186); ix.lineTo(bx0 + s + 13, 174); ix.lineTo(bx0 + s + 8, 174); ix.closePath(); ix.fill();
+      }
+      ix.restore();
+      ix.fillStyle = info.rwr ? "#ff5244" : (j.hit ? "#ffd04d" : "#1c3624"); ix.fillRect(bx0, 190, 44, 14);
+      ix.strokeStyle = "#3a454d"; ix.strokeRect(bx0, 190, 44, 14);
+      ix.fillStyle = info.rwr || j.hit ? "#fff4e0" : "#5ac474"; ix.font = "bold 8px monospace"; ix.textAlign = "center";
+      ix.fillText(bx0 < 200 ? (j.hit ? "DMG" : "SYS") : (info.rwr ? "RWR" : "RDY"), bx0 + 22, 200);
+    }
+    IP.t.needsUpdate = true;
   }
   for (const m of jmfd) m.t.needsUpdate = true;
 }
