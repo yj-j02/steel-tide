@@ -79,17 +79,83 @@ function mesh(W, side, sc) {
   g.scale.setScalar(sc); scene.add(g); return g;
 }
 const X = new THREE.Vector3(1, 0, 0), tmp = new THREE.Vector3();
-/** world position of a VLS hatch on the ship (fore or aft grid) */
-function hatch(S) { const v = S.funnels && S.root.userData; void v; S.tilt.updateWorldMatrix(true, false); const xs = S.vlsX || [S.spec.L * 0.26, -S.spec.L * 0.32]; return S.tilt.localToWorld(new THREE.Vector3(xs[rnd() < 0.5 ? 0 : 1] + gauss() * 1.5, S.spec.fb + 1.2, gauss() * 1.2)); }
+/** world position of a VLS hatch on the ship (picks an actual 3D cell when present, opens hatch & ignites well glow) */
+function hatch(S, W, tgt) {
+  S.tilt.updateWorldMatrix(true, false);
+  const cells = S.vlsCells;
+  if (cells && cells.length) {
+    const preferFore = W?.role === "sam";
+    let pool = cells.filter((c) => c.state === "loaded" && (preferFore ? c.fore : !c.fore));
+    if (!pool.length) pool = cells.filter((c) => c.state === "loaded");
+    const cell = pool.length ? pool[Math.floor(rnd() * pool.length)] : cells.slice().sort((a, b) => a.t - b.t)[0];
+    cell.state = "firing"; cell.t = 7.5; cell.open = 1; cell.glowA = 1;
+    cell.lid.rotation.z = 1.48; cell.glow.visible = true; cell.glowMat.opacity = 1; cell.msl.visible = false;
+    return S.tilt.localToWorld(new THREE.Vector3(cell.cx, cell.cy + 0.15, cell.cz));
+  }
+  const xs = S.vlsX || [S.spec.L * 0.26, -S.spec.L * 0.32];
+  return S.tilt.localToWorld(new THREE.Vector3(xs[rnd() < 0.5 ? 0 : 1] + gauss() * 1.5, S.spec.fb + 1.2, gauss() * 1.2));
+}
+function aimPdMount(S, pd, tPos) {
+  S.tilt.updateWorldMatrix(true, false);
+  const loc = S.tilt.worldToLocal(tPos.clone()), dx = loc.x - pd.x, dy = loc.y - pd.y, dz = loc.z - pd.z;
+  pd.yawGrp.rotation.y = -Math.atan2(dz, dx);
+  pd.elGrp.rotation.z = clamp(Math.atan2(dy, Math.hypot(dx, dz)), 0.04, 1.35);
+}
+export function syncJetPylons(j) {
+  const pm = j.mesh?.userData?.pylonMsls; if (!pm) return;
+  if (pm.aam[0]) pm.aam[0].visible = (j.aam || 0) >= 1;
+  if (pm.aam[1]) pm.aam[1].visible = (j.aam || 0) >= 2;
+  if (pm.asm[0]) pm.asm[0].visible = (j.asm || 0) >= 1;
+  if (pm.asm[1]) pm.asm[1].visible = (j.asm || 0) >= 2;
+}
 export function launch(S, key, target) {
   const W = WPN[key]; if (!W) return null;
-  const p = W.role === "pd" ? S.pos.clone().add(new THREE.Vector3(0, S.spec.fb + 10, 0)) : S.isJet ? S.pos.clone().add(new THREE.Vector3(0, -2, 0)) : hatch(S);
-  const m = { key, W, side: S.side, owner: S, target, pos: p, air: !!S.isJet, vel: S.isJet ? S.vel.clone() : new THREE.Vector3(gauss() * 3, W.role === "pd" ? 0 : 70, gauss() * 3), t: 0, dist: 0, alive: true, engaged: 0, trail: [p.clone()], trT: 0,
-    mesh: mesh(W, S.side, W.role === "asm" ? 1.25 : W.role === "pd" ? 0.7 : 1), apex: W.alt === "ball" ? 9000 : 0 };
-  if (W.role === "pd" && target) m.vel.copy(target.pos).sub(p).normalize().multiplyScalar(300);
+  let p, vel0, canLaunch = false, qInit = null;
+  if (W.role === "pd") {
+    const pd = S.pdMounts?.length ? S.pdMounts[rnd() < 0.5 || S.pdMounts.length === 1 ? 0 : 1] : null;
+    if (pd) {
+      if (target) aimPdMount(S, pd, target.pos);
+      const tip = pd.tips.find((tp) => tp.cd <= 0); if (tip) { tip.m.visible = false; tip.cd = 8.0; }
+      pd.elGrp.updateWorldMatrix(true, false);
+      p = pd.elGrp.localToWorld(new THREE.Vector3(1.6, 0, 0));
+    } else p = S.pos.clone().add(new THREE.Vector3(0, S.spec.fb + 10, 0));
+    vel0 = target ? target.pos.clone().sub(p).normalize().multiplyScalar(300) : new THREE.Vector3(gauss() * 3, 80, gauss() * 3);
+  } else if (S.isJet) {
+    syncJetPylons(S);
+    const sgn = ((S.aam || 0) + (S.asm || 0)) % 2 ? 1 : -1;
+    S.mesh.updateWorldMatrix(true, false);
+    p = S.mesh.localToWorld(new THREE.Vector3(W.role === "asm" ? -1.2 : -3.35, W.role === "asm" ? -0.55 : -0.1, sgn * (W.role === "asm" ? 2.8 : 6.95)));
+    vel0 = S.vel.clone();
+  } else if (W.role === "asm" && W.cls === "sub" && S.canRacks?.length && S.canRacks.some((r) => r.state === "loaded")) {
+    let pool = S.canRacks.filter((r) => r.state === "loaded");
+    if (target) {
+      const f = S.fwd, sideTgt = (target.pos.x - S.pos.x) * (-f.z) + (target.pos.z - S.pos.z) * f.x >= 0 ? 1 : -1;
+      const sided = pool.filter((r) => r.side === sideTgt); if (sided.length) pool = sided;
+    }
+    const can = pool[0];
+    can.state = "reloading"; can.t = 8.0; can.msl.visible = false; can.cap.rotation.z = 1.35;
+    can.rack.updateWorldMatrix(true, false);
+    p = can.rack.localToWorld(new THREE.Vector3(2.8, 0, 0));
+    const pRear = can.rack.localToWorld(new THREE.Vector3(-2.6, 0, 0));
+    const dir = can.rack.localToWorld(new THREE.Vector3(3.8, 0, 0)).sub(p).normalize();
+    vel0 = dir.clone().multiplyScalar(92); canLaunch = true; qInit = dir.clone();
+    // Canister rear backblast flame, sparks & exhaust cloud
+    flash.spawn({ x: pRear.x, y: pRear.y, z: pRear.z, life: 0.36, s0: 3.6, s1: 10.5, a: 0.96, c: 0xffb858 });
+    for (let k = 0; k < 6; k++) spark.spawn({ x: pRear.x, y: pRear.y, z: pRear.z, vx: -dir.x * (24 + rnd() * 14) + gauss() * 4, vy: -dir.y * 24 + 4 + rnd() * 6, vz: -dir.z * (24 + rnd() * 14) + gauss() * 4, g: 9.8, life: 0.65, s0: 1.4, s1: 0.35, a: 0.95, c: k % 2 ? 0xffa040 : 0xffe49e });
+    for (let k = 0; k < 6; k++) smoke.spawn({ x: pRear.x + gauss() * 0.6, y: pRear.y + gauss() * 0.6, z: pRear.z + gauss() * 0.6, vx: -dir.x * (9 + rnd() * 5) + gauss() * 1.5, vy: 2 + rnd() * 3, vz: -dir.z * (9 + rnd() * 5) + gauss() * 1.5, life: 3.6, s0: 2.2, s1: 10, a: 0.62, c: 0xdcd8cf });
+  } else {
+    p = hatch(S, W, target);
+    vel0 = new THREE.Vector3(gauss() * 3, 70, gauss() * 3);
+  }
+  const mMesh = mesh(W, S.side, W.role === "asm" ? 1.25 : W.role === "pd" ? 0.7 : 1);
+  mMesh.position.copy(p);
+  if (qInit) mMesh.quaternion.setFromUnitVectors(X, qInit);
+  else if (vel0.lengthSq() > 0.1) mMesh.quaternion.setFromUnitVectors(X, tmp.copy(vel0).normalize());
+  const m = { key, W, side: S.side, owner: S, target, pos: p, air: !!S.isJet, canLaunch, vel: vel0, t: 0, dist: 0, alive: true, engaged: 0, trail: [p.clone()], trT: 0,
+    mesh: mMesh, apex: W.alt === "ball" ? 9000 : 0 };
   M.list.push(m);
-  flash.spawn({ x: p.x, y: p.y + 2, z: p.z, life: 0.45, s0: W.role === "pd" ? 4.5 : 8, s1: W.role === "pd" ? 10 : 18, a: 1, c: 0xffd078 });
-  if (W.role !== "pd" && !S.isJet) rings.spawn({ x: p.x, z: p.z, w0: 2.5, l0: 2.5, w1: 18, l1: 18, life: 0.9, a: 0.55 });
+  flash.spawn({ x: p.x, y: p.y + (canLaunch ? 0.4 : 2), z: p.z, life: 0.45, s0: W.role === "pd" ? 4.5 : 8, s1: W.role === "pd" ? 10 : 18, a: 1, c: 0xffd078 });
+  if (W.role !== "pd" && !S.isJet && !canLaunch) rings.spawn({ x: p.x, z: p.z, w0: 2.5, l0: 2.5, w1: 18, l1: 18, life: 0.9, a: 0.55 });
   if (W.role !== "pd") for (let i = 0; i < 8; i++) spark.spawn({ x: p.x + gauss(), y: p.y + 1, z: p.z + gauss(), vx: gauss() * 16, vy: 12 + rnd() * 26, vz: gauss() * 16, g: 12, life: 0.85, s0: 1.8, s1: 0.5, a: 1, c: i % 2 ? 0xffa644 : 0xffe49e });
   for (let i = 0; i < (W.role === "pd" ? 3 : 13); i++) smoke.spawn({ x: p.x + gauss() * 1.4, y: p.y + rnd() * 3.5, z: p.z + gauss() * 1.4, vx: gauss() * 2.8, vy: 4 + rnd() * 7, vz: gauss() * 2.8, life: 5.2, s0: 3.5, s1: 17, a: 0.74, c: i % 2 ? 0xeae6dc : 0xc8c4ba });
   const d = p.distanceTo(camera.position); at(d, () => (m.air || W.role === "asm" ? (d < 6000 ? sfx.mslLaunch(d) : sfx.flak(d)) : d < 2500 ? sfx.torpLaunch() : sfx.flak(d)));
@@ -133,11 +199,15 @@ export function stepMissiles(dt, onHit) {
     const m = M.list[i];
     if (!m.alive) { M.list.splice(i, 1); continue; }
     const W = m.W; m.t += dt;
-    const boost = W.role !== "pd" && !m.air && m.t < 1.1;
+    const boost = W.role !== "pd" && !m.air && !m.canLaunch && m.t < 1.1;
+    const canRail = m.canLaunch && m.t < 0.72;
     if (boost) {
       m.vel.y = Math.min(m.vel.y + 160 * dt, 160);
       if (rnd() < dt * 34) smoke.spawn({ x: m.pos.x, y: m.pos.y, z: m.pos.z, vx: gauss() * 2.5, vy: -5, vz: gauss() * 2.5, life: 2.6, s0: 2.4, s1: 9.5, a: 0.56, c: 0xdedad0 });
       if (rnd() < dt * 24) spark.spawn({ x: m.pos.x, y: m.pos.y, z: m.pos.z, vx: gauss() * 8, vy: -18 - rnd() * 14, vz: gauss() * 8, g: 9.8, life: 0.45, s0: 1.5, s1: 0.4, a: 1, c: 0xffc864 });
+    } else if (canRail) {
+      m.vel.addScaledVector(tmp.copy(m.vel).normalize(), 110 * dt);
+      if (rnd() < dt * 30) smoke.spawn({ x: m.pos.x, y: m.pos.y, z: m.pos.z, vx: gauss() * 2, vy: 2, vz: gauss() * 2, life: 2.2, s0: 2.0, s1: 8, a: 0.5, c: 0xe6e2d8 });
     } else {
       if (W.role !== "pd" && !m.air && !m.boostDone) {
         m.boostDone = true;
@@ -268,7 +338,11 @@ export function defend(dt, mode = "auto") {
       D.ciT -= dt;
       if (D.ciT <= 0) {
         D.ciT = 0.05; S.tilt.updateWorldMatrix(true, false);
-        const o = S.pos.clone().setY(S.spec.fb + 9), dir = m.pos.clone().sub(o), dl = Math.max(dir.length(), 1); dir.divideScalar(dl);
+        const pd = S.pdMounts?.[0];
+        let o;
+        if (pd) { aimPdMount(S, pd, m.pos); pd.elGrp.updateWorldMatrix(true, false); o = pd.elGrp.localToWorld(new THREE.Vector3(2.1, -0.35, 0)); }
+        else o = S.pos.clone().setY(S.spec.fb + 9);
+        const dir = m.pos.clone().sub(o), dl = Math.max(dir.length(), 1); dir.divideScalar(dl);
         flash.spawn({ x: o.x, y: o.y, z: o.z, life: 0.06, s0: 2.2, s1: 0.9, a: 0.85, c: 0xffd478 });
         D.ciN = (D.ciN || 0) + 1;
         if (D.ciN % 3 === 0) smoke.spawn({ x: o.x, y: o.y, z: o.z, vx: dir.x * 8 + 1.5, vy: 2.2, vz: dir.z * 8 + 1, life: 0.8, s0: 1.4, s1: 4.5, a: 0.25, c: 0xd0d4d8 });
@@ -458,7 +532,7 @@ export function stepJets(dt, know, onEvent) {
       j.vel.lerp(want, Math.min(1, dt * 2.6)); j.pos.addScaledVector(j.vel, dt); j.W.alt = j.pos.y < 300 ? "skim" : "high"; j.flareT = Math.max(0, (j.flareT || 0) - dt);
       if (j.pos.y < 8) { j.killedBy = null; kill(j, "boom"); continue; }
       if (j.hit && rnd() < dt * 20) smoke.spawn({ x: j.pos.x, y: j.pos.y, z: j.pos.z, life: 3, s0: 2, s1: 10, a: 0.6, c: 0x222222 });
-      j.mesh.position.copy(j.pos); j.mesh.quaternion.copy(j.q); updateJetFX(j, dt, j.vel.length()); continue;
+      j.mesh.position.copy(j.pos); j.mesh.quaternion.copy(j.q); syncJetPylons(j); updateJetFX(j, dt, j.vel.length()); continue;
     }
     if (j.flares > 0 && (j.aiFlCd || 0) <= G.time && M.list.some((m) => m.alive && m.target === j && m.pos.distanceTo(j.pos) < 4500)) { const n = Math.min(j.flares, 6); j.flares -= n; j.aiFlCd = G.time + 1.6; jetFlare(j, n); } // AI: a 6-cartridge program, again while the threat stays
     if (j.t > j.endur || !j.owner.alive || (j.role === "multi" && !j.asm && !j.aam)) j.home = true; j.W.alt = j.pos.y < 300 ? "skim" : "high"; // low flyers stay under the radar horizon longer
@@ -488,7 +562,7 @@ export function stepJets(dt, know, onEvent) {
     goal.y = alt; const want = goal.sub(j.pos).normalize().multiplyScalar(spd);
     j.vel.lerp(want, Math.min(1, dt * 0.9)); j.pos.addScaledVector(j.vel, dt); if (j.pos.y < 40) j.pos.y = 40;
     j.mesh.position.copy(j.pos); j.mesh.quaternion.setFromUnitVectors(X, tmp.copy(j.vel).normalize());
-    updateJetFX(j, dt, spd);
+    syncJetPylons(j); updateJetFX(j, dt, spd);
   }
 }
 /** Flares / chaff from a jet: missiles homing on it may lose it (they self-destruct shortly after). Returns how many were fooled. */

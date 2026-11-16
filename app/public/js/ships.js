@@ -331,6 +331,19 @@ function cruiser(g, spec) {
   g.userData.bridge = [fx + 1 + L * 0.033, y1 + 5.3, 0];
   return fs.map((x) => [x, y1 + 11, 0]);
 }
+function torpBank(g, U, y, x, n, len, col) {
+  cyl(g, 1.2, 1.3, 0.6, U, x, y, 0, 10);
+  const grp = new THREE.Group(); grp.position.set(x, y + 1.05, 0); g.add(grp);
+  const tubeG = new THREE.CylinderGeometry(0.28, 0.28, len, 8), noseG = new THREE.SphereGeometry(0.23, 8, 6);
+  const tubeM = mat(col), tipM = mat(0xc85432), tips = [];
+  for (let i = 0; i < n; i++) {
+    const zz = (i - (n - 1) / 2) * 0.66;
+    const t = shadowed(new THREE.Mesh(tubeG, tubeM)); t.rotation.z = PI / 2; t.position.z = zz; grp.add(t);
+    const tip = new THREE.Mesh(noseG, tipM); tip.scale.set(1.6, 0.95, 0.95); tip.position.set(len * 0.5 + 0.08, 0, zz); grp.add(tip);
+    tips.push(tip);
+  }
+  (g.userData.torpMounts ??= []).push({ x, grp, tips, len });
+}
 function dd(g, spec) {
   const U = spec.upper, y = spec.fb, B = spec.B;
   box(g, 14, 3, B * 0.62, U, 19, y, 0); box(g, 9, 2.6, B * 0.5, U, 20, y + 3, 0); box(g, 5, 1.1, B * 0.82, U, 21, y + 5.6, 0);
@@ -338,7 +351,7 @@ function dd(g, spec) {
   cyl(g, 0.25, 0.32, 14, 0x5b6368, 13, y + 3, 0, 6); box(g, 0.2, 0.2, 7, 0x474d51, 13, y + 13.5, 0);
   for (const x of [8, -2]) { const f = cyl(g, 1.5, 1.8, 7, U, x, y, 0, 12); f.scale.z = 0.8; const c = cyl(g, 1.55, 1.55, 0.7, 0x1c1e20, x, y + 7, 0, 12); c.scale.z = 0.8; }
   box(g, 10, 2.6, B * 0.5, U, -17, y, 0);
-  for (const x of [3, -8]) { cyl(g, 1.2, 1.3, 0.6, U, x, y, 0, 10); for (let i = 0; i < 5; i++) { const t = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.27, 0.27, 6, 8), mat(0x6b7378))); t.rotation.z = PI / 2; t.position.set(x, y + 1.1, (i - 2) * 0.62); g.add(t); } }
+  for (const x of [3, -8]) torpBank(g, U, y, x, 5, 6, 0x6b7378);
   for (const [x, z] of [[-24, 2.5], [-24, -2.5], [9, 4.2], [9, -4.2]]) tub40(g, U, x, y, z);
   for (const s of [1, -1]) box(g, 4, 1, 1, 0x3a3f43, -52, y, s * 2.5);
   lines(g, [13, y + 17, 0, 56, deckY(spec, 56) + 2, 0, 13, y + 17, 0, -56, y + 2, 0]);
@@ -422,7 +435,9 @@ const JG = (() => {
   const intakeHole = new THREE.PlaneGeometry(0.46, 0.54); intakeHole.rotateY(PI / 2);
   const nozzle = new THREE.CylinderGeometry(0.42, 0.34, 1.15, 14); nozzle.rotateZ(-PI / 2);
   const rail = new THREE.BoxGeometry(2.4, 0.14, 0.14);
-  const mslBody = new THREE.CylinderGeometry(0.08, 0.08, 2.9, 8); mslBody.rotateZ(-PI / 2);
+  const mslBody = new THREE.CylinderGeometry(0.085, 0.085, 2.9, 8); mslBody.rotateZ(-PI / 2);
+  const mslCone = new THREE.ConeGeometry(0.085, 0.56, 8); mslCone.rotateZ(-PI / 2); mslCone.translate(1.73, 0, 0);
+  const mslFin = new THREE.BoxGeometry(0.34, 0.28, 0.03); mslFin.translate(-1.25, 0, 0);
   const pylon = new THREE.BoxGeometry(1.15, 0.24, 0.09);
   const dropTank = new THREE.CapsuleGeometry(0.22, 2.25, 4, 10); dropTank.rotateZ(-PI / 2);
   const nav = new THREE.SphereGeometry(0.11, 6, 6);
@@ -447,7 +462,7 @@ const JG = (() => {
     }
   }
   const vConeTex = new THREE.CanvasTexture(vcCan); vConeTex.wrapS = THREE.RepeatWrapping;
-  return { body, radome, pitot, lerx, wing, fin, stab, can, spine, intake, intakeHole, nozzle, rail, mslBody, pylon, dropTank, nav, strobe, seat, abGlow, abOuter, abCore, abDiamond, vConeGeo, vConeTex };
+  return { body, radome, pitot, lerx, wing, fin, stab, can, spine, intake, intakeHole, nozzle, rail, mslBody, mslCone, mslFin, pylon, dropTank, nav, strobe, seat, abGlow, abOuter, abCore, abDiamond, vConeGeo, vConeTex };
 })();
 const JM = {
   us: new THREE.MeshStandardMaterial({ color: 0x869098, roughness: 0.48, metalness: 0.32 }),
@@ -472,6 +487,13 @@ export function jetMesh(foe) {
   put(JG.wing, m, 0, -0.08, 0.58); const w2 = put(JG.wing, m, 0, -0.08, -0.58); w2.scale.z = -1;
   put(JG.lerx, md, 0, 0.02, 0.12); const l2 = put(JG.lerx, md, 0, 0.02, -0.12); l2.scale.z = -1;
   put(JG.stab, m, -5.3, -0.08, 0.52); const s2 = put(JG.stab, m, -5.3, -0.08, -0.52); s2.scale.z = -1;
+  const mkMsl = (x, y, z, scale = 1) => {
+    const mg = new THREE.Group(); mg.position.set(x, y, z); mg.scale.setScalar(scale);
+    mg.add(new THREE.Mesh(JG.mslBody, JM.msl), new THREE.Mesh(JG.mslCone, JM.nose), new THREE.Mesh(JG.mslFin, JM.nose));
+    const f2 = new THREE.Mesh(JG.mslFin, JM.nose); f2.rotation.x = PI / 2; mg.add(f2);
+    g.add(mg); return mg;
+  };
+  const aam = [], asm = [];
   for (const s of [1, -1]) {
     const f = put(JG.fin, s > 0 ? m : md, -3.25, 0.42, s * 0.88); f.rotation.x = -s * 0.42;
     const ik = put(JG.intake, md, 1.9, -0.14, s * 0.96); ik.rotation.y = s * 0.05;
@@ -479,10 +501,11 @@ export function jetMesh(foe) {
     put(JG.nozzle, JM.metal, -7.65, -0.06, s * 0.52);
     put(JG.rail, JM.nose, -3.55, -0.04, s * 6.82, false);
     put(JG.pylon, md, -1.2, -0.26, s * 2.8, false);
-    put(JG.mslBody, JM.msl, -3.35, -0.08, s * 6.95, false);
-    put(JG.mslBody, JM.msl, -1.2, -0.45, s * 2.8, false);
+    aam.push(mkMsl(-3.35, -0.08, s * 6.95, 0.95));
+    asm.push(mkMsl(-1.2, -0.45, s * 2.8, 1.18));
     put(JG.nav, s > 0 ? JM.navG : JM.navR, -3.9, -0.04, s * 6.84, false);
   }
+  g.userData.pylonMsls = { aam, asm };
   const strobe = put(JG.strobe, JM.strobeW, -2.95, 0.72, 0, false); strobe.visible = false;
   const vcMat = new THREE.MeshBasicMaterial({ map: JG.vConeTex, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide });
   const vCone = new THREE.Mesh(JG.vConeGeo, vcMat); vCone.position.set(-1.55, 0.02, 0); vCone.visible = false; g.add(vCone);
@@ -511,7 +534,7 @@ function foeDD(g, spec) {
   for (const s of [1, -1]) { const l = box(g, 0.35, 15, 0.35, 0x3b4246, 18, y + 3.4, s * 1.3); l.rotation.x = s * 0.1; }
   cyl(g, 0.3, 0.35, 15, 0x3b4246, 16.5, y + 3.4, 0, 6); box(g, 0.2, 0.2, 6, 0x33393d, 17, y + 16, 0);
   const f = cyl(g, 2.4, 2.8, 8.5, U, 2, y, 0, 12); f.rotation.z = 0.22; f.scale.z = 0.75; const c = cyl(g, 2.45, 2.45, 0.8, 0x151718, 0.2, y + 8.2, 0, 12); c.rotation.z = 0.22; c.scale.z = 0.75;
-  for (const x of [-9, -21]) { cyl(g, 1.1, 1.2, 0.6, U, x, y, 0, 10); for (let i = 0; i < 4; i++) { const t = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 6.5, 8), mat(0x5d6568))); t.rotation.z = PI / 2; t.position.set(x, y + 1.1, (i - 1.5) * 0.7); g.add(t); } }
+  for (const x of [-9, -21]) torpBank(g, U, y, x, 4, 6.5, 0x5d6568);
   box(g, 9, 2.6, B * 0.45, U, -30, y, 0); tub40(g, U, 9, y, 3.6); tub40(g, U, 9, y, -3.6);
   lines(g, [17, y + 18, 0, 58, deckY(spec, 58) + 2, 0, 17, y + 18, 0, -58, y + 2, 0]);
   return [[0.2, y + 9.2, 0]];
@@ -569,14 +592,103 @@ function cargo(g, spec) {
   return [[-L * 0.06, y + 16.9, 0]];
 }
 // ── modern hulls (2025+): procedural, proportions from public photos; not survey-accurate ──
+const VLS_G = {
+  well: new THREE.PlaneGeometry(0.88, 0.88),
+  glow: new THREE.PlaneGeometry(0.82, 0.82),
+  lid: new THREE.BoxGeometry(0.92, 0.09, 0.92),
+  lidStatic: new THREE.BoxGeometry(0.92, 0.08, 0.92),
+  body: new THREE.CylinderGeometry(0.19, 0.19, 1.35, 8),
+  nose: new THREE.ConeGeometry(0.19, 0.52, 8),
+  fin: new THREE.BoxGeometry(0.42, 0.24, 0.04),
+};
+VLS_G.well.rotateX(-PI / 2); VLS_G.glow.rotateX(-PI / 2);
+VLS_G.lid.translate(0.46, 0.045, 0);
+const VLS_M = {
+  well: new THREE.MeshBasicMaterial({ color: 0x090c0f }),
+  lid: new THREE.MeshStandardMaterial({ color: 0x475056, roughness: 0.55, metalness: 0.35 }),
+  body: new THREE.MeshStandardMaterial({ color: 0xe6ebee, roughness: 0.4, metalness: 0.25 }),
+  band: new THREE.MeshStandardMaterial({ color: 0xc94232, roughness: 0.45, metalness: 0.2 }),
+  nose: new THREE.MeshStandardMaterial({ color: 0x262c30, roughness: 0.35, metalness: 0.55 }),
+};
 function vlsGrid(g, x, y, rows, cols) {
   const w = cols * 1.15 + 0.4, d = rows * 1.15 + 0.4; box(g, w, 0.3, d, 0x3a4044, x, y, 0);
   for (let c = 1; c < cols; c++) box(g, 0.08, 0.08, d - 0.3, 0x24292c, x - w / 2 + 0.2 + c * 1.15, y + 0.3, 0);
   for (let r = 1; r < rows; r++) box(g, w - 0.3, 0.08, 0.08, 0x24292c, x, y + 0.3, -d / 2 + 0.2 + r * 1.15);
+  const cells = (g.userData.vlsCells ??= []), statics = [];
+  const total = rows * cols, want = Math.min(total, 16), stepR = Math.max(1, Math.floor(rows / 4)), stepC = Math.max(1, Math.floor(cols / 4));
+  let made = 0;
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) {
+    const cx = x - w / 2 + 0.2 + (c + 0.5) * 1.15, cz = -d / 2 + 0.2 + (r + 0.5) * 1.15;
+    if (made < want && r % stepR === 0 && c % stepC === 0) {
+      made++;
+      const well = new THREE.Mesh(VLS_G.well, VLS_M.well); well.position.set(cx, y + 0.31, cz); g.add(well);
+      const glowMat = new THREE.MeshBasicMaterial({ color: 0xff9438, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
+      const glow = new THREE.Mesh(VLS_G.glow, glowMat); glow.position.set(cx, y + 0.32, cz); glow.visible = false; g.add(glow);
+      const msl = new THREE.Group(); msl.position.set(cx, y - 0.75, cz); msl.visible = false;
+      const mb = new THREE.Mesh(VLS_G.body, VLS_M.body); mb.position.y = 0.65;
+      const bd = new THREE.Mesh(new THREE.CylinderGeometry(0.195, 0.195, 0.16, 8), VLS_M.band); bd.position.y = 1.12;
+      const ns = new THREE.Mesh(VLS_G.nose, VLS_M.nose); ns.position.y = 1.56;
+      const f1 = new THREE.Mesh(VLS_G.fin, VLS_M.nose); f1.position.y = 0.18;
+      const f2 = new THREE.Mesh(VLS_G.fin, VLS_M.nose); f2.position.y = 0.18; f2.rotation.y = PI / 2;
+      msl.add(mb, bd, ns, f1, f2); g.add(msl);
+      const lid = new THREE.Group(); lid.position.set(cx - 0.46, y + 0.3, cz);
+      const lidMesh = new THREE.Mesh(VLS_G.lid, VLS_M.lid); lidMesh.castShadow = true; lid.add(lidMesh); g.add(lid);
+      cells.push({ cx, cy: y + 0.36, cz, baseY: y - 0.65, lid, msl, glow, glowMat, state: "loaded", t: 0, open: 0, glowA: 0, fore: x > 0 });
+    } else statics.push([cx, y + 0.34, cz]);
+  }
+  if (statics.length) {
+    const inst = new THREE.InstancedMesh(VLS_G.lidStatic, VLS_M.lid, statics.length), mx = new THREE.Matrix4();
+    statics.forEach(([sx, sy, sz], idx) => { mx.makeTranslation(sx, sy, sz); inst.setMatrixAt(idx, mx); });
+    g.add(inst);
+  }
 }
 function array4(g, pts, r) { for (const [x, y, z, a] of pts) { const m = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.35, 8), mat(0x56606a))); m.geometry.rotateZ(PI / 2); m.position.set(x, y, z); m.rotation.y = -a; g.add(m); } }
-function ciws(g, x, y, z) { cyl(g, 0.9, 1.1, 1.6, 0x9aa2a6, x, y, z, 10); const d = cyl(g, 0.8, 0.8, 1.4, 0xe9ecec, x, y + 1.6, z, 12); d.scale.z = 0.9; }
-function cans(g, x, y, n) { for (const s of [1, -1]) for (let i = 0; i < n; i++) { const c = shadowed(new THREE.Mesh(new THREE.BoxGeometry(5.5, 0.7, 0.7), mat(0x7f888c))); c.position.set(x, y + 1.2 + (i % 2) * 0.75, s * (1.4 + Math.floor(i / 2) * 0.75)); c.rotation.z = 0.32; c.rotation.y = s * 0.5; g.add(c); } }
+function ciws(g, x, y, z) {
+  cyl(g, 0.85, 1.05, 1.45, 0x9aa2a6, x, y, z, 10);
+  const yawGrp = new THREE.Group(); yawGrp.position.set(x, y + 1.45, z); g.add(yawGrp);
+  const dome = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.76, 0.76, 1.2, 12), mat(0xe9ecec))); dome.position.y = 0.6; dome.scale.z = 0.9; yawGrp.add(dome);
+  const elGrp = new THREE.Group(); elGrp.position.set(0.15, 0.85, 0); yawGrp.add(elGrp);
+  const boxM = shadowed(new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.72, 1.15), mat(0x6d767c))); boxM.position.set(0.35, 0, 0); elGrp.add(boxM);
+  const brl = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.11, 1.85, 8), mat(0x2c3238)); brl.rotation.z = -PI / 2; brl.position.set(1.15, -0.35, 0); elGrp.add(brl);
+  const tipG = new THREE.ConeGeometry(0.09, 0.36, 8); tipG.rotateZ(-PI / 2);
+  const tips = [];
+  for (let r = 0; r < 2; r++) for (let c = 0; c < 3; c++) {
+    const tip = new THREE.Mesh(tipG, VLS_M.body); tip.position.set(1.32, (r - 0.5) * 0.26, (c - 1) * 0.28); elGrp.add(tip);
+    tips.push({ m: tip, cd: 0 });
+  }
+  (g.userData.pdMounts ??= []).push({ x, y: y + 2.3, z, yawGrp, elGrp, tips });
+}
+const CAN_G = {
+  tube: new THREE.CylinderGeometry(0.32, 0.34, 3.0, 10),
+  bore: new THREE.CylinderGeometry(0.27, 0.27, 0.12, 10),
+  rail: new THREE.BoxGeometry(4.75, 0.08, 0.08),
+  cap: new THREE.BoxGeometry(0.62, 0.08, 0.62),
+  body: new THREE.CylinderGeometry(0.2, 0.2, 4.1, 10),
+  band: new THREE.CylinderGeometry(0.205, 0.205, 0.26, 10),
+  nose: new THREE.ConeGeometry(0.2, 0.82, 10),
+  fin: new THREE.BoxGeometry(0.55, 0.44, 0.04),
+};
+CAN_G.tube.rotateZ(-PI / 2); CAN_G.bore.rotateZ(-PI / 2); CAN_G.body.rotateZ(-PI / 2); CAN_G.band.rotateZ(-PI / 2); CAN_G.nose.rotateZ(-PI / 2);
+function cans(g, x, y, n) {
+  const racks = (g.userData.canRacks ??= []), tubeM = mat(0x525b60), railM = mat(0x3a4046);
+  for (const s of [1, -1]) for (let i = 0; i < n; i++) {
+    const rack = new THREE.Group(); rack.rotation.order = "YXZ";
+    rack.position.set(x, y + 1.15 + (i % 2) * 0.78, s * (1.45 + Math.floor(i / 2) * 0.78));
+    rack.rotation.y = -s * 0.52; rack.rotation.z = 0.34; g.add(rack);
+    const tube = shadowed(new THREE.Mesh(CAN_G.tube, tubeM)); tube.position.x = -0.85; rack.add(tube);
+    const bore = new THREE.Mesh(CAN_G.bore, VLS_M.well); bore.position.x = 0.66; rack.add(bore);
+    for (const rz of [-0.26, 0.26]) { const rl = new THREE.Mesh(CAN_G.rail, railM); rl.position.set(0.05, 0.26, rz); rack.add(rl); }
+    const cap = new THREE.Mesh(CAN_G.cap, mat(0x6e787d)); cap.position.set(1.1, 0.34, 0); cap.rotation.z = 0.15; rack.add(cap);
+    const msl = new THREE.Group(); msl.position.set(0.68, 0, 0);
+    const mb = new THREE.Mesh(CAN_G.body, VLS_M.body);
+    const bd = new THREE.Mesh(CAN_G.band, VLS_M.band); bd.position.x = 1.45;
+    const ns = new THREE.Mesh(CAN_G.nose, VLS_M.nose); ns.position.x = 2.46;
+    const f1 = new THREE.Mesh(CAN_G.fin, VLS_M.nose); f1.position.x = -1.65;
+    const f2 = new THREE.Mesh(CAN_G.fin, VLS_M.nose); f2.position.x = -1.65; f2.rotation.x = PI / 2;
+    msl.add(mb, bd, ns, f1, f2); rack.add(msl);
+    racks.push({ rack, msl, cap, side: s, state: "loaded", t: 0 });
+  }
+}
 // ── modern warships: stealth-shaped deckhouses, SPY faces, integrated masts, stacks, hangar and flight deck ──
 /** Box whose top is narrower (stealth slope): wTop/lenTop are the top face's width/length. */
 function slab(g, len, h, w, wTop, lenTop, c, x, y, z, tx = 0) {
@@ -630,7 +742,7 @@ function aegis(g, spec) {
   pyramidMast(g, 11 * k, y + 14, 15, 2.4, U);
   stack(g, -5 * k, y, 8 * k, B * 0.32, 10, U); stack(g, -22 * k, y, 8 * k, B * 0.32, 10, U);
   slab(g, 26 * k, 3.2, B * 0.6, B * 0.56, 26 * k, U, -13 * k, y, 0);                // midships deckhouse joining the stacks
-  if (spec.cans) cans(g, -13 * k, y + 3.2, spec.cans);
+  cans(g, -13 * k, y + 3.2, spec.cans || 2);
   for (const s of [1, -1]) boat(g, -13 * k, y + 3.2, s * B * 0.4);
   vlsGrid(g, -31 * k, deckY(spec, -31 * k), 8, 8);
   hangarDeck(g, spec, -42 * k, 14 * k, B * 0.86, 6.4, U);
@@ -653,6 +765,7 @@ function pla(g, spec) {
   cyl(g, 0.3, 0.5, 7, 0x5a6268, 15 * k, y + 24.5, 0, 6); const d = shadowed(new THREE.Mesh(new THREE.SphereGeometry(1.2, 12, 8), mat(0xe6e8e8))); d.position.set(15 * k, y + 32, 0); g.add(d);
   stack(g, -8 * k, y, 14 * k, B * 0.46, 11, U);
   slab(g, 20 * k, 3.4, B * 0.62, B * 0.58, 20 * k, U, -8 * k, y, 0);
+  cans(g, -18.5 * k, deckY(spec, -18.5 * k), 2);
   for (const s of [1, -1]) boat(g, -6 * k, y + 3.4, s * B * 0.42);
   vlsGrid(g, -27 * k, deckY(spec, -27 * k), 6, 8);
   hangarDeck(g, spec, -44 * k, 18 * k, B * 0.86, 7, U);
@@ -672,6 +785,7 @@ function kpn(g, spec) {
   const r = 1.6 * k; for (const s of [1, -1]) spyFace(g, 18.5 * k, y + 11, s * B * 0.17, s * PI / 4, r);
   pyramidMast(g, 10 * k, y + 13, 12, 2, U);
   stack(g, -6 * k, y, 9 * k, B * 0.36, 8.5, U);
+  cans(g, -12.8 * k, deckY(spec, -12.8 * k), 2);
   vlsGrid(g, -20 * k, deckY(spec, -20 * k), 8, 8);
   hangarDeck(g, spec, -33 * k, 12 * k, B * 0.8, 5.6, U);
   ciws(g, -33 * k, y + 5.6, 0);
@@ -699,6 +813,16 @@ function dress(g, spec) {
 }
 const STYLE = { mcarrier, cage: colorado, tower, cruiser, dd, raider, carrier, foeDD, foeCL, pagoda, titan, cargo, aegis, pla, kpn };
 
+const CASING_G = new THREE.CylinderGeometry(0.11, 0.12, 0.95, 8); CASING_G.rotateZ(-PI / 2);
+const CASING_M = new THREE.MeshStandardMaterial({ color: 0xe2b23c, roughness: 0.25, metalness: 0.85 });
+const LOADER_M = {
+  brass: new THREE.MeshStandardMaterial({ color: 0xe6b640, roughness: 0.26, metalness: 0.84 }),
+  warhead: new THREE.MeshStandardMaterial({ color: 0xc24434, roughness: 0.4, metalness: 0.45 }),
+  rammer: new THREE.MeshStandardMaterial({ color: 0x9aa4aa, roughness: 0.35, metalness: 0.78 }),
+  bay: new THREE.MeshStandardMaterial({ color: 0x161a1d, roughness: 0.85 }),
+  ready: new THREE.MeshBasicMaterial({ color: 0x48ff7a }),
+  busy: new THREE.MeshBasicMaterial({ color: 0xff9f38 }),
+};
 function buildTurret(ship, t, i) {
   const spec = ship.spec, g = ship.gun, cal = g.cal, y = deckY(spec, t.x);
   const tw = cal >= 380 ? 12 : cal >= 200 ? 9.2 : cal >= 150 ? 7.6 : 4.6, td = tw * 0.82, th = cal >= 380 ? 3 : cal >= 150 ? 2.5 : 2.3;
@@ -708,21 +832,40 @@ function buildTurret(ship, t, i) {
   if (spec.modern) slab(grp, tw * 1.25, th * 1.05, td * 1.15, td * 0.5, tw * 0.55, spec.upper, -tw * 0.05, 0, 0, -tw * 0.2); // faceted stealth gun shield
   else { box(grp, tw, th, td, spec.upper, -tw * 0.1, 0, 0); box(grp, tw * 0.9, 0.22, td * 0.92, 0x5a6266, -tw * 0.1, th, 0); }
   if (cal >= 200) box(grp, 1.2, 0.9, td * 1.25, spec.upper, -tw * 0.45, th * 0.55, 0);
+  // Breech loader bay + twin roof hatches + rising brass/warhead projectile + rammer + status indicator
+  const bayY = th * (spec.modern ? 1.05 : 1.18), bayX = -tw * 0.16, bayL = tw * 0.52, bayW = Math.min(td * 0.38, 2.2);
+  const bayWell = new THREE.Mesh(new THREE.BoxGeometry(bayL, 0.16, bayW), LOADER_M.bay); bayWell.position.set(bayX, bayY - 0.04, 0); grp.add(bayWell);
+  const hGeoL = new THREE.BoxGeometry(bayL, 0.1, bayW * 0.52); hGeoL.translate(0, 0.05, bayW * 0.26);
+  const hGeoR = new THREE.BoxGeometry(bayL, 0.1, bayW * 0.52); hGeoR.translate(0, 0.05, -bayW * 0.26);
+  const hatchL = new THREE.Group(); hatchL.position.set(bayX, bayY, -bayW * 0.5); hatchL.add(new THREE.Mesh(hGeoL, mat(0x525a60))); grp.add(hatchL);
+  const hatchR = new THREE.Group(); hatchR.position.set(bayX, bayY, bayW * 0.5); hatchR.add(new THREE.Mesh(hGeoR, mat(0x525a60))); grp.add(hatchR);
+  const shellMesh = new THREE.Group(), shLen = clamp(tw * 0.34, 1.45, 3.6), shR = clamp(tw * 0.055, 0.22, 0.48);
+  const shCase = new THREE.Mesh(new THREE.CylinderGeometry(shR, shR, shLen * 0.62, 10), LOADER_M.brass); shCase.rotation.z = -PI / 2; shCase.position.x = -shLen * 0.18;
+  const shHead = new THREE.Mesh(new THREE.ConeGeometry(shR, shLen * 0.44, 10), LOADER_M.warhead); shHead.rotation.z = -PI / 2; shHead.position.x = shLen * 0.34;
+  shellMesh.add(shCase, shHead); shellMesh.position.set(-tw * 0.22, bayY + 0.24, 0); shellMesh.visible = false; grp.add(shellMesh);
+  const rammerMesh = new THREE.Mesh(new THREE.CylinderGeometry(shR * 0.36, shR * 0.36, shLen * 0.72, 8), LOADER_M.rammer);
+  rammerMesh.rotation.z = -PI / 2; rammerMesh.position.set(-tw * 0.46, bayY + 0.24, 0); rammerMesh.visible = false; grp.add(rammerMesh);
+  const statusLight = new THREE.Mesh(new THREE.SphereGeometry(clamp(tw * 0.032, 0.14, 0.26), 8, 6), LOADER_M.ready);
+  statusLight.position.set(tw * 0.08, bayY + 0.14, td * 0.2); grp.add(statusLight);
+
   const pivot = new THREE.Group(); pivot.position.set(tw * 0.38, th * 0.5, 0); grp.add(pivot);
   const r = (cal / 1000) * 0.95, spc = t.n === 1 ? 0 : tw * (t.n === 3 ? 0.27 : 0.3), bars = [];
   for (let b = 0; b < t.n; b++) {
     const zz = (b - (t.n - 1) / 2) * spc;
     const bar = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(r * 0.8, r * 1.25, g.len, 10), mat(0x474e52))); bar.rotation.z = -PI / 2; bar.position.set(g.len / 2, 0, zz); pivot.add(bar);
-    bars.push({ bar, rec: 0 });
+    const muzzle = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.06, r * 0.88, g.len * 0.08, 10), mat(0x3a4044)); muzzle.position.y = g.len * 0.45; bar.add(muzzle);
+    const sleeve = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(r * 1.48, r * 1.64, g.len * 0.28, 10), mat(0x5b6368))); sleeve.rotation.z = -PI / 2; sleeve.position.set(g.len * 0.14, 0, zz); pivot.add(sleeve);
+    bars.push({ bar, sleeve, rec: 0 });
     if (cal >= 150) { const bag = new THREE.Mesh(new THREE.CylinderGeometry(r * 1.6, r * 2.1, 1.6 + cal / 400, 10), mat(0xcbc4ae)); bag.rotation.z = -PI / 2; bag.position.set(0.9, 0, zz); pivot.add(bag); }
   }
   grp.rotation.y = -t.rest;
-  return { i, grp, pivot, bars, th, x: t.x, y: y + t.up + 1.2 + th * 0.5, rest: t.rest, n: t.n, spc, tw, d: 0, elev: 0, reload: 3 + i * 1.2 + rnd() * 2, alive: true, onTarget: false, inArc: true, range: 9000 };
+  return { i, grp, pivot, bars, hatchL, hatchR, shellMesh, rammerMesh, statusLight, bayY, th, x: t.x, y: y + t.up + 1.2 + th * 0.5, rest: t.rest, n: t.n, spc, tw, d: 0, elev: 0, open: 0, reload: 3 + i * 1.2 + rnd() * 2, alive: true, onTarget: false, inArc: true, range: 9000 };
 }
 
 // ── the ship ────────────────────────────────────────────────────────────────
 const ARC = 150 * DEG;
 export const TELE = [{ n: "후진 반속", f: -0.3 }, { n: "정지", f: 0 }, { n: "미속", f: 0.3 }, { n: "반속", f: 0.55 }, { n: "원속", f: 0.8 }, { n: "전속", f: 1 }];
+G.casings ||= [];
 let salvoSeq = 0; export const salvos = new Map();
 export class Ship {
   constructor(spec, x, z, heading, side, upg = {}) {
@@ -741,7 +884,11 @@ export class Ship {
     this.funnels = STYLE[spec.style](this.tilt, spec); dress(this.tilt, spec);
     this.body = this.tilt.children.slice();
     this.turrets = spec.turrets.map((t, i) => buildTurret(this, t, i)); this.name = spec.short;
-    this.torps = spec.torp ? spec.torp.mounts.map((x) => ({ x, reload: 6 + rnd() * 6 })) : [];
+    const tMounts = this.tilt.userData.torpMounts || [];
+    this.torps = spec.torp ? spec.torp.mounts.map((x, idx) => ({ x, reload: 6 + rnd() * 6, mount: tMounts[idx] || null, maxReload: spec.torp.reload })) : [];
+    this.vlsCells = this.tilt.userData.vlsCells || [];
+    this.canRacks = this.tilt.userData.canRacks || [];
+    this.pdMounts = this.tilt.userData.pdMounts || [];
     paint.color = null; paint.map = null;
     this.bridge = this.tilt.userData.bridge || [spec.L * 0.15, spec.fb + 8, 0];
     this.model = null; if (MODELS[spec.id]) applyModel(this);
@@ -783,18 +930,88 @@ export class Ship {
     }
     const ap = this.aimPoint();
     for (const t of this.turrets) {
-      if (!t.alive) { t.onTarget = false; continue; }
+      if (!t.alive) { t.onTarget = false; if (t.statusLight) t.statusLight.material = LOADER_M.busy; continue; }
       const tp = this.turretPos(t), dx = ap.x - tp.x, dz = ap.z - tp.z; t.range = Math.hypot(dx, dz);
       const d = wrap(wrap(Math.atan2(dz, dx) - this.heading) - t.rest); t.inArc = Math.abs(d) <= ARC;
       const want = clamp(d, -ARC, ARC); t.d += clamp(want - t.d, -this.trainRate * dt, this.trainRate * dt);
-      const we = solve(this.tb, t.range).elev; t.elev += clamp(we - t.elev, -this.elevRate * dt, this.elevRate * dt);
-      t.onTarget = t.inArc && Math.abs(want - t.d) < 0.012 && Math.abs(we - t.elev) < 0.006 && this.sinking === 0;
       const was = t.reload; t.reload = Math.max(0, was - dt);
+      const p = t.reload > 0 ? 1 - clamp(t.reload / Math.max(this.reloadT, 0.1), 0, 1) : 1;
+      const we = solve(this.tb, t.range).elev;
+      const wantEl = t.reload > 0 && p > 0.14 && p < 0.78 ? 0.105 : we;
+      t.elev += clamp(wantEl - t.elev, -this.elevRate * dt, this.elevRate * dt);
+      t.onTarget = t.inArc && Math.abs(want - t.d) < 0.012 && Math.abs(we - t.elev) < 0.006 && this.sinking === 0;
       if (this.isPlayer && was > 0 && t.reload === 0 && G.state === "playing" && !G.plane) sfx.ready();
-      if (t.bars) for (const br of t.bars) if (br.rec > 0) { br.rec = Math.max(0, br.rec - dt * 1.8); br.bar.position.x = this.gun.len / 2 - Math.sin(Math.pow(br.rec, 0.45) * PI) * (this.gun.cal / 406) * 1.35; }
+      if (t.bars) for (const br of t.bars) if (br.rec > 0) {
+        br.rec = Math.max(0, br.rec - dt * 1.8);
+        const rDist = Math.sin(Math.pow(br.rec, 0.45) * PI) * (this.gun.cal / 406) * 1.45;
+        br.bar.position.x = this.gun.len / 2 - rDist;
+        if (br.sleeve) br.sleeve.position.x = this.gun.len * 0.14 - rDist * 0.35;
+      }
+      if (t.hatchL) {
+        const wantOpen = t.reload > 0 && p > 0.1 && p < 0.88 ? 1 : 0;
+        t.open += (wantOpen - t.open) * Math.min(1, dt * 8);
+        t.hatchL.rotation.x = -t.open * 1.4; t.hatchR.rotation.x = t.open * 1.4;
+        t.statusLight.material = t.reload > 0 ? LOADER_M.busy : LOADER_M.ready;
+        if (t.reload > 0 && p >= 0.15 && p < 0.85) {
+          if (p < 0.5) {
+            const u = clamp((p - 0.15) / 0.35, 0, 1);
+            t.shellMesh.visible = true;
+            t.shellMesh.position.set(-t.tw * 0.24, t.bayY - 0.35 + u * 0.62, 0);
+            t.rammerMesh.visible = true; t.rammerMesh.position.set(-t.tw * 0.48, t.bayY + 0.27, 0);
+          } else {
+            const u = clamp((p - 0.5) / 0.35, 0, 1);
+            t.shellMesh.visible = u < 0.92;
+            t.shellMesh.position.set(-t.tw * 0.24 + u * t.tw * 0.48, t.bayY + 0.27, 0);
+            t.rammerMesh.visible = true; t.rammerMesh.position.set(-t.tw * 0.48 + u * t.tw * 0.34, t.bayY + 0.27, 0);
+          }
+        } else { t.shellMesh.visible = false; t.rammerMesh.visible = false; }
+      }
       t.grp.rotation.y = -(t.rest + t.d); t.pivot.rotation.z = t.elev;
     }
-    for (const m of this.torps) m.reload = Math.max(0, m.reload - dt);
+    for (const m of this.torps) {
+      m.reload = Math.max(0, m.reload - dt);
+      if (!m.mount) continue;
+      const rel = wrap(this.aimB - this.heading), sd = rel < 0 ? -1 : 1, wantAng = sd * clamp(Math.abs(rel), 50 * DEG, 130 * DEG);
+      m.mount.grp.rotation.y += clamp(wrap(-wantAng - m.mount.grp.rotation.y), -1.2 * dt, 1.2 * dt);
+      const win = (m.maxReload || 60) * 0.35, empty = m.reload > win;
+      for (const tip of m.mount.tips) {
+        if (empty) tip.visible = false;
+        else { tip.visible = true; const u = m.reload > 0 ? 1 - m.reload / win : 1; tip.position.x = m.mount.len * (-0.15 + 0.65 * clamp(u, 0, 1)) + 0.08; }
+      }
+    }
+    for (const cell of this.vlsCells) {
+      if (cell.state === "loaded") {
+        if (cell.open > 0) { cell.open = Math.max(0, cell.open - dt * 2.5); cell.lid.rotation.z = cell.open * 1.48; }
+        cell.msl.visible = false;
+        if (cell.glowA > 0) { cell.glowA = 0; cell.glow.visible = false; }
+        continue;
+      }
+      cell.t -= dt;
+      cell.open = Math.min(1, cell.open + dt * 6);
+      cell.lid.rotation.z = cell.open * 1.48;
+      if (cell.glowA > 0) { cell.glowA = Math.max(0, cell.glowA - dt * 0.7); cell.glow.visible = cell.glowA > 0.02; cell.glowMat.opacity = cell.glowA; }
+      if (cell.state === "firing" && cell.t < 5.6) cell.state = "reloading";
+      if (cell.state === "reloading") {
+        const u = clamp((5.6 - cell.t) / 4.4, 0, 1);
+        cell.msl.visible = u > 0.05 && u < 0.94;
+        if (cell.msl.visible) {
+          const lift = u < 0.45 ? u / 0.45 : u < 0.65 ? 1 : 1 - (u - 0.65) / 0.29;
+          cell.msl.position.y = cell.baseY + lift * 1.08;
+        }
+        if (cell.t <= 1.2) { cell.state = "loaded"; cell.msl.visible = false; }
+      }
+    }
+    for (const can of this.canRacks) {
+      if (can.state !== "reloading") continue;
+      can.t -= dt;
+      if (can.t < 5.5 && can.t >= 0.4) {
+        const u = clamp((5.5 - can.t) / 5.0, 0, 1);
+        can.msl.visible = true; can.msl.position.x = -3.4 + u * 4.08; can.cap.rotation.z = 1.25 * (1 - u * 0.7);
+      } else if (can.t < 0.4) { can.msl.visible = true; can.msl.position.x = 0.68; can.cap.rotation.z = 0.15; }
+      else { can.msl.visible = false; can.cap.rotation.z = 1.35; }
+      if (can.t <= 0) { can.state = "loaded"; can.msl.position.x = 0.68; can.cap.rotation.z = 0.15; }
+    }
+    for (const pd of this.pdMounts) for (const tip of pd.tips) if (tip.cd > 0) { tip.cd -= dt; if (tip.cd <= 0) { tip.cd = 0; tip.m.visible = true; } }
     for (let i = this.queue.length - 1; i >= 0; i--) { const q = this.queue[i]; q.delay -= dt; if (q.delay <= 0) { this.queue.splice(i, 1); if (q.t.alive && this.sinking === 0) launch(this, q); } }
     this.wakeT -= Math.abs(this.speed) * dt;
     if (this.wakeT <= 0 && Math.abs(this.speed) > 1) { this.wakeT = 10; const f = this.fwd; spawnWake(this.pos.x - f.x * sp.L * 0.47, this.pos.z - f.z * sp.L * 0.47, this.heading, sp.B); }
@@ -886,6 +1103,12 @@ function launch(ship, q) {
   const vel = new THREE.Vector3(f.x * Math.cos(el), Math.sin(el), f.z * Math.cos(el)).multiplyScalar(g.V0);
   const sh = new Shell(ship, pos, vel, q.salvo); sh.he = !!q.he; G.shells.push(sh);
   if (t.bars?.[q.b]) t.bars[q.b].rec = 1;
+  if (pos.distanceTo(camera.position) < 1600) {
+    const k = clamp(g.cal / 406, 0.38, 1.0), ej = new THREE.Vector3(tp.x - f.x * t.tw * 0.25 + perp.x * (zz + t.tw * 0.14), tp.y + t.th * 0.48, tp.z - f.z * t.tw * 0.25 + perp.z * (zz + t.tw * 0.14));
+    const cm = new THREE.Mesh(CASING_G, CASING_M); cm.scale.setScalar(0.55 + k * 0.85); cm.position.copy(ej); scene.add(cm);
+    G.casings.push({ m: cm, p: ej.clone(), v: new THREE.Vector3((ship.vel?.x || 0) - f.x * (5 + rnd() * 3) + perp.x * (5 + rnd() * 4), 7 + rnd() * 4.5, (ship.vel?.z || 0) - f.z * (5 + rnd() * 3) + perp.z * (5 + rnd() * 4)), rx: (rnd() - 0.5) * 14, rz: (rnd() - 0.5) * 16, t: 0, sp: false });
+    smoke.spawn({ x: ej.x, y: ej.y, z: ej.z, vy: 2.5, life: 1.4, s0: 1.1, s1: 3.4, a: 0.32, c: 0xd8d6d0 });
+  }
   muzzleFX(pos, f, el, g.cal, ship);
   if (ship.isPlayer) { G.stats.shots++; if (G.plane) { if (q.first) { const d = pos.distanceTo(camera.position); at(d, () => sfx.farGun(d, g.cal)); } } else sfx.gun(q.first ? g.cal : g.cal * 0.68); }
   else if (q.first) { const d = pos.distanceTo(camera.position); at(d, () => sfx.farGun(d, g.cal)); }
@@ -1000,8 +1223,14 @@ export function updateShells(dt) {
     if (done || s.t > 160) { s.dispose(); sh.splice(i, 1); continue; }
     s.draw();
   }
+  for (let i = G.casings.length - 1; i >= 0; i--) {
+    const c = G.casings[i]; c.t += dt; c.v.y -= GRAV * dt; c.p.addScaledVector(c.v, dt);
+    c.m.position.copy(c.p); c.m.rotation.x += c.rx * dt; c.m.rotation.z += c.rz * dt;
+    if (c.p.y <= 0 && !c.sp) { c.sp = true; spray.spawn({ x: c.p.x, y: 0.3, z: c.p.z, vy: 2.8, life: 0.45, s0: 0.6, s1: 1.8, a: 0.6, c: 0xeaf4f8 }); }
+    if (c.p.y < -0.6 || c.t > 3) { scene.remove(c.m); G.casings.splice(i, 1); }
+  }
 }
-export function clearShells() { for (const s of G.shells) s.dispose(); G.shells.length = 0; salvos.clear(); }
+export function clearShells() { for (const s of G.shells) s.dispose(); G.shells.length = 0; for (const c of G.casings) scene.remove(c.m); G.casings.length = 0; salvos.clear(); }
 
 // ── computer captains ───────────────────────────────────────────────────────
 export function leadPoint(from, tgt) {

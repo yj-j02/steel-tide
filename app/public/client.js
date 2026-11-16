@@ -1951,6 +1951,29 @@ function drawCommandHUD(mode) {
     if (!cam.map && (cam.dist < 5000 || mode === "watch")) txt(p.side === "us" ? p.callsign.replace("와일드캣 ", "WC-") : p.callsign, q.x + 9, q.y, c, "10px 'Noto Sans KR', sans-serif");
   }
   for (const k of markers) { if (k.t <= 0 || (effDist() > 7000 && !/폭탄/.test(k.text))) continue; const q = proj(k.pos); if (q && q.on) txt(k.text, q.x, q.y - 14, k.hit ? "#ff8a7a" : "#ffe066", "bold 11px 'Noto Sans KR', sans-serif", "center"); }
+  if (!cam.map && effDist() < 1900 && P.alive && !G.plane && mode !== "watch") {
+    P.tilt.updateWorldMatrix(true, false);
+    const drawCallout = (pos, label, pct, col) => {
+      const q = proj(pos); if (!q || !q.on) return;
+      rr(q.x - 56, q.y - 12, 112, 21, 3); hx.fillStyle = "rgba(12,18,22,.78)"; hx.fill(); hx.strokeStyle = col + "aa"; hx.lineWidth = 1; hx.stroke();
+      txt(label, q.x, q.y - 4, col, "bold 10px 'Noto Sans KR', sans-serif", "center");
+      hx.fillStyle = "rgba(255,255,255,.15)"; hx.fillRect(q.x - 48, q.y + 4, 96, 3);
+      hx.fillStyle = col; hx.fillRect(q.x - 48, q.y + 4, 96 * clamp(pct, 0, 1), 3);
+    };
+    for (const t of P.turrets) if (t.alive && t.reload > 0.08) {
+      const p = 1 - clamp(t.reload / Math.max(P.reloadT, 0.1), 0, 1);
+      const ph = p < 0.15 ? "탄피 배출·개방" : p < 0.5 ? "양탄기 급탄 상승" : p < 0.85 ? "유압 램 장전" : "폐쇄기 잠금";
+      drawCallout(P.turretPos(t).setY(t.y + t.th + 1.8), `#${t.i + 1}포 · ${ph}`, p, "#ffd166");
+    }
+    for (const fg of [true, false]) {
+      const c = P.vlsCells?.find((x) => x.state !== "loaded" && x.fore === fg);
+      if (c) drawCallout(P.tilt.localToWorld(new THREE.Vector3(c.cx, c.cy + 2.4, c.cz)), c.state === "firing" ? "VLS 해치 개방 · 사출" : "VLS 예비탄 수납", 1 - clamp(c.t / 7.5, 0, 1), "#7cc4ff");
+    }
+    for (const sd of [1, -1]) {
+      const can = P.canRacks?.find((x) => x.state === "reloading" && x.side === sd);
+      if (can) { can.rack.updateWorldMatrix(true, false); drawCallout(can.rack.localToWorld(new THREE.Vector3(0.8, 1.5, 0)), can.t > 5.5 ? "발사관 후폭풍 배출" : "대함미사일 장전", 1 - clamp(can.t / 8.0, 0, 1), "#3fc7b5"); }
+    }
+  }
   if (!P.alive || G.auto) return;
   // aim point
   if (!G.plane && mode !== "watch") {
