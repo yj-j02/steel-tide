@@ -260,7 +260,9 @@ let mission = "fleet"; try { const m = localStorage.getItem("steeltide:mission")
 // ── battle setup ────────────────────────────────────────────────────────────
 let endT = 0, show = null, showId = null, ap = mkBrain(9);
 const FLEETS = { 1: [1, 1], 2: [2, 1], 3: [3, 2, 1], 4: [4, 2, 1], 5: [5, 4, 2] };
-const STATIONS = [[0, 0], [650, 520], [650, -520], [1300, 0]];
+const STATIONS = [[0, 0], [650, 520], [650, -520], [1300, 0], [1300, 1040], [1300, -1040], [1950, 520], [1950, -520]];
+/** WWII enemy ships get refits one level below the player's ship (refits used to make only our side stronger; full parity was too hard because our AI allies have none). */
+const foeUpg = () => { if (G.modern || !G.player?.upg) return {}; const u = {}; for (const k of ECON_PARTS) u[k] = Math.max(0, (G.player.upg[k] || 0) - 1); return u; };
 const ALLY_POOL = ["fletcher", "cleveland", "fletcher", "baltimore"], ALLY_ST = [[450, -420], [700, 480], [-650, 0], [1200, -480]];
 const placeAt = (lx, lz, h, back, side) => [lx - Math.cos(h) * back + Math.sin(h) * side, lz - Math.sin(h) * back - Math.cos(h) * side];
 function disposeAll() {
@@ -274,8 +276,8 @@ function showcase(id) {
 const uniq = (list) => { for (const s of list) { const same = list.filter((o) => o.spec === s.spec); if (same.length > 1) s.name = `${s.spec.short} ${same.indexOf(s) + 1}`; } };
 /** An enemy squadron: first ship leads (brain), the rest keep station on it; optional carrier astern. */
 function foeGroup(tiers, cx, cz, h, withCarrier, free = false) {
-  const out = tiers.map((t, i) => { const [x, z] = placeAt(cx, cz, h, ...STATIONS[i]); const s = new Ship(ENEMIES[t], x, z, h, "foe"); s.station = STATIONS[i]; s.br = mkBrain(18 + i * 5); s.free = free && i === 0; return s; });
-  if (withCarrier) { const [x, z] = placeAt(cx, cz, h, 3400, 0); const c = new Ship(FOE_CARRIER, x, z, h, "foe"); c.br = mkBrain(30); c.isCarrier = true; out.push(c); G.foeCarrier = c; G.foeSquad = 8 + (SHIPS[profile.ship].tier >= 4 ? 1 : 0); G.foePlaneCD = 35; }
+  const out = tiers.map((t, i) => { const [x, z] = placeAt(cx, cz, h, ...STATIONS[i]); const s = new Ship(ENEMIES[t], x, z, h, "foe", foeUpg()); s.station = STATIONS[i]; s.br = mkBrain(18 + i * 5); s.free = free && i === 0; return s; });
+  if (withCarrier) { const [x, z] = placeAt(cx, cz, h, 3400, 0); const c = new Ship(FOE_CARRIER, x, z, h, "foe", foeUpg()); c.br = mkBrain(30); c.isCarrier = true; out.push(c); G.foeCarrier = c; G.foeSquad = 8 + (SHIPS[profile.ship].tier >= 4 ? 1 : 0); G.foePlaneCD = 35; }
   for (const s of out) s.group = out;
   G.enemies.push(...out); G.ships.push(...out); return out;
 }
@@ -333,7 +335,7 @@ function newBattle() {
     G.events.push({ t: 6, fn: wave(8) }, { t: 95, fn: wave(8 + (tier >= 3 ? 1 : 0)) },
       { t: 190, fn: () => { wave(9)(); const a = from + 0.9; foeGroup([Math.min(tier, 2), 1, 1], Math.cos(a) * 9400, Math.sin(a) * 9400, a + PI, false, true); log("적 수상 함대 접근!", "bad"); } });
   } else {
-    const fleet = FLEETS[tier], E = ENEMIES[fleet[0]];
+    const fleet = [...FLEETS[tier], 1], E = ENEMIES[fleet[0]]; /* one more destroyer than before; enemy refits now follow ours (foeUpg) */
     const b = (28 + rnd() * 30) * DEG * (rnd() < 0.5 ? -1 : 1), r = E.range[0] + rnd() * (E.range[1] - E.range[0]) + 3500, eh = wrap(PI + b + (rnd() - 0.5) * 1.2);
     foeGroup(fleet, Math.cos(b) * r * 0.67, Math.sin(b) * r * 0.67, eh, tier >= 3 || !!CS?.cv); aiFleets(tier, b);
     if (tier < 3) G.events.push({ t: 75, fn: () => { const a = b + (rnd() - 0.5) * 0.6; spawnRaid(Math.cos(a) * 15000, Math.sin(a) * 15000, a + PI, 8); log("적 육상기 편대 8기 접근! 대공 전투 배치", "bad"); G.radio("battle"); sfx.alarm(); } });
@@ -1903,7 +1905,7 @@ function drawModernHUD() {
   if (G.dryT != null && G.state === "playing") { const W0 = hud.width; panel(W0 / 2 - 170, 168, 340, 28); txt(`미사일 소진 · 포격전 판정까지 ${Math.max(0, Math.ceil(G.dryT))}초`, W0 / 2, 182, "#ffd166", "bold 12px 'Noto Sans KR', sans-serif", "center"); }
   const P = G.player, W = hud.width; hx.textBaseline = "middle";
   const th = MSL.list.filter((m) => m.alive && m.W.role === "asm" && m.side === "foe" && mSeen(m, "us"));
-  for (const m of MSL.list) { if (!m.alive) continue; const vis = m.side === "us" || mSeen(m, "us"); if (!vis) continue; const q = proj(m.pos); if (!q || !q.on) continue;
+  if (cam.map) for (const m of MSL.list) { if (!m.alive) continue; const vis = m.side === "us" || mSeen(m, "us"); if (!vis) continue; const q = proj(m.pos); if (!q || !q.on) continue; /* missile marks and labels only on the map (M): in the 3D view they hid the ships */
     if (m.side === "foe") { hx.strokeStyle = "#ff5a4e"; hx.lineWidth = 2; hx.beginPath(); hx.moveTo(q.x, q.y - 7); hx.lineTo(q.x + 7, q.y); hx.lineTo(q.x, q.y + 7); hx.lineTo(q.x - 7, q.y); hx.closePath(); hx.stroke(); txt(`${m.W.name || m.key} ${fmt(d2(m.pos, P.pos))}m`, q.x + 10, q.y, "#ff8a7a", "bold 10.5px 'Noto Sans KR', sans-serif"); }
     else { hx.fillStyle = m.W.role === "asm" ? "#ffffff" : "#7cc4ff"; hx.beginPath(); hx.arc(q.x, q.y, 2.5, 0, TAU); hx.fill(); } }
   { // situation panel, top-left: sensors, contacts, air
