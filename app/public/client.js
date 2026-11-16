@@ -1402,6 +1402,7 @@ $("#plot").addEventListener("contextmenu", (e) => e.preventDefault());
 canvas.addEventListener("mousedown", (e) => {
   mouseX = e.clientX; mouseY = e.clientY; initAudio();
   const st = { x: e.clientX, y: e.clientY, d: 0 };
+  if (e.button === 3 || e.button === 4) { e.preventDefault(); if (e.button === 3 && md.fly && G.state === "playing") flyFire(); return; } /* mouse back (side) button: air-to-air while flying a jet */
   altMod = e.altKey; if (e.button === 1) { mDown = st; e.preventDefault(); if (md.fly) md.lookHeld = true; /* jet: hold the wheel button to look around, same as Alt */ return; }
   if (e.button === 2) { rDown = st; if (md.fly && G.state === "playing" && !paused) flyFire(); return; }
   if (e.button !== 0) return; lDown = st;
@@ -1517,7 +1518,8 @@ $("#postOn").checked = post.on; $("#postOn").addEventListener("change", (e) => {
 $("#glassOn").addEventListener("change", (e) => { glassOn = e.target.checked; document.body.classList.toggle("noglass", !glassOn); try { localStorage.setItem("steeltide:glass", glassOn ? "1" : "0"); } catch {} });
 $("#sens").value = SENS; $("#sensV").textContent = SENS.toFixed(2);
 $("#sens").addEventListener("input", (e) => { SENS = +e.target.value; $("#sensV").textContent = SENS.toFixed(2); try { localStorage.setItem("steeltide:sens", String(SENS)); } catch {} });
-window.addEventListener("pointerdown", () => initAudio(), { once: true }); for (const ev of ["click", "keydown"]) window.addEventListener(ev, () => initAudio()); /* resume sound (and the music) if the browser kept it suspended */
+window.addEventListener("pointerdown", () => initAudio(), { once: true });
+for (const ev of ["mouseup", "auxclick"]) window.addEventListener(ev, (e) => { if ((e.button === 3 || e.button === 4) && G.state === "playing") e.preventDefault(); }); /* the mouse back/forward buttons must not leave the game page during a battle */ for (const ev of ["click", "keydown"]) window.addEventListener(ev, () => initAudio()); /* resume sound (and the music) if the browser kept it suspended */
 /** Flight lock-on: the nearest enemy fighter in front, else the enemy ship nearest the nose. */
 function flightTarget() {
   const pl = G.plane, cd = camera.getWorldDirection(new THREE.Vector3()); let best = null, s = Infinity;
@@ -1704,7 +1706,7 @@ function takeJet(pick) {
   if (!j) { sfx.deny(); toast("조종할 전투기 없음"); return; }
   md.fly = j; md.flyAuto = false; document.body.classList.add("jetfly"); j.pilot = true; j.home = false; j.pyaw = Math.atan2(j.vel.z, j.vel.x); j.ppitch = 0.12; j.thr = 240; lockPointer(); sfx.click();
   j.q = new THREE.Quaternion().setFromAxisAngle(QY, -j.pyaw).multiply(new THREE.Quaternion().setFromAxisAngle(QZ, j.ppitch)); j.gun ??= 480; j.flares ??= flaresOf(j.name); md.mdx = md.mdy = 0; md.lookYaw = md.lookPitch = 0;
-  toast(`${j.name} 조종 — W/S 기수 위·아래 · 마우스 휠 출력(속력) · A/D 롤 · 좌클릭 기관포 · Space 대함(2발씩) · B 공대공(록온 후) · T 표적 전환 · X 플레어 · K 자동 조종`, 6);
+  toast(`${j.name} 조종 — W/S 기수 위·아래 · 마우스 휠 출력(속력) · A/D 롤 · 좌클릭 기관포 · Space 대함(2발씩) · 마우스 뒤로가기 버튼(또는 B) 공대공(록온 후) · T 표적 전환 · X 플레어 · K 자동 조종`, 6);
 }
 function watchJet(j) {
   if (!j || !j.alive) return;
@@ -1772,7 +1774,7 @@ function drawFlyKeys(j) { // visual key legend while flying a jet (H hides it)
   const H = hud.height, auto = !!md.flyAuto, groups = auto
     ? [["자동 조종 중", [[["K"], "수동 조종"], [["N"], `임무: ${JR[j.role] || j.role}`], [["V"], "시점"], [["Tab"], "본함 복귀"], [["X"], "플레어", !j.flares]]]]
     : [["비행", [[["W", "S"], "기수 내림/올림", 0, ["KeyW", "KeyS"]], [["마우스"], "기수·방향 조종"], [["휠"], "출력(속력) +/−"], [["A", "D"], "롤", 0, ["KeyA", "KeyD"]], [["Q", "E"], "러더", 0, ["KeyQ", "KeyE"]]]],
-      ["무장", [[["클릭"], `기관포 ${Math.max(0, j.gun ?? 0)}`, !(j.gun > 0)], [["B"], `공대공 ${j.aam}${md.flyLock ? " · LOCK" : md.lockCand ? ` · 록온 ${Math.round(((md.lockT || 0) / LOCK_T) * 100)}%` : ""}`, !j.aam], [["T"], "록온 표적 전환"], [["Space"], `대함 ${j.asm} (2발씩)`, !j.asm], [["X"], `플레어·채프 ${j.flares ?? 0} (4발씩)`, !j.flares]]],
+      ["무장", [[["클릭"], `기관포 ${Math.max(0, j.gun ?? 0)}`, !(j.gun > 0)], [["뒤로", "B"], `공대공 ${j.aam}${md.flyLock ? " · LOCK" : md.lockCand ? ` · 록온 ${Math.round(((md.lockT || 0) / LOCK_T) * 100)}%` : ""}`, !j.aam], [["T"], "록온 표적 전환"], [["Space"], `대함 ${j.asm} (2발씩)`, !j.asm], [["X"], `플레어·채프 ${j.flares ?? 0} (4발씩)`, !j.flares]]],
       ["임무", [[["K"], "자동 조종"], [["N"], `임무: ${JR[j.role] || j.role}`], [["L"], "착함 (어디서나 · 20초 재무장)"], [["V"], "조종석/외부"], [["Alt"], "둘러보기"], [["Tab"], "본함 복귀 (I도 가능)"]]]];
   const rows = groups.reduce((n, g) => n + g[1].length + 1, 0), rh = H <= 760 ? 19 : 22, w = 244, h = rows * rh + 22, x = 12, y = H - h - (H <= 760 ? 14 : 86);
   panel(x, y, w, h); let yy = y + 12; txt("조종 키 (H 숨김)", x + w - 10, yy + 2, "#7f9aa8", "10px 'Noto Sans KR', sans-serif", "right");
@@ -1800,7 +1802,7 @@ function drawStores(j, x, y, w) {
   const pips = (cx, have, max, col) => { const bw = cw - 14, gap = max > 8 ? 2 : 4, pw = (bw - gap * (max - 1)) / max; for (let i = 0; i < max; i++) { hx.fillStyle = i < have ? col : dim; hx.fillRect(cx + i * (pw + gap), y + 14, pw, 14); } };
   const lvl = (fr) => (fr > 0.5 ? "#9be06a" : fr > 0.25 ? "#ffc857" : "#ff6b5e");
   const gun = Math.max(0, j.gun ?? 0); bar(head(0, "기관포", `${gun}`, gun ? "#dfe8ec" : "#ff6b5e"), gun / 480, "#dfe8ec");
-  const aamMax = Math.max(j.aam, j.side === "us" ? JET_US.aam : 10); pips(head(1, "공대공 B", `${j.aam}/${aamMax}`, j.aam ? "#8ef07a" : "#ff6b5e"), j.aam, aamMax, "#8ef07a");
+  const aamMax = Math.max(j.aam, j.side === "us" ? JET_US.aam : 10); pips(head(1, "공대공 뒤로", `${j.aam}/${aamMax}`, j.aam ? "#8ef07a" : "#ff6b5e"), j.aam, aamMax, "#8ef07a");
   const asmMax = Math.max(j.asm, j.side === "us" ? JET_US.asm : 2); pips(head(2, "대함 Space", `${j.asm}/${asmMax}`, j.asm ? "#ffd04d" : "#ff6b5e"), j.asm, asmMax, "#ffd04d");
   j.flaresMax = Math.max(j.flaresMax || 0, j.flares || 0, 1); const fl = j.flares || 0; bar(head(3, "플레어 X", `${fl}`, fl ? "#7cc4ff" : "#ff6b5e"), fl / j.flaresMax, "#7cc4ff");
   const tot = j.endur + 120, left = Math.max(0, tot - j.t), fr = left / tot; bar(head(4, "연료", `${Math.ceil(left)}초`, lvl(fr)), fr, lvl(fr));
@@ -1826,7 +1828,7 @@ function drawFlyHUD() {
   if (Math.abs(md.lookYaw || 0) > 0.05) txt(`둘러보기 (Alt) ${Math.round((md.lookYaw || 0) / DEG)}°`, W / 2, 140, "#cfe7ff", "12px 'Noto Sans KR', sans-serif", "center");
   const Cn = md.lockCand; if (Cn && !md.flyLock && !md.flyAuto) { const q = proj(Cn.pos); if (q && q.on) { const p = (md.lockT || 0) / LOCK_T; hx.strokeStyle = "#ffd23a"; hx.lineWidth = 2; hx.beginPath(); hx.moveTo(q.x, q.y - 18); hx.lineTo(q.x + 18, q.y); hx.lineTo(q.x, q.y + 18); hx.lineTo(q.x - 18, q.y); hx.closePath(); hx.stroke();
     hx.beginPath(); hx.arc(q.x, q.y, 24, -PI / 2, -PI / 2 + TAU * p); hx.stroke(); txt(`LOCKING ${Math.round(p * 100)}% · ${Cn.isJet ? Cn.name : Cn.W.name} ${(Cn.pos.distanceTo(md.fly.pos) / 1000).toFixed(1)} km`, q.x, q.y - 34, "#ffd23a", "bold 11px 'Noto Sans KR', sans-serif", "center"); } }
-  const T = md.flyLock; if (T) { const q = proj(T.pos); if (q && q.on) { txt("LOCKED — B 발사", q.x, q.y + 30, "#ff6b5e", "bold 11px 'Noto Sans KR', sans-serif", "center"); hx.strokeStyle = "#ff3b30"; hx.lineWidth = 2; hx.strokeRect(q.x - 14, q.y - 14, 28, 28); txt(`LOCK ${T.isJet ? T.name : T.W.name} ${(T.pos.distanceTo(j.pos) / 1000).toFixed(1)} km`, q.x, q.y - 24, "#ff6b5e", "bold 11px 'Noto Sans KR', sans-serif", "center"); } }
+  const T = md.flyLock; if (T) { const q = proj(T.pos); if (q && q.on) { txt("LOCKED — 뒤로가기 버튼 발사", q.x, q.y + 30, "#ff6b5e", "bold 11px 'Noto Sans KR', sans-serif", "center"); hx.strokeStyle = "#ff3b30"; hx.lineWidth = 2; hx.strokeRect(q.x - 14, q.y - 14, 28, 28); txt(`LOCK ${T.isJet ? T.name : T.W.name} ${(T.pos.distanceTo(j.pos) / 1000).toFixed(1)} km`, q.x, q.y - 24, "#ff6b5e", "bold 11px 'Noto Sans KR', sans-serif", "center"); } }
   const py = H - 88, sw = Math.min(760, W - 540);
   panel(W / 2 - sw / 2 - 10, py, sw + 20, 74);
   txt(`${j.name} · ${(j.vel.length() * 3.6).toFixed(0)} km/h · 고도 ${j.pos.y.toFixed(0)} m`, W / 2, py + 13, "#fff", "bold 12px 'Noto Sans KR', sans-serif", "center");
