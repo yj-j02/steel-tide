@@ -9,7 +9,7 @@ import { A, initAudio, setMuted, setVolume, sfx, updateAudio, radio, bgm, setBgm
 import { OPS, isModernOp, opsInit, opsStep, opsClear, opsCheck, opsMarks, opsShellLand, aswRocket, nearestSubContact, O as OPSO, opsDebug, opsStatus, jamDrones } from "./js/ops.js";
 import { cicStart, cicStop, cicStep, cicToggle, cicExpand, cicPending, cicResolve, cicUsed, cicWcs, cicSetWcs, cicFeedInfo } from "./js/cic.js";
 import { post, renderFrame, renderPiP } from "./js/post.js";
-import { M as MSL, WPN, launch as mLaunch, JET_US, stepMissiles, defend, decoy as mDecoy, pickSam, seen as mSeen, clearMissiles, arm as mArm, SENS as SR, jetFlare, jetGun, killMissile, launchHelo as mHelo, stepHelos, launchJet, stepJets, stepFlares, flaresOf } from "./js/modern.js";
+import { M as MSL, WPN, launch as mLaunch, JET_US, setTrails, stepMissiles, defend, decoy as mDecoy, pickSam, seen as mSeen, clearMissiles, arm as mArm, SENS as SR, jetFlare, jetGun, killMissile, launchHelo as mHelo, stepHelos, launchJet, stepJets, stepFlares, flaresOf } from "./js/modern.js";
 import { landAt, setWeather, setMapLook } from "./js/core.js";
 import { MODERN, GUNS, SHIPS, CARRIER, ENEMIES, TRANSPORT, FOE_CARRIER, TELE, Ship, table, solve, leadPoint, brain, escort, mkBrain, updateShells, clearShells, paintName, loadModels, MODEL_CFG, RELOAD_K, fireTorps, updateTorps, clearTorps, intercept, torpMount, TORP_SPREAD, torpPath, tubeBearing, hitFX } from "./js/ships.js";
 import { air, autopilot as planeAuto, aimDir, dirFrom, launchPlane, recallPlane, autopilot, takeControl, clearAir, updateAir, predictBomb, gunLead, spawnRaid, MODE_NAMES, ROLE_NAMES } from "./js/air.js";
@@ -181,6 +181,7 @@ function kFinish(won) {
 let campSel = null, campProg = 0; try { campProg = Math.min(CAMP.length, +localStorage.getItem("steeltide:camp") || 0); } catch {}
 let todSel = "day", wxSel = "clear"; try { todSel = localStorage.getItem("steeltide:tod") === "night" ? "night" : "day"; wxSel = localStorage.getItem("steeltide:wx") === "storm" ? "storm" : "clear"; } catch {}
 let killcamOn = true; try { killcamOn = localStorage.getItem("steeltide:killcam") !== "0"; } catch {}
+let trailsOn = true; try { trailsOn = localStorage.getItem("steeltide:trails") !== "0"; } catch {} setTrails(trailsOn); /* missile trail lines, settings checkbox */
 let formI = 0;
 let theater = "arch"; try { const m = localStorage.getItem("steeltide:map"); if (MAPS[m]) theater = m; } catch {}
 // ── commander (사령관): name + one of four portraits, kept in this browser ──
@@ -2125,6 +2126,7 @@ function setKey(def, code) {
   for (const k of Object.keys(keyBind)) if (keyBind[k] === k) delete keyBind[k];
   try { localStorage.setItem("steeltide:keys", JSON.stringify(keyBind)); } catch {} buildKeyPhys(); renderKeys();
 }
+$("#trailsOn") && ($("#trailsOn").checked = trailsOn); $("#trailsOn")?.addEventListener("change", (e) => { trailsOn = e.target.checked; setTrails(trailsOn); try { localStorage.setItem("steeltide:trails", trailsOn ? "1" : "0"); } catch {} });
 $("#killcamOn").checked = killcamOn; $("#killcamOn").addEventListener("change", (e) => { killcamOn = e.target.checked; try { localStorage.setItem("steeltide:killcam", killcamOn ? "1" : "0"); } catch {} });
 $("#keysBtn").addEventListener("click", () => { $("#keysM").style.display = "grid"; renderKeys(); });
 $("#keysM").addEventListener("click", (e) => {

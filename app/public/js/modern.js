@@ -50,7 +50,8 @@ export const flaresOf = (type) => FLARES[type] ?? 40;
 export const SENS = { surf: 13000, esm: 28000, vis: 7000, helo: 12000, eo: 4000, seek: 9000 };
 const TR_MAX = 1400, trGeo = new THREE.BufferGeometry();
 trGeo.setAttribute("position", new THREE.BufferAttribute(new Float32Array(TR_MAX * 6), 3)); trGeo.setAttribute("color", new THREE.BufferAttribute(new Float32Array(TR_MAX * 6), 3)); trGeo.setDrawRange(0, 0);
-{ const l = new THREE.LineSegments(trGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.7, depthWrite: false })); l.frustumCulled = false; scene.add(l); }
+let trLine = null; { const l = new THREE.LineSegments(trGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.7, depthWrite: false })); l.frustumCulled = false; scene.add(l); trLine = l; }
+export function setTrails(on) { if (trLine) trLine.visible = !!on; } // missile trail lines on/off (settings)
 const BODY = new THREE.CylinderGeometry(0.22, 0.22, 4.6, 10); BODY.rotateZ(-PI / 2);
 const NOSE = new THREE.ConeGeometry(0.22, 0.95, 10); NOSE.rotateZ(-PI / 2); NOSE.translate(2.76, 0, 0);
 const SEEKER = new THREE.ConeGeometry(0.11, 0.34, 8); SEEKER.rotateZ(-PI / 2); SEEKER.translate(3.08, 0, 0);
