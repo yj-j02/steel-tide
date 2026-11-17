@@ -3,11 +3,11 @@
  * ACES filmic tone mapping and a light grade + vignette. Toggle in settings; off = the old direct render.
  */
 import { THREE, renderer, scene, camera, ovScene, ovCam, U, sky, sea, seaPatch } from "./core.js";
-import { EffectComposer } from "/vendor/addons/postprocessing/EffectComposer.js";
-import { RenderPass } from "/vendor/addons/postprocessing/RenderPass.js";
-import { ShaderPass } from "/vendor/addons/postprocessing/ShaderPass.js";
-import { UnrealBloomPass } from "/vendor/addons/postprocessing/UnrealBloomPass.js";
-import { OutputPass } from "/vendor/addons/postprocessing/OutputPass.js";
+import { EffectComposer } from "../vendor/addons/postprocessing/EffectComposer.js";
+import { RenderPass } from "../vendor/addons/postprocessing/RenderPass.js";
+import { ShaderPass } from "../vendor/addons/postprocessing/ShaderPass.js";
+import { UnrealBloomPass } from "../vendor/addons/postprocessing/UnrealBloomPass.js";
+import { OutputPass } from "../vendor/addons/postprocessing/OutputPass.js";
 
 const rt = new THREE.WebGLRenderTarget(1, 1, { type: THREE.HalfFloatType, samples: 4 });
 const composer = new EffectComposer(renderer, rt);

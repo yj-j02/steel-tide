@@ -47,8 +47,8 @@ export function initAudio() {
   const crest = loopNoise(A.noise, "bandpass", 700, 0.6, 0.018); lfo(crest.gain, 0.17, 0.012); lfo(crest.gain, 0.053, 0.008);
   const wind = loopNoise(A.noise, "bandpass", 1700, 1.1, 0.008); lfo(wind.gain, 0.04, 0.005);
   A.amb = { swell, crest, wind, hull: loopNoise(A.noise, "bandpass", 420, 0.8, 0), rush: loopNoise(A.noise, "bandpass", 900, 0.7, 0) };
-  for (const f of FILES) fetch(`/sfx/${f}.mp3`).then((r) => r.arrayBuffer()).then((x) => c.decodeAudioData(x)).then((buf) => { A.buf[f] = buf; }).catch(() => {});
-  for (const k of RADIO_KEYS) fetch(`/sfx/radio/${k}.mp3`).then((r) => r.arrayBuffer()).then((x) => c.decodeAudioData(x)).then((buf) => { A.radio[k] = buf; }).catch(() => {});
+  for (const f of FILES) fetch(`sfx/${f}.mp3`).then((r) => r.arrayBuffer()).then((x) => c.decodeAudioData(x)).then((buf) => { A.buf[f] = buf; }).catch(() => {});
+  for (const k of RADIO_KEYS) fetch(`sfx/radio/${k}.mp3`).then((r) => r.arrayBuffer()).then((x) => c.decodeAudioData(x)).then((buf) => { A.radio[k] = buf; }).catch(() => {});
   // radio voice chain: 300–3000 Hz band-pass + soft clipping
   const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 300; hp.Q.value = 0.8;
   const lp2 = c.createBiquadFilter(); lp2.type = "lowpass"; lp2.frequency.value = 3000; lp2.Q.value = 0.8;
@@ -431,6 +431,6 @@ function syncBgm() {
   if (A.bgmEl && A.bgmEl.dataset.k === want) { A.bgmEl.play().catch(() => {}); return; }
   if (A.bgmEl) { A.bgmEl.pause(); A.bgmEl = null; }
   if (!want) return;
-  const el = new Audio(`/sfx/bgm_${want}.mp3`); el.loop = true; el.dataset.k = want;
+  const el = new Audio(`sfx/bgm_${want}.mp3`); el.loop = true; el.dataset.k = want;
   A.ctx.createMediaElementSource(el).connect(A.bgmGain); el.play().catch(() => {}); A.bgmEl = el;
 }

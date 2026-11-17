@@ -3,7 +3,7 @@
  * eroded volcanic islands, smooth sloped beaches & sunken caldera coves,
  * per-island rainforest canopy & coastal coconut palms, and a seaside airfield + jetty.
  */
-import * as THREE from "/vendor/three.module.min.js";
+import * as THREE from "../vendor/three.module.min.js";
 
 function mulberry32(a) {
   return () => {

@@ -2,7 +2,7 @@
  * Steel Tide — shared core: math, shared game state, renderer, sky, sea,
  * islands, particle/decal systems and small mesh helpers.
  */
-import * as THREE from "/vendor/three.module.min.js";
+import * as THREE from "../vendor/three.module.min.js";
 import { buildSouthPacific } from "./terrain.js";
 export { THREE };
 

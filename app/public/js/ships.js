@@ -7,7 +7,7 @@ import { landAt } from "./core.js";
 import { THREE, PI, TAU, DEG, KN, GRAV, clamp, wrap, fmt, rnd, gauss, G, scene, camera, mat, box, cyl, shadowed, lines, planeMesh, setPlaneModel, WEAR, paint, SCHEMES, hullTexture, upperTexture, deckTexture, textTex,
   smoke, flash, spray, spark, rings, spawnSplash, spawnWake } from "./core.js";
 import { A, sfx, at } from "./audio.js";
-import { GLTFLoader } from "/vendor/addons/loaders/GLTFLoader.js";
+import { GLTFLoader } from "../vendor/addons/loaders/GLTFLoader.js";
 
 // ── guns + exterior ballistics (quadratic drag, k = ρ·Cd·A / 2m) ────────────
 export const GUNS = {
@@ -136,7 +136,7 @@ export const paintName = (sp) => SCHEMES[sp.paint].name;
 /** Per-ship GLB: scale into metres (bow +X, waterline at y=0), the boxes cut out where the
  *  model's fixed turrets were (the game's own trainable turrets go there), funnels and bridge. */
 export const MODEL_CFG = {
-  colorado: { url: "/models/colorado.glb", sx: 193, sy: 170, sz: 172, wl: -0.135,
+  colorado: { url: "models/colorado.glb", sx: 193, sy: 170, sz: 172, wl: -0.135,
     cut: [[51, 85, 8.5, 6.6, 13.5], [39.5, 62, 8.5, 8.3, 15], [-62, -39, 8.5, 8.0, 15], [-85, -52, 8.5, 6.6, 13]],
     funnels: [[-5, 32, 0], [5, 32, 0]], bridge: [36.5, 15.5, 0] },
 };
@@ -144,7 +144,7 @@ const MODELS = {}; export const modelState = { loading: 0, ready: 0 };
 export function loadModels() {
   const loader = new GLTFLoader();
   // F4F (Higgsfield 3D): cut away the lowered landing gear and the fixed prop blades; a spinning prop is added in core.hqPlane
-  loader.load("/models/f4f.glb", (gltf) => {
+  loader.load("models/f4f.glb", (gltf) => {
     const grp = new THREE.Group(); gltf.scene.updateMatrixWorld(true);
     gltf.scene.traverse((o) => {
       if (!o.isMesh) return;
