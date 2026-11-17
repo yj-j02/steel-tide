@@ -68,3 +68,26 @@ export function payStep(xp, g, XP) {
   const n = g <= 2 ? 2 : g <= 5 ? 3 : 4, f = (xp - XP[g]) / (XP[g + 1] - XP[g]);
   return { step: Math.min(n, 1 + Math.floor(f * n)), max: n };
 }
+
+/** Decorations: names of Korean military decorations, ribbon colours are the game's own (not official patterns). */
+export const MEDALS = {
+  commend: { n: "국방부장관 표창", d: "첫 승리", rb: ["#1d4e9e", "#ffffff", "#1d4e9e"] },
+  service: { n: "보국포장", d: "누적 10승", rb: ["#2a6e3f", "#e8d35a", "#2a6e3f"] },
+  inheon: { n: "인헌무공훈장", d: "한 전투에서 적함 3척 이상 격침", rb: ["#c8202c", "#ffffff", "#2a6e3f", "#ffffff", "#c8202c"] },
+  hwarang: { n: "화랑무공훈장", d: "선체 50% 이하에서 역전승", rb: ["#7a1f2b", "#e8d35a", "#7a1f2b"] },
+  chungmu: { n: "충무무공훈장", d: "선체 손상 없이 승리", rb: ["#0d3b66", "#e8d35a", "#ffffff", "#e8d35a", "#0d3b66"] },
+  samil: { n: "보국훈장 삼일장", d: "영관(소령) 진급", rb: ["#5a3d8a", "#ffffff", "#5a3d8a"] },
+  cheonsu: { n: "보국훈장 천수장", d: "대령 진급", rb: ["#5a3d8a", "#e8d35a", "#5a3d8a"] },
+  eulji: { n: "을지무공훈장", d: "장성(준장) 진급", rb: ["#c8202c", "#e8d35a", "#c8202c", "#e8d35a", "#c8202c"] },
+  taeguk: { n: "태극무공훈장", d: "원수 진급", rb: ["#c8202c", "#1d4e9e", "#ffffff", "#1d4e9e", "#c8202c"] },
+  modern: { n: "현대전 참전기장", d: "현대전 첫 출격", rb: ["#3a7ca5", "#ffffff", "#3a7ca5"] },
+  pacific: { n: "태평양 전역 참전기장", d: "2차대전 첫 출격", rb: ["#b38b2e", "#ffffff", "#b38b2e"] },
+};
+/** Award what this battle (and promotion) earned; returns the new medal keys. */
+export function awardMedals(o) {
+  career.medals ||= {}; const got = [], give = (k) => { if (!career.medals[k]) { career.medals[k] = new Date().toISOString().slice(0, 10); got.push(k); } };
+  give(o.modern ? "modern" : "pacific");
+  if (o.won) { give("commend"); if (o.wins >= 10) give("service"); if (o.sunk >= 3) give("inheon"); if (o.lowHp) give("hwarang"); if (o.hp >= 0.995) give("chungmu"); }
+  if (o.grade >= 3) give("samil"); if (o.grade >= 5) give("cheonsu"); if (o.grade >= 6) give("eulji"); if (o.grade >= 10) give("taeguk");
+  if (got.length) saveCareer(); return got;
+}

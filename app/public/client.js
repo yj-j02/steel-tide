@@ -16,7 +16,7 @@ import { air, autopilot as planeAuto, aimDir, dirFrom, launchPlane, recallPlane,
 import { cockpit, updateCockpit, aaGun, updateAAGun, jetPit, updateJetPit } from "./js/interior.js";
 import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, updateMG } from "./js/infantry.js";
 import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, ROLE_UNLOCK, FLEET_CDR, BRANCHES, careerTitle, setBranch, POST_RANK, holds, saveStaff } from "./js/staff.js";
-import { PERKS, career, saveCareer, careerInit, rollPerks, takePerk, logPromotion, perkMods, payStep, shipsFor } from "./js/career.js";
+import { PERKS, career, saveCareer, careerInit, rollPerks, takePerk, logPromotion, perkMods, payStep, shipsFor, MEDALS, awardMedals } from "./js/career.js";
 import { ECON_SHIPS, ECON_RANKS, ECON_RANK_XP, econRank, ECON_PARTS, ECON_MAX_LV, econPartCost, econNewProfile, econReward, econCheck, econApply } from "./js/shop.js";
 
 // ── profile + room connection ───────────────────────────────────────────────
@@ -117,7 +117,15 @@ function assignCaptains() {
   let u = 0, j = 0; const us = US_NAMES.slice().sort(() => rnd() - 0.5), jp = JP_NAMES.slice().sort(() => rnd() - 0.5);
   for (const s of G.ships) s.captain = `${s.isPlayer ? FLAG_CAPTAIN[s.spec.id] : s.side === "foe" ? jp[j++ % jp.length] : us[u++ % us.length]} ${captainOf(s.spec, s.side)}`;
 }
-function insignia(r, size = 24) { /* 소위 gold bar, 중위 silver bar, 대위 two silver bars; 소령 and up below */
+const starPath = (cx, cy, R) => { let d = ""; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? R * 0.42 : R; d += `${i ? "L" : "M"}${(cx + Math.cos(a) * rr).toFixed(1)} ${(cy + Math.sin(a) * rr).toFixed(1)}`; } return d + "Z"; };
+/** 원수: five stars in a ring over a small wreath (not five in a row). */
+function marshalBadge(size, fill = "#d9dde0", wreath = "#d9dde0") {
+  const st = [0, 1, 2, 3, 4].map((i) => { const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5; return `<path d="${starPath(30 + Math.cos(a) * 17, 27 + Math.sin(a) * 17, 9)}" fill="${fill}" stroke="#7d8287" stroke-width=".6"/>`; }).join("");
+  const wr = [-1, 1].map((s) => [0, 1, 2].map((i) => `<ellipse cx="${30 + s * (6 + i * 4)}" cy="${55 - i * 3.5}" rx="2.4" ry="4.2" transform="rotate(${s * (30 + i * 18)} ${30 + s * (6 + i * 4)} ${55 - i * 3.5})" fill="${wreath}"/>`).join("")).join("") + `<circle cx="30" cy="55" r="3" fill="${wreath}"/>`;
+  return `<svg role="img" aria-label="원수 계급장" width="${size * 1.25}" height="${size * 1.25}" viewBox="0 0 60 62">${st}${wr}</svg>`;
+}
+function insignia(r, size = 24) { /* 소위 gold bar, 중위 silver bar, 대위 two silver bars; 소령 and up below; 원수 a ring of five */
+  if (r >= 10) return marshalBadge(size);
   if (r >= 3) return insigniaField(r - 3, size);
   const bars = r === 2 ? 2 : 1, c = r === 0 ? "#d4a93a" : "#d9dde0";
   return `<svg role="img" aria-label="${ECON_RANKS[r]} 계급장" width="${size}" height="${size}" viewBox="0 0 34 34">${Array.from({ length: bars }, (_, k) => `<rect x="${bars === 2 ? 7 + k * 12 : 13}" y="5" width="8" height="24" rx="1" fill="${c}"/>`).join("")}</svg>`;
@@ -205,14 +213,14 @@ let faceN = 0;
 function face(i, s = 64) {
   const f = (typeof i === "object" ? i : CMDR_FACES[i]) || CMDR_FACES[0], u = `fc${typeof i === "object" ? "s" : i}_${faceN++}`, [sk, sh, dk] = f.skin, j = f.jaw;
   const jx = 50 - 17 * j, jx2 = 50 + 17 * j;
-  let o = `<svg role="img" aria-label="${f.n} 초상" width="${s}" height="${s}" viewBox="${f.zoom ? "16 8 68 68" : "0 0 100 100"}"><defs>`
+  let o = `<svg role="img" aria-label="${f.n} 초상" width="${s}" height="${s}"${f.bare ? ' overflow="visible"' : ""} viewBox="${f.zoom ? "16 8 68 68" : "0 0 100 100"}"><defs>`
     + `<radialGradient id="${u}b" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="${f.bg}"/><stop offset="1" stop-color="#0d1114"/></radialGradient>`
     + `<radialGradient id="${u}s" cx=".38" cy=".38" r=".75"><stop offset="0" stop-color="${sk}"/><stop offset=".7" stop-color="${sh}"/><stop offset="1" stop-color="${dk}"/></radialGradient>`
     + `<linearGradient id="${u}u" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1c2638"/><stop offset="1" stop-color="#0b0f18"/></linearGradient>`
     + `<linearGradient id="${u}c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#c9ccc8"/></linearGradient>`
-    + `</defs><rect width="100" height="100" rx="6" fill="url(#${u}b)"/>`;
+    + `</defs>${f.bare ? "" : `<rect width="100" height="100" rx="6" fill="url(#${u}b)"/>`}`;
   // shoulders: service dress blue, white shirt, black tie, ribbons
-  o += `<path d="M6 100 C8 82 20 75 34 72 L50 80 L66 72 C80 75 92 82 94 100Z" fill="url(#${u}u)"/>`
+  if (!f.bare) o += `<path d="M6 100 C8 82 20 75 34 72 L50 80 L66 72 C80 75 92 82 94 100Z" fill="url(#${u}u)"/>`
     + `<path d="M40 70 L50 86 L60 70 L56 68 L50 76 L44 68Z" fill="#f1f1ee"/><path d="M48 76 L50 74 L52 76 L51.5 92 L50 95 L48.5 92Z" fill="#111"/>`
     + `<path d="M34 72 L46 90 L44 100 M66 72 L54 90 L56 100" stroke="#05080d" stroke-width="1.2" fill="none"/>`
     + `<g transform="translate(60 84)"><rect width="5" height="2.6" fill="#b03a2e"/><rect x="5" width="5" height="2.6" fill="#2a5aa0"/><rect x="10" width="5" height="2.6" fill="#d8b23a"/><rect y="2.8" width="5" height="2.6" fill="#3b7a3e"/><rect x="5" y="2.8" width="5" height="2.6" fill="#c9c9c9"/><rect x="10" y="2.8" width="5" height="2.6" fill="#8a1f1f"/></g>`
@@ -362,7 +370,7 @@ function newBattle() {
   if (hqGrade() >= 6 && G.player) try { addMastFlag(G.player, hqGrade() - 5); } catch (e) { console.warn("flag", e); }
   if (G.perkK.hpK !== 1) for (const s of G.ships) if (s.side === "us") { s.maxHp *= G.perkK.hpK; s.hp = s.maxHp; } /* 선체 격벽 */
   uniq(G.enemies.filter((e) => !e.isCarrier)); assignCaptains(); if (modern) for (const s of G.ships) if (s.nation) { const N = NATIONS[s.nation]; s.captain = `${N.names[(rnd() * N.names.length) | 0]} ${N.rk}`; }
-  G.squad = fightersFor(rk); G.refit = []; G.planeCD = 0; G.sortieRes = 0; G.stats = { shots: 0, hits: 0, bullets: 0, bombs: 0, dealt: 0, planes: 0, torpHits: 0 };
+  G.squad = fightersFor(rk); G.refit = []; G.planeCD = 0; G.sortieRes = 0; G.minHp = 1; G.stats = { shots: 0, hits: 0, bullets: 0, bombs: 0, dealt: 0, planes: 0, torpHits: 0 };
   capReset(); weapon = G.modern ? "msl" : "gun"; aa.on = false; aa.shots = 0; aa.heat = 0; gunner.kills = 0; autoFire = false; cinema = false; document.body.classList.remove("cinema"); hullWarned = false; torpThreat = 0; paused = false; fireHold = 0; fc.tgt = null; corrR = corrB = 0; ribbons.length = 0; rep.cd = rep.act = 0; rep.n = (G.staffK ? G.staffK.repairN : 3) + (G.perkK?.repairN || 0); G.battleT = 0; endT = 0;
   P.aimB = 0; P.aimR = Math.min(P.tb.max * 0.6, 12000); torpB = PI / 2;
   cam.yaw = 0; cam.pitch = 0.95; cam.dist = 1300; cam.map = false; cam.free = false; cam.tgt = null; cam.focus.copy(P.pos); hintT = 22;
@@ -613,6 +621,8 @@ function finish() {
       setTimeout(() => { if (G.state !== "ended") return; $("#promoM").style.display = "flex"; sfx.bell(); }, 2600);
       if (handover) log(`지휘권 이양 — ${ECON_RANKS[after]} ${cmdr.name} 함대사령관 부임`, "hit"); }
     else $("#endPromo").innerHTML = `<span class="k">RANK</span><div class="ib new">${insignia(after, 64)}</div><div class="big" style="font-size:30px">${ECON_RANKS[after]}</div><div class="sub">${postOf(after)}<br>${rl.next ? `${rl.next}까지 ${fmt(rl.need - profile.xp)} XP` : "최고 계급"}</div><div class="rk"><div class="hbar"><i style="width:${rl.pct * 100}%;background:var(--gold)"></i></div></div>`;
+    const P0 = G.player, got = awardMedals({ won, modern: !!G.modern, wins: profile.wins, sunk: G.enemies.filter((e) => !e.alive).length, hp: P0 ? P0.hp / P0.maxHp : 0, lowHp: (G.minHp ?? 1) <= 0.5, grade: after });
+    if (got.length) { html += `<span>훈장 수여</span><span style="color:var(--gold)">${got.map((k) => MEDALS[k].n).join(" · ")}</span>`; toast(`훈장 수여 — ${got.map((k) => MEDALS[k].n).join(" · ")}`, 4); }
   } else html += `<span>관전 모드</span><span>보상 없음</span>`;
   $("#endStats").innerHTML = html; $("#end").style.display = "grid"; bgm("menu");
 }
@@ -713,7 +723,7 @@ function flagCanvas(n) {
   const cv = document.createElement("canvas"); cv.width = 256; cv.height = 170; const x = cv.getContext("2d");
   x.fillStyle = "#cf1f2b"; x.fillRect(0, 0, 256, 170); x.fillStyle = "#fff";
   const star = (cx, cy, r) => { x.beginPath(); for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? r * 0.42 : r; x.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr); } x.closePath(); x.fill(); };
-  for (let i = 0; i < n; i++) star((256 / (n + 1)) * (i + 1), 52, 24);
+  for (let i = 0; i < n; i++) { if (n === 5) { const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5; star(128 + Math.cos(a) * 30, 56 + Math.sin(a) * 30, 13); } else star((256 / (n + 1)) * (i + 1), 52, 24); }
   for (const s of [-1, 1]) for (let i = 0; i < 5; i++) { const t = i / 4, cx = 128 + s * (18 + 34 * Math.sin(t * 1.4)), cy = 150 - 48 * t; x.save(); x.translate(cx, cy); x.rotate(s * (0.9 - t * 1.1)); x.beginPath(); x.ellipse(0, -9, 6, 11, 0, 0, Math.PI * 2); x.fill(); x.restore(); }
   for (let i = 0; i < 5; i++) { const a = (i / 5) * Math.PI * 2; x.beginPath(); x.ellipse(128 + Math.cos(a) * 8, 140 + Math.sin(a) * 8, 7, 7, 0, 0, Math.PI * 2); x.fill(); }
   const tx = new THREE.CanvasTexture(cv); tx.colorSpace = THREE.SRGBColorSpace; return tx;
@@ -749,7 +759,8 @@ function renderPerkPick(sel, g) {
 }
 function flagHTML(g, before) { /* 장성기: red field, stars above a white wreath; the cloth waves in vertical slices, the new star flies in */
   const n = g - 5, old = Math.max(0, before - 5), W = 240, H = 160, gap = W / (n + 1), N = 40, sw = W / N;
-  const stars = Array.from({ length: n }, (_, i) => `<path class="${i >= old ? "nst" : ""}" style="animation-delay:${1.0 + (i - old) * 0.35}s" transform="translate(${gap * (i + 1)} 48) scale(1.15)" d="M0 -22 L6.5 -6.5 L23 -6.5 L10 3.5 L14.5 20 L0 10 L-14.5 20 L-10 3.5 L-23 -6.5 L-6.5 -6.5Z" fill="#fff"/>`).join("");
+  const spot = (i) => n === 5 ? [W / 2 + Math.cos(-Math.PI / 2 + (i * 2 * Math.PI) / 5) * 30, 50 + Math.sin(-Math.PI / 2 + (i * 2 * Math.PI) / 5) * 30] : [gap * (i + 1), 48];
+  const stars = Array.from({ length: n }, (_, i) => `<path class="${i >= old ? "nst" : ""}" style="animation-delay:${1.0 + (i - old) * 0.35}s" transform="translate(${spot(i)[0]} ${spot(i)[1]}) scale(${n === 5 ? 0.62 : 1.15})" d="M0 -22 L6.5 -6.5 L23 -6.5 L10 3.5 L14.5 20 L0 10 L-14.5 20 L-10 3.5 L-23 -6.5 L-6.5 -6.5Z" fill="#fff"/>`).join("");
   const leaf = (x, y, r) => `<path transform="translate(${x} ${y}) rotate(${r}) scale(1.35)" d="M0 0 C7 -5 7 -14 0 -21 C-7 -14 -7 -5 0 0Z M0 -2 L0 -17 M0 -8 L3 -11 M0 -8 L-3 -11 M0 -13 L2.5 -15.5 M0 -13 L-2.5 -15.5" fill="#fff" stroke="#cf1f2b" stroke-width=".9"/>`;
   const side = (s) => `<path d="M${W / 2 + s * 12} 146 Q${W / 2 + s * 44} 140 ${W / 2 + s * 50} 96" stroke="#fff" stroke-width="2.5" fill="none"/>` + [[14, 0, -50], [26, -8, -28], [36, -20, -10], [42, -34, 6], [44, -48, 18]].map(([x, y, r]) => leaf(W / 2 + s * (10 + x), 146 + y, s * r)).join("");
   const flower = `<g transform="translate(${W / 2} 134) scale(1.4)">${[0, 72, 144, 216, 288].map((r) => `<ellipse transform="rotate(${r}) translate(0 -8)" rx="6" ry="8" fill="#fff" stroke="#c8202c" stroke-width=".8"/>`).join("")}<circle r="4.5" fill="#fff" stroke="#c8202c" stroke-width="1"/>${[0, 120, 240].map((r) => `<circle transform="rotate(${r}) translate(0 -2)" r="1" fill="#c8202c"/>`).join("")}</g>`;
@@ -757,6 +768,30 @@ function flagHTML(g, before) { /* 장성기: red field, stars above a white wrea
   let slices = "";
   for (let i = 0; i < N; i++) slices += `<g class="wv" style="--a:${(1.5 + 9 * (i / N)).toFixed(1)};animation-delay:${(-i * 0.09).toFixed(2)}s"><svg x="${i * sw}" y="-14" width="${sw + 0.6}" height="${H + 28}" viewBox="${i * sw} -14 ${sw + 0.6} ${H + 28}" overflow="hidden"><use href="#${id}"/><rect class="sh" x="${i * sw}" y="0" width="${sw + 0.6}" height="${H}" style="animation-delay:${(-i * 0.09).toFixed(2)}s"/></svg></g>`;
   return `<div class="pm-flag"><svg viewBox="-16 -16 ${W + 32} ${H + 40}" width="270" height="190"><defs><g id="${id}"><rect width="${W}" height="${H}" fill="#cf1f2b"/>${stars}${side(-1)}${side(1)}${flower}</g></defs><rect x="-12" y="-14" width="5" height="${H + 34}" rx="2" fill="#c9a23a"/><circle cx="-9.5" cy="-14" r="5" fill="#e3c04f"/>${slices}</svg><div class="pm-fl">${ECON_RANKS[g]} 장성기 게양</div></div>`;
+}
+/** 내 정보 portrait: white dress uniform, shoulder boards by rank, ribbon rack from earned medals, name tag. */
+function shoulderBoard(g, flip) {
+  const gen = g >= 6, w = 74, h = 26, base = gen ? "#d8b247" : "#15171c";
+  let o = `<g transform="${flip ? `translate(${w} 0) scale(-1 1)` : ""}"><path d="M0 4 Q0 0 4 0 L${w - 10} 0 L${w} ${h / 2} L${w - 10} ${h} L4 ${h} Q0 ${h} 0 ${h - 4}Z" fill="${base}" stroke="#7a6220" stroke-width="1"/>`;
+  if (gen) { o += `<circle cx="${w - 10}" cy="${h / 2}" r="3.2" fill="#f3d878" stroke="#7a6220" stroke-width=".6"/>`; const n = g - 5;
+    if (n === 5) [0, 1, 2, 3, 4].forEach((i) => { const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5; o += `<path d="${starPath(30 + Math.cos(a) * 7, 13 + Math.sin(a) * 7, 4.2)}" fill="#e9ecef" stroke="#7d8287" stroke-width=".4"/>`; });
+    else for (let i = 0; i < n; i++) o += `<path d="${starPath(10 + i * 11 + (4 - n) * 5, h / 2, 5)}" fill="#e9ecef" stroke="#7d8287" stroke-width=".4"/>`; }
+  else { const S = [[1], [1, 0.5], [1, 1], [1, 0.5, 1], [1, 1, 1], [1, 1, 1, 1]][g] || [1]; let x = 8; for (const t of S) { o += `<rect x="${x}" y="2" width="${t === 1 ? 4.4 : 2.2}" height="${h - 4}" fill="#e2bf55"/>`; x += t === 1 ? 7 : 5; } o += `<circle cx="${w - 12}" cy="${h / 2}" r="5" fill="none" stroke="#e2bf55" stroke-width="1.4"/><path d="M${w - 15} ${h / 2} L${w - 9} ${h / 2} M${w - 12} ${h / 2 - 3} L${w - 12} ${h / 2 + 3}" stroke="#e2bf55" stroke-width="1"/>`; }
+  return o + `</g>`;
+}
+function portraitHTML(g) {
+  const F = { ...(CMDR_FACES[cmdr.face] || CMDR_FACES[0]), bare: true };
+  const meds = Object.keys(MEDALS).filter((k) => career.medals?.[k]), per = 3, rows = [];
+  for (let i = 0; i < meds.length; i += per) rows.push(meds.slice(i, i + per));
+  const rack = rows.reverse().map((row, r) => row.map((k, i) => { const rb = MEDALS[k].rb, x = 200 - (row.length * 17) / 2 + i * 17, y = 272 - r * 7; return rb.map((col, j) => `<rect x="${x + (j * 16) / rb.length}" y="${y}" width="${16 / rb.length + 0.2}" height="6" fill="${col}"/>`).join("") + `<rect x="${x}" y="${y}" width="16" height="6" fill="none" stroke="#333" stroke-width=".4"/>`; }).join("")).join("");
+  return `<svg class="mi-por" viewBox="0 0 300 300" width="300" height="300"><defs><radialGradient id="porbg" cx=".5" cy=".35" r=".8"><stop offset="0" stop-color="#2b4f7c"/><stop offset="1" stop-color="#0c1726"/></radialGradient><linearGradient id="porw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d9dde2"/></linearGradient></defs>`
+    + `<rect width="300" height="300" rx="8" fill="url(#porbg)"/><circle cx="150" cy="120" r="96" fill="none" stroke="rgba(242,202,92,.12)" stroke-width="2"/>`
+    + `<path d="M28 300 C30 240 60 218 104 208 L150 222 L196 208 C240 218 270 240 272 300Z" fill="url(#porw)" stroke="#c4c9cf" stroke-width="1"/>`
+    + `<path d="M120 204 L150 226 L180 204 L176 196 L150 212 L124 196Z" fill="#f4f6f8" stroke="#c4c9cf"/><path d="M150 226 L150 300" stroke="#c4c9cf" stroke-width="1.2"/>${[240, 262, 284].map((y) => `<circle cx="150" cy="${y}" r="3.4" fill="#d8b247" stroke="#7a6220" stroke-width=".6"/>`).join("")}`
+    + `<g transform="translate(24 206) rotate(7) scale(1.08)">${shoulderBoard(g, false)}</g><g transform="translate(276 206) rotate(-7) scale(-1.08 1.08)">${shoulderBoard(g, false)}</g>`
+    + rack + (meds.length ? `<path d="M186 ${262 - rows.length * 7} q14 -8 28 0" stroke="#d8b247" stroke-width="2" fill="none"/>` : "")
+    + `<rect x="80" y="258" width="40" height="11" rx="1.5" fill="#1c2430"/><text x="100" y="266.5" font-size="7.5" fill="#fff" text-anchor="middle" font-family="Noto Sans KR, sans-serif">${cmdr.name}</text>`
+    + `<g transform="translate(35 30) scale(2.3)">${face(F, 100).replace(/^<svg /, "<svg x=\"0\" y=\"0\" ")}</g></svg>`;
 }
 function renderRecord() { /* 내 정보: profile card, perks, record, service record (약력), rank table */
   const rl = rankLine(), acc = profile.shots ? ((profile.hits / profile.shots) * 100).toFixed(1) : "0.0", best = profile.bestSeconds ? `${Math.floor(profile.bestSeconds / 60)}분 ${profile.bestSeconds % 60}초` : "—";
@@ -768,9 +803,10 @@ function renderRecord() { /* 내 정보: profile card, perks, record, service re
   const log = career.log.slice().reverse().map((e) => `<div class="cr ${tierCls(e.g)}"><span class="d">${e.d}</span><span class="ins">${insignia(e.g, 16)}</span><div><b>${ECON_RANKS[e.g]} ${e.why === "임관" ? "임관" : e.why === "보직 변경" ? "보직 변경" : e.why === "기존 경력 승계" ? "(경력 승계)" : "진급"}</b> · ${e.t}${e.b ? ` <small>(${e.b})</small>` : ""}${e.why && !["임관", "보직 변경", "기존 경력 승계"].includes(e.why) ? `<div class="sub">공적: ${e.why}</div>` : ""}${e.perk ? `<div class="sub pkl">특기: ${e.perk}</div>` : ""}</div></div>`).join("") || `<div class="none">사령부에서 보직을 고르면 약력이 시작됩니다</div>`;
   const of = (k) => officer(staff.a[k]);
   let h = `<div class="mi"><div class="mi-l">`
-    + `<div class="mi-card"><div class="mi-f">${face(cmdr.face, 92)}</div><div><div class="mi-rk">${insignia(rl.r, 22)}<b>${rl.name} ${ps.step}호봉</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${postOf(rl.r)}${staff.branch ? ` · ${BRANCHES[staff.branch].n} 보직` : ""}</div></div></div>`
+    + `<div class="mi-por-w">${portraitHTML(rl.r)}</div><div class="mi-card"><div><div class="mi-rk">${insignia(rl.r, 22)}<b>${rl.name} ${ps.step}호봉</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${postOf(rl.r)}${staff.branch ? ` · ${BRANCHES[staff.branch].n} 보직` : ""}</div></div></div>`
     + `<div class="mi-bar"><span>다음 호봉</span><div class="hbar"><i style="width:${Math.max(2, stepPct).toFixed(0)}%"></i></div></div><div class="mi-bar"><span>${rl.next ? `${rl.next} 진급` : "최고 계급"}</span><div class="hbar"><i style="width:${(rl.pct * 100).toFixed(0)}%;background:var(--gold)"></i></div><small>${rl.next ? `${fmt(rl.need - profile.xp)} XP 남음` : ""}</small></div>`
     + `<h3>진급 특기</h3>${career.picks > 0 ? `<div id="miPk"></div>` : ""}<ul class="mi-pk">${perks}</ul>`
+    + `<h3>훈장 · 표창</h3><div class="mi-md">${Object.entries(MEDALS).map(([k, M]) => `<div class="md${career.medals?.[k] ? "" : " no"}" title="${M.d}"><i>${M.rb.map((col) => `<b style="background:${col}"></b>`).join("")}</i><span>${M.n}</span><small>${career.medals?.[k] ? career.medals[k] : M.d}</small></div>`).join("")}</div>`
     + `<h3>사령부 참모</h3><div class="mi-st">${STAFF_ROLES.map((r) => `<span>${r.n}</span><b>${of(r.k).rk} ${of(r.k).nm}</b>`).join("")}</div>`
     + (profile.admin ? `<div class="mi-adm">관리자 모드 · 진급 연출 미리보기 <select id="pvRank">${ECON_RANKS.slice(1).map((n, i) => `<option value="${i + 1}"${i + 1 === 6 ? " selected" : ""}>${n}</option>`).join("")}</select><button data-act="pvpromo">보기</button><small>실제 계급·경험치·특기는 바뀌지 않습니다</small></div>` : `<div class="hq-adm in"><input id="miAdmin" type="password" maxlength="32" placeholder="관리자 코드" autocomplete="off"><button data-act="miadmin">적용</button></div>`)
     + `</div><div class="mi-r"><h3>전투 기록</h3><div class="rstats"><div><span>출격</span><b>${profile.battles}</b></div><div><span>승리</span><b>${profile.wins}</b></div><div><span>승률</span><b>${profile.battles ? Math.round((profile.wins / profile.battles) * 100) : 0}%</b></div><div><span>누적 명중률</span><b>${acc}%</b></div><div><span>최단 승리</span><b>${best}</b></div></div>`
@@ -2506,6 +2542,7 @@ function step(dt) {
     rep.cd = Math.max(0, rep.cd - dt);
     for (const t of P.turrets) if (!t.alive && t.fixT > 0 && P.alive) { t.fixT -= dt; if (t.fixT <= 0) { t.alive = true; t.reload = P.reloadT; t.fixT = 0; log(`${t.i + 1}번 포탑 수리 완료 — 사격 재개`, "hit"); sfx.ready(); } }
     if (G.mastFlag) waveMastFlag();
+    if (P.alive) G.minHp = Math.min(G.minHp ?? 1, P.hp / P.maxHp);
     if (rep.act > 0) { rep.act -= dt; P.fires.length = 0; if (P.alive) P.hp = Math.min(P.maxHp, P.hp + P.maxHp * 0.006 * (G.perkK?.repairK || 1) * dt); }
     for (const r of ribbons) r.t -= dt; while (ribbons.length && ribbons[0].t <= 0) ribbons.shift();
     missionCheck();
