@@ -254,7 +254,7 @@ export function stepMissiles(dt, onHit) {
         if (!T || !T.alive) { m.lost = (m.lost || 0) + dt; if (m.lost > 1.2) { kill(m, "air"); continue; } }
         else {
           steer(m, lead(m, T, m.vel.length()).clone(), dt, 5);
-          if (m.pos.distanceTo(T.pos) < 32) { const ok = rnd() < (W.pk[T.W.cls] ?? (T.isJet ? 0.3 : 0.55)) * (T.isJet ? 1 : satK(T.side)) * (T.isJet ? (T.pilot ? 0.55 * (T.flareT > 0 ? 0.4 : 1) * (T.gT > 0 ? 0.65 : 1) : 1) : 0.45) * (G.staffK ? (m.side === "us" ? G.staffK.icptK : G.staffK.penK) : 1); /* HQ staff: our intercepts, their intercepts of our strikes */ T.engaged = Math.max(0, T.engaged - 1); kill(m, "air");
+          if (m.pos.distanceTo(T.pos) < 32) { const ok = rnd() < (W.pk[T.W.cls] ?? (T.isJet ? 0.3 : 0.55)) * (T.isJet ? 1 : satK(T.side)) * (T.isJet ? (T.pilot ? 0.55 * (T.flareT > 0 ? 0.4 : 1) * (T.gT > 0 ? 0.65 : 1) : 1) : 0.45) * (G.staffK ? (m.side === "us" ? G.staffK.icptK : G.staffK.penK) : 1) * (G.perkK ? (m.side === "us" ? G.perkK.icptK : G.perkK.penK) : 1); /* HQ staff: our intercepts, their intercepts of our strikes */ T.engaged = Math.max(0, T.engaged - 1); kill(m, "air");
             if (ok && T.pilot && !T.hit) { T.hit = true; G.onJetHit?.(T); } // the aircraft you fly survives the first hit, damaged
             else if (ok) { T.killedBy = m.owner; kill(T, "boom"); } continue; } // jets jink and jam; no layer is a sure kill
         }
@@ -593,7 +593,7 @@ export function stepJets(dt, know, onEvent) {
       else { const o = j.owner, a = j.t * 0.14; goal = o.pos.clone().add(new THREE.Vector3(Math.cos(a) * 4000, 0, Math.sin(a) * 4000)); }
     } // CAP patrols designated umbrella; strike jets orbit the carrier while waiting for contacts
     if (j.home) { goal = j.owner.pos.clone(); alt = j.heavy ? 450 : 60; const d = Math.hypot(goal.x - j.pos.x, goal.z - j.pos.z); spd = j.heavy ? 150 : d < 3000 ? 90 : 240;
-      if (d < 400) { j.alive = false; j.gone = true; scene.remove(j.mesh); if (j.support) { onEvent?.(j, "leave"); continue; } if (j.owner.alive) { (j.owner.rearm ||= []).push(60); onEvent?.(j, "land"); } continue; } } /* air force support aircraft leave the area instead of landing on our carrier */
+      if (d < 400) { j.alive = false; j.gone = true; scene.remove(j.mesh); if (j.support) { onEvent?.(j, "leave"); continue; } if (j.owner.alive) { (j.owner.rearm ||= []).push(60 * (j.side === "us" && G.perkK ? G.perkK.rearmK : 1)); onEvent?.(j, "land"); } continue; } } /* air force support aircraft leave the area instead of landing on our carrier */
     goal.y = alt; const want = goal.sub(j.pos).normalize().multiplyScalar(spd);
     const prevDir = j.vel.clone().normalize();
     j.vel.lerp(want, Math.min(1, dt * (j.heavy ? 0.34 : 0.9))); j.pos.addScaledVector(j.vel, dt); if (j.pos.y < 40) j.pos.y = 40;
