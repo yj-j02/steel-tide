@@ -249,16 +249,23 @@ function synthFanfare(grade) {
   timp(end, 34.6, 0.55); timp(end + 0.01, 46.2, 0.35); cymbal(end, 0.9, 0.15); if (gen) for (const k of [0.75, 1.5]) timp(end + k, 34.6, 0.25);
 }
 
-/* Real honours music cut from the user's own reference video (sfx/promo). 위관 has no entry there, so it keeps the synth call. */
-const PROMO = (g, br) => g >= 10 ? "marshal" : g === 9 ? (br === "ops" ? "jcs" : "g4") : g === 8 ? "g3" : g === 7 ? "g2" : g === 6 ? "g1" : g >= 3 ? "field" : null;
+/* Real honours music from the owner's reference video (sfx/promo): one piece per rank, the whole span of that rank (all services) uncut. 위관 gets a radio call instead of music. */
+const PROMO = (g) => g >= 10 ? "marshal" : g === 9 ? "g4" : g === 8 ? "g3" : g === 7 ? "g2" : g === 6 ? "g1" : g >= 3 ? "field" : null;
 let promoEl = null;
 export function stopFanfare() { const el = promoEl; if (!el) return; promoEl = null; const v0 = el.volume, t0 = performance.now(); const step = () => { const k = 1 - (performance.now() - t0) / 700; if (k <= 0) { el.pause(); el.onended?.(); return; } el.volume = v0 * k; requestAnimationFrame(step); }; step(); }
 export function fanfare(grade = 3, branch = "") {
-  if (!A.ctx || A.muted) return; stopFanfare(); const f = PROMO(grade, branch); if (!f) return synthFanfare(grade);
+  if (!A.ctx || A.muted) return; stopFanfare(); const f = PROMO(grade); if (!f) { radioBlip(1.6); return; }
   const el = new Audio(`sfx/promo/${f}.mp3`); el.volume = Math.min(1, A.vol.sfx * 1.05); promoEl = el;
   const bg = A.bgmEl, v0 = bg ? bg.volume : 0; if (bg) bg.volume = v0 * 0.15;
   el.onended = () => { if (bg && A.bgmEl === bg) bg.volume = v0; if (promoEl === el) promoEl = null; el.onended = null; };
   el.play().catch(() => { el.onended?.(); synthFanfare(grade); });
+}
+/** Radio key-up with static only, for a call that has no recorded voice yet. */
+export function radioBlip(d = 1.5) {
+  const c = A.ctx; if (!c || !A.rIn || !A.noise) return; const t0 = c.currentTime + 0.02;
+  const burst = (t, dd, v) => { const s = c.createBufferSource(); s.buffer = A.noise; const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.012); g.gain.linearRampToValueAtTime(0.0001, t + dd); s.connect(g).connect(A.rIn); s.start(t, Math.random() * 3); s.stop(t + dd + 0.03); };
+  const click = (t) => { const o = c.createOscillator(); o.type = "square"; o.frequency.value = 1900; const g = c.createGain(); g.gain.setValueAtTime(0.12, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.025); o.connect(g).connect(A.rIn); o.start(t); o.stop(t + 0.04); };
+  click(t0); burst(t0, 0.15, 0.3); burst(t0 + 0.1, d, 0.05); for (let t = t0 + 0.12; t < t0 + d; t += 0.04 + Math.random() * 0.1) burst(t, 0.006 + Math.random() * 0.018, 0.06 + Math.random() * 0.15); burst(t0 + d, 0.22, 0.28); click(t0 + d + 0.22);
 }
 
 export const sfx = {
