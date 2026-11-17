@@ -15,6 +15,7 @@ import { MODERN, GUNS, SHIPS, CARRIER, ENEMIES, TRANSPORT, FOE_CARRIER, TELE, Sh
 import { air, autopilot as planeAuto, aimDir, dirFrom, launchPlane, recallPlane, autopilot, takeControl, clearAir, updateAir, predictBomb, gunLead, spawnRaid, MODE_NAMES, ROLE_NAMES } from "./js/air.js";
 import { cockpit, updateCockpit, aaGun, updateAAGun, jetPit, updateJetPit } from "./js/interior.js";
 import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, updateMG } from "./js/infantry.js";
+import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, ROLE_UNLOCK, FLEET_CDR, BRANCHES, careerTitle, setBranch } from "./js/staff.js";
 import { ECON_SHIPS, ECON_RANKS, ECON_RANK_XP, econRank, ECON_PARTS, ECON_MAX_LV, econPartCost, econNewProfile, econReward, econCheck, econApply } from "./js/shop.js";
 
 // ── profile + room connection ───────────────────────────────────────────────
@@ -59,15 +60,16 @@ const signed = (v) => (v >= 0 ? "+" : "−") + fmt(Math.abs(v));
 const kmh = (ms) => Math.round(Math.abs(ms) * 3.6);
 
 // ── rank: the player is the fleet commander; ship captains and pilots hold fixed grades ──
-const myRank = () => econRank(profile.xp);
+const myGrade = () => econRank(profile.xp); /* full rank 0 소위 … 10 원수 */
+const myRank = () => Math.max(0, myGrade() - 3); /* gameplay tier: ships, nations and enemy strength still count from 소령 */
 const RANK_STARS = ["소령", "중령", "대령", "★", "★★", "★★★", "★★★★", "★★★★★"];
 const escortsFor = (r) => Math.min(4, 1 + Math.floor(r / 2));
 const fightersFor = () => 9; // Lexington spots 9 Wildcats for this group
 /** WWII US Navy billet typical for each rank (game simplification; see report). */
-const POSTS = ["구축함 함장", "구축대 사령 (DesDiv)", "구축전대 사령 · 코모도어 (DesRon)", "기동소함대 사령관 (Task Flotilla)", "기동전단 사령관 (Task Group)", "기동부대 사령관 (Task Force)", "함대 사령장관 (Fleet)", "태평양 함대 총사령관 (CINCPAC)"];
-const postOf = (r) => POSTS[clamp(r, 0, POSTS.length - 1)];
+const POSTS = ["함정 갑판사관", "함정 작전관", "구축함 부장", "구축함 함장", "구축대 사령 (DesDiv)", "구축전대 사령 · 코모도어 (DesRon)", "기동소함대 사령관 (Task Flotilla)", "기동전단 사령관 (Task Group)", "기동부대 사령관 (Task Force)", "함대 사령장관 (Fleet)", "태평양 함대 총사령관 (CINCPAC)"];
+const postOf = (r) => staff.branch ? careerTitle(clamp(r, 0, 10)) : POSTS[clamp(r, 0, POSTS.length - 1)]; /* career follows the branch picked as 소위 */
 function rankLine() {
-  const r = myRank(), next = ECON_RANK_XP[r + 1];
+  const r = myGrade(), next = ECON_RANK_XP[r + 1];
   return { r, name: ECON_RANKS[r], next: next ? ECON_RANKS[r + 1] : null, need: next, pct: next ? clamp((profile.xp - ECON_RANK_XP[r]) / (next - ECON_RANK_XP[r]), 0, 1) : 1 };
 }
 
@@ -113,11 +115,16 @@ function assignCaptains() {
   let u = 0, j = 0; const us = US_NAMES.slice().sort(() => rnd() - 0.5), jp = JP_NAMES.slice().sort(() => rnd() - 0.5);
   for (const s of G.ships) s.captain = `${s.isPlayer ? FLAG_CAPTAIN[s.spec.id] : s.side === "foe" ? jp[j++ % jp.length] : us[u++ % us.length]} ${captainOf(s.spec, s.side)}`;
 }
-function insignia(r, size = 24) { // US Navy collar devices: oak leaf (gold/silver), eagle, stars
-  if (r <= 1) return `<svg role="img" aria-label="${ECON_RANKS[r]} 계급장" width="${size}" height="${size}" viewBox="0 0 34 34"><path d="M17 3 C10 8 7 14 9 21 C11 27 15 30 17 31 C19 30 23 27 25 21 C27 14 24 8 17 3 Z" fill="${r ? "#d9dde0" : "#d4a93a"}"/><path d="M17 6 L17 30" stroke="${r ? "#8b9399" : "#8a6a1c"}" stroke-width="1.4"/></svg>`;
+function insignia(r, size = 24) { /* 소위 gold bar, 중위 silver bar, 대위 two silver bars; 소령 and up below */
+  if (r >= 3) return insigniaField(r - 3, size);
+  const bars = r === 2 ? 2 : 1, c = r === 0 ? "#d4a93a" : "#d9dde0";
+  return `<svg role="img" aria-label="${ECON_RANKS[r]} 계급장" width="${size}" height="${size}" viewBox="0 0 34 34">${Array.from({ length: bars }, (_, k) => `<rect x="${bars === 2 ? 7 + k * 12 : 13}" y="5" width="8" height="24" rx="1" fill="${c}"/>`).join("")}</svg>`;
+}
+function insigniaField(r, size = 24) { // US Navy collar devices: oak leaf (gold/silver), eagle, stars
+  if (r <= 1) return `<svg role="img" aria-label="${ECON_RANKS[r + 3]} 계급장" width="${size}" height="${size}" viewBox="0 0 34 34"><path d="M17 3 C10 8 7 14 9 21 C11 27 15 30 17 31 C19 30 23 27 25 21 C27 14 24 8 17 3 Z" fill="${r ? "#d9dde0" : "#d4a93a"}"/><path d="M17 6 L17 30" stroke="${r ? "#8b9399" : "#8a6a1c"}" stroke-width="1.4"/></svg>`;
   if (r === 2) return `<svg role="img" aria-label="대령 계급장" width="${size}" height="${size}" viewBox="0 0 34 34"><path d="M3 12 L12 15 L17 9 L22 15 L31 12 L25 20 L20 21 L17 28 L14 21 L9 20 Z" fill="#d9dde0"/></svg>`;
   const n = r - 2, w = 34 * n;
-  return `<svg role="img" aria-label="${ECON_RANKS[r]} 계급장 (별 ${n}개)" width="${Math.min(size * n, size * 2.6)}" height="${size}" viewBox="0 0 ${w} 34">${Array.from({ length: n }, (_, i) => `<path transform="translate(${i * 34} 0)" d="M17 3 L21 13 L32 13 L23 20 L27 31 L17 24 L7 31 L11 20 L2 13 L13 13 Z" fill="#e3e6e8"/>`).join("")}</svg>`;
+  return `<svg role="img" aria-label="${ECON_RANKS[r + 3]} 계급장 (별 ${n}개)" width="${Math.min(size * n, size * 2.6)}" height="${size}" viewBox="0 0 ${w} 34">${Array.from({ length: n }, (_, i) => `<path transform="translate(${i * 34} 0)" d="M17 3 L21 13 L32 13 L23 20 L27 31 L17 24 L7 31 L11 20 L2 13 L13 13 Z" fill="#e3e6e8"/>`).join("")}</svg>`;
 }
 
 // ── missions ────────────────────────────────────────────────────────────────
@@ -194,9 +201,9 @@ const CMDR_FACES = [
 ];
 let faceN = 0;
 function face(i, s = 64) {
-  const f = CMDR_FACES[i] || CMDR_FACES[0], u = `fc${i}_${faceN++}`, [sk, sh, dk] = f.skin, j = f.jaw;
+  const f = (typeof i === "object" ? i : CMDR_FACES[i]) || CMDR_FACES[0], u = `fc${typeof i === "object" ? "s" : i}_${faceN++}`, [sk, sh, dk] = f.skin, j = f.jaw;
   const jx = 50 - 17 * j, jx2 = 50 + 17 * j;
-  let o = `<svg role="img" aria-label="${f.n} 초상" width="${s}" height="${s}" viewBox="0 0 100 100"><defs>`
+  let o = `<svg role="img" aria-label="${f.n} 초상" width="${s}" height="${s}" viewBox="${f.zoom ? "16 8 68 68" : "0 0 100 100"}"><defs>`
     + `<radialGradient id="${u}b" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="${f.bg}"/><stop offset="1" stop-color="#0d1114"/></radialGradient>`
     + `<radialGradient id="${u}s" cx=".38" cy=".38" r=".75"><stop offset="0" stop-color="${sk}"/><stop offset=".7" stop-color="${sh}"/><stop offset="1" stop-color="${dk}"/></radialGradient>`
     + `<linearGradient id="${u}u" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1c2638"/><stop offset="1" stop-color="#0b0f18"/></linearGradient>`
@@ -219,8 +226,8 @@ function face(i, s = 64) {
   // brow ridge shadow, eyes, brows
   const ey = 41;
   o += `<path d="M38 ${ey - 3} Q43 ${ey - 5.5} 47 ${ey - 3} M53 ${ey - 3} Q57 ${ey - 5.5} 62 ${ey - 3}" stroke="${dk}" stroke-width="2.6" opacity=".35" fill="none"/>`;
-  for (const x of [42.5, 57.5]) o += `<path d="M${x - 4.4} ${ey} Q${x} ${ey - 2.8} ${x + 4.4} ${ey} Q${x} ${ey + 2} ${x - 4.4} ${ey}Z" fill="#ece6de"/><circle cx="${x}" cy="${ey - 0.2}" r="1.9" fill="#3b2d24"/><circle cx="${x}" cy="${ey - 0.2}" r="0.9" fill="#0d0a08"/><path d="M${x - 4.6} ${ey - 0.2} Q${x} ${ey - 3.4} ${x + 4.6} ${ey - 0.2}" stroke="#2a1d16" stroke-width="1.1" fill="none"/>`
-    + `<path d="M${x - 3.6} ${ey + 2.4} Q${x} ${ey + 3.6} ${x + 3.6} ${ey + 2.4}" stroke="${dk}" stroke-width=".7" opacity=".6" fill="none"/>`;
+  for (const x of [42.5, 57.5]) o += `<g transform="translate(${x} ${ey}) scale(1 ${f.eye || 1}) translate(${-x} ${-ey})"><path d="M${x - 4.4} ${ey} Q${x} ${ey - 2.8} ${x + 4.4} ${ey} Q${x} ${ey + 2} ${x - 4.4} ${ey}Z" fill="#ece6de"/><circle cx="${x}" cy="${ey - 0.2}" r="1.9" fill="#3b2d24"/><circle cx="${x}" cy="${ey - 0.2}" r="0.9" fill="#0d0a08"/><path d="M${x - 4.6} ${ey - 0.2} Q${x} ${ey - 3.4} ${x + 4.6} ${ey - 0.2}" stroke="#2a1d16" stroke-width="1.1" fill="none"/>`
+    + `<path d="M${x - 3.6} ${ey + 2.4} Q${x} ${ey + 3.6} ${x + 3.6} ${ey + 2.4}" stroke="${dk}" stroke-width=".7" opacity=".6" fill="none"/></g>`;
   o += `<path d="M36.5 ${ey - 5.2} L47.5 ${ey - 4.6} L47.5 ${ey - 3.2} L37 ${ey - 3.4}Z M52.5 ${ey - 4.6} L63.5 ${ey - 5.2} L63 ${ey - 3.4} L52.5 ${ey - 3.2}Z" fill="${f.brow}"/>`;
   // nose
   o += `<path d="M50 ${ey + 1} L48 ${ey + 11} Q50 ${ey + 13} 53 ${ey + 11.5}" stroke="${dk}" stroke-width="1.1" fill="none" opacity=".75"/><path d="M46.5 ${ey + 12.2} Q48 ${ey + 13.6} 49.5 ${ey + 12.6} M50.5 ${ey + 12.6} Q52 ${ey + 13.6} 53.5 ${ey + 12.2}" stroke="${dk}" stroke-width=".9" fill="none"/>`
@@ -234,6 +241,7 @@ function face(i, s = 64) {
   if (f.fem) o += `<path d="M45 ${my} Q50 ${my - 1.6} 55 ${my} Q50 ${my + 2.4} 45 ${my}Z" fill="#9c4a44" opacity=".75"/>`;
   if (f.must === "full") o += `<path d="M42 ${my - 2} Q46 ${my - 5.5} 50 ${my - 3.6} Q54 ${my - 5.5} 58 ${my - 2} Q54 ${my - 0.4} 50 ${my - 1.6} Q46 ${my - 0.4} 42 ${my - 2}Z" fill="${f.hair}"/>`;
   if (f.must === "trim") o += `<path d="M44.5 ${my - 2.2} Q50 ${my - 4.4} 55.5 ${my - 2.2} L55 ${my - 1} Q50 ${my - 2.4} 45 ${my - 1}Z" fill="${f.hair}"/><path d="M${jx + 3} 50 Q50 ${my + 9} ${jx2 - 3} 50" stroke="${f.hair}" stroke-width="1.2" opacity=".25" fill="none"/>`;
+  if (f.beard) o += `<path d="M${jx + 1.5} 47 C${jx + 2} 60 43 68.5 50 68.5 C57 68.5 ${jx2 - 2} 60 ${jx2 - 1.5} 47 L${jx2 - 4} 50 C${jx2 - 6} 59 56 ${my + 4} 50 ${my + 4} C44 ${my + 4} ${jx + 6} 59 ${jx + 4} 50Z" fill="${f.hair}" opacity=".92"/>`;
   if (f.glass) o += `<rect x="37" y="${ey - 3.6}" width="11" height="7.2" rx="2.4" fill="#ffffff" fill-opacity=".06" stroke="#20201e" stroke-width="1.1"/><rect x="52" y="${ey - 3.6}" width="11" height="7.2" rx="2.4" fill="#ffffff" fill-opacity=".06" stroke="#20201e" stroke-width="1.1"/><path d="M48 ${ey - 1} L52 ${ey - 1} M37 ${ey - 1} L${jx} ${ey - 2} M63 ${ey - 1} L${jx2} ${ey - 2}" stroke="#20201e" stroke-width="1"/>`;
   // combination cap: white crown, black band, gold chin strap, visor with gold oak leaves, badge
   o += `<path d="M24 25 C26 11 74 11 76 25 L74 28 L26 28Z" fill="url(#${u}c)"/><rect x="${jx - 1}" y="26" width="${(jx2 - jx) + 2}" height="6" fill="#121417"/>`
@@ -297,7 +305,7 @@ function newBattle() {
   G.visK = (G.tod === "night" ? 0.55 : 1) * (G.wx === "storm" ? 0.7 : 1); G.wxDisp = G.wx === "storm" ? 1.35 : 1; G.kc = null; formI = 0;
   const id = profile.ship, spec = SHIPS[id], rk = myRank(), tier = spec.tier;
   G.dryT = null; G.lastHitT = 0; G.mission = mission; G.result = null; G.goal = null; G.waves = null; G.foeLaunched = false; G.events = []; G.foeSquad = 0; G.foePlaneCD = 0;
-  const modern = isModernOp(mission), OP = modern ? mission : null; G.modern = modern; G.mop = OP; if (modern) G.mission = "modern"; // economy and results count every modern operation as "modern" modern && (MSL.cam = null);
+  const modern = isModernOp(mission), OP = modern ? mission : null; G.modern = modern; G.mop = OP; G.staffK = modern ? staffMods(myGrade()) : null; /* fleet HQ staff shape every modern battle, auto included */ if (modern) G.mission = "modern"; // economy and results count every modern operation as "modern" modern && (MSL.cam = null);
   const pSpec = modern ? MODERN[NATIONS[natUs].ships[0]] : spec;
   const P = new Ship(pSpec, 0, 0, 0, "us", modern ? {} : profile.upg[id]); P.isPlayer = true; P.name = pSpec.short; P.nav = []; P.lv = 3; P.lastLv = 3; if (modern) { P.nation = natUs; mArm(P); }
   const anchored = mission === "raid";
@@ -319,7 +327,7 @@ function newBattle() {
     G.enemies.push(...out); G.ships.push(...out);
     const ucv = NATIONS[natUs].cv; if (ucv) { const st = [3200, -900], [x, z] = placeAt(0, 0, 0, ...st); const c = new Ship(MODERN[ucv], x, z, 0, "us"); c.station = st; c.br = mkBrain(30); c.name = c.spec.short; c.nation = natUs; mArm(c); G.allies.push(c); G.ships.push(c); }
     G.bases = []; for (const [side, nat, x, z] of [["us", natUs, -26000, 0], ["foe", natFoe, Math.cos(b) * (r + 22000), Math.sin(b) * (r + 22000)]]) if (NATIONS[nat].base && (side === "us" || ["modern", "modern:emcon", "modern:convoy"].includes(OP))) G.bases.push({ side, alive: true, isBase: true, pos: new THREE.Vector3(x, 0, z), heading: 0, spec: { fb: 0 }, cv: NATIONS[nat].base, name: "지상 비행장" });
-    for (const s of G.ships) if (s.spec.jets) s.cv = s.spec.jets; for (const s of [...G.ships, ...G.bases]) if (s.cv) { s.jetsReady = s.cv.n; s.rearm = []; }
+    for (const s of G.ships) if (s.spec.jets) s.cv = s.spec.jets; for (const s of [...G.ships, ...G.bases]) if (s.cv) { s.jetsReady = Math.max(0, s.cv.n + (s.side === "us" && G.staffK ? G.staffK.jets : 0)); s.rearm = []; }
     if (OP === "modern" && !CS) { /* missile battle: three enemy groups in turn, then reach the destination */
       let gx = Math.cos(b) * 24000, gz = Math.sin(b) * 24000, k = 0; while (landAt(gx, gz, 2000) && k++ < 40) { gx *= 0.95; gz *= 0.95; }
       G.goal = { x: gx, z: gz, label: "목적지" }; G.waves = { n: 1, max: 3, modern: true, keys0, nat: natFoe, rk, pending: false, told: false }; }
@@ -351,17 +359,18 @@ function newBattle() {
   for (const s of G.ships) { let k = 0; const L = Math.hypot(s.pos.x, s.pos.z) || 1; while (landAt(s.pos.x, s.pos.z, 1200) && k++ < 80) { s.pos.x -= (s.pos.x / L) * 500; s.pos.z -= (s.pos.z / L) * 500; } } // spawned on land: slide toward the open battle area
   uniq(G.enemies.filter((e) => !e.isCarrier)); assignCaptains(); if (modern) for (const s of G.ships) if (s.nation) { const N = NATIONS[s.nation]; s.captain = `${N.names[(rnd() * N.names.length) | 0]} ${N.rk}`; }
   G.squad = fightersFor(rk); G.refit = []; G.planeCD = 0; G.sortieRes = 0; G.stats = { shots: 0, hits: 0, bullets: 0, bombs: 0, dealt: 0, planes: 0, torpHits: 0 };
-  capReset(); weapon = G.modern ? "msl" : "gun"; aa.on = false; aa.shots = 0; aa.heat = 0; gunner.kills = 0; autoFire = false; cinema = false; document.body.classList.remove("cinema"); hullWarned = false; torpThreat = 0; paused = false; fireHold = 0; fc.tgt = null; corrR = corrB = 0; ribbons.length = 0; rep.cd = rep.act = 0; rep.n = 3; G.battleT = 0; endT = 0;
+  capReset(); weapon = G.modern ? "msl" : "gun"; aa.on = false; aa.shots = 0; aa.heat = 0; gunner.kills = 0; autoFire = false; cinema = false; document.body.classList.remove("cinema"); hullWarned = false; torpThreat = 0; paused = false; fireHold = 0; fc.tgt = null; corrR = corrB = 0; ribbons.length = 0; rep.cd = rep.act = 0; rep.n = G.staffK ? G.staffK.repairN : 3; G.battleT = 0; endT = 0;
   P.aimB = 0; P.aimR = Math.min(P.tb.max * 0.6, 12000); torpB = PI / 2;
   cam.yaw = 0; cam.pitch = 0.95; cam.dist = 1300; cam.map = false; cam.free = false; cam.tgt = null; cam.focus.copy(P.pos); hintT = 22;
   const first = G.enemies[0];
-  log(`전장: ${MAPS[mapId].n}${G.tod === "night" ? " · 야간" : ""}${G.wx === "storm" ? " · 폭풍" : ""} · ${ECON_RANKS[myRank()]} ${cmdr.name} 사령관 지휘 개시`);
+  log(`전장: ${MAPS[mapId].n}${G.tod === "night" ? " · 야간" : ""}${G.wx === "storm" ? " · 폭풍" : ""} · ${ECON_RANKS[myGrade()]} ${cmdr.name} 사령관 지휘 개시`);
   if (CS) log(`${campEra === "modern" ? "한반도 시나리오" : "캠페인"} ${CS.bonus ? "보너스" : `${campSel + 1}단계`} — ${CS.n}: ${CS.d}${G.hard ? " · 난이도 상승" : ""}`, "hit");
   if (G.tod === "night" || G.wx === "storm") log(`시정 불량 — 피탐 거리 ×${G.visK.toFixed(2)}${G.wxDisp > 1 ? " · 포 산포 +35%" : ""}`);
   if (G.waves) log(`${G.modern ? "미사일전" : "함대 결전"} — 적 함대 ${G.waves.max}개가 차례로 막아선다. 모두 격파하고 기함을 목적지(${fmt(Math.hypot(G.goal.x, G.goal.z))} m)까지 보내라`, "hit");
   log(mission === "raid" ? "진주만 — 정박 중. 적 공습 예상!" : mission === "convoy" ? `호송 작전 개시 — 집결지까지 ${fmt(G.goal.x)} m` : `${first ? `${first.spec.name} 외 ${G.enemies.length - 1}척 접근 중. 전투 배치!` : `작전: ${MISSIONS[G.mop]?.n || ""} — ${MISSIONS[G.mop]?.d || ""}`}`);
   G.radio("battle");
-  if (modern) { const F = CMDR_FACES[cmdr.face] || CMDR_FACES[0]; cicStart({ md, face: face(cmdr.face, 110), faceSkin: F.skin?.[0], cmdrName: `${ECON_RANKS[myRank()]} ${cmdr.name}`, nat: natUs, theater: mapId, toast, log, radio: G.radio, know, watchJet, watchMsl, isWatching: (j) => md.fly === j }); } else cicStop();
+  if (G.staffK) { const k = G.staffK, o = officer(staff.a.ops), c = officer(staff.a.cos); log(`참모진 — 참모장 ${c.rk} ${c.nm} · 작전과장 ${o.rk} ${o.nm} | 화력 ${pctTxt(k.outK)} · 받는 피해 ${pctTxt(k.inK)} · 요격 ${pctTxt(k.icptK)}`); }
+  if (modern) { const F = CMDR_FACES[cmdr.face] || CMDR_FACES[0]; cicStart({ md, face: face(cmdr.face, 110), faceSkin: F.skin?.[0], cmdrName: `${ECON_RANKS[myGrade()]} ${cmdr.name}`, nat: natUs, theater: mapId, toast, log, radio: G.radio, know, watchJet, watchMsl, isWatching: (j) => md.fly === j }); } else cicStop();
 }
 G.toast = (m, t) => toast(m, t);
 G.onShellLand = (p, g, o) => G.modern && opsShellLand(p, g, o);
@@ -572,6 +581,7 @@ function missionCheck() {
 }
 function finish() {
   jetSound(0); droneSound(0); cicStop(); G.state = "ended"; toastT = 0; $("#toast").classList.remove("on"); const res = G.result || { won: false, why: "" }, won = res.won, secs = Math.max(1, Math.round(G.battleT));
+  if (G.staffK) staffServe(won);
   if (G.plane) recallPlane();
   document.body.classList.remove("playing", "flying", "firstp"); cockpit.visible = false; if (document.pointerLockElement) document.exitPointerLock();
   $("#endSub").textContent = (MISSIONS[G.mop || G.mission] || MISSIONS[G.mission]).n; $("#endTitle").textContent = res.why;
@@ -580,16 +590,16 @@ function finish() {
   const s = G.stats, acc = s.shots ? ((s.hits / s.shots) * 100).toFixed(1) : "0.0";
   let html = `<span>교전 시간</span><span>${Math.floor(secs / 60)}분 ${secs % 60}초</span><span>주포 발사 / 명중</span><span>${s.shots}발 / ${s.hits}발 (${acc}%)</span>`
     + `<span>적함 격침</span><span>${G.enemies.filter((e) => !e.alive).length} / ${G.enemies.length}척 · 어뢰 명중 ${s.torpHits || 0}발${s.caps ? ` · 나포 ${s.caps}척` : ""}</span><span>항공전</span><span>적기 격추 ${s.planes || 0}기 · 폭탄 명중 ${s.bombs}발</span>`
-    + `<span>잔여 선체</span><span>${Math.round((G.player.hp / G.player.maxHp) * 100)}%</span><span>지휘</span><span>${ECON_RANKS[myRank()]} ${cmdr.name} · ${postOf(myRank()).split(" (")[0]}</span>`;
+    + `<span>잔여 선체</span><span>${Math.round((G.player.hp / G.player.maxHp) * 100)}%</span><span>지휘</span><span>${ECON_RANKS[myGrade()]} ${cmdr.name} · ${postOf(myGrade()).split(" (")[0]}</span>`;
   $("#endPromo").innerHTML = "";
   if (!G.auto) {
-    const before = myRank();
+    const before = myGrade();
     const a = { kind: "result", won, shots: Math.min(s.shots, 5000), hits: Math.min(s.hits, s.shots, 5000), seconds: Math.min(secs, 36000), tier: SHIPS[profile.ship].tier, bombs: Math.min(s.bombs, 20), bullets: Math.min(s.bullets, 20000), planes: Math.min(s.planes || 0, 200), caps: Math.min(s.caps || 0, 10), mission: G.mission };
     const r = econReward(a); act(a); sfx.coin();
     html += `<span>보상</span><span style="color:var(--warn)">+${fmt(r.money)} 크레딧 · +${fmt(r.xp)} 경험치</span>`;
-    const after = myRank(), rl = rankLine();
+    const after = myGrade(), rl = rankLine();
     html += `<span>계급</span><span>${rl.name}${rl.next ? ` — ${rl.next}까지 ${fmt(rl.need - profile.xp)} 경험치` : " (최고 계급)"}</span>`;
-    const unl = Object.entries(ECON_SHIPS).filter(([, v]) => v.rank === after && after > 0).map(([k]) => SHIPS[k].short).join(", ");
+    const unl = Object.entries(ECON_SHIPS).filter(([, v]) => v.rank + 3 === after && after > 3).map(([k]) => SHIPS[k].short).join(", ");
     if (after > before) { $("#endPromo").innerHTML = `<span class="k">PROMOTION</span><div class="insr"><div class="ib">${insignia(before, 46)}</div><span style="font-size:26px;color:var(--gold)">→</span><div class="ib new">${insignia(after, 64)}</div></div><div class="big">${ECON_RANKS[after]} 진급</div><div class="sub">${ECON_RANKS[before]} → ${ECON_RANKS[after]}<br>새 보직: ${postOf(after)}<br>호위함 ${escortsFor(after)}척 지휘${unl ? `<br>새로 열림: ${unl}` : ""}</div><div class="rk"><div class="hbar"><i style="width:${rl.pct * 100}%;background:var(--gold)"></i></div></div>`; sfx.bell(); }
     else $("#endPromo").innerHTML = `<span class="k">RANK</span><div class="ib new">${insignia(after, 64)}</div><div class="big" style="font-size:30px">${ECON_RANKS[after]}</div><div class="sub">${postOf(after)}<br>${rl.next ? `${rl.next}까지 ${fmt(rl.need - profile.xp)} XP` : "최고 계급"}</div><div class="rk"><div class="hbar"><i style="width:${rl.pct * 100}%;background:var(--gold)"></i></div></div>`;
   } else html += `<span>관전 모드</span><span>보상 없음</span>`;
@@ -618,7 +628,7 @@ function refreshMenus() {
   $("#campBox").style.display = ""; $("#campBox .ph span:last-child").textContent = era === "ww2" ? "태평양 전역 캠페인" : "한반도 시나리오 (가상)"; $("#opsTitle").textContent = era === "ww2" ? "단일 작전" : "현대전 작전 · 국가";
   $("#missions").innerHTML = Object.entries(MISSIONS).filter(([k]) => ACTIVE.includes(k) && isModernOp(k) === (era === "modern")).map(([k, m]) => `<button class="ms${k === mission ? " on" : ""}" data-m="${k}"><b>${m.n}</b><small>${m.d}</small></button>`).join("");
   $("#nations").style.display = isModernOp(mission) ? "" : "none";
-  if (isModernOp(mission)) { fixNations(); const rk = myRank(), btn = (k, side, on, need) => `<button class="nt${on ? " on" : ""}" data-n${side}="${k}"${need > rk ? ` disabled title="${ECON_RANKS[need]} 이상"` : ""}>${(FLAGSVG[k] || FLAG.us)(18)} ${NATIONS[k].n}${need > rk ? ` 🔒${ECON_RANKS[need]}` : ""}</button>`;
+  if (isModernOp(mission)) { fixNations(); const rk = myRank(), btn = (k, side, on, need) => `<button class="nt${on ? " on" : ""}" data-n${side}="${k}"${need > rk ? ` disabled title="${ECON_RANKS[need + 3]} 이상"` : ""}>${(FLAGSVG[k] || FLAG.us)(18)} ${NATIONS[k].n}${need > rk ? ` 🔒${ECON_RANKS[need + 3]}` : ""}</button>`;
     $("#nations").innerHTML = `<div class="ph"><span>FORCES</span><span>아군 / 적군 국가</span></div><div class="natrow"><span>아군</span>${Object.entries(SIDE_US).map(([k, need]) => btn(k, "u", k === natUs, need)).join("")}</div><div class="natrow"><span>적군</span>${Object.entries(SIDE_FOE).map(([k, need]) => btn(k, "f", k === natFoe, need)).join("")}</div><div class="natnote">${natFoe === "cn" ? (rk >= 4 ? "중국 해군 주력 — 055형 3척 + 항모 산둥 (최고 난이도)" : "중국 해군 — 055형 2척 (소장부터 항모 전단)") : `북한 해군 — 연안 전투함${rk >= 3 ? " 3척" : " 2척"} + 지상 발진 MiG-29`}</div>`; }
   $("#wx").innerHTML = [["tod", "day", "주간", "기본 시정"], ["tod", "night", "야간", "피탐 거리 −45%"], ["wx", "clear", "맑음", "기본"], ["wx", "storm", "폭풍", "시정 −30% · 포 산포 +35%"]]
     .map(([g, k, n, d]) => `<button class="mp${(g === "tod" ? todSel : wxSel) === k ? " on" : ""}" data-${g}="${k}"><b>${n}</b><small>${d}</small></button>`).join("") + `<div class="mpn">현대전에서는 화면만 바뀌고 레이더 탐지는 그대로</div>`;
@@ -646,18 +656,18 @@ $("#era").addEventListener("click", (e) => { const b = e.target.closest("[data-e
 $("#missions").addEventListener("click", (e) => { const b = e.target.closest("[data-m]"); if (!b) return; setTimeout(() => showWz(isModernOp(b.dataset.m) ? "nat" : "map"), 0); mission = b.dataset.m; if (!isModernOp(mission)) { ww2Mission = mission; try { localStorage.setItem("steeltide:ww2mission", mission); } catch {} } try { localStorage.setItem("steeltide:mission", mission); } catch {} sfx.click(); refreshMenus(); });
 function renderYard() {
   const adm = !!profile.admin, rk = myRank(), ids = Object.keys(SHIPS).sort((a, b) => SHIPS[a].tier - SHIPS[b].tier || ECON_SHIPS[a].price - ECON_SHIPS[b].price);
-  let h = `<h3>조선소</h3><div class="money">${adm ? "무제한" : fmt(profile.money) + " 크레딧"}<small>${ECON_RANKS[rk]} · 경험치 ${fmt(profile.xp)}</small></div>`;
+  let h = `<h3>조선소</h3><div class="money">${adm ? "무제한" : fmt(profile.money) + " 크레딧"}<small>${ECON_RANKS[myGrade()]} · 경험치 ${fmt(profile.xp)}</small></div>`;
   if (adm) h += `<div class="adm">관리자 모드 — 모든 함선·강화 무료</div>`;
   for (const id of ids) {
     const s = SHIPS[id], own = profile.owned.includes(id), cur = profile.ship === id, need = ECON_SHIPS[id].rank, locked = !own && !adm && rk < need;
-    h += `<div class="card${yardSel === id ? " sel" : ""}${own ? " own" : ""}${locked ? " lock" : ""}" data-ship="${id}"><div class="c">${"★".repeat(s.tier)}${"☆".repeat(5 - s.tier)} · ${s.cls}</div><div class="nm">${s.name}</div><div class="pr">${cur ? "기함" : own ? "보유" : locked ? `🔒 ${ECON_RANKS[need]} 이상` : adm ? "무료" : fmt(ECON_SHIPS[id].price) + " 크레딧"}</div></div>`;
+    h += `<div class="card${yardSel === id ? " sel" : ""}${own ? " own" : ""}${locked ? " lock" : ""}" data-ship="${id}"><div class="c">${"★".repeat(s.tier)}${"☆".repeat(5 - s.tier)} · ${s.cls}</div><div class="nm">${s.name}</div><div class="pr">${cur ? "기함" : own ? "보유" : locked ? `🔒 ${ECON_RANKS[need + 3]} 이상` : adm ? "무료" : fmt(ECON_SHIPS[id].price) + " 크레딧"}</div></div>`;
   }
   if (!adm) h += `<div class="adminbox"><input id="adminCode" type="password" maxlength="32" placeholder="관리자 코드" autocomplete="off" /><button data-act="admin">적용</button></div>`;
   $("#yardList").innerHTML = h;
   const s = SHIPS[yardSel], g = GUNS[s.gun], tb = table(s.gun), own = profile.owned.includes(yardSel), u = profile.upg[yardSel] || { engine: 0, fc: 0, gun: 0, armor: 0 }, need = ECON_SHIPS[yardSel].rank;
   const guns = s.turrets.reduce((n, t) => n + t.n, 0), layout = [...new Set(s.turrets.map((t) => t.n))].map((n) => `${n === 1 ? "단장" : n === 2 ? "2연장" : "3연장"}×${s.turrets.filter((t) => t.n === n).length}`).join(" + ");
   let i = `<h3>${s.cls} · 티어 ${s.tier}</h3><div class="money" style="font-size:17px">${s.name}</div><div class="desc">${s.desc}</div><div class="spec">`
-    + `<span>함장</span><span>${FLAG_CAPTAIN[yardSel]} ${captainOf(s)}</span><span>필요 계급</span><span>${ECON_RANKS[need]} 이상</span>`
+    + `<span>함장</span><span>${FLAG_CAPTAIN[yardSel]} ${captainOf(s)}</span><span>필요 계급</span><span>${ECON_RANKS[need + 3]} 이상</span>`
     + `<span>전장 / 전폭</span><span>${s.L} m / ${s.B} m</span><span>최대 속력</span><span>${(s.vmax * 1.852 * (1 + 0.05 * u.engine)).toFixed(0)} km/h (${(s.vmax * (1 + 0.05 * u.engine)).toFixed(1)} 노트)</span>`
     + `<span>주포</span><span>${g.name}<br>${layout} (${guns}문)</span><span>재장전</span><span>${(g.reload * RELOAD_K * (1 - 0.08 * u.gun)).toFixed(1)}초</span>`
     + `<span>최대 사거리</span><span>${(tb.max / 1000).toFixed(1)} km</span><span>주장갑대</span><span>${s.belt} mm</span><span>피탐 거리</span><span>${(conceal({ spec: s }) / 1000).toFixed(1)} km</span>`
@@ -667,7 +677,7 @@ function renderYard() {
     i += `<div class="up"><div class="t">${PART[p].n} <span class="pips">${"●".repeat(lv)}${"○".repeat(ECON_MAX_LV - lv)}</span></div><button data-act="up" data-part="${p}"${max || (!adm && profile.money < cost) ? " disabled" : ""}>${max ? "최대" : adm ? "강화 (무료)" : `강화 ${fmt(cost)}`}</button><div class="e">${PART[p].e}</div></div>`;
   }
   const locked = !adm && rk < need;
-  if (!own) i += `<button class="yb" data-act="buy"${locked || (!adm && profile.money < ECON_SHIPS[yardSel].price) ? " disabled" : ""}>${locked ? `${ECON_RANKS[need]} 진급 후 구매 가능` : `구매 — ${adm ? "무료" : fmt(ECON_SHIPS[yardSel].price) + " 크레딧"}`}</button>`;
+  if (!own) i += `<button class="yb" data-act="buy"${locked || (!adm && profile.money < ECON_SHIPS[yardSel].price) ? " disabled" : ""}>${locked ? `${ECON_RANKS[need + 3]} 진급 후 구매 가능` : `구매 — ${adm ? "무료" : fmt(ECON_SHIPS[yardSel].price) + " 크레딧"}`}</button>`;
   else if (profile.ship !== yardSel) i += `<button class="yb" data-act="select">기함으로 지정</button>`;
   else i += `<button class="yb" data-act="go">이 함선으로 출항 — ${MISSIONS[mission].n}</button>`;
   $("#yardInfo").innerHTML = i;
@@ -686,16 +696,64 @@ $("#yard").addEventListener("click", (e) => {
 $("#yard").addEventListener("keydown", (e) => { if (e.target.id === "adminCode" && e.key === "Enter") $('[data-act="admin"]')?.click(); });
 function renderRecord() {
   const rl = rankLine(), acc = profile.shots ? ((profile.hits / profile.shots) * 100).toFixed(1) : "0.0", best = profile.bestSeconds ? `${Math.floor(profile.bestSeconds / 60)}분 ${profile.bestSeconds % 60}초` : "—";
-  const unlock = (r) => Object.entries(ECON_SHIPS).filter(([, v]) => v.rank === r && r > 0).map(([k]) => SHIPS[k].short).join(", ");
+  const unlock = (r) => Object.entries(ECON_SHIPS).filter(([, v]) => v.rank + 3 === r && r > 3).map(([k]) => SHIPS[k].short).join(", ");
   let h = `<h3>SERVICE RECORD · 전적</h3><div class="rstats"><div><span>출격</span><b>${profile.battles}</b></div><div><span>승리</span><b>${profile.wins}</b></div><div><span>누적 명중률</span><b>${acc}%</b></div><div><span>최단 승리</span><b style="font-size:18px">${best}</b></div></div>`;
   h += `<h3>계급 — 경험치 ${fmt(profile.xp)}</h3><div class="ladder">`;
   ECON_RANKS.forEach((n, r) => { h += `<div class="${r === rl.r ? "cur" : r < rl.r ? "done" : ""}"><span>${insignia(r, 22)}</span><b class="bh">${n}</b><span>${postOf(r)}</span><span class="xp">${fmt(ECON_RANK_XP[r])} XP</span><span>호위함 ${escortsFor(r)}척${unlock(r) ? ` · ${unlock(r)} 해금` : ""}</span></div>`; });
   $("#recordP").innerHTML = h + "</div>";
 }
-function setTab(t) { for (const [id, k] of [["#tabPort", "menu"], ["#yardBtn", "yard"], ["#tabRecord", "record"]]) $(id).classList.toggle("on", k === t); }
+function setTab(t) { for (const [id, k] of [["#tabPort", "menu"], ["#yardBtn", "yard"], ["#tabRecord", "record"], ["#tabHQ", "hq"]]) $(id).classList.toggle("on", k === t); }
+// ── fleet headquarters (modern staff) ───────────────────────────────────────
+let hqRole = "ops";
+const pctTxt = (k, inv) => { const v = Math.round((k - 1) * 100) * (inv ? -1 : 1); return `${v > 0 ? "+" : v < 0 ? "−" : "±"}${Math.abs(v)}%`; };
+function hqSummary(m) {
+  const t = [["화력", pctTxt(m.outK), m.outK >= 1], ["받는 피해", pctTxt(m.inK).replace("+", "+"), m.inK <= 1], ["재장전", pctTxt(m.reloadK), m.reloadK <= 1], ["수리반", `${m.repairN}회`, m.repairN >= 3], ["전투기", m.jets ? `${m.jets > 0 ? "+" : "−"}${Math.abs(m.jets)}기` : "±0", m.jets >= 0]];
+  return t.map(([k, v, ok]) => `<div class="hq-st"><span>${k}</span><b class="${ok ? "ok" : "bad"}">${v}</b></div>`).join("");
+}
+const SKINS = [["#f6d7c6", "#d9a48c", "#a46c58"], ["#efc4a8", "#c98f72", "#8f5a43"], ["#fbe3d4", "#e0b29e", "#a97a66"], ["#ecc59c", "#c18c5e", "#865733"], ["#d7a676", "#a5704a", "#6b4429"]];
+const HAIRS = ["#211a16", "#4a3626", "#6e5038", "#a8865a", "#8e8a84", "#d8d6d0"];
+const FACE_BG = ["#2b3446", "#2f3a33", "#3a3430", "#34303c", "#2c3a3e", "#3b3326"];
+function staffFace(o, s) { const [sk, h, age, must, glass, jaw, fem, beard] = o.f, n = [...o.id].reduce((a, c) => a + c.charCodeAt(0), 0); return face({ n: o.nm, skin: SKINS[sk], hair: HAIRS[h], brow: HAIRS[Math.min(h, 4)], age, must, glass, fem: !!fem, jaw, beard, eye: o.nat === "kr" ? 0.72 : 1, zoom: true, bg: FACE_BG[n % FACE_BG.length] }, s); }
+const HQ_DEPT = { cos: "참모장", ops: "작전처", int: "정보처", log: "군수처", air: "항공처" };
+function hqNode(r, o, me, fixed) {
+  const sk = o && !fixed ? skillOf(o) : 0, g = myGrade(), lock = !me && !fixed && !canFill(r.k, g);
+  const who = me ? `${ECON_RANKS[g]} ${cmdr.name}` : `${o.rk} ${o.nm}`, sub = me ? `<small>${careerTitle(g)} (나)</small>` : fixed ? "<small>상부 임명</small>" : `<div class="hq-skr"><div class="hq-sk"><i style="width:${sk * 10}%"></i></div><small>${sk}</small></div><em>${TRAITS[o.tr].n}</em>${lock ? `<em class="lk">${ECON_RANKS[ROLE_UNLOCK[r.k]]}부터 임명</em>` : ""}`;
+  return `<button class="hq-node${!me && !fixed && r.k === hqRole ? " on" : ""}${me ? " me" : ""}${fixed ? " fx" : ""}${lock ? " lk" : ""}" ${me || fixed ? "" : `data-role="${r.k}"`}><div class="hq-f">${me ? face(cmdr.face, 52) : staffFace(o, 52)}</div><div class="hq-i"><div class="hq-nm">${insignia(me ? g : o.ri, 14)}<b>${who}</b></div>${sub}</div></button>`;
+}
+function hqEff(k, m) { /* what each department contributes, shown in the grey boxes under it */
+  const p = (v, inv) => pctTxt(v, inv);
+  return { cos: [`참모 효과 증폭`], ops: [`화력 ${p(m.outK)}`, `적 요격 ${p(m.penK)}`], int: [`요격 성공 ${p(m.icptK)}`, `받는 피해 ${p(m.inK)}`], log: [`재장전 ${p(m.reloadK)}`, `수리반 ${m.repairN}회`], air: [`전투기 ${m.jets ? `${m.jets > 0 ? "+" : "−"}${Math.abs(m.jets)}기` : "±0"}`] }[k];
+}
+function renderBranchPick() {
+  const cards = Object.entries(BRANCHES).map(([k, B]) => `<div class="hq-br"><h4>${B.n}</h4><p>${B.d}</p><div class="hq-bb">보직 보너스 · ${B.bonus}</div><ol>${B.t.map((t, i) => `<li><span>${insignia(i, 13)}${ECON_RANKS[i]}</span>${t}</li>`).join("")}<li class="sh"><span>중장 →</span>함대사령관 · 작전사령관 · 해군 원수</li></ol><button data-branch="${k}">${B.n} 보직 선택</button></div>`).join("");
+  $("#hqP").innerHTML = `<div class="hq-head"><div><h3>임관 · 보직 선택</h3><p>소위로 임관했습니다. 어느 계통에서 경력을 시작할지 고르세요 — 진급하면서 받는 직함과 내 보직 보너스가 이 선택을 따라갑니다. (소위인 동안은 바꿀 수 있습니다)</p></div></div><div class="hq-brs">${cards}</div>`;
+}
+function renderHQ() {
+  if (!staff.branch) return renderBranchPick();
+  const rk = myGrade(), m = staffMods(rk), R = STAFF_ROLES.find((r) => r.k === hqRole), br = staff.branch;
+  const of = (k) => officer(staff.a[k]), row = STAFF_ROLES.filter((r) => r.k !== "cos").sort((x, y) => of(y.k).ri - of(x.k).ri || of(y.k).sk - of(x.k).sk);
+  const me = hqNode({ n: "나" }, null, true), low = rk < 8, mine = (k) => low && br === k ? `<div class="hq-v"></div><div class="hq-pill me">${careerTitle(rk)}</div>${me}` : "";
+  const col = (r) => `<div class="hq-col"><div class="hq-pill${r.k === hqRole ? " on" : ""}">${HQ_DEPT[r.k]} · ${r.n}</div>${hqNode(r, of(r.k))}${hqEff(r.k, m).map((t) => `<div class="hq-sub">${t}</div>`).join("")}${mine(r.k)}</div>`;
+  const top = low ? `<div class="hq-top"><div class="hq-pill dark">함대사령관</div>${hqNode({ n: "사령관" }, FLEET_CDR, false, true)}</div>` : `<div class="hq-top"><div class="hq-pill dark">${careerTitle(rk)}</div>${me}</div>`;
+  const tree = `<div class="hq-org">${top}<div class="hq-v"></div>`
+    + `<div class="hq-top"><div class="hq-pill dark${hqRole === "cos" ? " on" : ""}">참모장</div>${hqNode(STAFF_ROLES[0], of("cos"))}<div class="hq-sub">${hqEff("cos", m)[0]}</div></div><div class="hq-v"></div>`
+    + `<div class="hq-depts">${row.map(col).join("")}</div>${low && br === "sea" ? `<div class="hq-sea"><div class="hq-pill">함정 지휘 계통</div><div class="hq-pill me">${careerTitle(rk)}</div>${me}</div>` : ""}</div>`;
+  const cur = staff.a[hqRole];
+  const cands = STAFF.filter((o) => o.r === hqRole).sort((x, y) => y.ri - x.ri || y.sk - x.sk).map((o) => {
+    staff.a[hqRole] = o.id; const mm = staffMods(rk); staff.a[hqRole] = cur; const on = o.id === cur, ok = canAppoint(o, rk);
+    const d = [["화력", mm.outK - m.outK, 1], ["피해", mm.inK - m.inK, -1], ["재장전", mm.reloadK - m.reloadK, -1], ["수리", mm.repairN - m.repairN, 1], ["전투기", mm.jets - m.jets, 1]].filter(([, v]) => Math.abs(v) > 0.004).map(([k, v, g]) => { const good = v * g > 0, n = k !== "수리" && k !== "전투기" ? `${Math.round(Math.abs(v) * 100)}%` : `${Math.abs(v)}`; return `<span class="${good ? "ok" : "bad"}">${k} ${v > 0 ? "▲" : "▼"}${n}</span>`; }).join("");
+    const act = on ? `<span class="cur">현재 임명</span>` : ok ? `<div class="hq-d">${d || "<span>변화 없음</span>"}</div><button data-appoint="${o.id}">임명</button>` : `<span class="lock">${canFill(hqRole, rk) ? `내 계급 ${ECON_RANKS[o.ri - 4]} 이상` : `${ECON_RANKS[ROLE_UNLOCK[hqRole]]} 진급 시 임명권`}</span>`;
+    return `<div class="hq-c${on ? " on" : ""}${ok ? "" : " locked"}"><div class="hq-f">${staffFace(o, 64)}</div><div class="hq-ci"><div class="hq-nm">${flagOf({ nation: o.nat }, 20)}${insignia(o.ri, 15)}<b>${o.rk} ${o.nm}</b></div><div class="hq-skr"><span>${R.stat}</span><div class="hq-sk"><i style="width:${skillOf(o) * 10}%"></i></div><small>${skillOf(o)}/10</small></div><div class="hq-tr"><em>${TRAITS[o.tr].n}</em> ${TRAITS[o.tr].d} · 복무 ${staff.x[o.id] || 0}회</div></div><div class="hq-ca">${act}</div></div>`;
+  }).join("");
+  $("#hqP").innerHTML = `<div class="hq-head"><div><h3>함대사령부 · 지휘 계통</h3><p>현대전 전용 — 참모진이 직접 지휘와 자동 전투 결과 모두에 반영됩니다. 진급할수록 임명할 수 있는 자리가 늘고, 내 계급보다 네 계급 위 인물까지 데려올 수 있습니다.</p><div class="hq-me">내 보직 <b>${BRANCHES[br].n}</b> · ${careerTitle(rk)} · 보너스 ${BRANCHES[br].bonus}${rk === 0 ? ` <button data-rebranch="1">보직 변경</button>` : ""}</div></div><div class="hq-sum">${hqSummary(m)}</div></div>`
+    + tree + `<div class="hq-rh"><b>${R.n} 후보</b><span>${R.d} · 계급순</span></div><div class="hq-cands">${cands}</div>`;
+}
+function openHQ() { initAudio(); bgm("menu"); hideAll(); screen = "hq"; G.state = "menu"; setTab("hq"); $("#topbar").style.display = "flex"; renderHQ(); $("#hqP").style.display = "block"; showcase(profile.ship); }
+$("#tabHQ").addEventListener("click", () => { sfx.click(); openHQ(); });
+$("#hqP").addEventListener("click", (e) => { const br = e.target.closest("[data-branch]"); if (br) { sfx.click(); setBranch(br.dataset.branch); refreshMenus(); renderHQ(); toast(`${BRANCHES[br.dataset.branch].n} 보직 — ${careerTitle(myGrade())}`); return; } if (e.target.closest("[data-rebranch]")) { sfx.click(); staff.branch = null; renderHQ(); return; } const r = e.target.closest("[data-role]"); if (r) { sfx.click(); hqRole = r.dataset.role; renderHQ(); return; } const a = e.target.closest("[data-appoint]"); if (a) { sfx.click(); appoint(hqRole, a.dataset.appoint); renderHQ(); toast(`${STAFF_ROLES.find((x) => x.k === hqRole).n} 임명 — ${officer(a.dataset.appoint).rk} ${officer(a.dataset.appoint).nm}`); } });
 $("#tabPort").addEventListener("click", () => { sfx.click(); openMenu(); });
 $("#tabRecord").addEventListener("click", () => { sfx.click(); bgm("menu"); hideAll(); screen = "record"; G.state = "menu"; setTab("record"); $("#topbar").style.display = "flex"; renderRecord(); $("#recordP").style.display = "block"; showcase(profile.ship); });
-function hideAll() { if (typeof md !== "undefined" && md.fly) { md.fly.pilot = false; md.fly = null; } document.body.classList.remove("jetfly"); jetSound(0); sel = []; $("#cmdrM").style.display = "none"; capClear(); aa.on = false; aaGun.visible = false; paused = false; $("#pause").style.display = "none"; $("#start").style.display = "none"; $("#end").style.display = "none"; $("#yard").style.display = "none"; $("#recordP").style.display = "none"; document.body.classList.remove("playing", "flying", "auto", "firstp"); cockpit.visible = false; }
+function hideAll() { if (typeof md !== "undefined" && md.fly) { md.fly.pilot = false; md.fly = null; } document.body.classList.remove("jetfly"); jetSound(0); sel = []; $("#cmdrM").style.display = "none"; capClear(); aa.on = false; aaGun.visible = false; paused = false; $("#pause").style.display = "none"; $("#start").style.display = "none"; $("#end").style.display = "none"; $("#yard").style.display = "none"; $("#recordP").style.display = "none"; $("#hqP").style.display = "none"; document.body.classList.remove("playing", "flying", "auto", "firstp"); cockpit.visible = false; }
 function openYard() { initAudio(); bgm("menu"); hideAll(); screen = "yard"; G.state = "menu"; setTab("yard"); $("#topbar").style.display = "flex"; yardSel = profile.ship; $("#yard").style.display = "block"; showcase(yardSel); renderYard(); }
 function openMenu() { G.kc = null; cicStop(); droneSound(0); setMapLook(mission === "raid" ? "pearl" : theater); bgm("menu"); hideAll(); screen = "menu"; G.state = "menu"; setTab("menu"); $("#topbar").style.display = "flex"; $("#start").style.display = "block"; showcase(profile.ship); refreshMenus(); }
 
@@ -1268,7 +1326,7 @@ function updatePanels() {
   const P = G.player; if (!P) return;
   const hp = P.hp / P.maxHp, hc = hp > 0.5 ? "ok" : hp > 0.25 ? "warn" : "bad", pct = Math.round(hp * 100), lbl = ["STOP", "SLOW", "HALF", "FULL"];
   setHTML("#shipCard", `<div class="row">${flagOf(P, 26)}<b class="st" style="font-size:15.5px">${ENG[P.spec.id] || P.spec.name}</b><span class="pct ${hc}">${pct}%</span></div>`
-    + `<div class="sub">함장 ${P.captain || ""} · 사령관 ${ECON_RANKS[myRank()]} ${cmdr.name}</div><div class="hbar"><i class="${hc}" style="width:${pct}%"></i></div>`
+    + `<div class="sub">함장 ${P.captain || ""} · 사령관 ${ECON_RANKS[myGrade()]} ${cmdr.name}</div><div class="hbar"><i class="${hc}" style="width:${pct}%"></i></div>`
     + `<div class="row"><b class="tw" style="font-size:21px">${(P.speed / KN).toFixed(0)} kn</b><span class="sub">${kmh(P.speed)} km/h · ${brg(P.heading)}</span><div class="pips">${[0, 1, 2, 3].map((i) => `<button data-speed="${i}" class="${P.lv === i ? "on" : ""}">${i}${i === P.lv ? " " + lbl[i] : ""}</button>`).join("")}</div></div>`
     + `<div class="chips"><span class="chip${P.fires.length ? " fire" : ""}">화재 ${P.fires.length}</span><span class="chip${P.flooding ? " flood" : ""}">침수 ${P.flooding}</span>${P.rudderJam > 0 ? `<span class="chip bad">타 고착 ${Math.ceil(P.rudderJam)}s</span>` : ""}${P.turrets.length ? `<span class="chip${P.turrets.some((t) => !t.alive) ? " fire" : ""}">포탑 ${P.turrets.filter((t) => t.alive).length}/${P.turrets.length}</span>` : ""}<span class="chip ${P.seenByFoe ? "bad" : "ok"}">${P.seenByFoe ? "◉ 발각" : "○ 은폐"}</span><button class="chip r" data-act="repair">${rep.act > 0 ? "수리 중" : rep.cd > 0 ? `R ${Math.ceil(rep.cd)}s` : `R 수리 ×${rep.n}`}</button></div>`
     + `<div class="sub">${P.nav.length ? `이동 중 — ${(d2(P.pos, P.nav[P.nav.length - 1]) / 1000).toFixed(1)} km` : "우클릭: 이동 지점"}</div>`);

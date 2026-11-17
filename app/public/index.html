@@ -441,6 +441,47 @@
       .spec span:nth-child(odd) { color:var(--cream2); font:500 12px "Noto Sans KR",sans-serif; } .desc { color:var(--cream); line-height:1.55; word-break:keep-all; }
       .adminbox input { border-radius:0; } .adminbox button { border-radius:0; background:rgba(242,202,92,.28); border:1px solid var(--gold); color:#fff4cf; }
       #recordP { position:fixed; left:50%; top:84px; transform:translateX(-50%); width:760px; max-height:calc(100vh - 126px); overflow:auto; padding:22px 26px; box-sizing:border-box; display:none; border-top:2px solid var(--gold); }
+      /* fleet HQ */
+      #hqP { position:fixed; left:50%; top:76px; transform:translateX(-50%); width:1100px; max-width:calc(100vw - 40px); max-height:calc(100vh - 110px); overflow:auto; padding:20px 24px; box-sizing:border-box; display:none; border-top:2px solid var(--gold); }
+      #hqP h3 { margin:0 0 4px; font:700 17px "Noto Sans KR",sans-serif; color:var(--gold); letter-spacing:.03em; } #hqP .hq-head p { margin:0; font:12.5px "Noto Sans KR",sans-serif; color:var(--cream2); }
+      .hq-head { display:flex; justify-content:space-between; align-items:flex-end; gap:16px; padding-bottom:14px; border-bottom:1px solid var(--gline-soft); }
+      .hq-sum { display:flex; gap:6px; } .hq-st { display:flex; flex-direction:column; align-items:center; min-width:74px; padding:6px 8px; background:rgba(0,0,0,.35); border:1px solid var(--gline-soft); }
+      .hq-st span { font:11px "Noto Sans KR",sans-serif; color:var(--cream2); } .hq-st b { font:700 16px "Noto Sans KR",sans-serif; } #hqP .ok { color:#8ef07a; } #hqP .bad { color:#ff8a7a; }
+      .hq-org { display:flex; flex-direction:column; align-items:center; margin:14px 0 12px; padding:14px 10px 12px; background:rgba(0,0,0,.22); border:1px solid var(--gline-soft); }
+      .hq-top { display:flex; flex-direction:column; align-items:center; gap:4px; } .hq-v { width:2px; height:14px; background:var(--gline); }
+      .hq-depts { display:grid; grid-template-columns:repeat(4, 1fr); gap:10px; width:100%; position:relative; padding-top:14px; }
+      .hq-depts::before { content:""; position:absolute; top:0; left:12.5%; right:12.5%; height:2px; background:var(--gline); }
+      .hq-col { display:flex; flex-direction:column; align-items:center; gap:4px; position:relative; } .hq-col::before { content:""; position:absolute; top:-14px; left:50%; width:2px; height:14px; background:var(--gline); }
+      .hq-pill { font:700 12.5px "Noto Sans KR",sans-serif; color:var(--cream); background:#3a3f3c; border:1px solid var(--gline-soft); border-radius:6px; padding:5px 14px; min-width:140px; text-align:center; box-sizing:border-box; }
+      .hq-pill.dark { background:#151917; color:var(--gold); border-color:var(--gline); } .hq-pill.on { border-color:var(--gold); color:var(--gold); }
+      .hq-node.fx { cursor:default; } .hq-node.lk { opacity:.75; } .hq-i em.lk { background:transparent; color:var(--cream2); border:1px solid var(--gline-soft); }
+      .hq-pill.me { background:rgba(242,202,92,.18); color:var(--gold); border-color:var(--gold); }
+      .hq-me { margin-top:6px; font:12.5px "Noto Sans KR",sans-serif; color:var(--cream); } .hq-me b { color:var(--gold); } .hq-me button { margin-left:8px; font:600 11px "Noto Sans KR",sans-serif; color:var(--cream); background:transparent; border:1px solid var(--gline); padding:2px 8px; cursor:pointer; }
+      .hq-sea { display:flex; flex-direction:column; align-items:center; gap:4px; margin-top:12px; padding-top:10px; border-top:1px dashed var(--gline-soft); width:100%; }
+      .hq-brs { display:grid; grid-template-columns:repeat(5, 1fr); gap:10px; margin-top:14px; }
+      .hq-br { display:flex; flex-direction:column; gap:6px; padding:12px; background:rgba(0,0,0,.3); border:1px solid var(--gline-soft); border-top:2px solid var(--gold); color:var(--cream); }
+      .hq-br h4 { margin:0; font:700 18px "Noto Sans KR",sans-serif; color:var(--gold); } .hq-br p { margin:0; font:12px "Noto Sans KR",sans-serif; color:var(--cream2); min-height:34px; }
+      .hq-bb { font:600 11.5px "Noto Sans KR",sans-serif; color:#8ef07a; }
+      .hq-br ol { list-style:none; margin:4px 0; padding:0; display:flex; flex-direction:column; gap:3px; flex:1; } .hq-br li { display:flex; gap:6px; align-items:center; font:12px "Noto Sans KR",sans-serif; } .hq-br li span { display:inline-flex; align-items:center; gap:3px; min-width:52px; color:var(--cream2); font-size:11px; } .hq-br li.sh { color:var(--gold); margin-top:2px; }
+      .hq-br button { font:700 13px "Noto Sans KR",sans-serif; padding:8px 0; color:#0b1217; background:var(--gold); border:0; cursor:pointer; }
+      .hq-sub { font:600 11.5px "Noto Sans KR",sans-serif; color:var(--cream); background:rgba(232,220,184,.12); border-radius:5px; padding:4px 10px; min-width:140px; text-align:center; box-sizing:border-box; }
+      .hq-rh { display:flex; gap:10px; align-items:baseline; margin-bottom:6px; } .hq-rh b { font:700 14px "Noto Sans KR",sans-serif; color:var(--cream); } .hq-rh span { font:12px "Noto Sans KR",sans-serif; color:var(--cream2); }
+      .hq-cands { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+      .hq-node { display:flex; gap:8px; align-items:center; text-align:left; width:230px; padding:6px 8px; background:rgba(10,14,12,.6); border:1px solid var(--gline-soft); border-left:3px solid transparent; color:var(--cream); cursor:pointer; box-sizing:border-box; }
+      .hq-node.on { border-left-color:var(--gold); background:rgba(242,202,92,.14); } .hq-node:hover { border-color:var(--gline); } .hq-node.me { cursor:default; border-color:var(--gold); }
+      .hq-f svg { display:block; border:1px solid var(--gline-soft); }
+      .hq-i { display:flex; flex-direction:column; gap:2px; flex:1; min-width:0; } .hq-i span { font:600 11px "Noto Sans KR",sans-serif; color:var(--gold); } .hq-i small { font:11px "Noto Sans KR",sans-serif; color:var(--cream2); }
+      .hq-nm { display:flex; align-items:center; gap:5px; min-width:0; } .hq-nm b { font:700 13.5px "Noto Sans KR",sans-serif; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .hq-nm svg { flex:none; }
+      .hq-i em, .hq-tr em { font:700 10.5px "Noto Sans KR",sans-serif; font-style:normal; color:#0b1217; background:var(--cream2); padding:1px 6px; align-self:flex-start; }
+      .hq-skr { display:flex; align-items:center; gap:6px; } .hq-skr span { font:600 11px "Noto Sans KR",sans-serif; color:var(--cream2); min-width:26px; } .hq-skr small { font:600 11px monospace; color:var(--cream); }
+      .hq-sk { flex:1; height:6px; background:rgba(255,255,255,.12); min-width:60px; } .hq-sk i { display:block; height:100%; background:linear-gradient(90deg,var(--gold),#fff2c6); }
+      .hq-c { display:grid; grid-template-columns:auto 1fr 132px; gap:12px; align-items:center; padding:7px 10px; background:rgba(0,0,0,.28); border:1px solid var(--gline-soft); }
+      .hq-c.on { border-color:var(--gold); background:rgba(242,202,92,.1); } .hq-c.locked { opacity:.55; }
+      .hq-ci { display:flex; flex-direction:column; gap:4px; color:var(--cream); } .hq-ci .hq-nm b { font-size:15px; } .hq-ci small { font:11.5px "Noto Sans KR",sans-serif; color:var(--cream2); }
+      .hq-tr { font:12px "Noto Sans KR",sans-serif; color:var(--cream2); }
+      .hq-ca { display:flex; flex-direction:column; gap:6px; align-items:stretch; } .hq-d { display:flex; flex-wrap:wrap; gap:4px 8px; font:600 11.5px "Noto Sans KR",sans-serif; } .hq-d span { color:var(--cream2); }
+      .hq-ca button { font:700 13px "Noto Sans KR",sans-serif; padding:7px 0; color:#0b1217; background:var(--gold); border:0; cursor:pointer; } .hq-ca .cur, .hq-ca .lock { font:700 12px "Noto Sans KR",sans-serif; color:var(--gold); text-align:center; padding:7px 0; border:1px solid var(--gold); } .hq-ca .lock { color:var(--cream2); border-color:var(--gline-soft); }
+      .hq-note { margin:12px 0 0; font:11px "Noto Sans KR",sans-serif; color:var(--cream2); opacity:.75; }
       #recordP h3 { margin:0 0 10px; font:700 14px "Noto Sans KR",sans-serif; letter-spacing:.04em; color:var(--gold); }
       .rstats { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:18px; } .rstats div { background:rgba(10,13,10,.52); border:1px solid var(--gline-soft); padding:12px; display:flex; flex-direction:column; gap:4px; } .rstats span { font-size:12px; color:var(--cream2); } .rstats b { font:700 22px "Noto Sans KR",monospace; font-variant-numeric:tabular-nums; color:#fff4cf; }
       .ladder { display:flex; flex-direction:column; gap:4px; } .ladder div { display:grid; grid-template-columns:64px 58px minmax(150px,1.3fr) 96px 1fr; align-items:center; gap:10px; padding:7px 10px; border:1px solid transparent; font-size:13px; } .ladder div.cur { border-color:var(--gold); border-left:3px solid var(--gold); background:rgba(242,202,92,.18); } .ladder div.done { color:var(--cream2); } .ladder .xp { font:600 12.5px "Noto Sans KR",monospace; font-variant-numeric:tabular-nums; }
@@ -614,6 +655,7 @@ body.modern #wpnBar .slot.main { min-width:210px; }
         <button id="tabPort" class="tab on">항구</button>
         <button id="yardBtn" class="tab">조선소</button>
         <button id="tabRecord" class="tab">전적</button>
+        <button id="tabHQ" class="tab">사령부</button>
         <button id="setBtn" class="tab">설정</button>
       </nav>
       <div class="tb-right">
@@ -644,6 +686,7 @@ body.modern #wpnBar .slot.main { min-width:210px; }
       <div id="yardInfo" class="side"></div>
     </div>
     <section id="recordP" class="g"></section>
+    <section id="hqP" class="g"></section>
 
     <div id="cic" class="cic pip" style="display:none"><div class="cic-h"><b><span class="cic-badge">KNTDS</span>지휘통제실 · 합동 지원</b><span class="cic-k">` 최소화 · Shift+` 확대 · 끌기 · 지도 휠 축척</span></div><div class="cic-tele"></div><div class="cic-b"><div class="cic-face"><div class="cic-fw"></div><div class="cic-vtc"><div class="cic-vc-h"><span class="cic-dot"></span><span>SECURE VTC · CH-01</span><span class="cic-eq"><i></i><i></i><i></i><i></i><i></i></span></div><div class="cic-say"></div></div></div><div class="cic-mapw"><canvas class="cic-map"></canvas><div class="cic-tools"><button type="button" data-cz="in" title="확대">+</button><button type="button" data-cz="out" title="축소">−</button><button type="button" data-cz="home" title="기함 중심 30km">기함</button><button type="button" data-cz="wide" title="광역 60km">광역</button><button type="button" data-cz="clr" title="지정 지점 해제">해제</button></div><div class="cic-hudtip"></div></div><div class="cic-tracks"></div><div class="cic-cards"></div><div class="cic-ask"></div></div><div class="cic-feedlbl">LIVE EO/IR · 클릭 시 전장 복귀</div></div>
     <div id="cicFeed" class="hud"><div class="cf-h"><span class="cf-dot"></span><b id="cicFeedTitle">LIVE EO/IR FEED</b><button id="cicFeedClose" type="button" title="닫기">×</button></div><div id="cicFeedView"><div class="cf-ret"></div><div id="cicFeedSub">STANDBY</div></div></div>

@@ -254,7 +254,7 @@ export function stepMissiles(dt, onHit) {
         if (!T || !T.alive) { m.lost = (m.lost || 0) + dt; if (m.lost > 1.2) { kill(m, "air"); continue; } }
         else {
           steer(m, lead(m, T, m.vel.length()).clone(), dt, 5);
-          if (m.pos.distanceTo(T.pos) < 32) { const ok = rnd() < (W.pk[T.W.cls] ?? (T.isJet ? 0.3 : 0.55)) * (T.isJet ? 1 : satK(T.side)) * (T.isJet ? (T.pilot ? 0.55 * (T.flareT > 0 ? 0.4 : 1) * (T.gT > 0 ? 0.65 : 1) : 1) : 0.45); T.engaged = Math.max(0, T.engaged - 1); kill(m, "air");
+          if (m.pos.distanceTo(T.pos) < 32) { const ok = rnd() < (W.pk[T.W.cls] ?? (T.isJet ? 0.3 : 0.55)) * (T.isJet ? 1 : satK(T.side)) * (T.isJet ? (T.pilot ? 0.55 * (T.flareT > 0 ? 0.4 : 1) * (T.gT > 0 ? 0.65 : 1) : 1) : 0.45) * (G.staffK ? (m.side === "us" ? G.staffK.icptK : G.staffK.penK) : 1); /* HQ staff: our intercepts, their intercepts of our strikes */ T.engaged = Math.max(0, T.engaged - 1); kill(m, "air");
             if (ok && T.pilot && !T.hit) { T.hit = true; G.onJetHit?.(T); } // the aircraft you fly survives the first hit, damaged
             else if (ok) { T.killedBy = m.owner; kill(T, "boom"); } continue; } // jets jink and jam; no layer is a sure kill
         }

@@ -1122,13 +1122,13 @@ export class Ship {
     this.sync(G.time);
   }
   damage(n) {
-    if (!this.alive || this.boarded) return; this.hp -= n; if (n > 0.2) G.lastHitT = G.battleT;
+    if (!this.alive || this.boarded) return; if (G.staffK) n *= this.side === "us" ? G.staffK.inK : G.staffK.outK; this.hp -= n; if (n > 0.2) G.lastHitT = G.battleT;
     if (this.hp <= 0) { this.hp = 0; this.alive = false; this.sinking = 0.01; this.listSide = rnd() < 0.5 ? -1 : 1; const d = this.pos.distanceTo(camera.position); at(d, () => sfx.explode(d)); G.onSunk(this); }
   }
   fire(max = Infinity) {
     let n = 0, shells = 0; const salvo = ++salvoSeq;
     for (const t of this.turrets) if (n < max && t.alive && t.reload <= 0 && t.onTarget) {
-      t.reload = this.reloadT * (0.97 + rnd() * 0.06);
+      t.reload = this.reloadT * (0.97 + rnd() * 0.06) * (this.side === "us" && G.staffK ? G.staffK.reloadK : 1);
       for (let b = 0; b < t.n; b++) this.queue.push({ t, b, delay: n * 0.12 + b * 0.09 + rnd() * 0.05, salvo, first: b === 0, he: this.ammo === "he" });
       n++; shells += t.n;
     }
