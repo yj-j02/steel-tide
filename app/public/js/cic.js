@@ -32,8 +32,8 @@ export function cicSetWcs(m) {
 }
 /** Big view (option B): two live EO/IR monitors under the battle view. CAM 1 follows our asset, CAM 2 watches the target. */
 export function cicBigFeeds() {
-  if (!C.on || C.mode !== "big" || !C.fdA) return null;
-  return [C.fdA, C.fdB];
+  if (!C.on || !C.fdA || C.mode === "min") return null;
+  return C.mode === "big" ? [C.fdA, C.fdB] : [C.fdB]; /* small window: the target monitor sits where the map was */
 }
 function bigFeedTargets() {
   const P = G.player, f = C.feed && G.battleT <= C.feed.endT ? C.feed : null;
@@ -56,10 +56,10 @@ function aimFeedCam(cam, t, dt, age, snap) { /* chase a moving asset, orbit a sh
   return [t?.name || "TARGET SECTOR", t?.hp != null && t.maxHp ? `선체 ${Math.round(100 * t.hp / t.maxHp)}%` : ""];
 }
 function updateBigFeeds(dt) {
-  if (C.mode !== "big" || !C.fdA) return;
-  if (C.viewEl && ((C.vfr = (C.vfr || 0) + 1) % 20 === 1)) { const r = C.viewEl.getBoundingClientRect(), st = document.body.style; st.setProperty("--cvx", `${Math.round(r.left)}px`); st.setProperty("--cvy", `${Math.round(r.top)}px`); st.setProperty("--cvw", `${Math.round(r.width)}px`); st.setProperty("--car", `${innerWidth} / ${innerHeight}`); } /* the battle view sits in the slot */
+  if (C.mode === "min" || !C.fdA) return;
+  if (C.mode === "big" && C.viewEl && ((C.vfr = (C.vfr || 0) + 1) % 20 === 1)) { const r = C.viewEl.getBoundingClientRect(), st = document.body.style; st.setProperty("--cvx", `${Math.round(r.left)}px`); st.setProperty("--cvy", `${Math.round(r.top)}px`); st.setProperty("--cvw", `${Math.round(r.width)}px`); st.setProperty("--car", `${innerWidth} / ${innerHeight}`); } /* the battle view sits in the slot */
   const [a, b] = bigFeedTargets(), age = G.battleT;
-  for (const [fd, t] of [[C.fdA, a], [C.fdB, b]]) {
+  for (const [fd, t] of C.mode === "big" ? [[C.fdA, a], [C.fdB, b]] : [[C.fdB, b]]) {
     const changed = fd.target !== t; fd.target = t;
     const [l, r] = aimFeedCam(fd.cam, t, dt, age, changed);
     const sig = `${l}|${r}`; if (sig !== fd.sig) { fd.sig = sig; fd.cap.innerHTML = `<span>${l}</span><span>${r}</span>`; }
@@ -79,7 +79,7 @@ export function cicInit(deps) { // deps: { md, face, faceSkin, cmdrName, nat, th
     const b = C.el.querySelector(".cic-b"), v = document.createElement("div"); v.className = "cic-view"; v.innerHTML = '<span class="cv-l">LIVE BATTLE CAMERA</span>'; b.appendChild(v);
     const fw = document.createElement("div"); fw.className = "cic-feeds";
     fw.innerHTML = [["A", "CAM 1 · 아군 자산"], ["B", "CAM 2 · 표적"]].map(([k, t]) => `<div class="cic-fd" id="cicFeed${k}"><div class="fd-h"><span class="cf-dot"></span><b>${t}</b><i>FLIR</i></div><div class="fd-v"><canvas width="384" height="216"></canvas><div class="cf-ret"></div><div class="fd-s"></div></div></div>`).join("");
-    b.appendChild(fw);
+    b.insertBefore(fw, b.querySelector(".cic-mapw"));
     const mk = (k) => { const el = fw.querySelector(`#cicFeed${k}`), cv = el.querySelector("canvas"); return { cam: new THREE.PerspectiveCamera(40, 16 / 9, 4, 90000), canvas: cv, ctx: cv.getContext("2d"), cap: el.querySelector(".fd-s"), w: 384, h: 216, target: null, sig: "" }; };
     C.fdA = mk("A"); C.fdB = mk("B"); C.viewEl = v; }
   { const h = document.querySelector("#cicFeed .cf-h"), x = document.getElementById("cicFeedClose"); /* small feed: channel switch */
