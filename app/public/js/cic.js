@@ -14,9 +14,9 @@ Object.assign(WPN, {
 });
 // game assumptions per nation (names are real equipment; ranges, counts and timings are game balance)
 const AIR = {
-  us: { fighter: { type: "F/A-18E (공군 지원 편대)", asm: "LRASM", aam: "AIM-120" }, heavy: { type: "MC-130J 수송작전기 (래피드 드래곤)", asm: "LRASM", n: 4 } },
-  kr: { fighter: { type: "KF-21 (가정)", asm: "해성", aam: "AIM-120" }, heavy: { type: "C-130H 대형수송기 (래피드 드래곤)", asm: "하푼", n: 4 } },
-  jp: { fighter: { type: "F-2", asm: "17식", aam: "AIM-120" }, heavy: { type: "C-130H 대형수송기", asm: "91식", n: 4 } },
+  us: { fighter: { type: "F/A-18E (공군 지원 편대)", asm: "LRASM", aam: "AIM-120" }, heavy: { type: "MC-130J 수송작전기 (래피드 드래곤)", asm: "LRASM", n: 8 } },
+  kr: { fighter: { type: "KF-21 (가정)", asm: "해성", aam: "AIM-120" }, heavy: { type: "C-130H 대형수송기 (래피드 드래곤)", asm: "하푼", n: 8 } },
+  jp: { fighter: { type: "F-2", asm: "17식", aam: "AIM-120" }, heavy: { type: "C-130H 대형수송기", asm: "91식", n: 8 } },
 };
 const BATTERY = { "west:kr": { name: "해안 지대함 포대 (미사일사령부)", key: "해성 지상" }, "east:kr": { name: "해안 지대함 포대 (미사일사령부)", key: "해성 지상" }, "strait:kr": { name: "해안 지대함 포대 (미사일사령부)", key: "해성 지상" }, "jeju:kr": { name: "해안 지대함 포대 (미사일사령부)", key: "해성 지상" }, "okinawa:jp": { name: "육상자위대 12식 지대함 포대", key: "12식" }, "uswest:us": { name: "미 해병대 NMESIS 포대", key: "NSM 지상" } };
 const MAX_USES = { fighter: 2, heavy: 1, battery: 2, recon: 2, tot: 3 };
@@ -293,6 +293,7 @@ function updateFeed(dt) {
     if (repl) f.target = repl;
   }
   if (f.target?.heavy && f.target.alive && f.target.asm > 0) f.endT = Math.max(f.endT, G.battleT + 3); /* keep the C-130 on screen until its ramp drop is done */
+  else if (f.target?.heavy && !f.heavyDone) { f.heavyDone = true; const m = M.list.find((x) => x.alive && x.owner === f.target); if (m) { triggerFeed("msl", m, 14, `램프 투하탄 추적 · ${m.W.name}`); return; } } /* after the drop, ride one of its missiles in */
   const chT = C.feedCh === 2 ? bigFeedTargets()[1] : null; /* CAM 2: the target instead of the asset */
   const cam = C.feedCam, t = chT || f.target, age = G.battleT - f.t0, rem = Math.max(0, Math.ceil(f.endT - G.battleT));
   let subL = "EO/IR FLIR", subR = `T-${rem}s`;

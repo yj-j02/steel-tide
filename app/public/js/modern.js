@@ -124,7 +124,7 @@ export function launch(S, key, target) {
   } else if (S.isJet) {
     S.mesh.updateWorldMatrix(true, false);
     if (S.heavy) {
-      S.rampT = 4.5;
+      S.rampT = 4.5; /* Rapid Dragon pallet rounds: low-observable, seen late like LRASM/JSM */
       p = S.mesh.localToWorld(new THREE.Vector3(-11.2, -1.25, gauss() * 0.5));
       vel0 = S.vel.clone();
     } else {
@@ -158,7 +158,7 @@ export function launch(S, key, target) {
   mMesh.position.copy(p);
   if (qInit) mMesh.quaternion.setFromUnitVectors(X, qInit);
   else if (vel0.lengthSq() > 0.1) mMesh.quaternion.setFromUnitVectors(X, tmp.copy(vel0).normalize());
-  const m = { key, W, side: S.side, owner: S, target, pos: p, air: !!S.isJet, canLaunch, vel: vel0, t: 0, dist: 0, alive: true, engaged: 0, trail: [p.clone()], trT: 0,
+  const m = { key, W, side: S.side, owner: S, target, pos: p, air: !!S.isJet, stealthK: S.heavy ? 0.55 : 0, canLaunch, vel: vel0, t: 0, dist: 0, alive: true, engaged: 0, trail: [p.clone()], trT: 0,
     mesh: mMesh, apex: W.alt === "ball" ? 9000 : 0 };
   M.list.push(m);
   flash.spawn({ x: p.x, y: p.y + (canLaunch ? 0.4 : 2), z: p.z, life: 0.45, s0: W.role === "pd" ? 4.5 : 8, s1: W.role === "pd" ? 10 : 18, a: 1, c: 0xffd078 });
@@ -171,7 +171,7 @@ export function launch(S, key, target) {
 /** Can side `side` see this missile? sea-skimmers only inside the radar horizon of one of their ships. */
 export function seen(m, side) {
   if (m.side === side) return true;
-  const skim = m.W.alt === "skim", st = m.W.stealth || 1;
+  const skim = m.W.alt === "skim", st = m.stealthK || m.W.stealth || 1;
   for (const S of G.ships) if (S.alive && S.side === side && S.spec.modern) { const R = S.radarOn === false ? SENS.eo : skim ? 13000 * st : 48000; if (S.pos.distanceToSquared(m.pos) < R * R) return true; }
   for (const h of [...M.helos, ...M.jets]) if (h.alive && h.side === side) { const R = skim ? 16000 * st : 30000; if (h.pos.distanceToSquared(m.pos) < R * R) return true; } // an airborne radar sees over the horizon
   return false;
@@ -240,7 +240,7 @@ export function stepMissiles(dt, onHit) {
         }
         if (T) {
           const aim = lead(m, T, m.vel.length()).clone(), d = m.pos.distanceTo(T.pos), boostK = m.side === "us" && T.isrBoostT > 0 ? 1.35 : 1;
-          if (W.alt === "skim") aim.y = d > 2500 ? 9 : 4;
+          if (W.alt === "skim") { aim.y = d > 2500 ? 9 : 4; if (m.pos.y > 60 && d > 4000) { const hx = aim.x - m.pos.x, hz = aim.z - m.pos.z, hl = Math.hypot(hx, hz) || 1; aim.set(m.pos.x + hx / hl * 1800, 9, m.pos.z + hz / hl * 1800); } } /* air-launched skimmers dive to the sea within a couple of km instead of gliding in high over the radar horizon */
           else if (W.alt === "drone") aim.y = d > 1600 ? 120 : 3;
           else if (W.alt === "ball") { const frac = clamp(m.dist / Math.max(1, m.dist + d), 0, 1); aim.y = d > 6000 ? Math.max(200, m.apex * Math.sin(Math.PI * Math.min(frac + 0.15, 1))) : 0; }
           steer(m, aim, dt, (W.alt === "ball" ? 0.9 : d < 3000 ? 2.4 : 1.1) * boostK);
@@ -316,7 +316,7 @@ function impact(m, S, lx, onHit) {
   for (let i = 0; i < 30; i++) spark.spawn({ x: p.x, y: p.y + 2, z: p.z, vx: gauss() * 25, vy: 10 + rnd() * 30, vz: gauss() * 25, g: 9.8, life: 2.4, s0: 2.6, s1: 0.8, a: 1, c: 0xffa040 });
   for (let i = 0; i < 6; i++) smoke.spawn({ x: p.x + gauss() * 3, y: p.y + 3, z: p.z + gauss() * 3, vy: 6, life: 10, s0: 8, s1: 30, a: 0.75, c: 0x1e1e1e });
   const d = p.distanceTo(camera.position); at(d, () => sfx.explode(d)); if (S.isPlayer) G.shake = 2;
-  const n = W.dmg * (0.85 + rnd() * 0.3) * (W.cls === "hyp" ? 1 : 1.5) * (m.air ? 0.55 : 1); S.fires.push(40); /* air-launched anti-ship missiles hit for 55%: a jet carries many more of them than a ship */ // x1.5: three or four hits sink a destroyer, so battles end
+  const n = W.dmg * (0.85 + rnd() * 0.3) * (W.cls === "hyp" ? 1 : 1.5) * (m.air && !m.owner?.heavy ? 0.55 : 1); S.fires.push(40); /* air-launched anti-ship missiles hit for 55%: a jet carries many more of them than a ship */ // x1.5: three or four hits sink a destroyer, so battles end
   if (rnd() < 0.5) { S.flooding += 1; S.listSide = S.listSide || (lx >= 0 ? 1 : -1); }
   onHit?.(S, m, n); S.damage(n);
 }
@@ -593,7 +593,7 @@ export function stepJets(dt, know, onEvent) {
       else { const o = j.owner, a = j.t * 0.14; goal = o.pos.clone().add(new THREE.Vector3(Math.cos(a) * 4000, 0, Math.sin(a) * 4000)); }
     } // CAP patrols designated umbrella; strike jets orbit the carrier while waiting for contacts
     if (j.home) { goal = j.owner.pos.clone(); alt = j.heavy ? 450 : 60; const d = Math.hypot(goal.x - j.pos.x, goal.z - j.pos.z); spd = j.heavy ? 150 : d < 3000 ? 90 : 240;
-      if (d < 400) { j.alive = false; j.gone = true; scene.remove(j.mesh); if (j.owner.alive) { (j.owner.rearm ||= []).push(60); onEvent?.(j, "land"); } continue; } }
+      if (d < 400) { j.alive = false; j.gone = true; scene.remove(j.mesh); if (j.support) { onEvent?.(j, "leave"); continue; } if (j.owner.alive) { (j.owner.rearm ||= []).push(60); onEvent?.(j, "land"); } continue; } } /* air force support aircraft leave the area instead of landing on our carrier */
     goal.y = alt; const want = goal.sub(j.pos).normalize().multiplyScalar(spd);
     const prevDir = j.vel.clone().normalize();
     j.vel.lerp(want, Math.min(1, dt * (j.heavy ? 0.34 : 0.9))); j.pos.addScaledVector(j.vel, dt); if (j.pos.y < 40) j.pos.y = 40;
