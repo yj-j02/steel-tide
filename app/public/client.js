@@ -604,7 +604,10 @@ function finish() {
       const newRole = STAFF_ROLES.filter((r) => ROLE_UNLOCK[r.k] > before && ROLE_UNLOCK[r.k] <= after).map((r) => `${HQ_DEPT[r.k]} ${r.n === "참모장" ? "참모장" : "처장"}`), yr = new Date().getFullYear(), no = String(((profile.xp * 7) % 97) + 1).padStart(2, "0");
       const opens = [newRole.length ? `사령부 ${newRole.join(" · ")} 임명` : "", `${ECON_RANKS[Math.min(10, after + 4)]}급 참모 영입`, unl ? `함선 ${unl}` : ""].filter(Boolean).join(" · ");
       const handover = after >= 8 && before < 8 ? `<div class="po-cc">중장 ${FLEET_CDR.nm} 제독이 귀관에게 함대 지휘권을 이양합니다. 이제부터 귀관이 함대사령관으로서 사령부 전 참모진과 기동함대를 직접 지휘합니다.</div>` : "";
-      $("#endPromo").innerHTML = `<div class="po"><div class="po-h">해군본부 인사명령 제${yr}-${no}호</div><div class="insr"><div class="ib">${insignia(before, 40)}</div><span style="font-size:24px;color:var(--gold)">→</span><div class="ib new">${insignia(after, 58)}</div></div><div class="po-b"><b>${ECON_RANKS[after]} ${cmdr.name}</b><br>${ECON_RANKS[before]}에서 ${ECON_RANKS[after]}${(() => { const j = (ECON_RANKS[after].charCodeAt(ECON_RANKS[after].length - 1) - 0xac00) % 28; return j === 0 || j === 8 ? "로" : "으로"; })()} 진급을 명함<br>신규 보직 · <b>${postOf(after)}</b></div><div class="po-u">신규 권한 · ${opens}</div>${handover}<div class="rk"><div class="hbar"><i style="width:${rl.pct * 100}%;background:var(--gold)"></i></div></div></div>`; sfx.bell();
+      $("#endPromo").innerHTML = `<span class="k">RANK</span><div class="ib new">${insignia(after, 64)}</div><div class="big" style="font-size:30px">${ECON_RANKS[after]}</div><div class="sub">${postOf(after)}</div>`;
+      const josa = (w) => { const j = (w.charCodeAt(w.length - 1) - 0xac00) % 28; return j === 0 || j === 8 ? "로" : "으로"; };
+      $("#promoM").innerHTML = `<div class="pm-doc"><div class="pm-h">대한민국 해군본부</div><div class="pm-no">인사명령 제${yr}-${no}호</div><div class="pm-ins">${insignia(after, 120)}</div><div class="pm-rank">${ECON_RANKS[after]} 진급</div><div class="pm-name">${cmdr.name}</div><div class="pm-txt">위 사람을 ${ECON_RANKS[before]}에서 ${ECON_RANKS[after]}${josa(ECON_RANKS[after])} 진급시키고<br><b>${postOf(after)}</b>에 보함</div><div class="pm-u">${opens}</div>${handover}<button id="promoOk">명 받았습니다</button></div>`;
+      setTimeout(() => { if (G.state !== "ended") return; $("#promoM").style.display = "flex"; sfx.bell(); }, 2600);
       if (handover) log(`지휘권 이양 — ${ECON_RANKS[after]} ${cmdr.name} 함대사령관 부임`, "hit"); }
     else $("#endPromo").innerHTML = `<span class="k">RANK</span><div class="ib new">${insignia(after, 64)}</div><div class="big" style="font-size:30px">${ECON_RANKS[after]}</div><div class="sub">${postOf(after)}<br>${rl.next ? `${rl.next}까지 ${fmt(rl.need - profile.xp)} XP` : "최고 계급"}</div><div class="rk"><div class="hbar"><i style="width:${rl.pct * 100}%;background:var(--gold)"></i></div></div>`;
   } else html += `<span>관전 모드</span><span>보상 없음</span>`;
@@ -737,12 +740,21 @@ function renderHQ() {
   if (!staff.branch) return renderBranchPick();
   const rk = myGrade(), m = staffMods(rk), R = STAFF_ROLES.find((r) => r.k === hqRole), br = staff.branch;
   const of = (k) => officer(staff.a[k]), row = STAFF_ROLES.filter((r) => r.k !== "cos").sort((x, y) => of(y.k).ri - of(x.k).ri || of(y.k).sk - of(x.k).sk);
-  const me = hqNode({ n: "나" }, null, true), low = rk < 8, mine = (k) => low && (br === k || (k === "ops" && br === "sea")) ? `<div class="hq-v"></div><div class="hq-pill me">${careerTitle(rk)}</div>${me}` : "";
-  const col = (r) => `<div class="hq-col"><div class="hq-pill${r.k === hqRole ? " on" : ""}">${HQ_DEPT[r.k]} · ${r.n}</div>${hqNode(r, of(r.k))}${hqEff(r.k, m).map((t) => `<div class="hq-sub">${t}</div>`).join("")}${mine(r.k)}</div>`;
-  const top = low ? `<div class="hq-top"><div class="hq-pill dark">함대사령관</div>${hqNode({ n: "사령관" }, FLEET_CDR, false, true)}</div>` : `<div class="hq-top"><div class="hq-pill dark">${careerTitle(rk)}</div>${me}</div>`;
-  const tree = `<div class="hq-org">${top}<div class="hq-v"></div>`
+  const me = hqNode({ n: "나" }, null, true);
+  /* every post from 소위 up: spine (원수 · 대장 · 중장 · 참모장) and one column per branch, 소장 at the top down to 소위 */
+  const SUR = "김이박최정강조윤장임한오서신권황안송류홍", GIV = ["민준", "서준", "도윤", "하준", "지호", "준서", "현우", "지훈", "건우", "우진", "성민", "태현", "재원", "동현", "승우", "영호", "상철", "기훈", "정우", "시우"];
+  const npc = (k, g) => { let h = 7; for (const c of k + g) h = (h * 31 + c.charCodeAt(0)) >>> 0; h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0; return SUR[h % SUR.length] + GIV[(h >>> 13) % GIV.length]; };
+  const post = (g, title, name, isMe, extra = "") => `<div class="hq-post${isMe ? " me" : ""}${extra}"><b>${title}</b><span>${insignia(g, 12)}${ECON_RANKS[g]} ${isMe ? `${cmdr.name} (나)` : name}</span></div>`;
+  const spine = [[10, "해군원수", null], [9, BRANCHES[br].t[9], npc("cno", "9")], [8, "함대사령관", `${FLEET_CDR.nm}`]].map(([g, t, n]) => rk === g ? `<div class="hq-top"><div class="hq-pill dark">${ECON_RANKS[g]} · ${careerTitle(g)}</div>${me}</div>` : `<div class="hq-top">${post(g, t, n ?? "공석", false, n ? "" : " vac")}</div>`).join('<div class="hq-v"></div>');
+  const COLS = [["sea", null], ...row.map((r) => [r.k, r])];
+  const col = ([k, r]) => {
+    const B = BRANCHES[k], head = r ? `<div class="hq-pill${r.k === hqRole ? " on" : ""}">${HQ_DEPT[r.k]} · 임명 참모</div>${hqNode(r, of(r.k))}${hqEff(r.k, m).map((t) => `<div class="hq-sub">${t}</div>`).join("")}` : `<div class="hq-pill">함정 · 기동부대</div><div class="hq-sub">해상 지휘 계통</div>`;
+    const posts = [7, 6, 5, 4, 3, 2, 1, 0].map((g) => br === k && rk === g ? `<div class="hq-mine">${me}</div>` : post(g, B.t[g], npc(k, g), false)).join("");
+    return `<div class="hq-col">${head}<div class="hq-ladder">${posts}</div></div>`;
+  };
+  const tree = `<div class="hq-org">${spine}<div class="hq-v"></div>`
     + `<div class="hq-top"><div class="hq-pill dark${hqRole === "cos" ? " on" : ""}">참모장</div>${hqNode(STAFF_ROLES[0], of("cos"))}<div class="hq-sub">${hqEff("cos", m)[0]}</div></div><div class="hq-v"></div>`
-    + `<div class="hq-depts">${row.map(col).join("")}</div></div>`;
+    + `<div class="hq-depts">${COLS.map(col).join("")}</div></div>`;
   const cur = staff.a[hqRole];
   const cands = STAFF.filter((o) => o.r === hqRole).sort((x, y) => y.ri - x.ri || y.sk - x.sk).map((o) => {
     staff.a[hqRole] = o.id; const mm = staffMods(rk); staff.a[hqRole] = cur; const on = o.id === cur, ok = canAppoint(o, rk);
@@ -755,10 +767,11 @@ function renderHQ() {
 }
 function openHQ() { initAudio(); bgm("menu"); hideAll(); screen = "hq"; G.state = "menu"; setTab("hq"); $("#topbar").style.display = "flex"; renderHQ(); $("#hqP").style.display = "block"; showcase(profile.ship); }
 $("#tabHQ").addEventListener("click", () => { sfx.click(); openHQ(); });
+$("#promoM").addEventListener("click", (e) => { if (e.target.closest("#promoOk")) { sfx.click(); $("#promoM").style.display = "none"; } });
 $("#hqP").addEventListener("click", (e) => { const br = e.target.closest("[data-branch]"); if (br) { sfx.click(); setBranch(br.dataset.branch); refreshMenus(); renderHQ(); toast(`${BRANCHES[br.dataset.branch].n} 보직 — ${careerTitle(myGrade())}`); return; } if (e.target.closest("[data-rebranch]")) { sfx.click(); staff.branch = null; renderHQ(); return; } const r = e.target.closest("[data-role]"); if (r) { sfx.click(); hqRole = r.dataset.role; renderHQ(); return; } const a = e.target.closest("[data-appoint]"); if (a) { sfx.click(); appoint(hqRole, a.dataset.appoint); renderHQ(); toast(`${STAFF_ROLES.find((x) => x.k === hqRole).n} 임명 — ${officer(a.dataset.appoint).rk} ${officer(a.dataset.appoint).nm}`); } });
 $("#tabPort").addEventListener("click", () => { sfx.click(); openMenu(); });
 $("#tabRecord").addEventListener("click", () => { sfx.click(); bgm("menu"); hideAll(); screen = "record"; G.state = "menu"; setTab("record"); $("#topbar").style.display = "flex"; renderRecord(); $("#recordP").style.display = "block"; showcase(profile.ship); });
-function hideAll() { if (typeof md !== "undefined" && md.fly) { md.fly.pilot = false; md.fly = null; } document.body.classList.remove("jetfly"); jetSound(0); sel = []; $("#cmdrM").style.display = "none"; capClear(); aa.on = false; aaGun.visible = false; paused = false; $("#pause").style.display = "none"; $("#start").style.display = "none"; $("#end").style.display = "none"; $("#yard").style.display = "none"; $("#recordP").style.display = "none"; $("#hqP").style.display = "none"; document.body.classList.remove("playing", "flying", "auto", "firstp"); cockpit.visible = false; }
+function hideAll() { if (typeof md !== "undefined" && md.fly) { md.fly.pilot = false; md.fly = null; } document.body.classList.remove("jetfly"); jetSound(0); sel = []; $("#cmdrM").style.display = "none"; capClear(); aa.on = false; aaGun.visible = false; paused = false; $("#pause").style.display = "none"; $("#start").style.display = "none"; $("#end").style.display = "none"; $("#yard").style.display = "none"; $("#recordP").style.display = "none"; $("#hqP").style.display = "none"; $("#promoM").style.display = "none"; document.body.classList.remove("playing", "flying", "auto", "firstp"); cockpit.visible = false; }
 function openYard() { initAudio(); bgm("menu"); hideAll(); screen = "yard"; G.state = "menu"; setTab("yard"); $("#topbar").style.display = "flex"; yardSel = profile.ship; $("#yard").style.display = "block"; showcase(yardSel); renderYard(); }
 function openMenu() { G.kc = null; cicStop(); droneSound(0); setMapLook(mission === "raid" ? "pearl" : theater); bgm("menu"); hideAll(); screen = "menu"; G.state = "menu"; setTab("menu"); $("#topbar").style.display = "flex"; $("#start").style.display = "block"; showcase(profile.ship); refreshMenus(); }
 
