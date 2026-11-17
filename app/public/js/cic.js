@@ -544,7 +544,7 @@ export function cicStep(dt, marks) {
   const actFighter = M.jets.find((j) => j.alive && j.side === "us" && j.support && !j.heavy);
   const actBatMsl = C.battery ? M.list.filter((m) => m.alive && m.side === "us" && m.owner?.name === C.battery.name) : [];
   const actTot = C.tots[0];
-  const cards = assets().map((a) => {
+  const cards = assets().filter((a) => a.ok).map((a) => { /* supports this theatre can't use stay off the list */
     const cd = Math.max(0, Math.ceil((C.cd[a.id] || 0) - G.battleT)), maxCd = CD_SEC[a.id] || 60, u = C.uses[a.id] ?? 0, maxU = MAX_USES[a.id] || 1;
     const pips = a.ok ? `<span class="pips">${"●".repeat(u)}${"○".repeat(Math.max(0, maxU - u))}</span>` : "";
     let eta = "";
@@ -580,7 +580,7 @@ export function cicStep(dt, marks) {
   }).join("");
   const snap = pt ? nearestSnap(pt.x, pt.z, 2600) : null;
   const ptDesc = pt ? `${snap ? snap.name : "해역"} (${(Math.hypot(pt.x - P.pos.x, pt.z - P.pos.z) / 1000).toFixed(1)} km · ${brg(Math.atan2(pt.z - P.pos.z, pt.x - P.pos.x))})` : "";
-  const ask = C.pend ? `<div class="q">승인 대기: ${C.pend.a.t} → ${ptDesc}</div><button data-ok="1">Y 승인</button><button data-ok="0">N 보류</button>` : `<div class="q m">${pt ? `지점: ${ptDesc} — 지원 수단 선택` : "상황판·표적 클릭 또는 전장 Ctrl+클릭으로 지점 지정"}</div>`;
+  const ask = C.pend ? `<div class="q">승인 대기: ${C.pend.a.t} → ${ptDesc}</div><button data-ok="1">Y 승인</button><button data-ok="0">N 보류</button>` : pt ? `<div class="q m">지점: ${ptDesc} — 지원 수단 선택</div>` : "";
   const sig = cards + ask; if (sig !== C.sig) { C.sig = sig; $(".cic-cards").innerHTML = cards; $(".cic-ask").innerHTML = ask; }
   if (C.mode === "pip" || C.mode === "big") drawMap(marks);
 }

@@ -340,7 +340,7 @@
       /* battle panels */
       #shipCard { position:fixed; left:14px; bottom:12px; width:316px; padding:9px 12px; box-sizing:border-box; display:none; flex-direction:column; gap:4px; pointer-events:auto; z-index:4; border-top:2px solid var(--gold); }
       body.jetfly #shipCard, body.jetfly #wpnBar, body.jetfly #tgtCard, body.jetfly #log, body.jetfly #airP { display:none !important; }
-      body.playing #shipCard { display:flex; } body.flying #shipCard, body.flying #wpnBar, body.flying #tgtCard, body.aamode #wpnBar, body.aamode #tgtCard, body.aamode #shipCard, body.aamode #airP, body.aamode #log, body.auto #wpnBar { display:none !important; }
+      body.playing #shipCard { display:flex; } body.flying #shipCard, body.flying #wpnBar, body.flying #tgtCard, body.aamode #wpnBar, body.aamode #tgtCard, body.aamode #shipCard, body.aamode #airP, body.aamode #log, body.auto #wpnBar .slot { display:none !important; }
       #shipCard .row, #tgtCard .row { display:flex; align-items:center; gap:7px; } #shipCard .sub, #tgtCard .sub { font:500 11.5px/1.3 "Noto Sans KR",sans-serif; font-variant-numeric:tabular-nums; color:var(--cream2); }
       #shipCard .st, #shipCard .tw { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
       #shipCard .sub { white-space:nowrap; overflow:visible; text-overflow:clip; }
@@ -363,7 +363,7 @@
       .slot .ln { width:100%; height:5px; background:rgba(232,220,184,.2); } .slot .ln.ok { background:var(--ok); }
       #log { left:auto; right:14px; bottom:12px; width:312px; max-height:126px; overflow:hidden; margin-top:0; min-height:0; font:500 11.5px/1.42 "Noto Sans KR",sans-serif; color:var(--cream); word-break:keep-all; text-shadow:0 1px 2px rgba(0,0,0,.75); z-index:4; }
       #log:not(:empty) { background:var(--glass); backdrop-filter:blur(14px) saturate(1.15); -webkit-backdrop-filter:blur(14px) saturate(1.15); border:1px solid var(--gline); border-top:2px solid var(--gold); border-left:1px solid var(--gline); padding:8px 11px; box-shadow:var(--panel-shadow); }
-      #log:not(:empty)::before { content:"COMBAT LOG · 실시간 교전 기록"; display:block; font:700 10px/1.1 "Special Elite","Noto Sans KR",monospace; letter-spacing:.08em; color:var(--gold); border-bottom:1px dashed var(--gline-soft); padding-bottom:4px; margin-bottom:5px; }
+      #log:not(:empty)::before { content:"교전 기록"; display:block; font:700 10px/1.1 "Special Elite","Noto Sans KR",monospace; letter-spacing:.08em; color:var(--gold); border-bottom:1px dashed var(--gline-soft); padding-bottom:4px; margin-bottom:5px; }
       body.noglass #log:not(:empty) { backdrop-filter:none; -webkit-backdrop-filter:none; background:rgba(14,18,15,.94); }
       #plotP { position:fixed; right:14px; top:14px; width:236px; height:236px; padding:0; border-radius:50%; overflow:hidden; background:rgba(12,24,28,.78); border:2px solid rgba(232,220,184,.52); box-shadow:var(--panel-shadow); }
       #plot { width:236px; height:236px; }
@@ -548,7 +548,39 @@
         .pkeys { gap:6px; } .pk-grp { padding:6px 8px; gap:3px; } .pk-row { font-size:10.5px; line-height:1.25; }
         #pause .btns { margin-top:2px; } #pause .btns .go { padding:9px 18px; font-size:13px; }
       }
-    </style>
+    
+/* --- HUD 간소화 시안 --- */
+#shipCard > .sub, #shipCard::before { display:none !important; }
+#tgtCard > .sub { display:none !important; } #tgtCard { padding:7px 12px 8px !important; gap:5px !important; }
+#cic.pip .cic-face { grid-template-columns:1fr; padding:4px 6px; } #cic.pip .cic-fw, #cic.pip .cic-vc-h { display:none; } #cic.pip .sup small { display:none; } #cic.pip .sup:hover small { display:block; } #cic.pip .sup { padding-top:5px; padding-bottom:5px; }
+#log > div { display:none; } #log > div:nth-last-child(-n+2) { display:block; } #log:hover > div { display:block; } #log { pointer-events:auto; }
+
+/* --- 정리: CIC 안내문, 우상단 버튼 --- */
+#cic .cic-k { display:none; } #cic .cic-ask:empty { display:none; }
+#pauseBtn, #autoModeBtn { min-width:0 !important; padding:4px 9px !important; font-size:11px !important; }
+#autoModeBtn { top:40px !important; }
+/* --- 하단 통합 조작반 --- */
+body.playing #shipCard { display:none !important; }
+#wpnBar { align-items:stretch; }
+#wpnBar .slot .ln, body.modern #wpnBar .slot.main::before { display:none !important; }
+#wpnBar .slot.off { opacity:.5; }
+#wpnBar .grp { cursor:pointer; } #wpnBar .grp .sub2 { display:flex; gap:4px; width:100%; margin-top:2px; }
+#wpnBar .grp .sub2 button { flex:1; font:700 11px/1 "Noto Sans KR",sans-serif; color:var(--cream); background:rgba(0,0,0,.4); border:1px solid var(--gline-soft); padding:5px 6px; cursor:pointer; white-space:nowrap; }
+#wpnBar .grp .sub2 button.on { color:#0b1217; background:#8ef07a; border-color:#8ef07a; } #wpnBar .grp .sub2 button.dim { opacity:.5; }
+body.modern #wpnBar .slot.main { min-width:210px; }
+@media (max-width:1380px) { #wpnBar { max-width:none !important; flex-wrap:nowrap !important; } .helm { min-width:196px; padding:5px 8px; } .helm .gauge { width:96px; height:53px; } body.modern #wpnBar .slot.main { min-width:160px; } #wpnBar .grp .sub2 button { padding:4px 5px; font-size:10.5px; } #jetP .ar { flex-wrap:nowrap; white-space:nowrap; } }
+.helm { display:flex; flex-direction:column; gap:4px; padding:7px 10px; background:var(--glass); backdrop-filter:blur(14px); border:1px solid var(--gline); border-top:2px solid var(--gold); box-shadow:var(--panel-shadow); min-width:228px; box-sizing:border-box; }
+.helm .hn { display:flex; align-items:center; gap:6px; font:700 13px "Noto Sans KR",sans-serif; color:var(--cream); white-space:nowrap; } .helm .hn b { overflow:hidden; text-overflow:ellipsis; max-width:150px; } .helm .hn .pct { margin-left:auto; font-size:12px; }
+.helm .hbar { height:6px; }
+.helm .hb { display:flex; align-items:center; gap:6px; }
+.helm .gauge { width:120px; height:66px; flex:none; } .helm .gt { fill:none; stroke:rgba(232,220,184,.22); stroke-width:7; } .helm .gv { fill:none; stroke:var(--gold); stroke-width:7; } .helm .tk line { stroke:rgba(232,220,184,.55); stroke-width:1.5; } .helm .nd { stroke:#fff2c6; stroke-width:2.5; stroke-linecap:round; } .helm .hub { fill:#fff2c6; }
+.helm .gn { font:700 22px 'Noto Sans KR',sans-serif; fill:#fff2c6; text-anchor:middle; } .helm .gu { font:500 9.5px 'Noto Sans KR',sans-serif; fill:#d8cfb4; text-anchor:middle; } .helm .gr { display:flex; flex-direction:column; align-items:flex-start; margin-left:-50px; margin-top:26px; min-width:44px; } .helm .gr b { font:700 20px/1 "Noto Sans KR",sans-serif; color:#fff2c6; font-variant-numeric:tabular-nums; } .helm .gr small { font:500 10px "Noto Sans KR",sans-serif; color:var(--cream2); }
+.helm .gear { display:flex; flex-direction:column; gap:2px; margin-left:auto; padding:3px; background:rgba(0,0,0,.45); border:1px solid var(--gline-soft); }
+.helm .gear button { display:flex; align-items:center; gap:5px; font:600 10px/1 "Noto Sans KR",sans-serif; color:var(--cream2); background:transparent; border:0; border-left:3px solid transparent; padding:2px 6px; cursor:pointer; text-align:left; }
+.helm .gear button span { font:700 11px monospace; color:var(--cream); }
+.helm .gear button.on { background:rgba(242,202,92,.22); border-left-color:var(--gold); color:var(--gold); } .helm .gear button.on span { color:var(--gold); }
+.helm .hws { display:flex; gap:4px; } .helm .hw { font:700 10.5px "Noto Sans KR",sans-serif; color:#ffb070; border:1px solid #ff9a50; background:rgba(80,30,10,.55); padding:2px 6px; }
+</style>
   </head>
   <body>
     <canvas id="gl"></canvas>
