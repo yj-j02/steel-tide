@@ -220,7 +220,28 @@
       #cic.big .cic-cards { grid-column:2; grid-row:3; overflow-y:auto; min-height:0; align-content:start; gap:5px; }
       #cic.big .cic-ask { grid-column:2; grid-row:4; background:rgba(18,22,17,.9); border:1px solid var(--gline); padding:8px 10px; }
       #cic.big .cic-feedlbl { display:block; position:fixed; right:456px; bottom:calc(22px + clamp(160px, 23vh, 240px)); z-index:71; background:rgba(12,16,13,.94); border:1px solid var(--gold); border-bottom:0; color:#fff2c6; padding:3px 9px; font:700 10.5px/1.2 'Noto Sans KR',monospace; letter-spacing:.04em; pointer-events:none; }
-      body.cicbig #gl { position:fixed !important; inset:auto 456px 22px auto !important; width:25vw !important; min-width:260px; height:clamp(160px, 23vh, 240px) !important; z-index:70; border:2px solid var(--gold); border-radius:0; cursor:pointer; box-shadow:0 12px 32px rgba(0,0,0,.8); }
+      body.cicbig #gl { position:fixed !important; inset:auto !important; left:var(--cvx, 56vw) !important; top:var(--cvy, 64px) !important; width:var(--cvw, 42vw) !important; min-width:0; height:auto !important; aspect-ratio:var(--car, 16 / 9); z-index:70; border:1px solid rgba(77,232,212,.7); border-radius:0; cursor:pointer; box-shadow:0 12px 32px rgba(0,0,0,.8); }
+      body.cicbig #pause { z-index:90 !important; } /* the pause menu stays above the battle view slot */
+      /* option B tactical desk: KNTDS 55% on the left, battle view and two EO/IR monitors 45% on the right */
+      #cic .cic-view, #cic .cic-feeds { display:none; }
+      #cic.big .cic-b { grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,45%); grid-template-rows:auto auto auto minmax(0,1fr); grid-template-areas:"map map view" "map map feeds" "face cards feeds" "tracks cards feeds"; padding-bottom:56px; }
+      #cic.big .cic-mapw { grid-area:map; height:auto; min-height:46vh; }
+      #cic.big .cic-face { grid-area:face; grid-template-columns:64px 1fr; } #cic.big .cic-fw { width:64px; height:64px; }
+      #cic.big .cic-tracks { grid-area:tracks; max-height:24vh; overflow:auto; }
+      #cic.big .cic-cards { grid-area:cards; }
+      #cic.big .cic-ask { position:absolute; left:14px; bottom:12px; width:calc(55% - 30px); z-index:3; }
+      #cic.big .cic-view { display:block; grid-area:view; aspect-ratio:var(--car, 16 / 9); position:relative; border:1px solid rgba(77,232,212,.35); background:rgba(4,12,14,.6); }
+      #cic.big .cic-view .cv-l { position:absolute; left:6px; top:6px; z-index:71; background:rgba(4,12,14,.8); padding:3px 6px; font:700 10.5px/1 'Noto Sans KR',monospace; color:#affff1; letter-spacing:.06em; }
+      #cic.big .cic-feedlbl { display:none; }
+      #cic.big .cic-feeds { display:grid; grid-area:feeds; grid-template-columns:1fr 1fr; gap:8px; align-content:start; margin-top:14px; }
+      #cic .cic-fd { border:1px solid rgba(77,232,212,.55); background:#020807; display:flex; flex-direction:column; min-width:0; }
+      #cic .cic-fd .fd-h { display:flex; align-items:center; gap:6px; padding:4px 7px; font:700 10.5px/1 'Noto Sans KR',monospace; color:#affff1; border-bottom:1px solid rgba(77,232,212,.3); }
+      #cic .cic-fd .fd-h i { margin-left:auto; font-style:normal; color:#8ef07a; }
+      #cic .cic-fd .fd-v { position:relative; aspect-ratio:16 / 9; overflow:hidden; }
+      #cic .cic-fd canvas { width:100%; height:100%; display:block; filter:grayscale(1) contrast(1.45) brightness(0.95) sepia(1) hue-rotate(82deg) saturate(2.8); }
+      #cic .cic-fd .cf-ret { position:absolute; left:50%; top:50%; width:40px; height:40px; margin:-20px 0 0 -20px; border:1px solid rgba(175,255,241,.55); pointer-events:none; }
+      #cic .cic-fd .fd-s { position:absolute; left:0; right:0; bottom:0; display:flex; justify-content:space-between; padding:3px 6px; font:10px/1.2 monospace; color:#d8fff4; background:linear-gradient(transparent, rgba(0,0,0,.65)); }
+      #cicFeedCh { margin-left:auto; margin-right:4px; background:rgba(10,30,28,.9); color:#affff1; border:1px solid rgba(77,232,212,.55); font:700 10px/1 'Noto Sans KR',monospace; padding:3px 6px; cursor:pointer; } #cicFeedCh:hover { border-color:#affff1; }
       #era { display:grid; grid-template-columns:1fr 1fr !important; gap:6px; margin-bottom:2px; }
       #era .er { text-align:left; background:rgba(10,13,10,.52); border:1px solid var(--gline-soft); color:var(--cream); padding:8px 10px; cursor:pointer; transition:background .12s,border-color .12s; }
       #era .er small { font-size:10.8px; color:var(--cream2); line-height:1.3; }

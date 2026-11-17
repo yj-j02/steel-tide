@@ -39,6 +39,20 @@ export function renderFrame(overlay) {
   if (overlay) { renderer.autoClear = false; renderer.clearDepth(); renderer.render(ovScene, ovCam); renderer.autoClear = true; }
 }
 const _sv = new THREE.Vector3(), _ev = new THREE.Vector3(), _pv = new THREE.Vector3(), PSTEP = 2800 / 256;
+let _rt = null, _px = null, _img = null;
+/** Render camera `cam` into a small 2D canvas (fd: { ctx, w, h }) through an off-screen target: used by the CIC big view's two EO/IR monitors, which sit outside the shrunken battle canvas. */
+export function renderToCanvas(cam, fd) {
+  const w = fd.w, h = fd.h; if (!cam || !fd.ctx) return;
+  if (!_rt || _rt.width !== w || _rt.height !== h) { _rt?.dispose(); _rt = new THREE.WebGLRenderTarget(w, h, { depthBuffer: true }); _rt.texture.colorSpace = THREE.SRGBColorSpace; _px = new Uint8Array(w * h * 4); _img = new ImageData(w, h); }
+  cam.aspect = w / h; cam.updateProjectionMatrix();
+  _sv.copy(sky.position); _ev.copy(sea.position); _pv.copy(seaPatch.position);
+  const p = cam.position; sky.position.copy(p); sea.position.set(p.x, 0, p.z); seaPatch.position.set(Math.round(p.x / PSTEP) * PSTEP, 0, Math.round(p.z / PSTEP) * PSTEP);
+  const prevTm = renderer.toneMapping, prevLin = U.uLin.value; U.uLin.value = 0; renderer.toneMapping = THREE.NoToneMapping;
+  renderer.setRenderTarget(_rt); renderer.clear(); renderer.render(scene, cam); renderer.readRenderTargetPixels(_rt, 0, 0, w, h, _px); renderer.setRenderTarget(null);
+  U.uLin.value = prevLin; renderer.toneMapping = prevTm; sky.position.copy(_sv); sea.position.copy(_ev); seaPatch.position.copy(_pv);
+  const d = _img.data, row = w * 4; for (let y = 0; y < h; y++) d.set(_px.subarray((h - 1 - y) * row, (h - y) * row), y * row); /* WebGL rows are bottom-up */
+  fd.ctx.putImageData(_img, 0, 0);
+}
 /** Render a secondary EO/IR PiP viewport onto the main framebuffer inside `rect` (DOMRect). */
 export function renderPiP(pipCam, rect) {
   if (!pipCam || !rect || rect.width < 12 || rect.height < 12) return;

@@ -7,8 +7,8 @@
 import { THREE, $, PI, TAU, DEG, KN, clamp, wrap, brg, fmt, params, rnd, gauss, G, camera, canvas, renderer, scene, ovScene, ovCam, makeIslands, MAPS, addIsland, clearFx, updateWorld, spray, spark, flash, spawnSplash } from "./js/core.js";
 import { A, initAudio, setMuted, setVolume, sfx, updateAudio, radio, bgm, setBgmOn, jetSound, droneSound } from "./js/audio.js";
 import { OPS, isModernOp, opsInit, opsStep, opsClear, opsCheck, opsMarks, opsShellLand, aswRocket, nearestSubContact, O as OPSO, opsDebug, opsStatus, jamDrones } from "./js/ops.js";
-import { cicStart, cicStop, cicStep, cicToggle, cicExpand, cicPending, cicResolve, cicUsed, cicWcs, cicSetWcs, cicFeedInfo } from "./js/cic.js";
-import { post, renderFrame, renderPiP } from "./js/post.js";
+import { cicStart, cicBigFeeds, cicStop, cicStep, cicToggle, cicExpand, cicPending, cicResolve, cicUsed, cicWcs, cicSetWcs, cicFeedInfo } from "./js/cic.js";
+import { post, renderFrame, renderPiP, renderToCanvas } from "./js/post.js";
 import { M as MSL, WPN, launch as mLaunch, JET_US, setTrails, stepMissiles, defend, decoy as mDecoy, pickSam, seen as mSeen, clearMissiles, arm as mArm, SENS as SR, jetFlare, jetGun, killMissile, launchHelo as mHelo, stepHelos, launchJet, stepJets, stepFlares, flaresOf } from "./js/modern.js";
 import { landAt, setWeather, setMapLook } from "./js/core.js";
 import { MODERN, GUNS, SHIPS, CARRIER, ENEMIES, TRANSPORT, FOE_CARRIER, TELE, Ship, table, solve, leadPoint, brain, escort, mkBrain, updateShells, clearShells, paintName, loadModels, MODEL_CFG, RELOAD_K, fireTorps, updateTorps, clearTorps, intercept, torpMount, TORP_SPREAD, torpPath, tubeBearing, hitFX } from "./js/ships.js";
@@ -2323,6 +2323,7 @@ function frameOnce(dt) {
   if (G.modern && G.state === "playing") {
     const pip = cicFeedInfo();
     if (pip && pip.cam && pip.rect) renderPiP(pip.cam, pip.rect);
+    const fds = cicBigFeeds(); if (fds) renderToCanvas(fds[frame % 2].cam, fds[frame % 2]); /* CIC big view: the two EO/IR monitors, one per frame */
   }
 }
 

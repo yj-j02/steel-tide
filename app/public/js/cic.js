@@ -30,6 +30,41 @@ export function cicSetWcs(m) {
   C.wcs = m; C.tSig = ""; sfx.click();
   say(m === "auto" ? "방공 교전수칙 [FREE] — 탐지된 모든 대함위협 자동 요격." : m === "tight" ? "방공 교전수칙 [TIGHT] — 초음속·우선표적 위주 SM 요격 (탄약 절약)." : "방공 교전수칙 [HOLD] — 장거리 SAM 발사 통제, CIWS 근접방어만 가동.");
 }
+/** Big view (option B): two live EO/IR monitors under the battle view. CAM 1 follows our asset, CAM 2 watches the target. */
+export function cicBigFeeds() {
+  if (!C.on || C.mode !== "big" || !C.fdA) return null;
+  return [C.fdA, C.fdB];
+}
+function bigFeedTargets() {
+  const P = G.player, f = C.feed && G.battleT <= C.feed.endT ? C.feed : null;
+  const asset = (f && f.target && (f.target.alive !== false) ? f.target : null) || M.list.find((m) => m.alive && m.side === "us" && m.W.role === "asm") || M.jets.find((j) => j.alive && j.side === "us" && (j.support || j.pilot)) || M.jets.find((j) => j.alive && j.side === "us") || P;
+  const sup = C.deps.md.supPt, tgt = (G.enemy && G.enemy.alive ? G.enemy : null) || (sup ? G.enemies.filter((e) => e.alive).sort((a, b) => a.pos.distanceToSquared(sup) - b.pos.distanceToSquared(sup))[0] : null) || G.enemies.filter((e) => e.alive).sort((a, b) => a.pos.distanceToSquared(P.pos) - b.pos.distanceToSquared(P.pos))[0] || null;
+  return [asset === tgt ? (M.list.find((m) => m.alive && m.side === "us" && m.W.role === "asm") || M.jets.find((j) => j.alive && j.side === "us") || P) : asset, tgt]; /* never the same picture twice */
+}
+function aimFeedCam(cam, t, dt, age, snap) { /* chase a moving asset, orbit a ship or a point; returns [left, right] caption */
+  if (t && t.pos && t.vel && (t.isJet || t.W)) {
+    const dir = t.vel.lengthSq() > 1 ? t.vel.clone().normalize() : new THREE.Vector3(1, 0, 0), side = new THREE.Vector3(-dir.z, 0, dir.x).normalize();
+    const back = t.heavy ? 64 : t.isJet ? 34 : 20, up = t.heavy ? 18 : t.isJet ? 10 : 5, lat = t.heavy ? 22 : t.isJet ? 11 : 7;
+    const want = t.pos.clone().addScaledVector(dir, -back).addScaledVector(side, lat).add(new THREE.Vector3(0, up, 0)); want.y = Math.max(want.y, 12);
+    if (snap) cam.position.copy(want); else cam.position.lerp(want, Math.min(1, dt * 8));
+    cam.lookAt(t.pos.clone().addScaledVector(dir, t.isJet ? 45 : 70));
+    return [`${t.name || t.W?.name || ""} · ${Math.round(t.pos.y)}m`, `${Math.round(t.vel.length() * 3.6)}km/h`];
+  }
+  const base = t?.pos ? t.pos : t; if (!base) return ["NO TARGET", ""];
+  const R = t?.spec ? Math.max(380, t.spec.L * 3.2) : 360, a = age * 0.35;
+  cam.position.set(base.x + Math.cos(a) * R, Math.max(60, R * 0.32), base.z + Math.sin(a) * R); cam.lookAt(base.x, 8, base.z);
+  return [t?.name || "TARGET SECTOR", t?.hp != null && t.maxHp ? `선체 ${Math.round(100 * t.hp / t.maxHp)}%` : ""];
+}
+function updateBigFeeds(dt) {
+  if (C.mode !== "big" || !C.fdA) return;
+  if (C.viewEl && ((C.vfr = (C.vfr || 0) + 1) % 20 === 1)) { const r = C.viewEl.getBoundingClientRect(), st = document.body.style; st.setProperty("--cvx", `${Math.round(r.left)}px`); st.setProperty("--cvy", `${Math.round(r.top)}px`); st.setProperty("--cvw", `${Math.round(r.width)}px`); st.setProperty("--car", `${innerWidth} / ${innerHeight}`); } /* the battle view sits in the slot */
+  const [a, b] = bigFeedTargets(), age = G.battleT;
+  for (const [fd, t] of [[C.fdA, a], [C.fdB, b]]) {
+    const changed = fd.target !== t; fd.target = t;
+    const [l, r] = aimFeedCam(fd.cam, t, dt, age, changed);
+    const sig = `${l}|${r}`; if (sig !== fd.sig) { fd.sig = sig; fd.cap.innerHTML = `<span>${l}</span><span>${r}</span>`; }
+  }
+}
 export function cicFeedInfo() {
   if (!C.on || C.mode === "big" || !C.feed || G.battleT > C.feed.endT || document.body.classList.contains("jetfly")) return null;
   const view = document.getElementById("cicFeedView"); if (!view) return null;
@@ -40,6 +75,16 @@ export function cicInit(deps) { // deps: { md, face, faceSkin, cmdrName, nat, th
   C.deps = deps; if (C.el) return;
   C.el = document.getElementById("cic"); C.map = $(".cic-map");
   C.el.addEventListener("dblclick", (e) => { if (e.target.closest(".cic-cards,.cic-ask,.cic-map,.cic-mapw,.cic-tracks,.cic-tools,.cic-btn,.cic-tele")) return; cicExpand(); });
+  { /* option B big view: a slot for the battle view and two EO/IR monitors (CAM 1 asset, CAM 2 target) */
+    const b = C.el.querySelector(".cic-b"), v = document.createElement("div"); v.className = "cic-view"; v.innerHTML = '<span class="cv-l">LIVE BATTLE CAMERA</span>'; b.appendChild(v);
+    const fw = document.createElement("div"); fw.className = "cic-feeds";
+    fw.innerHTML = [["A", "CAM 1 · 아군 자산"], ["B", "CAM 2 · 표적"]].map(([k, t]) => `<div class="cic-fd" id="cicFeed${k}"><div class="fd-h"><span class="cf-dot"></span><b>${t}</b><i>FLIR</i></div><div class="fd-v"><canvas width="384" height="216"></canvas><div class="cf-ret"></div><div class="fd-s"></div></div></div>`).join("");
+    b.appendChild(fw);
+    const mk = (k) => { const el = fw.querySelector(`#cicFeed${k}`), cv = el.querySelector("canvas"); return { cam: new THREE.PerspectiveCamera(40, 16 / 9, 4, 90000), canvas: cv, ctx: cv.getContext("2d"), cap: el.querySelector(".fd-s"), w: 384, h: 216, target: null, sig: "" }; };
+    C.fdA = mk("A"); C.fdB = mk("B"); C.viewEl = v; }
+  { const h = document.querySelector("#cicFeed .cf-h"), x = document.getElementById("cicFeedClose"); /* small feed: channel switch */
+    if (h && x && !document.getElementById("cicFeedCh")) { const bt = document.createElement("button"); bt.id = "cicFeedCh"; bt.type = "button"; bt.title = "채널 전환 (자산 ↔ 표적)"; bt.textContent = "CAM 1 · 자산"; h.insertBefore(bt, x);
+      bt.addEventListener("click", (e) => { e.stopPropagation(); C.feedCh = C.feedCh === 2 ? 1 : 2; bt.textContent = C.feedCh === 2 ? "CAM 2 · 표적" : "CAM 1 · 자산"; C.feedSig = ""; }); } }
   C.el.querySelector(".cic-h").insertAdjacentHTML("beforeend", `<span class="cic-btns"><button class="cic-btn" data-m="min" title="최소화 (\`)">─</button><button class="cic-btn" data-m="big" title="확대 (Shift+\`)">⤢</button></span>`);
   C.el.querySelector(".cic-btns").addEventListener("click", (e) => { const b = e.target.closest("[data-m]"); if (!b) return; e.stopPropagation(); b.dataset.m === "min" ? setMode("min") : cicExpand(); });
   C.tab = document.createElement("button"); C.tab.id = "cicTab"; C.tab.type = "button"; C.tab.textContent = "지휘통제실 열기 (`)"; document.body.appendChild(C.tab);
@@ -247,7 +292,9 @@ function updateFeed(dt) {
     const repl = f.kind === "jet" ? M.jets.find((x) => x.alive && x.side === "us" && x.support) : M.list.find((m) => m.alive && m.side === "us" && m.W.role === "asm");
     if (repl) f.target = repl;
   }
-  const cam = C.feedCam, t = f.target, age = G.battleT - f.t0, rem = Math.max(0, Math.ceil(f.endT - G.battleT));
+  if (f.target?.heavy && f.target.alive && f.target.asm > 0) f.endT = Math.max(f.endT, G.battleT + 3); /* keep the C-130 on screen until its ramp drop is done */
+  const chT = C.feedCh === 2 ? bigFeedTargets()[1] : null; /* CAM 2: the target instead of the asset */
+  const cam = C.feedCam, t = chT || f.target, age = G.battleT - f.t0, rem = Math.max(0, Math.ceil(f.endT - G.battleT));
   let subL = "EO/IR FLIR", subR = `T-${rem}s`;
   if (t && t.pos && t.vel && (t.isJet || t.W)) {
     const dir = t.vel.lengthSq() > 1 ? t.vel.clone().normalize() : new THREE.Vector3(1, 0, 0);
@@ -473,6 +520,7 @@ export function cicStep(dt, marks) {
   C.lastMarks = marks || [];
   updateIsr3d(dt);
   updateFeed(dt);
+  updateBigFeeds(dt);
   for (let i = C.capZones.length - 1; i >= 0; i--) if (G.battleT > C.capZones[i].endT) C.capZones.splice(i, 1);
   for (let i = C.tots.length - 1; i >= 0; i--) if (G.battleT > C.tots[i].endAt + 2) C.tots.splice(i, 1);
   if (C.battery?.mesh?.userData?.dish) {
