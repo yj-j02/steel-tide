@@ -222,16 +222,31 @@ function cymbal(t, swell, vol) {
   const g = c.createGain(); g.gain.setValueAtTime(0.0001, t - swell); g.gain.exponentialRampToValueAtTime(vol * 0.5, t); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + 3); s.connect(hp).connect(g); g.connect(A.master); g.connect(hall()); s.start(t - swell); s.stop(t + 3.1);
 }
 const N = (m) => 440 * Math.pow(2, (m - 69) / 12);
-export function fanfare(grand = false) {
-  const c = A.ctx; if (!c || A.muted) return; const t0 = c.currentTime + 0.05, v = 0.032;
-  if (A.bgmEl) { const el = A.bgmEl, v0 = el.volume; el.volume = v0 * 0.25; setTimeout(() => { el.volume = v0; }, grand ? 7500 : 6000); } /* duck the music under the fanfare */
-  for (let i = 0; i < 16; i++) timp(t0 + i * (0.09 - i * 0.003), 49, 0.07 + i * 0.016); /* roll, building */
-  const C = [48, 55, 60, 64, 67], F = [53, 60, 65, 69], G7 = [55, 62, 67, 71], CC = [36, 48, 55, 60, 64, 67, 72];
-  const seq = grand ? [[1.25, C, 0.28], [1.6, C, 0.16], [1.8, C, 0.5], [2.4, F, 0.5], [3.0, G7, 0.6], [3.7, CC.concat([76, 79]), 2.8]] : [[1.25, C, 0.28], [1.6, C, 0.16], [1.8, F, 0.45], [2.35, G7, 0.5], [2.95, CC, 2.2]];
-  for (const [dt, ch, dur] of seq) brass(ch.map(N), t0 + dt, dur, v);
-  const end = seq[seq.length - 1][0];
-  timp(t0 + end, 33, 0.55); timp(t0 + end + 0.01, 49, 0.35); cymbal(t0 + end, 1.1, 0.14);
-  if (grand) { for (const k of [0.6, 1.2, 1.8]) timp(t0 + end + k, 33, 0.22); }
+const NOTE = (s) => { const m = /^([A-G])(b|#)?(\d)$/.exec(s), b = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]] + (m[2] === "b" ? -1 : m[2] === "#" ? 1 : 0); return N(12 * (+m[3] + 1) + b); };
+function snare(t, vol, len = 0.09) {
+  const c = A.ctx; if (!A.noise) return; const s = c.createBufferSource(); s.buffer = A.noise; const bp = c.createBiquadFilter(); bp.type = "bandpass"; bp.frequency.value = 2400; bp.Q.value = 0.8;
+  const g = c.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + len); s.connect(bp).connect(g); g.connect(A.master); g.connect(hall()); s.start(t); s.stop(t + len + 0.02);
+  const o = c.createOscillator(); o.frequency.value = 190; const og = c.createGain(); og.gain.setValueAtTime(vol * 0.5, t); og.gain.exponentialRampToValueAtTime(0.0008, t + 0.06); o.connect(og).connect(A.master); o.start(t); o.stop(t + 0.08);
+}
+function roll(t, dur, v0, v1) { const n = Math.floor(dur / 0.045); for (let i = 0; i < n; i++) snare(t + i * 0.045, v0 + (v1 - v0) * (i / n), 0.06); }
+/** Promotion music in the manner of a military band salute (B♭, brass + snare), written for the game. 장성: one ruffle-and-flourish per star first. */
+export function fanfare(grade = 3) {
+  const c = A.ctx; if (!c || A.muted) return; const t0 = c.currentTime + 0.05, beat = 0.5, gen = grade >= 6, stars = Math.max(0, grade - 5);
+  if (A.bgmEl) { const el = A.bgmEl, v0 = el.volume; el.volume = v0 * 0.2; setTimeout(() => { el.volume = v0; }, (gen ? 9 + stars * 1.4 : 9) * 1000); }
+  let t = t0;
+  roll(t, 1.1, 0.04, 0.22); timp(t + 1.1, 46.2, 0.4); t += 1.25;
+  for (let s = 0; s < stars; s++) { /* ruffle, then a bugle flourish up the B♭ chord */
+    roll(t, 0.55, 0.06, 0.2); t += 0.6;
+    ["F4", "Bb4", "D5", "F5", "D5", "F5"].forEach((n, k) => brass([NOTE(n)], t + k * 0.13, k === 5 ? 0.42 : 0.12, 0.05)); brass([NOTE("Bb3"), NOTE("F3")], t, 0.9, 0.022); t += 1.0;
+  }
+  if (grade < 3) { brass(["Bb2", "F3", "Bb3", "D4", "F4", "Bb4"].map(NOTE), t, 1.8, 0.03); timp(t, 46.2, 0.5); cymbal(t, 0.6, 0.1); return; }
+  const mel = [["F4", 0.5], ["F4", 0.25], ["F4", 0.25], ["Bb4", 1], ["D5", 1], ["F5", 1.5], ["D5", 0.5], ["Eb5", 1], ["C5", 1], ["A4", 1], ["F4", 1], ["G4", 0.5], ["A4", 0.5], ["Bb4", 0.5], ["C5", 0.5], ["D5", 1], ["C5", 1]];
+  let tm = t; for (const [n, d] of mel) { brass([NOTE(n)], tm, d * beat * 0.92, 0.045); tm += d * beat; }
+  const chords = [[0, ["Bb2", "F3", "Bb3", "D4"]], [1, ["Bb2", "F3", "Bb3", "D4"]], [3, ["Eb3", "G3", "Bb3", "Eb4"]], [5, ["C3", "G3", "C4", "Eb4"]], [7, ["F2", "F3", "A3", "C4"]], [9, ["Bb2", "F3", "Bb3", "D4"]], [10, ["Eb3", "G3", "Bb3", "Eb4"]], [11, ["F2", "F3", "A3", "C4"]]];
+  for (const [b, ch] of chords) brass(ch.map(NOTE), t + b * beat * 2 - 0.5 * beat, beat * 1.8, 0.016);
+  for (let b = 0; b < 24; b++) { const tt = t + b * beat; snare(tt, b % 2 ? 0.07 : 0.11); if (b % 4 === 3) { snare(tt + beat * 0.5, 0.06); snare(tt + beat * 0.75, 0.08); } if (b % 2 === 0) timp(tt, 46.2, 0.18); }
+  const end = t + 12 * beat; brass(["Bb2", "F3", "Bb3", "D4", "F4", "Bb4", ...(gen ? ["D5", "F5"] : [])].map(NOTE), end, gen ? 2.8 : 2.2, 0.032);
+  timp(end, 34.6, 0.55); timp(end + 0.01, 46.2, 0.35); cymbal(end, 0.9, 0.15); if (gen) for (const k of [0.75, 1.5]) timp(end + k, 34.6, 0.25);
 }
 
 export const sfx = {
