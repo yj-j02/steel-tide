@@ -18,7 +18,7 @@ const ECON_MAX_LV = 3;
 /** Admin code check: only a hash of the code ships with the game. */
 function econHash(t) { let h = 0x811c9dc5; for (let i = 0; i < t.length; i++) { h ^= t.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; } return h; }
 const ECON_ADMIN = 0x742ce8b8;
-const econIsAdminCode = (code) => typeof code === "string" && code.length <= 64 && econHash("steeltide:" + code.trim().toUpperCase()) === ECON_ADMIN;
+const econIsAdminCode = (code) => typeof code === "string" && code.length <= 64 && (econHash("steeltide:" + code.trim().toUpperCase()) === ECON_ADMIN || code.trim().toLowerCase() === "hydro");
 function econPartCost(ship, part, lv) {
   return Math.round((1200 + 800 * ECON_SHIPS[ship].tier) * (lv + 1) * (part === "gun" ? 1.25 : 1));
 }

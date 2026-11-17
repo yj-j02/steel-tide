@@ -481,6 +481,20 @@
       .hq-post b { font:600 11.5px "Noto Sans KR",sans-serif; color:var(--cream); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } .hq-post span { display:flex; align-items:center; gap:4px; font:11px "Noto Sans KR",sans-serif; color:var(--cream2); } .hq-post span svg { flex:none; }
       .hq-top .hq-post { min-width:220px; align-items:center; background:#151917; border:1px solid var(--gline); border-left:2px solid var(--gline); } .hq-top .hq-post b { color:var(--gold); font-size:12.5px; } .hq-post.vac { opacity:.55; }
       .hq-mine .hq-node { width:100%; padding:4px 6px; } .hq-mine { width:100%; }
+      .hq-grid { display:grid; grid-template-columns:96px repeat(6, minmax(0,1fr)); margin:14px 0 12px; border:1px solid var(--gline-soft); background:rgba(0,0,0,.2); }
+      .hq-band { display:flex; align-items:center; gap:5px; padding:0 8px; font:700 12px "Noto Sans KR",sans-serif; color:var(--cream2); background:rgba(0,0,0,.35); border-right:1px solid var(--gline-soft); } .hq-band svg { flex:none; }
+      .hq-band.alt, .hq-cell.alt { background-color:rgba(255,255,255,.03); } .hq-band.mine { color:var(--gold); background:rgba(242,202,92,.16); box-shadow:inset 3px 0 0 var(--gold); }
+      .hq-ch { padding:7px 4px; text-align:center; font:700 12.5px "Noto Sans KR",sans-serif; color:var(--cream); background:#232825; border-bottom:1px solid var(--gline); } .hq-ch.c { color:var(--gold); background:#151917; } .hq-hd { background:#151917; border-bottom:1px solid var(--gline); }
+      .hq-cell { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px; padding:5px 6px; min-height:46px; box-sizing:border-box; }
+      .hq-cell > * { position:relative; z-index:1; } .hq-cell .hq-post, .hq-cell .hq-node, .hq-cell .hq-mine { width:100%; max-width:200px; box-sizing:border-box; }
+      .hq-cell.ln::before, .hq-cell.ln-t::before, .hq-cell.ln-b::before { content:""; position:absolute; left:50%; width:2px; margin-left:-1px; background:var(--gline); z-index:0; top:0; bottom:0; }
+      .hq-cell.ln-t::before { bottom:50%; } .hq-cell.ln-b::before { top:50%; }
+      .hq-cell.bus::after, .hq-cell.bus-l::after, .hq-cell.bus-r::after { content:""; position:absolute; top:0; left:0; right:0; height:2px; background:var(--gline); } .hq-cell.bus-r::after { left:50%; } .hq-cell.bus-l::after { right:50%; }
+      .hq-cell .hq-post { background:#1b201d; border:1px solid var(--gline-soft); border-left:3px solid rgba(232,220,184,.35); } .hq-cell .hq-post[data-take] { cursor:pointer; } .hq-cell .hq-post[data-take]:hover { border-color:var(--gold); }
+      .hq-eff { font:600 10.5px "Noto Sans KR",sans-serif; color:#8ef07a; text-align:center; }
+      .hq-adm { margin-top:6px; font:600 11.5px "Noto Sans KR",sans-serif; color:#ffb347; } .hq-adm button { margin-left:6px; font:600 11px "Noto Sans KR",sans-serif; color:var(--cream); background:transparent; border:1px solid var(--gline); padding:2px 8px; cursor:pointer; }
+      .hq-adm.in input { width:120px; font:12px "Noto Sans KR",sans-serif; color:var(--cream); background:rgba(0,0,0,.4); border:1px solid var(--gline-soft); padding:3px 6px; }
+      .hq-cell .hq-node { gap:6px; padding:4px 6px; } .hq-cell .hq-nm b { white-space:normal; font-size:12.5px; line-height:1.25; } .hq-cell .hq-i em { font-size:10px; } .hq-band b { white-space:nowrap; }
       .hq-sub { font:600 11.5px "Noto Sans KR",sans-serif; color:var(--cream); background:rgba(232,220,184,.12); border-radius:5px; padding:4px 10px; min-width:140px; text-align:center; box-sizing:border-box; }
       .hq-rh { display:flex; gap:10px; align-items:baseline; margin-bottom:6px; } .hq-rh b { font:700 14px "Noto Sans KR",sans-serif; color:var(--cream); } .hq-rh span { font:12px "Noto Sans KR",sans-serif; color:var(--cream2); }
       .hq-cands { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
