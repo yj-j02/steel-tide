@@ -319,6 +319,9 @@ function newBattle() {
     const ucv = NATIONS[natUs].cv; if (ucv) { const st = [3200, -900], [x, z] = placeAt(0, 0, 0, ...st); const c = new Ship(MODERN[ucv], x, z, 0, "us"); c.station = st; c.br = mkBrain(30); c.name = c.spec.short; c.nation = natUs; mArm(c); G.allies.push(c); G.ships.push(c); }
     G.bases = []; for (const [side, nat, x, z] of [["us", natUs, -26000, 0], ["foe", natFoe, Math.cos(b) * (r + 22000), Math.sin(b) * (r + 22000)]]) if (NATIONS[nat].base && (side === "us" || ["modern", "modern:emcon", "modern:convoy"].includes(OP))) G.bases.push({ side, alive: true, isBase: true, pos: new THREE.Vector3(x, 0, z), heading: 0, spec: { fb: 0 }, cv: NATIONS[nat].base, name: "지상 비행장" });
     for (const s of G.ships) if (s.spec.jets) s.cv = s.spec.jets; for (const s of [...G.ships, ...G.bases]) if (s.cv) { s.jetsReady = s.cv.n; s.rearm = []; }
+    if (OP === "modern" && !CS) { /* missile battle: three enemy groups in turn, then reach the destination */
+      let gx = Math.cos(b) * 24000, gz = Math.sin(b) * 24000, k = 0; while (landAt(gx, gz, 2000) && k++ < 40) { gx *= 0.95; gz *= 0.95; }
+      G.goal = { x: gx, z: gz, label: "목적지" }; G.waves = { n: 1, max: 3, modern: true, keys0, nat: natFoe, rk, pending: false, told: false }; }
     opsInit(OP, { P, Ship, TRANSPORT, mkBrain, log, toast, hard: G.hard });
   } else if (mission === "convoy") {
     G.convoy = [0, 1, 2].map((i) => { const s = new Ship(TRANSPORT, -500 - i * 520, -1100, 0, "us"); s.name = `수송선 ${i + 1}`; s.br = mkBrain(20); s.speed = s.vmax * 0.8; return s; });
@@ -354,7 +357,7 @@ function newBattle() {
   log(`전장: ${MAPS[mapId].n}${G.tod === "night" ? " · 야간" : ""}${G.wx === "storm" ? " · 폭풍" : ""} · ${ECON_RANKS[myRank()]} ${cmdr.name} 사령관 지휘 개시`);
   if (CS) log(`${campEra === "modern" ? "한반도 시나리오" : "캠페인"} ${CS.bonus ? "보너스" : `${campSel + 1}단계`} — ${CS.n}: ${CS.d}${G.hard ? " · 난이도 상승" : ""}`, "hit");
   if (G.tod === "night" || G.wx === "storm") log(`시정 불량 — 피탐 거리 ×${G.visK.toFixed(2)}${G.wxDisp > 1 ? " · 포 산포 +35%" : ""}`);
-  if (G.waves) log(`함대 결전 — 적 함대 ${G.waves.max}개가 차례로 막아선다. 모두 격파하고 기함을 목적지(${fmt(Math.hypot(G.goal.x, G.goal.z))} m)까지 보내라`, "hit");
+  if (G.waves) log(`${G.modern ? "미사일전" : "함대 결전"} — 적 함대 ${G.waves.max}개가 차례로 막아선다. 모두 격파하고 기함을 목적지(${fmt(Math.hypot(G.goal.x, G.goal.z))} m)까지 보내라`, "hit");
   log(mission === "raid" ? "진주만 — 정박 중. 적 공습 예상!" : mission === "convoy" ? `호송 작전 개시 — 집결지까지 ${fmt(G.goal.x)} m` : `${first ? `${first.spec.name} 외 ${G.enemies.length - 1}척 접근 중. 전투 배치!` : `작전: ${MISSIONS[G.mop]?.n || ""} — ${MISSIONS[G.mop]?.d || ""}`}`);
   G.radio("battle");
   if (modern) { const F = CMDR_FACES[cmdr.face] || CMDR_FACES[0]; cicStart({ md, face: face(cmdr.face, 110), faceSkin: F.skin?.[0], cmdrName: `${ECON_RANKS[myRank()]} ${cmdr.name}`, nat: natUs, theater: mapId, toast, log, radio: G.radio, know, watchJet, watchMsl, isWatching: (j) => md.fly === j }); } else cicStop();
@@ -510,7 +513,21 @@ function stallCheck() {
 }
 /** Fleet battle waves: when a fleet is sunk the next one appears between the flagship and the destination; after the last one, reach the destination. */
 const WAVE_FLEETS = (tier, n) => (n === 2 ? FLEETS[tier] : [...FLEETS[tier], 2, 1]); /* the last fleet is the biggest (and brings a carrier from tier 3) */
-function nextWave() {
+function nextWave() { if (G.waves?.modern) return nextWaveModern(); return nextWaveWW2(); }
+function nextWaveModern() { /* the next enemy surface group, 16-18 km ahead toward the destination, in open water */
+  const W = G.waves, P = G.player, N = NATIONS[W.nat]; W.n++; W.pending = false;
+  const keys = W.keys0, r = 16000 + rnd() * 2000; /* each group like the first (an extra ship in the last group was too much: autopilot lost 2 of 2 there) */
+  let g = Math.atan2(G.goal.z - P.pos.z, G.goal.x - P.pos.x) + (rnd() - 0.5) * 0.6;
+  for (let k = 0; k < 16 && landAt(P.pos.x + Math.cos(g) * r, P.pos.z + Math.sin(g) * r, 4500); k++) g = wrap(g + (k % 2 ? 0.35 : -0.35) * (k + 1));
+  const cx = P.pos.x + Math.cos(g) * r, cz = P.pos.z + Math.sin(g) * r, eh = wrap(g + PI + (rnd() - 0.5) * 0.8);
+  const out = keys.map((k, i) => { const [x, z] = placeAt(cx, cz, eh, ...STATIONS[i]); const s = new Ship(MODERN[k], x, z, eh, "foe"); s.prefRange = [5000, 8000]; s.station = STATIONS[i]; s.br = mkBrain(16 + i * 5); s.nation = W.nat; mArm(s); return s; });
+  for (const s of out) s.group = out;
+  if (W.n === W.max && W.rk >= 4 && N.cv) { const [x, z] = placeAt(cx, cz, eh, 3500, 0); const c = new Ship(MODERN[N.cv], x, z, eh, "foe"); c.isCarrier = true; c.br = mkBrain(30); c.nation = W.nat; c.group = out; mArm(c); out.push(c); }
+  for (const s of out) { if (s.spec.jets) s.cv = s.spec.jets; if (s.cv) { s.jetsReady = s.cv.n; s.rearm = []; } }
+  G.enemies.push(...out); G.ships.push(...out);
+  log(`적 제${W.n}수상전투단 탐지 — ${out[0].spec.short || out[0].spec.name} 외 ${out.length - 1}척 · ${fmt(r)} m${W.n === W.max ? " (마지막 전투단)" : ""}`, "bad"); toast(`적 제${W.n}전투단 접근!`, 3); sfx.alarm(); G.radio("battle");
+}
+function nextWaveWW2() {
   const W = G.waves, P = G.player; W.n++; W.pending = false; const fleet = WAVE_FLEETS(W.tier, W.n), E = ENEMIES[fleet[0]];
   const g = Math.atan2(G.goal.z - P.pos.z, G.goal.x - P.pos.x) + (rnd() - 0.5) * 0.8, r = (E.range[0] + rnd() * (E.range[1] - E.range[0]) + 3500) * 0.67;
   const out = foeGroup(fleet, P.pos.x + Math.cos(g) * r, P.pos.z + Math.sin(g) * r, wrap(g + PI + (rnd() - 0.5) * 0.8), W.n === W.max && W.tier >= 3);
@@ -519,12 +536,13 @@ function nextWave() {
   log(`적 제${W.n}함대 출현 — ${out[0].spec.name} 외 ${out.length - 1}척${W.n === W.max ? " (마지막 함대)" : ""}`, "bad"); toast(`적 제${W.n}함대 접근!`, 3); sfx.alarm(); G.radio("battle");
 }
 function patchUp() { /* between fleets: our ships get 30% hull back, fires out, flooding halved, and the emergency repairs refilled */
-  for (const s of G.ships) if (s.alive && s.side === "us" && !s.sinking) { s.hp = Math.min(s.maxHp, s.hp + s.maxHp * 0.3); s.fires.length = 0; s.flooding *= 0.5; }
+  for (const s of G.ships) if (s.alive && s.side === "us" && !s.sinking) { s.hp = Math.min(s.maxHp, s.hp + s.maxHp * (G.modern ? 0.5 : 0.3)); s.fires.length = 0; s.flooding *= 0.5;
+    if (s.mag) mArm(s); } /* modern: 50% hull and full magazines (one missile hit costs far more than a shell) */
   rep.n = Math.max(rep.n, 2); }
 function waveCheck(P, foesAlive) {
   const W = G.waves, at = d2(P.pos, G.goal) < 1500;
   if (foesAlive) { if (at && !W.toldGoal) { W.toldGoal = true; toast("목적지 도착 — 남은 적 함대를 격파하라", 3); } return null; }
-  if (W.n < W.max) { if (!W.pending) { W.pending = true; patchUp(); log(`적 제${W.n}함대 전멸! 응급 정비로 선체 30% 회복 · 수리 횟수 보충 — 다음 함대가 다가온다`, "hit"); toast(`제${W.n}함대 격파 — 15초 뒤 다음 함대`, 3); G.events.push({ t: G.battleT + 15, fn: nextWave }); } return null; }
+  if (W.n < W.max) { if (!W.pending) { W.pending = true; patchUp(); log(`적 제${W.n}${W.modern ? "전투단" : "함대"} 전멸! 응급 정비로 선체 ${W.modern ? "50% 회복 · 미사일 완전 재보급" : "30% 회복"} · 수리 횟수 보충 — 다음 ${W.modern ? "전투단" : "함대"}이 다가온다`, "hit"); toast(`제${W.n}함대 격파 — 15초 뒤 다음 함대`, 3); G.events.push({ t: G.battleT + 15, fn: nextWave }); } return null; }
   if (at) return { won: true, why: `적 ${W.max}개 함대 격파 · 목적지 도달` };
   if (!W.told) { W.told = true; log("모든 적 함대 격파! 기함을 목적지까지 보내라", "hit"); toast("모든 적 함대 격파 — 목적지로!", 4); sfx.bell(); }
   return null;
@@ -535,7 +553,7 @@ function missionCheck() {
   if (!P.alive) res = { won: false, why: `${P.spec.short} 침몰` };
   else if (G.modern && (opRes = opsCheck()) !== undefined) res = opRes; // ASW, BMD, drones, shore, convoy decide their own end
   else if (!G.modern && G.mission !== "modern" && stallCheck()) res = stallCheck();
-  else if (G.mission === "modern" && foesAlive && dryCheck()) { const hp = (side) => { const L = G.ships.filter((s) => s.side === side && s.spec.modern && !s.spec.jets); return L.reduce((n, s) => n + (s.alive ? s.hp / s.maxHp : 0), 0) / Math.max(1, L.length); }, a = hp("us"), b = hp("foe");
+  else if (G.mission === "modern" && !G.waves && foesAlive && dryCheck()) { const hp = (side) => { const L = G.ships.filter((s) => s.side === side && s.spec.modern && !s.spec.jets); return L.reduce((n, s) => n + (s.alive ? s.hp / s.maxHp : 0), 0) / Math.max(1, L.length); }, a = hp("us"), b = hp("foe");
     res = { won: a >= b, why: `양측 미사일 소진 · 포격전 종료 — 판정${a >= b ? "승" : "패"} (잔존 선체 아군 ${Math.round(a * 100)}% / 적 ${Math.round(b * 100)}%)` }; }
   else if (G.waves) res = waveCheck(P, foesAlive);
   else if (G.mission === "fleet" || G.mission === "modern") { if (!foesAlive) res = { won: true, why: G.mission === "modern" ? "적 수상함 전멸 — 해상 우세 확보" : "적 함대 전멸" }; }
