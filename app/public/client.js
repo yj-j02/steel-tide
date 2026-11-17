@@ -717,7 +717,7 @@ $("#yard").addEventListener("click", (e) => {
 });
 $("#yard").addEventListener("keydown", (e) => { if (e.target.id === "adminCode" && e.key === "Enter") $('[data-act="admin"]')?.click(); });
 /** The 해군본부 personnel order; preview = admin rehearsal (no picks, no record). Returns the handover text if any. */
-let pmPreview = false;
+let pmPreview = false, pmTook = 0; /* one pick per 인사명령 is enough; leftovers wait in 내 정보 */
 /** 3D general's flag at the masthead from 준장 up: canvas cloth, waved per vertex each frame. */
 function flagCanvas(n) {
   const cv = document.createElement("canvas"); cv.width = 256; cv.height = 170; const x = cv.getContext("2d");
@@ -741,7 +741,7 @@ function waveMastFlag() {
   pos.needsUpdate = true;
 }
 function buildPromo(before, after, unl = "", preview = false) {
-  pmPreview = preview;
+  pmPreview = preview; pmTook = 0;
   const newRole = STAFF_ROLES.filter((r) => ROLE_UNLOCK[r.k] > before && ROLE_UNLOCK[r.k] <= after).map((r) => (r.k === "cos" ? "참모장" : `${HQ_DEPT[r.k]} 처장`)), yr = new Date().getFullYear(), no = String(((profile.xp * 7) % 97) + 1).padStart(2, "0");
   const opens = [newRole.length ? `사령부 ${newRole.join(" · ")} 임명` : "", `${ECON_RANKS[Math.min(10, after + 4)]}급 참모 영입`, unl ? `함선 ${unl}` : ""].filter(Boolean).join(" · ");
   const handover = after >= 8 && before < 8 ? `<div class="po-cc">중장 ${FLEET_CDR.nm} 제독이 귀관에게 함대 지휘권을 이양합니다. 이제부터 귀관이 함대사령관으로서 사령부 전 참모진과 기동함대를 직접 지휘합니다.</div>` : "";
@@ -936,8 +936,8 @@ $("#recordP").addEventListener("click", (e) => {
 });
 $("#shipLine").addEventListener("click", (e) => { const b = e.target.closest("[data-flag]"); if (!b) return; sfx.click(); career.ship = b.dataset.flag; saveCareer(); refreshMenus(); showcase(flagshipId()); });
 $("#promoM").addEventListener("click", (e) => {
-  const pk = e.target.closest("[data-perk]"); if (pk) { sfx.coin(); takePerk(pk.dataset.perk); pmOpts = null; renderPerkPick("#pmPk", myGrade()); return; }
-  if (e.target.closest("#promoOk")) { if (career.picks > 0 && !pmPreview) { sfx.deny(); toast("진급 특기를 먼저 고르세요"); return; } sfx.click(); stopFanfare(); $("#promoM").style.display = "none"; renderRecord(); }
+  const pk = e.target.closest("[data-perk]"); if (pk) { if (pmTook) return; sfx.coin(); if (takePerk(pk.dataset.perk)) pmTook++; pmOpts = null; const P = PERKS[pk.dataset.perk]; $("#pmPk").innerHTML = `<div class="pk-done">진급 특기 부여 — <b>${P.n}</b>${career.picks > 0 ? `<br><small>남은 특기 ${career.picks}회는 '내 정보'에서 고를 수 있습니다</small>` : ""}</div>`; $("#promoOk")?.classList.remove("dim"); return; }
+  if (e.target.closest("#promoOk")) { if (career.picks > 0 && !pmPreview && !pmTook) { sfx.deny(); const h = $("#pmPk .pk-h"); if (h) { h.classList.remove("nudge"); void h.offsetWidth; h.classList.add("nudge"); } return; } sfx.click(); stopFanfare(); $("#promoM").style.display = "none"; renderRecord(); }
 });
 $("#hqP").addEventListener("keydown", (e) => { if (e.target.id === "hqAdmin" && e.key === "Enter") $('[data-act="hqadmin"]')?.click(); });
 $("#hqP").addEventListener("click", (e) => {

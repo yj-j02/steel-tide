@@ -52,7 +52,7 @@
       #pauseBtn { position:fixed; right:14px; bottom:226px; font:600 12px/1 "Noto Sans KR",sans-serif; color:var(--fg); background:var(--bg); border:1px solid var(--line); border-radius:3px; padding:7px 12px; cursor:pointer; display:none; } body.playing #pauseBtn { display:block; }
       #pause .sens { display:flex; gap:10px; align-items:center; font-size:13px; color:var(--dim); } #pause .sens input { width:200px; }
       #viewBtn { position:fixed; left:14px; top:14px; font:600 12px/1 "Noto Sans KR",sans-serif; color:var(--fg); background:var(--bg); border:1px solid var(--line); border-radius:3px; padding:7px 12px; cursor:pointer; }
-      #toast { position:fixed; left:50%; top:108px; transform:translateX(-50%); max-width:min(640px,calc(100vw - 520px)); text-align:center; line-height:1.45; word-break:keep-all; background:rgba(7,14,20,.85); border:1px solid var(--warn); color:var(--warn); padding:8px 16px; border-radius:4px; font-size:12.5px; font-weight:600; pointer-events:none; opacity:0; transition:opacity .25s; z-index:20; }
+      #toast { position:fixed; left:50%; top:108px; transform:translateX(-50%); max-width:min(640px,calc(100vw - 520px)); text-align:center; line-height:1.45; word-break:keep-all; background:rgba(7,14,20,.85); border:1px solid var(--warn); color:var(--warn); padding:8px 16px; border-radius:4px; font-size:12.5px; font-weight:600; pointer-events:none; opacity:0; transition:opacity .25s; z-index:130; }
       #toast.on { opacity:1; }
       .overlay { position:fixed; inset:0; display:grid; place-content:center; justify-items:center; gap:14px; text-align:center; background:linear-gradient(rgba(5,12,18,.3),rgba(5,12,18,.76)); }
       .overlay h1 { margin:0; font-size:54px; letter-spacing:.16em; font-weight:700; } .overlay h2 { margin:0; font-size:15px; font-weight:500; color:var(--dim); letter-spacing:.3em; }
@@ -463,14 +463,15 @@
       .hq-bb { font:600 11.5px "Noto Sans KR",sans-serif; color:#8ef07a; }
       .hq-br ol { list-style:none; margin:4px 0; padding:0; display:flex; flex-direction:column; gap:3px; flex:1; } .hq-br li { display:flex; gap:6px; align-items:center; font:12px "Noto Sans KR",sans-serif; } .hq-br li span { display:inline-flex; align-items:center; gap:3px; min-width:52px; color:var(--cream2); font-size:11px; } .hq-br li.sh { color:var(--gold); margin-top:2px; }
       .hq-br button { font:700 13px "Noto Sans KR",sans-serif; padding:8px 0; color:#0b1217; background:var(--gold); border:0; cursor:pointer; }
-      #promoM { position:fixed; inset:0; z-index:120; display:none; align-items:center; justify-content:center; background:radial-gradient(ellipse at center, rgba(30,26,12,.88), rgba(0,0,0,.94)); animation:pmIn .6s ease; }
+      #promoM { position:fixed; inset:0; z-index:120; display:none; align-items:flex-start; justify-content:center; overflow-y:auto; padding:16px 0; background:radial-gradient(ellipse at center, rgba(30,26,12,.88), rgba(0,0,0,.94)); animation:pmIn .6s ease; }
       @keyframes pmIn { from { opacity:0; } to { opacity:1; } } @keyframes pmIns { 0% { transform:scale(.4); opacity:0; filter:drop-shadow(0 0 0 #f2ca5c); } 60% { transform:scale(1.12); opacity:1; } 100% { transform:scale(1); filter:drop-shadow(0 0 22px rgba(242,202,92,.7)); } }
       .pm-doc { width:560px; padding:34px 40px 30px; display:flex; flex-direction:column; align-items:center; gap:10px; background:linear-gradient(180deg,#f3ead2,#e2d4ae); color:#20180c; border:6px double #8a6a22; box-shadow:0 30px 90px rgba(0,0,0,.7); font-family:"Noto Sans KR",sans-serif; }
       .pm-h { font:700 15px "Noto Sans KR",sans-serif; letter-spacing:.3em; } .pm-no { font:600 12.5px "Noto Sans KR",sans-serif; color:#5a4620; border-bottom:1px solid #8a6a22; padding-bottom:8px; width:100%; text-align:center; }
       .pm-ins { margin:10px 0 2px; padding:14px 22px; background:#1b2230; border:2px solid #8a6a22; animation:pmIns 1.1s ease .2s both; }
       .pm-rank { font:900 40px "Noto Sans KR",sans-serif; letter-spacing:.12em; color:#20180c; } .pm-name { font:700 20px "Noto Sans KR",sans-serif; }
       .pm-txt { font:15px/1.7 "Noto Sans KR",sans-serif; text-align:center; } .pm-txt b { color:#7a2a12; }
-      .pm-radio{margin:10px auto 0;max-width:360px;padding:7px 12px;border:1px solid #3b5a3f;background:#0d1a10;color:#9fe0a8;font:13px/1.4 monospace;border-radius:4px;animation:pmRadio 1.6s steps(2) 2}.pm-radio b{color:#6fd07c;margin-right:6px}@keyframes pmRadio{50%{opacity:.55}}
+      #promoM .pm-doc{margin:auto}.pk-h.nudge{animation:pkNudge .5s 2;color:#c0392b}@keyframes pkNudge{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}.pk-done small{font-weight:400;opacity:.8}
+.pm-radio{margin:10px auto 0;max-width:360px;padding:7px 12px;border:1px solid #3b5a3f;background:#0d1a10;color:#9fe0a8;font:13px/1.4 monospace;border-radius:4px;animation:pmRadio 1.6s steps(2) 2}.pm-radio b{color:#6fd07c;margin-right:6px}@keyframes pmRadio{50%{opacity:.55}}
 .pm-u { font:600 12.5px "Noto Sans KR",sans-serif; color:#2e5a1c; text-align:center; }
       .pm-doc .po-cc { color:#5a3a08; border-color:#8a6a22; background:rgba(138,106,34,.12); }
       #promoOk { margin-top:10px; font:800 16px "Noto Sans KR",sans-serif; letter-spacing:.2em; padding:12px 34px; color:#f3ead2; background:#2a2416; border:2px solid #8a6a22; cursor:pointer; } #promoOk:hover { background:#3a321e; }
