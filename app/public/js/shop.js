@@ -60,6 +60,7 @@ function econCheck(p, a) {
     return null;
   }
   if (a.kind === "admin") return econIsAdminCode(a.code) ? null : "bad code";
+  if (a.kind === "setxp") return p.admin && econInt(a.xp, 0, 10000000) ? null : "admin only"; /* admin: jump to any rank for testing */
   if (a.kind === "select") return p.owned.indexOf(a.ship) >= 0 ? null : "not owned";
   if (a.kind === "upgrade") {
     if (p.owned.indexOf(a.ship) < 0) return "not owned";
@@ -80,6 +81,8 @@ function econApply(p, a) {
     q.last = { ...r, won: a.won };
   } else if (a.kind === "buy") {
     if (!q.admin) q.money -= ECON_SHIPS[a.ship].price; q.owned.push(a.ship); q.upg[a.ship] = { engine: 0, fc: 0, gun: 0, armor: 0 }; q.ship = a.ship;
+  } else if (a.kind === "setxp") {
+    q.xp = a.xp;
   } else if (a.kind === "admin") {
     q.admin = true;
   } else if (a.kind === "select") {

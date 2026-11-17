@@ -86,7 +86,7 @@ export const MEDALS = {
 /** Award what this battle (and promotion) earned; returns the new medal keys. */
 export function awardMedals(o) {
   career.medals ||= {}; const got = [], give = (k) => { if (!career.medals[k]) { career.medals[k] = new Date().toISOString().slice(0, 10); got.push(k); } };
-  give(o.modern ? "modern" : "pacific");
+  if (o.flight !== false) give(o.modern ? "modern" : "pacific");
   if (o.won) { give("commend"); if (o.wins >= 10) give("service"); if (o.sunk >= 3) give("inheon"); if (o.lowHp) give("hwarang"); if (o.hp >= 0.995) give("chungmu"); }
   if (o.grade >= 3) give("samil"); if (o.grade >= 5) give("cheonsu"); if (o.grade >= 6) give("eulji"); if (o.grade >= 10) give("taeguk");
   if (got.length) saveCareer(); return got;

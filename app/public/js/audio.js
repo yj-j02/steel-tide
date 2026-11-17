@@ -194,6 +194,46 @@ function klaxon(vol, dur, freq, delay = 0) {
   f.connect(g).connect(A.master);
 }
 
+/** Promotion fanfare, synthesized: timpani roll, brass chords (detuned saws through a swelling low-pass) and a hall reverb. */
+let HALL = null;
+function hall() {
+  const c = A.ctx; if (HALL && HALL.context === c) return HALL;
+  const len = c.sampleRate * 3.2, b = c.createBuffer(2, len, c.sampleRate);
+  for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); for (let i = 0; i < len; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2.6); }
+  const cv = c.createConvolver(); cv.buffer = b; const g = c.createGain(); g.gain.value = 0.55; cv.connect(g).connect(A.master); HALL = cv; return cv;
+}
+function brass(freqs, t, dur, vol) {
+  const c = A.ctx, rv = hall();
+  for (const f of freqs) {
+    const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.Q.value = 1.2;
+    lp.frequency.setValueAtTime(500, t); lp.frequency.linearRampToValueAtTime(3200, t + 0.09); lp.frequency.exponentialRampToValueAtTime(1500, t + Math.min(dur, 0.6));
+    const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + 0.05); g.gain.setValueAtTime(vol * 0.8, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.0001, t + dur + 0.35);
+    for (const det of [-7, 0, 7]) { const o = c.createOscillator(); o.type = "sawtooth"; o.frequency.value = f; o.detune.value = det; const v = c.createOscillator(); v.frequency.value = 5.2; const vg = c.createGain(); vg.gain.value = 6; v.connect(vg).connect(o.detune); o.connect(lp); o.start(t); o.stop(t + dur + 0.4); v.start(t); v.stop(t + dur + 0.4); }
+    lp.connect(g); g.connect(A.master); g.connect(rv);
+  }
+}
+function timp(t, f, vol) {
+  const c = A.ctx, o = c.createOscillator(); o.type = "sine"; o.frequency.setValueAtTime(f * 1.5, t); o.frequency.exponentialRampToValueAtTime(f, t + 0.08);
+  const g = c.createGain(); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + 1.4); o.connect(g); g.connect(A.master); g.connect(hall()); o.start(t); o.stop(t + 1.5);
+  if (A.noise) { const s = c.createBufferSource(); s.buffer = A.noise; const lp = c.createBiquadFilter(); lp.type = "lowpass"; lp.frequency.value = 420; const ng = c.createGain(); ng.gain.setValueAtTime(vol * 0.7, t); ng.gain.exponentialRampToValueAtTime(0.0008, t + 0.25); s.connect(lp).connect(ng).connect(A.master); s.start(t); s.stop(t + 0.3); }
+}
+function cymbal(t, swell, vol) {
+  const c = A.ctx; if (!A.noise) return; const s = c.createBufferSource(); s.buffer = A.noise; s.loop = true; const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 5200;
+  const g = c.createGain(); g.gain.setValueAtTime(0.0001, t - swell); g.gain.exponentialRampToValueAtTime(vol * 0.5, t); g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0008, t + 3); s.connect(hp).connect(g); g.connect(A.master); g.connect(hall()); s.start(t - swell); s.stop(t + 3.1);
+}
+const N = (m) => 440 * Math.pow(2, (m - 69) / 12);
+export function fanfare(grand = false) {
+  const c = A.ctx; if (!c || A.muted) return; const t0 = c.currentTime + 0.05, v = 0.032;
+  if (A.bgmEl) { const el = A.bgmEl, v0 = el.volume; el.volume = v0 * 0.25; setTimeout(() => { el.volume = v0; }, grand ? 7500 : 6000); } /* duck the music under the fanfare */
+  for (let i = 0; i < 16; i++) timp(t0 + i * (0.09 - i * 0.003), 49, 0.07 + i * 0.016); /* roll, building */
+  const C = [48, 55, 60, 64, 67], F = [53, 60, 65, 69], G7 = [55, 62, 67, 71], CC = [36, 48, 55, 60, 64, 67, 72];
+  const seq = grand ? [[1.25, C, 0.28], [1.6, C, 0.16], [1.8, C, 0.5], [2.4, F, 0.5], [3.0, G7, 0.6], [3.7, CC.concat([76, 79]), 2.8]] : [[1.25, C, 0.28], [1.6, C, 0.16], [1.8, F, 0.45], [2.35, G7, 0.5], [2.95, CC, 2.2]];
+  for (const [dt, ch, dur] of seq) brass(ch.map(N), t0 + dt, dur, v);
+  const end = seq[seq.length - 1][0];
+  timp(t0 + end, 33, 0.55); timp(t0 + end + 0.01, 49, 0.35); cymbal(t0 + end, 1.1, 0.14);
+  if (grand) { for (const k of [0.6, 1.2, 1.8]) timp(t0 + end + k, 33, 0.22); }
+}
+
 export const sfx = {
   rwr() {
     for (const d of [0, 0.075, 0.15]) { voiceTone(0.085, 0.055, 2240, 2060, "triangle", d, 3200); voiceTone(0.04, 0.055, 1120, 1030, "sine", d); }
