@@ -55,16 +55,15 @@ for (const o of STAFF) o.rk = RANKS[o.ri];
 /** The fleet commander above you until you make 중장 yourself. */
 export const FLEET_CDR = { id: "fc", nm: "손원일", nat: "kr", ri: 8, f: [3, 0, 2, null, true, 1.0] };
 FLEET_CDR.rk = RANKS[FLEET_CDR.ri];
-/** Branch (보직) chosen as 소위; the career ladder and a personal bonus follow it. Titles 0 소위 … 7 소장 per branch, 8+ shared. */
+/** Branch (보직) chosen as 소위; the career ladder (a title for every rank, 소위 … 원수) and a personal bonus follow it. */
 export const BRANCHES = {
-  sea: { n: "함정", d: "함정 지휘 계통 — 함장을 거쳐 기동부대 지휘관으로", bonus: "수리반 +1 (대위부터)", t: ["갑판사관", "작전관", "부장", "구축함 함장", "구축대 사령", "구축전대 사령", "전단장", "기동부대 사령관"] },
-  ops: { n: "작전", d: "작전처 — 방책 수립과 교전 지휘", bonus: "화력 +", t: ["작전처 견습장교", "작전장교", "선임작전장교", "작전과장", "작전차장", "작전처장", "작전참모부장", "작전본부장"] },
-  int: { n: "정보", d: "정보처 — 적 정보 분석과 조기경보", bonus: "받는 피해 −, 요격 +", t: ["정보처 견습장교", "정보분석장교", "선임정보장교", "정보과장", "정보차장", "정보처장", "정보참모부장", "정보본부장"] },
-  log: { n: "군수", d: "군수처 — 탄약·정비·보급", bonus: "재장전 −", t: ["군수처 견습장교", "군수장교", "선임군수장교", "군수과장", "군수차장", "군수처장", "군수참모부장", "군수본부장"] },
-  air: { n: "항공", d: "항공처 — 함재기·항공 작전", bonus: "전투기 + (중위부터)", t: ["항공처 견습장교", "항공작전장교", "선임항공장교", "항공과장", "항공차장", "항공처장", "항공참모부장", "항공본부장"] },
+  sea: { n: "함정", d: "수상함 조함·포술과 해상 전술기동 — 함장을 거쳐 전투단·기동부대 지휘로", bonus: "수리반 +1 (대위부터)", t: ["갑판사관", "포술관", "초계함 부장", "호위함 부장", "구축함 함장", "구축함전대장", "해상전투단장", "기동부대 사령관", "함대사령관", "해군참모총장", "해군원수"] },
+  ops: { n: "작전", d: "함대 기동계획과 화력 투사·합동 타격 작전을 총괄하는 참모 계통", bonus: "화력 + (계급이 오를수록 증가)", t: ["작전보좌관", "작전상황장교", "선임작전장교", "작전계획과장", "작전참모차장", "작전참모처장", "작전기획부장", "작전참모부장", "함대사령관", "합동참모의장", "해군원수"] },
+  int: { n: "정보", d: "적 표적 조기탐지·전자전과 대공·대미사일 방어 판단을 맡는 정보 계통", bonus: "받는 피해 −, 아군 요격 성공률 + (계급이 오를수록 증가)", t: ["정보분석담당", "해양정보장교", "선임정보장교", "정보분석과장", "정보참모차장", "정보참모처장", "정보작전참모부장", "합동정보부장", "함대사령관", "해군참모총장", "해군원수"] },
+  log: { n: "군수", d: "탄약·미사일 재보급, 함정 정비와 지속지원을 책임지는 군수 계통", bonus: "함포 재장전 시간 − (계급이 오를수록 증가)", t: ["군수계획담당", "정비보급장교", "선임군수장교", "군수계획과장", "군수참모차장", "군수참모처장", "군수참모부장", "군수사령관", "함대사령관", "해군참모총장", "해군원수"] },
+  air: { n: "항공", d: "함재 전투기·초계기 출격 통제와 해상 항공타격을 지휘하는 항공 계통", bonus: "전투기 +1 (중위부터)", t: ["항공운항담당", "함재항공장교", "편대작전장교", "항공작전과장", "항공전대 부전대장", "항공전대장", "항공사령부 부사령관", "항공사령관", "함대사령관", "해군참모총장", "해군원수"] },
 };
-const TOP_POSTS = ["함대사령관", "작전사령관", "해군 원수"];
-export const careerTitle = (grade, br = staff.branch) => grade >= 8 ? TOP_POSTS[Math.min(2, grade - 8)] : (BRANCHES[br] || BRANCHES.sea).t[grade];
+export const careerTitle = (grade, br = staff.branch) => (BRANCHES[br] || BRANCHES.sea).t[Math.max(0, Math.min(10, grade))];
 export function setBranch(k) { if (BRANCHES[k]) { staff.branch = k; saveStaff(); } }
 /** Which posts you may fill grows with rank; who you may bring in is capped at four grades above you. */
 export const ROLE_UNLOCK = { ops: 0, int: 2, log: 3, air: 4, cos: 5 };

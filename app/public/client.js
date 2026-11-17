@@ -600,7 +600,12 @@ function finish() {
     const after = myGrade(), rl = rankLine();
     html += `<span>계급</span><span>${rl.name}${rl.next ? ` — ${rl.next}까지 ${fmt(rl.need - profile.xp)} 경험치` : " (최고 계급)"}</span>`;
     const unl = Object.entries(ECON_SHIPS).filter(([, v]) => v.rank + 3 === after && after > 3).map(([k]) => SHIPS[k].short).join(", ");
-    if (after > before) { $("#endPromo").innerHTML = `<span class="k">PROMOTION</span><div class="insr"><div class="ib">${insignia(before, 46)}</div><span style="font-size:26px;color:var(--gold)">→</span><div class="ib new">${insignia(after, 64)}</div></div><div class="big">${ECON_RANKS[after]} 진급</div><div class="sub">${ECON_RANKS[before]} → ${ECON_RANKS[after]}<br>새 보직: ${postOf(after)}<br>호위함 ${escortsFor(after)}척 지휘${unl ? `<br>새로 열림: ${unl}` : ""}</div><div class="rk"><div class="hbar"><i style="width:${rl.pct * 100}%;background:var(--gold)"></i></div></div>`; sfx.bell(); }
+    if (after > before) {
+      const newRole = STAFF_ROLES.filter((r) => ROLE_UNLOCK[r.k] > before && ROLE_UNLOCK[r.k] <= after).map((r) => `${HQ_DEPT[r.k]} ${r.n === "참모장" ? "참모장" : "처장"}`), yr = new Date().getFullYear(), no = String(((profile.xp * 7) % 97) + 1).padStart(2, "0");
+      const opens = [newRole.length ? `사령부 ${newRole.join(" · ")} 임명` : "", `${ECON_RANKS[Math.min(10, after + 4)]}급 참모 영입`, unl ? `함선 ${unl}` : ""].filter(Boolean).join(" · ");
+      const handover = after >= 8 && before < 8 ? `<div class="po-cc">중장 ${FLEET_CDR.nm} 제독이 귀관에게 함대 지휘권을 이양합니다. 이제부터 귀관이 함대사령관으로서 사령부 전 참모진과 기동함대를 직접 지휘합니다.</div>` : "";
+      $("#endPromo").innerHTML = `<div class="po"><div class="po-h">해군본부 인사명령 제${yr}-${no}호</div><div class="insr"><div class="ib">${insignia(before, 40)}</div><span style="font-size:24px;color:var(--gold)">→</span><div class="ib new">${insignia(after, 58)}</div></div><div class="po-b"><b>${ECON_RANKS[after]} ${cmdr.name}</b><br>${ECON_RANKS[before]}에서 ${ECON_RANKS[after]}${(() => { const j = (ECON_RANKS[after].charCodeAt(ECON_RANKS[after].length - 1) - 0xac00) % 28; return j === 0 || j === 8 ? "로" : "으로"; })()} 진급을 명함<br>신규 보직 · <b>${postOf(after)}</b></div><div class="po-u">신규 권한 · ${opens}</div>${handover}<div class="rk"><div class="hbar"><i style="width:${rl.pct * 100}%;background:var(--gold)"></i></div></div></div>`; sfx.bell();
+      if (handover) log(`지휘권 이양 — ${ECON_RANKS[after]} ${cmdr.name} 함대사령관 부임`, "hit"); }
     else $("#endPromo").innerHTML = `<span class="k">RANK</span><div class="ib new">${insignia(after, 64)}</div><div class="big" style="font-size:30px">${ECON_RANKS[after]}</div><div class="sub">${postOf(after)}<br>${rl.next ? `${rl.next}까지 ${fmt(rl.need - profile.xp)} XP` : "최고 계급"}</div><div class="rk"><div class="hbar"><i style="width:${rl.pct * 100}%;background:var(--gold)"></i></div></div>`;
   } else html += `<span>관전 모드</span><span>보상 없음</span>`;
   $("#endStats").innerHTML = html; $("#end").style.display = "grid"; bgm("menu");
@@ -725,19 +730,19 @@ function hqEff(k, m) { /* what each department contributes, shown in the grey bo
   return { cos: [`참모 효과 증폭`], ops: [`화력 ${p(m.outK)}`, `적 요격 ${p(m.penK)}`], int: [`요격 성공 ${p(m.icptK)}`, `받는 피해 ${p(m.inK)}`], log: [`재장전 ${p(m.reloadK)}`, `수리반 ${m.repairN}회`], air: [`전투기 ${m.jets ? `${m.jets > 0 ? "+" : "−"}${Math.abs(m.jets)}기` : "±0"}`] }[k];
 }
 function renderBranchPick() {
-  const cards = Object.entries(BRANCHES).map(([k, B]) => `<div class="hq-br"><h4>${B.n}</h4><p>${B.d}</p><div class="hq-bb">보직 보너스 · ${B.bonus}</div><ol>${B.t.map((t, i) => `<li><span>${insignia(i, 13)}${ECON_RANKS[i]}</span>${t}</li>`).join("")}<li class="sh"><span>중장 →</span>함대사령관 · 작전사령관 · 해군 원수</li></ol><button data-branch="${k}">${B.n} 보직 선택</button></div>`).join("");
+  const cards = Object.entries(BRANCHES).map(([k, B]) => `<div class="hq-br"><h4>${B.n}</h4><p>${B.d}</p><div class="hq-bb">보직 보너스 · ${B.bonus}</div><ol>${B.t.map((t, i) => `<li${i >= 8 ? ' class="sh"' : ""}><span>${insignia(i, 13)}${ECON_RANKS[i]}</span>${t}</li>`).join("")}</ol><button data-branch="${k}">${B.n} 보직 선택</button></div>`).join("");
   $("#hqP").innerHTML = `<div class="hq-head"><div><h3>임관 · 보직 선택</h3><p>소위로 임관했습니다. 어느 계통에서 경력을 시작할지 고르세요 — 진급하면서 받는 직함과 내 보직 보너스가 이 선택을 따라갑니다. (소위인 동안은 바꿀 수 있습니다)</p></div></div><div class="hq-brs">${cards}</div>`;
 }
 function renderHQ() {
   if (!staff.branch) return renderBranchPick();
   const rk = myGrade(), m = staffMods(rk), R = STAFF_ROLES.find((r) => r.k === hqRole), br = staff.branch;
   const of = (k) => officer(staff.a[k]), row = STAFF_ROLES.filter((r) => r.k !== "cos").sort((x, y) => of(y.k).ri - of(x.k).ri || of(y.k).sk - of(x.k).sk);
-  const me = hqNode({ n: "나" }, null, true), low = rk < 8, mine = (k) => low && br === k ? `<div class="hq-v"></div><div class="hq-pill me">${careerTitle(rk)}</div>${me}` : "";
+  const me = hqNode({ n: "나" }, null, true), low = rk < 8, mine = (k) => low && (br === k || (k === "ops" && br === "sea")) ? `<div class="hq-v"></div><div class="hq-pill me">${careerTitle(rk)}</div>${me}` : "";
   const col = (r) => `<div class="hq-col"><div class="hq-pill${r.k === hqRole ? " on" : ""}">${HQ_DEPT[r.k]} · ${r.n}</div>${hqNode(r, of(r.k))}${hqEff(r.k, m).map((t) => `<div class="hq-sub">${t}</div>`).join("")}${mine(r.k)}</div>`;
   const top = low ? `<div class="hq-top"><div class="hq-pill dark">함대사령관</div>${hqNode({ n: "사령관" }, FLEET_CDR, false, true)}</div>` : `<div class="hq-top"><div class="hq-pill dark">${careerTitle(rk)}</div>${me}</div>`;
   const tree = `<div class="hq-org">${top}<div class="hq-v"></div>`
     + `<div class="hq-top"><div class="hq-pill dark${hqRole === "cos" ? " on" : ""}">참모장</div>${hqNode(STAFF_ROLES[0], of("cos"))}<div class="hq-sub">${hqEff("cos", m)[0]}</div></div><div class="hq-v"></div>`
-    + `<div class="hq-depts">${row.map(col).join("")}</div>${low && br === "sea" ? `<div class="hq-sea"><div class="hq-pill">함정 지휘 계통</div><div class="hq-pill me">${careerTitle(rk)}</div>${me}</div>` : ""}</div>`;
+    + `<div class="hq-depts">${row.map(col).join("")}</div></div>`;
   const cur = staff.a[hqRole];
   const cands = STAFF.filter((o) => o.r === hqRole).sort((x, y) => y.ri - x.ri || y.sk - x.sk).map((o) => {
     staff.a[hqRole] = o.id; const mm = staffMods(rk); staff.a[hqRole] = cur; const on = o.id === cur, ok = canAppoint(o, rk);
