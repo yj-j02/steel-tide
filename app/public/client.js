@@ -5,7 +5,7 @@
  * connection to the captain's room (credits, ships, rank).
  */
 import { THREE, $, PI, TAU, DEG, KN, clamp, wrap, brg, fmt, params, rnd, gauss, G, camera, canvas, renderer, scene, ovScene, ovCam, makeIslands, MAPS, addIsland, clearFx, updateWorld, spray, spark, flash, spawnSplash } from "./js/core.js";
-import { A, initAudio, setMuted, setVolume, sfx, updateAudio, radio, bgm, setBgmOn, jetSound, droneSound, fanfare } from "./js/audio.js";
+import { A, initAudio, setMuted, setVolume, sfx, updateAudio, radio, bgm, setBgmOn, jetSound, droneSound, fanfare, stopFanfare } from "./js/audio.js";
 import { OPS, isModernOp, opsInit, opsStep, opsClear, opsCheck, opsMarks, opsShellLand, aswRocket, nearestSubContact, O as OPSO, opsDebug, opsStatus, jamDrones } from "./js/ops.js";
 import { cicStart, cicBigFeeds, cicStop, cicStep, cicToggle, cicExpand, cicPending, cicResolve, cicUsed, cicWcs, cicSetWcs, cicFeedInfo } from "./js/cic.js";
 import { post, renderFrame, renderPiP, renderToCanvas } from "./js/post.js";
@@ -618,7 +618,7 @@ function finish() {
       $("#endPromo").innerHTML = `<span class="k">RANK</span><div class="ib new">${insignia(after, 64)}</div><div class="big" style="font-size:30px">${ECON_RANKS[after]}</div><div class="sub">${postOf(after)}</div>`;
       if (career.seen == null && staff.branch) careerInit(before, careerTitle(before), BRANCHES[staff.branch].n); career.picks += after - before; logPromotion({ g: after, t: postOf(after), b: BRANCHES[staff.branch]?.n || "", why: res.why }); pmOpts = null;
       const handover = buildPromo(before, after, unl);
-      setTimeout(() => { if (G.state !== "ended") return; $("#promoM").style.display = "flex"; fanfare(after); }, 2600);
+      setTimeout(() => { if (G.state !== "ended") return; $("#promoM").style.display = "flex"; fanfare(after, staff.branch); }, 2600);
       if (handover) log(`지휘권 이양 — ${ECON_RANKS[after]} ${cmdr.name} 함대사령관 부임`, "hit"); }
     else $("#endPromo").innerHTML = `<span class="k">RANK</span><div class="ib new">${insignia(after, 64)}</div><div class="big" style="font-size:30px">${ECON_RANKS[after]}</div><div class="sub">${postOf(after)}<br>${rl.next ? `${rl.next}까지 ${fmt(rl.need - profile.xp)} XP` : "최고 계급"}</div><div class="rk"><div class="hbar"><i style="width:${rl.pct * 100}%;background:var(--gold)"></i></div></div>`;
     const P0 = G.player, got = awardMedals({ won, modern: !!G.modern, wins: profile.wins, sunk: G.enemies.filter((e) => !e.alive).length, hp: P0 ? P0.hp / P0.maxHp : 0, lowHp: (G.minHp ?? 1) <= 0.5, grade: after });
@@ -927,17 +927,17 @@ $("#recordP").addEventListener("click", (e) => {
   if (e.target.closest('[data-act="setrank"]') && profile.admin) {
     const g = +$("#setRank").value, before = myGrade(); if (g === before) return;
     if (!act({ kind: "setxp", xp: ECON_RANK_XP[g] })) return; staff.adminPost = null; saveStaff();
-    if (g > before) { if (career.seen == null && staff.branch) careerInit(before, careerTitle(before), BRANCHES[staff.branch].n); career.picks += g - before; logPromotion({ g, t: postOf(g), b: BRANCHES[staff.branch]?.n || "", why: "관리자 진급" }); awardMedals({ won: false, flight: false, wins: profile.wins, sunk: 0, hp: 0, grade: g }); pmOpts = null; initAudio(); buildPromo(before, g); $("#promoM").style.display = "flex"; fanfare(g); }
+    if (g > before) { if (career.seen == null && staff.branch) careerInit(before, careerTitle(before), BRANCHES[staff.branch].n); career.picks += g - before; logPromotion({ g, t: postOf(g), b: BRANCHES[staff.branch]?.n || "", why: "관리자 진급" }); awardMedals({ won: false, flight: false, wins: profile.wins, sunk: 0, hp: 0, grade: g }); pmOpts = null; initAudio(); buildPromo(before, g); $("#promoM").style.display = "flex"; fanfare(g, staff.branch); }
     else toast(`관리자 — 계급을 ${ECON_RANKS[g]}(으)로 조정했습니다`);
     refreshMenus(); renderRecord(); return;
   }
-  if (e.target.closest('[data-act="pvpromo"]') && profile.admin) { const g = +$("#pvRank").value; initAudio(); fanfare(g); buildPromo(g - 1, g, "", true); $("#promoM").style.display = "flex"; return; }
+  if (e.target.closest('[data-act="pvpromo"]') && profile.admin) { const g = +$("#pvRank").value; initAudio(); fanfare(g, staff.branch); buildPromo(g - 1, g, "", true); $("#promoM").style.display = "flex"; return; }
   if (e.target.closest('[data-act="miadmin"]')) { if (act({ kind: "admin", code: $("#miAdmin").value })) { sfx.coin(); toast("관리자 모드 활성화"); renderRecord(); } }
 });
 $("#shipLine").addEventListener("click", (e) => { const b = e.target.closest("[data-flag]"); if (!b) return; sfx.click(); career.ship = b.dataset.flag; saveCareer(); refreshMenus(); showcase(flagshipId()); });
 $("#promoM").addEventListener("click", (e) => {
   const pk = e.target.closest("[data-perk]"); if (pk) { sfx.coin(); takePerk(pk.dataset.perk); pmOpts = null; renderPerkPick("#pmPk", myGrade()); return; }
-  if (e.target.closest("#promoOk")) { if (career.picks > 0 && !pmPreview) { sfx.deny(); toast("진급 특기를 먼저 고르세요"); return; } sfx.click(); $("#promoM").style.display = "none"; renderRecord(); }
+  if (e.target.closest("#promoOk")) { if (career.picks > 0 && !pmPreview) { sfx.deny(); toast("진급 특기를 먼저 고르세요"); return; } sfx.click(); stopFanfare(); $("#promoM").style.display = "none"; renderRecord(); }
 });
 $("#hqP").addEventListener("keydown", (e) => { if (e.target.id === "hqAdmin" && e.key === "Enter") $('[data-act="hqadmin"]')?.click(); });
 $("#hqP").addEventListener("click", (e) => {

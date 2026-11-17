@@ -230,7 +230,7 @@ function snare(t, vol, len = 0.09) {
 }
 function roll(t, dur, v0, v1) { const n = Math.floor(dur / 0.045); for (let i = 0; i < n; i++) snare(t + i * 0.045, v0 + (v1 - v0) * (i / n), 0.06); }
 /** Promotion music in the manner of a military band salute (B♭, brass + snare), written for the game. 장성: one ruffle-and-flourish per star first. */
-export function fanfare(grade = 3) {
+function synthFanfare(grade) {
   const c = A.ctx; if (!c || A.muted) return; const t0 = c.currentTime + 0.05, beat = 0.5, gen = grade >= 6, stars = Math.max(0, grade - 5);
   if (A.bgmEl) { const el = A.bgmEl, v0 = el.volume; el.volume = v0 * 0.2; setTimeout(() => { el.volume = v0; }, (gen ? 9 + stars * 1.4 : 9) * 1000); }
   let t = t0;
@@ -247,6 +247,18 @@ export function fanfare(grade = 3) {
   for (let b = 0; b < 24; b++) { const tt = t + b * beat; snare(tt, b % 2 ? 0.07 : 0.11); if (b % 4 === 3) { snare(tt + beat * 0.5, 0.06); snare(tt + beat * 0.75, 0.08); } if (b % 2 === 0) timp(tt, 46.2, 0.18); }
   const end = t + 12 * beat; brass(["Bb2", "F3", "Bb3", "D4", "F4", "Bb4", ...(gen ? ["D5", "F5"] : [])].map(NOTE), end, gen ? 2.8 : 2.2, 0.032);
   timp(end, 34.6, 0.55); timp(end + 0.01, 46.2, 0.35); cymbal(end, 0.9, 0.15); if (gen) for (const k of [0.75, 1.5]) timp(end + k, 34.6, 0.25);
+}
+
+/* Real honours music cut from the user's own reference video (sfx/promo). 위관 has no entry there, so it keeps the synth call. */
+const PROMO = (g, br) => g >= 10 ? "marshal" : g === 9 ? (br === "ops" ? "jcs" : "g4") : g === 8 ? "g3" : g === 7 ? "g2" : g === 6 ? "g1" : g >= 3 ? "field" : null;
+let promoEl = null;
+export function stopFanfare() { const el = promoEl; if (!el) return; promoEl = null; const v0 = el.volume, t0 = performance.now(); const step = () => { const k = 1 - (performance.now() - t0) / 700; if (k <= 0) { el.pause(); el.onended?.(); return; } el.volume = v0 * k; requestAnimationFrame(step); }; step(); }
+export function fanfare(grade = 3, branch = "") {
+  if (!A.ctx || A.muted) return; stopFanfare(); const f = PROMO(grade, branch); if (!f) return synthFanfare(grade);
+  const el = new Audio(`sfx/promo/${f}.mp3`); el.volume = Math.min(1, A.vol.sfx * 1.05); promoEl = el;
+  const bg = A.bgmEl, v0 = bg ? bg.volume : 0; if (bg) bg.volume = v0 * 0.15;
+  el.onended = () => { if (bg && A.bgmEl === bg) bg.volume = v0; if (promoEl === el) promoEl = null; el.onended = null; };
+  el.play().catch(() => { el.onended?.(); synthFanfare(grade); });
 }
 
 export const sfx = {
