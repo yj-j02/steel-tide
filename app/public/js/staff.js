@@ -52,16 +52,16 @@ export const STAFF = [
 ];
 export const RANKS = ["소위", "중위", "대위", "소령", "중령", "대령", "준장", "소장", "중장", "대장", "원수"];
 for (const o of STAFF) o.rk = RANKS[o.ri];
-/** The fleet commander above you until you make 중장 yourself. */
+/** The operations commander (해군작전사령관) above you until you make 중장 yourself. */
 export const FLEET_CDR = { id: "fc", nm: "손원일", nat: "kr", ri: 8, f: [3, 0, 2, null, true, 1.0] };
 FLEET_CDR.rk = RANKS[FLEET_CDR.ri];
 /** Branch (보직) chosen as 소위; the career ladder (a title for every rank, 소위 … 원수) and a personal bonus follow it. */
 export const BRANCHES = {
-  sea: { n: "함정", d: "수상함 조함·포술과 해상 전술기동 — 함장을 거쳐 전투단·기동부대 지휘로", bonus: "수리반 +1 (대위부터)", t: ["갑판사관", "포술관", "초계함 부장", "호위함 부장", "구축함 함장", "구축함전대장", "해상전투단장", "기동부대 사령관", "함대사령관", "해군참모총장", "해군원수"] },
-  ops: { n: "작전", d: "함대 기동계획과 화력 투사·합동 타격 작전을 총괄하는 참모 계통", bonus: "화력 + (계급이 오를수록 증가)", t: ["작전보좌관", "작전상황장교", "선임작전장교", "작전계획과장", "작전참모차장", "작전참모처장", "작전기획부장", "작전참모부장", "함대사령관", "합동참모의장", "해군원수"] },
-  int: { n: "정보", d: "적 표적 조기탐지·전자전과 대공·대미사일 방어 판단을 맡는 정보 계통", bonus: "받는 피해 −, 아군 요격 성공률 + (계급이 오를수록 증가)", t: ["정보분석담당", "해양정보장교", "선임정보장교", "정보분석과장", "정보참모차장", "정보참모처장", "정보작전참모부장", "합동정보부장", "함대사령관", "해군참모총장", "해군원수"] },
-  log: { n: "군수", d: "탄약·미사일 재보급, 함정 정비와 지속지원을 책임지는 군수 계통", bonus: "함포 재장전 시간 − (계급이 오를수록 증가)", t: ["군수계획담당", "정비보급장교", "선임군수장교", "군수계획과장", "군수참모차장", "군수참모처장", "군수참모부장", "군수사령관", "함대사령관", "해군참모총장", "해군원수"] },
-  air: { n: "항공", d: "함재 전투기·초계기 출격 통제와 해상 항공타격을 지휘하는 항공 계통", bonus: "전투기 +1 (중위부터)", t: ["항공운항담당", "함재항공장교", "편대작전장교", "항공작전과장", "항공전대 부전대장", "항공전대장", "항공사령부 부사령관", "항공사령관", "함대사령관", "해군참모총장", "해군원수"] },
+  sea: { n: "함정", d: "수상함 조함·포술과 해상 전술기동 — 함장을 거쳐 전투단·기동부대 지휘로", bonus: "수리반 +1 (대위부터)", t: ["갑판사관", "포술관", "초계함 부장", "호위함 부장", "구축함 함장", "구축함전대장", "해상전투단장", "제2함대사령관", "해군작전사령관", "해군참모총장", "해군원수"] },
+  ops: { n: "작전", d: "함대 기동계획과 화력 투사·합동 타격 작전을 총괄하는 참모 계통", bonus: "화력 + (계급이 오를수록 증가)", t: ["작전보좌관", "작전상황장교", "선임작전장교", "작전계획과장", "작전참모차장", "작전참모처장", "기동전단장", "기동함대사령관", "합동참모차장", "합동참모의장", "해군원수"] },
+  int: { n: "정보", d: "적 표적 조기탐지·전자전과 대공·대미사일 방어 판단을 맡는 정보 계통", bonus: "받는 피해 −, 아군 요격 성공률 + (계급이 오를수록 증가)", t: ["정보분석담당", "해양정보장교", "선임정보장교", "정보분석과장", "정보참모차장", "정보참모처장", "해작사 해양작전본부장", "해군작전사령부 부사령관", "국방정보본부장", "해군참모총장", "해군원수"] },
+  log: { n: "군수", d: "탄약·미사일 재보급, 함정 정비와 지속지원을 책임지는 군수 계통", bonus: "함포 재장전 시간 − (계급이 오를수록 증가)", t: ["군수계획담당", "정비보급장교", "선임군수장교", "군수계획과장", "군수참모차장", "군수참모처장", "해군본부 처장 (군수)", "해군본부 군수참모부장", "해군참모차장", "해군참모총장", "해군원수"] },
+  air: { n: "항공", d: "함재 전투기·초계기 출격 통제와 해상 항공타격을 지휘하는 항공 계통", bonus: "전투기 +1 (중위부터)", t: ["항공운항담당", "함재항공장교", "편대작전장교", "항공작전과장", "항공전대 부전대장", "항공전대장", "항공전단장", "항공사령관", "합참 군사지원본부장", "해군참모총장", "해군원수"] },
 };
 export const careerTitle = (grade, br = staff.branch) => (BRANCHES[br] || BRANCHES.sea).t[Math.max(0, Math.min(10, grade))];
 export function setBranch(k) { if (BRANCHES[k]) { staff.branch = k; saveStaff(); } }
@@ -72,7 +72,7 @@ export const ECH = [
   { u: "함정 부서", g: [0, 2], rk: "부사관", t: { cos: "부서 선임부사관", ops: "전탐 부사관", int: "통신 부사관", log: "보급 부사관", air: "항공정비 부사관" } },
   { u: "함정·전대 참모부", g: [3, 5], rk: "위관", t: { cos: "부장", ops: "작전관", int: "정보관", log: "보급관", air: "항공관" } },
   { u: "전투단·기동부대 참모부", g: [6, 7], rk: "영관", t: { cos: "참모장", ops: "작전참모", int: "정보참모", log: "군수참모", air: "항공참모" } },
-  { u: "함대사령부", g: [8, 10], rk: "장성·영관", t: { cos: "참모장", ops: "작전처장", int: "정보처장", log: "군수처장", air: "항공처장" } },
+  { u: "해군작전사령부", g: [8, 10], rk: "장성·영관", t: { cos: "참모장", ops: "작전처장", int: "정보처장", log: "군수처장", air: "항공처장" } },
 ];
 export const echOf = (grade) => (grade <= 2 ? 0 : grade <= 5 ? 1 : grade <= 7 ? 2 : 3);
 export const roleTitle = (k, grade) => ECH[echOf(grade)].t[k];
@@ -130,3 +130,16 @@ export function staffMods(grade = 0, branch = staff.branch) {
 
 /** After a modern battle every appointed officer gains service (green ones twice as fast). */
 export function staffServe(won) { for (const R of STAFF_ROLES) { const o = officer(staff.a[R.k]); if (o) staff.x[o.id] = (staff.x[o.id] || 0) + (won ? 2 : 1) * (o.tr === "green" ? 2 : 1); } saveStaff(); }
+
+/** Every flag-officer post a naval officer can hold, with the chart column it sits in and the branch whose
+ *  evaluation weights it uses (public reporting; ranks and names shift with reorganisations). */
+export const FLAG_POSTS = [
+  { g: 9, t: "해군참모총장", c: "cmd", b: "sea" }, { g: 9, t: "합동참모의장", c: "jcs", b: "ops" },
+  { g: 8, t: "해군작전사령관", c: "sea", b: "sea" }, { g: 8, t: "해군참모차장", c: "cmd", b: "log" }, { g: 8, t: "해군사관학교장", c: "cmd", b: "log" },
+  { g: 8, t: "합동참모차장", c: "jcs", b: "ops" }, { g: 8, t: "합참 전략기획본부장", c: "jcs", b: "ops" }, { g: 8, t: "합참 군사지원본부장", c: "jcs", b: "air" }, { g: 8, t: "국방정보본부장", c: "int", b: "int" },
+  { g: 7, t: "제1함대사령관", c: "sea", b: "sea" }, { g: 7, t: "제2함대사령관", c: "sea", b: "sea" }, { g: 7, t: "제3함대사령관", c: "sea", b: "sea" }, { g: 7, t: "잠수함사령관", c: "sea", b: "sea" },
+  { g: 7, t: "기동함대사령관", c: "ops", b: "ops" }, { g: 7, t: "해군작전사령부 부사령관", c: "int", b: "int" }, { g: 7, t: "해군교육사령관", c: "cmd", b: "log" }, { g: 7, t: "해군본부 기획관리참모부장", c: "cmd", b: "ops" },
+  { g: 7, t: "해군본부 군수참모부장", c: "log", b: "log" }, { g: 7, t: "항공사령관", c: "air", b: "air" },
+  { g: 6, t: "해상전투단장", c: "sea", b: "sea" }, { g: 6, t: "잠수함전단장", c: "sea", b: "sea" }, { g: 6, t: "기동전단장", c: "ops", b: "ops" }, { g: 6, t: "해작사 해양작전본부장", c: "int", b: "int" },
+  { g: 6, t: "해군본부 처장 (군수)", c: "log", b: "log" }, { g: 6, t: "항공전단장", c: "air", b: "air" },
+];
