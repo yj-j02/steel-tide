@@ -154,22 +154,29 @@ const SIDE_US = { kr: 0, us: 0, jp: 4 }, SIDE_FOE = { nk: 0, cn: 2 };
 function fixNations() { const rk = myRank(); natUs = "kr"; /* 한국편 only for now */ if (!(SIDE_FOE[natFoe] <= rk)) natFoe = "nk"; }
 let natUs = "kr", natFoe = "nk"; try { const a = localStorage.getItem("steeltide:natUs"), b = localStorage.getItem("steeltide:natFoe"); if (NATIONS[a]) natUs = a; if (NATIONS[b]) natFoe = b; } catch {}
 // ── 한반도 시나리오 (fictional): a modern campaign, each stage built on one modern operation ──
+/* 한반도 시나리오 「경계의 파도」 (fictional, 20XX): one story told across your career — each chapter opens at a rank,
+   after the one before it. Characters and the enemy commander are invented. */
 const KCAMP = [
-  { n: "서해 초계", d: "백령도 근해 · 무인기 떼 기습", m: "modern:drone", map: "west", brief: ["가상의 20XX년. 서해 북방 해상의 긴장이 높아진 가운데, 백령도 근해를 초계하던 아군 전단에 정체불명의 무인기 떼가 다가온다.", "목표 — 자폭 드론 4차례 공격을 막고 군수지원함을 지켜라.", "할 일 — 자동 방공(근접방어무기·요격미사일)만으론 드론 떼를 다 못 막는다. G로 직접 대공 사격해 드론을 떨어뜨리고, 떼가 몰려오면 E로 재밍(전자전)해 통신을 끊어라. 기함을 군수지원함과 드론 사이로 옮겨 막아서는 것도 중요하다.", "팁 — 화면 위 상황판에 남은 드론과 다음 공격까지 남은 시간이 나온다. Space는 수동 요격탄(수가 적다)."] },
-  { n: "동해 잠수함 침투", d: "울릉도 근해 · 적 잠수함 3척", m: "modern:asw", map: "east", brief: ["울릉도 근해에서 정체불명 잠수함 3척의 침투 징후가 잡혔다. 동해 해상 교통로가 위협받는다.", "목표 — 적 잠수함을 모두 격침하라.", "팁 — 속력을 줄이면 소나가 더 멀리 듣는다. Y로 헬기를 띄워 소노부이를 뿌리고, Q로 대잠로켓을 골라 Space. 지휘통제실(`)에서 해상초계기를 부를 수 있다."] },
-  { n: "탄도미사일 위기", d: "동해 · 탄도미사일 4차례", m: "modern:bmd", map: "east", brief: ["조기경보 위성이 연속 발사 징후를 포착했다. 동해에 전개한 이지스함이 탄도미사일 방어의 최전선이다.", "목표 — 4차례 탄도미사일 공격에서 군수지원함과 함대를 지켜라.", "팁 — 레이더(O)를 켜 둬야 일찍 본다. Space로 추가 요격탄을 쏠 수 있다."] },
-  { n: "대한해협 증원 선단", d: "부산 앞바다 · 수송선단 호위", m: "modern:convoy", map: "strait", brief: ["동맹 증원 전력을 실은 수송선단이 대한해협을 건너 부산으로 향한다. 잠수함·드론·미사일함이 길목을 노린다.", "목표 — 수송선 3척 중 2척 이상을 집결지까지 호위하라.", "팁 — 선단 앞에서 잠수함을 먼저 찾고, 드론은 근접방어로 막아라. 해안 지대함 포대 지원을 쓸 수 있다."] },
-  { n: "제주 남방 결전", d: "제주 남쪽 · 야간 EMCON 기습", m: "modern:emcon", map: "jeju", tod: "night", brief: ["제주 남쪽 해상에 적 주력 함대가 모였다. 수적 열세를 뒤집으려면 먼저 보고 먼저 쏴야 한다.", "목표 — 레이더를 끈 채(EMCON) 밤바다로 접근해 적 함대를 격멸하라.", "팁 — 적은 레이더를 켜고 있어 전자지원(ESM)으로 먼저 잡힌다. 아군 레이더(O)를 켜는 순간 들킨다. 해안 포대·공군 지원을 섞어라."] },
-  { n: "섬 탈환 (보너스)", d: "가상의 섬 · 상륙 지원 함포", m: "modern:shore", map: "arch", bonus: true, brief: ["가상의 섬을 되찾기 위한 상륙 작전. 해안포와 대함미사일 진지가 상륙정을 노린다.", "목표 — 해안포·미사일 진지를 함포로 부수고 상륙정 2척 이상을 해안에 올려라.", "팁 — Q로 함포를 고르고 육지 목표를 더블클릭해 조준한 뒤 Space."] },
+  { n: "1장 · 첫 출동", rk: 0, d: "백령도 근해 · 무인기 떼 기습", m: "modern:drone", map: "west", brief: ["가상의 20XX년 봄. 임관 석 달 차, 당신은 서해 초계에 나선 전단에 처음 승조했다. 함장 윤석진 대령이 짧게 말한다. \"바다는 조용할 때가 제일 위험하다.\"", "새벽, 백령도 북서쪽에서 정체불명의 무인기 떼가 낮게 다가온다.", "목표 — 자폭 드론 4차례 공격을 막고 군수지원함을 지켜라.", "할 일 — 자동 방공만으론 다 못 막는다. G로 직접 대공 사격, 떼가 몰려오면 E로 재밍. 기함을 군수지원함과 드론 사이로 옮겨 막아서라."], epi: "드론 잔해를 분석한 정보장교 한서윤 소령이 고개를 젓는다. \"공격이 아니라 시험이었습니다. 누군가 우리 방공망이 어떻게 반응하는지 재고 있었어요.\" 잔해에는 검은 용 모양의 표식이 남아 있었다." },
+  { n: "2장 · 검은 용의 그림자", rk: 1, d: "울릉도 근해 · 적 잠수함 3척", m: "modern:asw", map: "east", brief: ["서해 사건 이후 동해 해상 교통로 곳곳에서 정체불명의 수중 소음이 잡힌다. 한서윤 소령은 그 패턴에 '흑룡'이라는 이름을 붙였다.", "울릉도 근해에 잠수함 3척의 침투 징후 — 상선 항로 바로 아래다.", "목표 — 적 잠수함을 모두 격침하라.", "팁 — 속력을 줄이면 소나가 더 멀리 듣는다. Y로 헬기를 띄워 소노부이를 뿌리고, Q로 대잠로켓을 골라 Space."], epi: "마지막 잠수함이 가라앉기 직전 짧은 송신을 남겼다. 해독된 내용은 한 줄 — \"1단계 종료. 다음은 하늘.\" 윤석진 대령은 동해 이지스함 전개를 건의했다." },
+  { n: "3장 · 하늘이 열리는 밤", rk: 3, d: "동해 · 탄도미사일 4차례", m: "modern:bmd", map: "east", brief: ["소령이 된 당신은 동해에 전개한 이지스함의 작전관을 맡았다. 조기경보 위성이 연속 발사 징후를 포착한다.", "'다음은 하늘'이라던 흑룡의 송신이 현실이 되었다.", "목표 — 4차례 탄도미사일 공격에서 군수지원함과 함대를 지켜라.", "팁 — 레이더(O)를 켜 둬야 일찍 본다. Space로 추가 요격탄."], epi: "모든 미사일을 막아 냈지만, 한서윤 소령은 발사 패턴에서 이상한 점을 찾아냈다. \"우리 이지스함을 동해에 묶어 두려는 미끼였습니다. 진짜 노림수는 남쪽 바다예요.\"" },
+  { n: "4장 · 해협의 선단", rk: 4, d: "부산 앞바다 · 수송선단 호위", m: "modern:convoy", map: "strait", brief: ["중령으로 진급한 당신에게 첫 독립 임무가 떨어졌다. 동맹 증원 전력을 실은 수송선단을 대한해협 너머 부산까지 호위하라.", "흑룡은 잠수함과 드론, 미사일함을 길목마다 깔아 두었다.", "목표 — 수송선 3척 중 2척 이상을 집결지까지 호위하라.", "팁 — 선단 앞에서 잠수함을 먼저 찾고, 드론은 근접방어로. 해안 지대함 포대 지원을 쓸 수 있다."], epi: "선단은 부산에 닿았다. 그날 밤, 함대사령부로 자리를 옮긴 윤석진 준장이 연락해 왔다. \"흑룡의 주력이 제주 남쪽에 모였다. 자네가 전대를 맡아 줘야겠어.\"" },
+  { n: "5장 · 제주 남방, 불 꺼진 바다", rk: 5, d: "제주 남쪽 · 야간 EMCON 기습", m: "modern:emcon", map: "jeju", tod: "night", brief: ["대령, 전대장. 수적으로 열세인 당신의 전대가 흑룡의 주력 함대를 상대해야 한다.", "윤석진 준장의 지시는 단순하다. \"먼저 보고, 먼저 쏴라. 레이더는 마지막 순간까지 끄고.\"", "목표 — 레이더를 끈 채(EMCON) 밤바다로 접근해 적 함대를 격멸하라.", "팁 — 적은 레이더를 켜고 있어 전자지원(ESM)으로 먼저 잡힌다. 아군 레이더(O)를 켜는 순간 들킨다."], epi: "흑룡의 주력은 무너졌지만 그 지휘관은 북쪽으로 빠져나갔다. 별을 단 당신에게 마지막 명령이 내려온다 — 서해에서 그의 남은 전단을 막아라. 이번에는 함교가 아니라 작전지도 위에서." },
+  { n: "6장 · 경계의 파도 (작전 지휘)", rk: 6, d: "서해 해상 차단 · 작전지도", m: "opmap", map: "west", brief: ["준장, 해상전투단장. 흑룡이 남은 전단을 모아 연평 해역으로 남하한다. 이제 당신은 한 척의 배가 아니라 여러 전단과 지원 전력을 움직인다.", "윤석진 소장이 작전지도 앞에서 말한다. \"자네가 처음 탔던 그 바다야. 이번엔 자네가 판을 짜게.\"", "목표 — 작전지도에서 전단 기동과 지원을 계획해 적이 연평 해역에 들어오지 못하게 막아라.", "팁 — 적 예상 진로(빨간 점선)를 가로막고, P-3C로 먼저 찾아라."], epi: "흑룡의 마지막 전단이 경계선 북쪽으로 물러났다. 함대사령부 상황실에 박수가 터지고, 윤석진 소장이 당신의 어깨를 두드린다. \"이제 이 바다는 자네 몫이야.\" — 「경계의 파도」 완결." },
+  { n: "외전 · 섬 탈환", rk: 6, d: "가상의 섬 · 상륙 지원 함포", m: "modern:shore", map: "arch", bonus: true, brief: ["흑룡 사건의 여파로 점거된 가상의 섬을 되찾는 상륙 작전. 해안포와 대함미사일 진지가 상륙정을 노린다.", "목표 — 해안포·미사일 진지를 함포로 부수고 상륙정 2척 이상을 해안에 올려라.", "팁 — Q로 함포를 고르고 육지 목표를 더블클릭해 조준한 뒤 Space."], epi: "섬에 태극기가 다시 올랐다." },
 ];
+const K_LAST = KCAMP.filter((c) => !c.bonus).length;
 let kProg = 0, kStars = [], kFail = []; try { const k = JSON.parse(localStorage.getItem("steeltide:kcamp") || "null"); if (k) { kProg = k.p || 0; kStars = k.s || []; kFail = k.f || []; } } catch {}
-const saveK = () => { try { localStorage.setItem("steeltide:kcamp", JSON.stringify({ p: kProg, s: kStars, f: kFail })); } catch {} };
+try { const k = JSON.parse(localStorage.getItem("steeltide:kcamp") || "null"); if (k && !k.v) { kStars[6] = kStars[5]; kFail[6] = kFail[5]; kStars[5] = 0; kFail[5] = false; } } catch {}
+const saveK = () => { try { localStorage.setItem("steeltide:kcamp", JSON.stringify({ v: 2, p: kProg, s: kStars, f: kFail })); } catch {} };
+saveK();
 const CAMPS = () => KCAMP;
-const kLocked = (i) => (KCAMP[i].bonus ? kProg < 5 : i > kProg);
+const kWhy = (i) => { const c = KCAMP[i]; if (c.bonus ? kProg < K_LAST : i > kProg) return "이전 장을 마쳐야 열림"; if (myGrade() < c.rk) return `${ECON_RANKS[c.rk]} 진급 시 열림`; return ""; };
+const kLocked = (i) => !!kWhy(i);
 function kcampHTML() {
   return KCAMP.map((c, i) => { const lock = kLocked(i), st = kStars[i] || 0;
-    return `<button class="mp" data-kcamp="${i}"${lock ? " disabled" : ""}><b>${c.bonus ? "★ " : `${i + 1}. `}${c.n}${st ? ` <span class="stars">${"★".repeat(st)}${"☆".repeat(3 - st)}</span>` : kFail[i] ? ` <span class="kfail">실패</span>` : ""}</b><small>${lock ? "잠김 — 이전 단계를 마쳐야 열림" : c.d}</small></button>`; }).join("")
-    + `<div class="mpn">진행 ${Math.min(kProg, 5)}/5 · 대한민국 해군 · 가상 시나리오 — 누르면 브리핑 후 출격 (실패해도 다음 단계는 열리지만 더 어려워짐)</div>`;
+    return `<button class="mp" data-kcamp="${i}"${lock ? " disabled" : ""}><b>${c.n}${st ? ` <span class="stars">${"★".repeat(st)}${"☆".repeat(3 - st)}</span>` : kFail[i] ? ` <span class="kfail">실패</span>` : ""}</b><small>${lock ? `🔒 ${kWhy(i)}` : c.d}</small></button>`; }).join("")
+    + `<div class="mpn">「경계의 파도」 ${Math.min(kProg, K_LAST)}/${K_LAST}장 · 가상 시나리오 — 계급이 오르면 다음 장이 열립니다 (실패해도 다음 장은 열리지만 더 어려워짐)</div>`;
 }
 // ── menu as steps: era → campaign or single operation → operation → (modern) forces → theater/conditions ──
 let wz = "era", wzMode = "ops";
@@ -185,7 +192,7 @@ function wzCrumb() {
 let briefI = null;
 function openBrief(i) {
   const c = KCAMP[i]; briefI = i; $("#brief .brief-face").innerHTML = face(myFace(), 150);
-  $("#brief .brief-k").textContent = `한반도 시나리오 · ${c.bonus ? "보너스" : `${i + 1}단계`} · ${MAPS[c.map]?.n || ""}${c.tod === "night" ? " · 야간" : ""}${i > 0 && !c.bonus && kFail[i - 1] ? " · 난이도 상승 (이전 단계 실패)" : ""}`;
+  $("#brief .brief-k").textContent = `경계의 파도 · ${c.bonus ? "외전" : `${i + 1}장`} · ${MAPS[c.map]?.n || ""}${c.tod === "night" ? " · 야간" : ""}${i > 0 && !c.bonus && kFail[i - 1] ? " · 난이도 상승 (이전 단계 실패)" : ""}`;
   $("#brief .brief-t").textContent = c.n;
   $("#brief .brief-txt").innerHTML = c.brief.map((t) => `<p>${t}</p>`).join("") + `<p class="brief-star">별점 — ★ 승리 · ★ 기함 선체 60% 이상 · ★ 합동 지원 1회 이하${kStars[i] ? ` · 최고 기록 ${"★".repeat(kStars[i])}` : ""}</p>`;
   $("#brief").style.display = "grid"; sfx.click();
@@ -193,8 +200,8 @@ function openBrief(i) {
 function kFinish(won) {
   const i = G.camp, c = KCAMP[i], P = G.player, hpK = P && P.alive ? P.hp / P.maxHp : 0, stars = won ? 1 + (hpK >= 0.6 ? 1 : 0) + (cicUsed() <= 1 ? 1 : 0) : 0;
   if (won) { kStars[i] = Math.max(kStars[i] || 0, stars); kFail[i] = false; } else kFail[i] = true;
-  if (i === kProg && !c.bonus) kProg = Math.min(5, i + 1); saveK();
-  $("#endTitle").textContent += won ? ` · 한반도 ${c.bonus ? "보너스" : `${i + 1}단계`} ${c.n} ${"★".repeat(stars)}${"☆".repeat(3 - stars)}` : ` · ${c.n} 실패${!c.bonus && i < 4 ? ` — 다음 단계(${KCAMP[i + 1].n})는 더 어려워진다` : ""}`;
+  if (i === kProg && !c.bonus) kProg = Math.min(K_LAST, i + 1); saveK(); if (won && c.epi) G.storyEpi = c.epi;
+  $("#endTitle").textContent += won ? ` · ${c.n} ${"★".repeat(stars)}${"☆".repeat(3 - stars)}` : ` · ${c.n} 실패${!c.bonus && i < K_LAST - 1 ? ` — 다음 장은 더 어려워진다` : ""}`;
 }
 let campSel = null;
 let todSel = "day", wxSel = "clear"; try { todSel = localStorage.getItem("steeltide:tod") === "night" ? "night" : "day"; wxSel = localStorage.getItem("steeltide:wx") === "storm" ? "storm" : "clear"; } catch {}
@@ -309,7 +316,7 @@ function newBattle() {
   const CS = campSel != null ? CAMPS()[campSel] : null; G.camp = campSel; G.campEra = "modern"; G.hard = !!(CS && campSel > 0 && !CS.bonus && kFail[campSel - 1]); G.tod = CS ? CS.tod || "day" : mission === "modern:emcon" ? "night" : todSel; G.wx = CS ? CS.wx || "clear" : wxSel; setWeather(G.tod, G.wx);
   G.visK = (G.tod === "night" ? 0.55 : 1) * (G.wx === "storm" ? 0.7 : 1); G.wxDisp = G.wx === "storm" ? 1.35 : 1; G.kc = null;
   const rk = myRank();
-  G.dryT = null; G.lastHitT = 0; G.mission = mission; G.result = null; G.goal = null; G.waves = null; G.foeLaunched = false; G.events = []; G.foeSquad = 0; G.foePlaneCD = 0;
+  G.storyEpi = null; G.dryT = null; G.lastHitT = 0; G.mission = mission; G.result = null; G.goal = null; G.waves = null; G.foeLaunched = false; G.events = []; G.foeSquad = 0; G.foePlaneCD = 0;
   const modern = true, OP = mission; G.modern = modern; G.mop = OP; G.staffK = modern ? staffMods(hqGrade(), hqBranch()) : null; G.perkK = perkMods(); /* promotion perks, both eras */ /* fleet HQ staff shape every modern battle, auto included */ if (modern) G.mission = "modern"; // economy and results count every modern operation as "modern" modern && (MSL.cam = null);
   const pSpec = MODERN[flagshipId()];
   G.mastFlag = null; const P = new Ship(pSpec, 0, 0, 0, "us", perkMods().upg); P.isPlayer = true; P.name = pSpec.short; P.nav = []; P.lv = 3; P.lastLv = 3; P.nation = natUs; mArm(P);
@@ -351,7 +358,7 @@ function newBattle() {
   log(`${first ? `${first.spec.name} 외 ${G.enemies.length - 1}척 접근 중. 전투 배치!` : `작전: ${MISSIONS[G.mop]?.n || ""} — ${MISSIONS[G.mop]?.d || ""}`}`);
   G.radio("battle");
   if (G.staffK) { const k = G.staffK, o = officer(staff.a.ops), c = officer(staff.a.cos), rg = hqGrade(); log(`참모진 — ${roleTitle("cos", rg)} ${c.rk} ${c.nm} · ${roleTitle("ops", rg)} ${o.rk} ${o.nm} | 화력 ${pctTxt(k.outK)} · 받는 피해 ${pctTxt(k.inK)} · 요격 ${pctTxt(k.icptK)}`); }
-  if (modern) { const F = CMDR_FACES[cmdr.face] || CMDR_FACES[0]; cicStart({ md, face: face(myFace(), 110), faceSkin: F.skin?.[0], cmdrName: `${ECON_RANKS[myGrade()]} ${cmdr.name}`, nat: natUs, theater: mapId, toast, log, radio: G.radio, know, watchJet, watchMsl, isWatching: (j) => md.fly === j }); } else cicStop();
+  if (modern) { const F = CMDR_FACES[cmdr.face] || CMDR_FACES[0]; cicStart({ md, grade: myGrade(), face: face(myFace(), 110), faceSkin: F.skin?.[0], cmdrName: `${ECON_RANKS[myGrade()]} ${cmdr.name}`, nat: natUs, theater: mapId, toast, log, radio: G.radio, know, watchJet, watchMsl, isWatching: (j) => md.fly === j }); } else cicStop();
 }
 G.toast = (m, t) => toast(m, t);
 G.onShellLand = (p, g, o) => G.modern && opsShellLand(p, g, o);
@@ -505,7 +512,7 @@ function finish() {
   if (G.camp != null && !G.auto) kFinish(won);
   $("#endFoes").innerHTML = G.enemies.slice(0, 6).map((e) => `<div>${flagOf(e, 22)}<b>${e.name}</b><span class="c">함장 ${e.captain || ""}</span><span class="r${e.alive ? " alive" : ""}">${e.captured ? "나포" : e.alive ? "생존" : "격침"}</span></div>`).join("");
   const s = G.stats, acc = s.shots ? ((s.hits / s.shots) * 100).toFixed(1) : "0.0";
-  let html = `<span>교전 시간</span><span>${Math.floor(secs / 60)}분 ${secs % 60}초</span><span>주포 발사 / 명중</span><span>${s.shots}발 / ${s.hits}발 (${acc}%)</span>`
+  let html = (G.storyEpi ? `<span>이야기</span><span class="epi">${G.storyEpi}</span>` : "") + `<span>교전 시간</span><span>${Math.floor(secs / 60)}분 ${secs % 60}초</span><span>주포 발사 / 명중</span><span>${s.shots}발 / ${s.hits}발 (${acc}%)</span>`
     + `<span>적함 격침</span><span>${G.enemies.filter((e) => !e.alive).length} / ${G.enemies.length}척 · 어뢰 명중 ${s.torpHits || 0}발${s.caps ? ` · 나포 ${s.caps}척` : ""}</span><span>항공전</span><span>적기 격추 ${s.planes || 0}기 · 폭탄 명중 ${s.bombs}발</span>`
     + `<span>잔여 선체</span><span>${Math.round((G.player.hp / G.player.maxHp) * 100)}%</span><span>지휘</span><span>${ECON_RANKS[myGrade()]} ${cmdr.name} · ${postOf(myGrade()).split(" (")[0]}</span>`;
   $("#endPromo").innerHTML = "";
@@ -574,7 +581,7 @@ $("#opsP").addEventListener("click", (e) => { const back = e.target.closest(".wz
   const go = e.target.closest("[data-wzgo]"); if (go) { campSel = null; start(false); } });
 showWz("mode", true);
 $("#briefNo").addEventListener("click", () => { $("#brief").style.display = "none"; sfx.click(); });
-$("#briefGo").addEventListener("click", () => { const c = KCAMP[briefI]; if (!c) return; $("#brief").style.display = "none"; campSel = briefI; natUs = "kr"; natFoe = "nk"; mission = c.m; theater = c.map; start(false); });
+$("#briefGo").addEventListener("click", () => { const c = KCAMP[briefI]; if (!c) return; $("#brief").style.display = "none"; if (c.m === "opmap") { storyOp = briefI; startOpMap(); return; } campSel = briefI; natUs = "kr"; natFoe = "nk"; mission = c.m; theater = c.map; start(false); });
 $("#cmdrEdit").addEventListener("click", () => openCmdr());
 $("#cmdrM").addEventListener("click", (e) => { const f = e.target.closest("[data-face]"); if (f) { cmdrDraft = +f.dataset.face; renderCmdr(); sfx.click(); return; } if (e.target.id === "cmdrOk") saveCmdr(); });
 $("#cmdrM").addEventListener("keydown", (e) => { if (e.key === "Enter") saveCmdr(); e.stopPropagation(); });
@@ -677,12 +684,21 @@ function portraitHTML(g) {
     + `<rect x="80" y="250" width="40" height="11" rx="1.5" fill="#1c2430"/><text x="100" y="258.5" font-size="7.5" fill="#fff" text-anchor="middle" font-family="Noto Sans KR, sans-serif">${cmdr.name}</text>`
     + `<g transform="translate(35 30) scale(2.3)">${face(F, 100).replace(/^<svg /, "<svg x=\"0\" y=\"0\" ")}</g></svg>`;
 }
+/** Epilogue card after a story chapter (shown over the menu). */
+let storyQ = null;
+function storyCard(c) {
+  if ($("#promoM").style.display === "flex") { storyQ = c; return; }
+  $("#promoM").innerHTML = `<div class="pm-doc"><div class="pm-pg on" data-pg="1"><div class="pm-h">경계의 파도</div><div class="pm-no">${c.n}</div><div class="pm-txt st-epi">${c.epi}</div><button id="promoOk">계속</button></div></div>`;
+  pmPreview = true; $("#promoM").style.display = "flex";
+}
 /** 작전 지휘 (operation map): plan and run an operation on the chart; the result pays and is evaluated like a battle. */
 function startOpMap() {
   initAudio(); bgm("battle"); sfx.click(); const g = myGrade(), m = staffMods(hqGrade(), hqBranch()), pk = perkMods();
   openOpMap({ grade: g, branch: staff.branch, ops: staff.branch === "ops", mods: { outK: m.outK * (pk.fleetK || 1), inK: m.inK, icptK: m.icptK * (pk.icptK || 1) }, onDone: opMapDone });
 }
+let storyOp = null;
 function opMapDone(r) {
+  if (storyOp != null) { const i = storyOp, c = KCAMP[i]; storyOp = null; const stars = r.won ? r.stars || 1 : 0; if (r.won) { kStars[i] = Math.max(kStars[i] || 0, stars); kFail[i] = false; } else kFail[i] = true; if (i === kProg) kProg = Math.min(K_LAST, i + 1); saveK(); if (r.won && c.epi) setTimeout(() => storyCard(c), 600); }
   bgm("menu"); const before = myGrade(), a = { kind: "result", won: r.won, shots: r.shots, hits: r.hits, seconds: r.secs, tier: econTier(), bombs: 0, bullets: 0, mission: "modern" };
   const rw = econReward(a); act(a);
   const ev = scoreBattle({ won: r.won, hp: r.hp, sunk: r.sunk, foes: r.foes, lost: r.lost, allies: r.allies, secs: r.secs, jetsOut: r.jetsOut }, staff.branch || "sea");
@@ -857,7 +873,7 @@ $("#promoM").addEventListener("click", (e) => {
   const go = e.target.closest("[data-pmgo]"); if (go) { pmGo(+go.dataset.pmgo); return; }
   const ps = e.target.closest("[data-post]"); if (ps) { const k = ps.dataset.post; pmPostSel = k; if (pmPreview) { $("#pmPostT").textContent = BRANCHES[k].t[pmPostG]; sfx.click(); } else if (k !== staff.branch) { setBranch(k); const g = myGrade(), last = career.log[career.log.length - 1]; if (!pmPreview && last && last.g === g) { last.t = postOf(g); last.b = BRANCHES[staff.branch].n; saveCareer(); } $("#pmPostT").textContent = postOf(g); refreshMenus(); sfx.click(); } renderPostPick(pmPostG); return; }
   const pk = e.target.closest("[data-perk]"); if (pk) { if (pmTook) return; sfx.coin(); if (takePerk(pk.dataset.perk)) pmTook++; pmOpts = null; const P = PERKS[pk.dataset.perk]; $("#pmPk").innerHTML = `<div class="pk-done">진급 특기 부여 — <b>${P.n}</b>${career.picks > 0 ? `<br><small>남은 특기 ${career.picks}회는 '내 정보'에서 고를 수 있습니다</small>` : ""}</div>`; $("#promoOk")?.classList.remove("dim"); return; }
-  if (e.target.closest("#promoOk")) { if (career.picks > 0 && !pmPreview && !pmTook) { sfx.deny(); const h = $("#pmPk .pk-h"); if (h) { h.classList.remove("nudge"); void h.offsetWidth; h.classList.add("nudge"); } return; } sfx.click(); stopFanfare(); $("#promoM").style.display = "none"; refreshMenus(); }
+  if (e.target.closest("#promoOk")) { if (career.picks > 0 && !pmPreview && !pmTook) { sfx.deny(); const h = $("#pmPk .pk-h"); if (h) { h.classList.remove("nudge"); void h.offsetWidth; h.classList.add("nudge"); } return; } sfx.click(); stopFanfare(); $("#promoM").style.display = "none"; refreshMenus(); if (storyQ) { const q = storyQ; storyQ = null; setTimeout(() => storyCard(q), 300); } }
 });
 $("#hqP").addEventListener("keydown", (e) => { if (e.target.id === "hqAdmin" && e.key === "Enter") $('[data-act="hqadmin"]')?.click(); });
 $("#hqP").addEventListener("click", (e) => {

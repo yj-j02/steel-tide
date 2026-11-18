@@ -320,12 +320,15 @@ function updateFeed(dt) {
   const sig = `${subL}|${subR}`;
   if (sEl && sig !== C.feedSig) { C.feedSig = sig; sEl.innerHTML = `<span>${subL}</span><span>${subR}</span>`; }
 }
+/** Who may call which support: 영관 the coastal battery, 장성 the air force (준장 fighters, 소장 the heavy airlifter). */
+const SUP_NEED = { battery: 3, fighter: 6, heavy: 7 }, RK = ["소위", "중위", "대위", "소령", "중령", "대령", "준장", "소장", "중장", "대장", "원수"];
 function assets() {
   const n = C.deps.nat, A = AIR[n] || AIR.us, out = [];
   out.push({ id: "fighter", t: `공군 전투기 편대 (CAP+타격) · ${A.fighter.type}`, d: `지정 해역 반경 11km 90초 방공우산(적기·미사일 요격) 및 ${WPN[A.fighter.asm]?.name || A.fighter.asm} 공대함 타격`, ok: true });
   out.push({ id: "heavy", t: `공군 대형수송기 · ${A.heavy.type}`, d: `안전 공역 진입 후 후방 램프에서 ${WPN[A.heavy.asm]?.name || A.heavy.asm} ${A.heavy.n}발 원거리 포화 투하`, ok: true });
   out.push(C.battery ? { id: "battery", t: `${C.battery.name} · 우회 기습`, d: `해안 발사 후 측후방 우회 경로로 ${WPN[C.battery.key]?.name || C.battery.key} 4발 기습 침투 · 사거리 ${(WPN[C.battery.key].range / 1000) | 0}km`, ok: true } : { id: "battery", t: "지대함 포대", d: "이 전장·국가에선 지원 불가 (한반도=해성 · 오키나와=12식 · 미 서부=NMESIS)", ok: false });
   /* 위성 레이저 스캔 · TOT removed from the menu (owner's call) */
+  const g = C.deps.grade ?? 10; for (const a of out) { a.need = SUP_NEED[a.id] ?? 0; a.lock = g < a.need; }
   return out;
 }
 function watchSupport(id) {
@@ -343,6 +346,7 @@ function watchSupport(id) {
 }
 function request(id) {
   const a = assets().find((x) => x.id === id); if (!a || !a.ok) { sfx.deny(); say("해당 지원은 이 전장에서 쓸 수 없습니다."); return; }
+  if (a.lock) { sfx.deny(); say(`${a.t} — ${RK[a.need]} 이상만 요청할 수 있습니다. 현재 계급으로는 상급 부대에 건의만 가능합니다.`); return; }
   if (!(C.uses[id] > 0)) { sfx.deny(); say("해당 지원은 이번 전투에서 모두 썼습니다."); return; }
   if ((C.cd[id] || 0) > G.battleT) { sfx.deny(); say(`재요청까지 ${Math.ceil(C.cd[id] - G.battleT)}초 대기.`); return; }
   const pt = C.deps.md.supPt; if (!pt) { sfx.deny(); say("먼저 상황판이나 표적 목록에서 지점을 지정하십시오."); return; }
@@ -575,6 +579,7 @@ export function cicStep(dt, marks) {
     }
     const st = !a.ok ? "불가" : u <= 0 ? "소진" : cd ? `${cd}s` : `${u}회`;
     const pct = cd > 0 ? clamp(1 - cd / maxCd, 0, 1) * 100 : 0;
+    if (a.lock) return `<button class="sup off lk" data-sup="${a.id}"><b>${a.t}</b><small>${a.d}</small><i>🔒 ${RK[a.need]}부터 요청 가능</i></button>`;
     return `<button class="sup${a.id === "tot" ? " tot" : ""}${a.ok && u > 0 && !cd ? "" : " off"}${C.pend?.id === a.id ? " pend" : ""}" data-sup="${a.id}"><b>${a.t}${pips}</b><small>${a.d}${eta}</small>${liveHtml}<i>${st}</i>${cd > 0 ? `<span class="cdbar"><span style="width:${pct.toFixed(1)}%"></span></span>` : ""}</button>`;
   }).join("");
   const snap = pt ? nearestSnap(pt.x, pt.z, 2600) : null;
