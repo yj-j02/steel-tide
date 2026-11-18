@@ -17,6 +17,7 @@ import { aaGun, updateAAGun, jetPit, updateJetPit } from "./js/interior.js";
 import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, updateMG } from "./js/infantry.js";
 import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, ROLE_UNLOCK, FLEET_CDR, BRANCHES, careerTitle, setBranch, POST_RANK, holds, saveStaff } from "./js/staff.js";
 import { PERKS, career, saveCareer, careerInit, rollPerks, takePerk, logPromotion, perkMods, payStep, MEDALS, awardMedals } from "./js/career.js";
+import { FOCUS, PASS, minBattles, scoreBattle, recordEval, evalOf, board, runBoard, setCap, deferNote } from "./js/service.js";
 import { ECON_RANKS, ECON_RANK_XP, econRank, econNewProfile, econReward, econCheck, econApply } from "./js/shop.js";
 
 // ── profile + room connection ───────────────────────────────────────────────
@@ -60,7 +61,8 @@ const signed = (v) => (v >= 0 ? "+" : "−") + fmt(Math.abs(v));
 const kmh = (ms) => Math.round(Math.abs(ms) * 3.6);
 
 // ── rank: the player is the fleet commander; ship captains and pilots hold fixed grades ──
-const myGrade = () => econRank(profile.xp); /* full rank 0 소위 … 10 원수 */
+const xpGrade = () => econRank(profile.xp); /* the rank your XP alone reaches */
+const myGrade = () => { if (career.cap == null) { career.cap = xpGrade(); saveCareer(); } return Math.min(xpGrade(), career.cap); }; /* full rank 0 소위 … 10 원수, as approved by the promotion board */
 const myRank = () => Math.max(0, myGrade() - 3);
 const econTier = () => { const g = myGrade(); return g >= 7 ? 5 : g >= 6 ? 4 : g >= 4 ? 3 : g >= 3 ? 2 : 1; }; /* reward tier by rank (the old flagship ladder's tiers) */
 const flagshipId = () => NATIONS.kr.ships[0]; /* 한국 해군 기함 (WWII removed; archive branch ww2-archive) */ /* gameplay tier: ships, nations and enemy strength still count from 소령 */
@@ -336,7 +338,7 @@ function newBattle() {
   if (hqGrade() >= 6 && G.player) try { addMastFlag(G.player, hqGrade() - 5); } catch (e) { console.warn("flag", e); }
   if (G.perkK.hpK !== 1) for (const s of G.ships) if (s.side === "us") { s.maxHp *= G.perkK.hpK; s.hp = s.maxHp; } /* 선체 격벽 */
   uniq(G.enemies.filter((e) => !e.isCarrier)); assignCaptains(); if (modern) for (const s of G.ships) if (s.nation) { const N = NATIONS[s.nation]; s.captain = `${N.names[(rnd() * N.names.length) | 0]} ${N.rk}`; }
-  G.squad = fightersFor(rk); G.refit = []; G.planeCD = 0; G.sortieRes = 0; G.minHp = 1; G.stats = { shots: 0, hits: 0, bullets: 0, bombs: 0, dealt: 0, planes: 0, torpHits: 0 };
+  G.jetsOut = 0; G.squad = fightersFor(rk); G.refit = []; G.planeCD = 0; G.sortieRes = 0; G.minHp = 1; G.stats = { shots: 0, hits: 0, bullets: 0, bombs: 0, dealt: 0, planes: 0, torpHits: 0 };
   capReset(); weapon = G.modern ? "msl" : "gun"; aa.on = false; aa.shots = 0; aa.heat = 0; gunner.kills = 0; autoFire = false; cinema = false; document.body.classList.remove("cinema"); hullWarned = false; torpThreat = 0; paused = false; fireHold = 0; fc.tgt = null; corrR = corrB = 0; ribbons.length = 0; rep.cd = rep.act = 0; rep.n = (G.staffK ? G.staffK.repairN : 3) + (G.perkK?.repairN || 0); G.battleT = 0; endT = 0;
   P.aimB = 0; P.aimR = Math.min(P.tb.max * 0.6, 12000); torpB = PI / 2;
   cam.yaw = 0; cam.pitch = 0.95; cam.dist = 1300; cam.map = false; cam.free = false; cam.tgt = null; cam.focus.copy(P.pos); hintT = 22;
@@ -511,6 +513,10 @@ function finish() {
     const a = { kind: "result", won, shots: Math.min(s.shots, 5000), hits: Math.min(s.hits, s.shots, 5000), seconds: Math.min(secs, 36000), tier: econTier(), bombs: Math.min(s.bombs, 20), bullets: Math.min(s.bullets, 20000), planes: Math.min(s.planes || 0, 200), caps: Math.min(s.caps || 0, 10), mission: G.mission };
     const r = econReward(a); act(a); sfx.coin();
     html += `<span>보상</span><span style="color:var(--warn)">+${fmt(r.money)} 크레딧 · +${fmt(r.xp)} 경험치</span>`;
+    const P1 = G.player, al = G.allies.filter((a) => a.spec && !a.isCarrier), ev = scoreBattle({ won, hp: P1 && P1.alive ? P1.hp / P1.maxHp : 0, sunk: G.enemies.filter((e) => !e.alive).length, foes: G.enemies.length, lost: al.filter((a) => !a.alive).length, allies: al.length, secs, jetsOut: G.jetsOut || 0 }, staff.branch || "sea");
+    recordEval(before, ev.s); const bd = runBoard(before, xpGrade()), eo = evalOf(before);
+    html += `<span>근무평정</span><span>${ev.s}점 · ${FOCUS[staff.branch || "sea"].n} 병과 기준 (이번 계급 평균 ${eo.avg}점 ${eo.l} · ${eo.n}회)</span>`;
+    if (bd.xp && !bd.promoted) { const why = [!bd.cnt ? `이 계급 근무 ${bd.e.n}/${bd.need}회` : "", !bd.score ? `평정 평균 ${bd.e.avg}점 (기준 ${PASS}점)` : ""].filter(Boolean).join(" · "); html += `<span>진급 심사</span><span style="color:#ff9b8a">보류 — ${why}${deferNote() ? `<br>${deferNote()}` : ""}</span>`; }
     const after = myGrade(), rl = rankLine();
     html += `<span>계급</span><span>${rl.name}${rl.next ? ` — ${rl.next}까지 ${fmt(rl.need - profile.xp)} 경험치` : " (최고 계급)"}</span>`;
     const unl = ""; /* no ship unlocks until the Korean ship ladder exists */
@@ -603,8 +609,16 @@ function buildPromo(before, after, unl = "", preview = false) {
   const opens = [newRole.length ? `사령부 ${newRole.join(" · ")} 임명` : "", `${ECON_RANKS[Math.min(10, after + 4)]}급 참모 영입`, unl ? `함선 ${unl}` : ""].filter(Boolean).join(" · ");
   const handover = after >= 8 && before < 8 ? `<div class="po-cc">중장 ${FLEET_CDR.nm} 제독이 귀관에게 함대 지휘권을 이양합니다. 이제부터 귀관이 함대사령관으로서 사령부 전 참모진과 기동함대를 직접 지휘합니다.</div>` : "";
   const josa = (w) => { const j = (w.charCodeAt(w.length - 1) - 0xac00) % 28; return j === 0 || j === 8 ? "로" : "으로"; };
-$("#promoM").innerHTML = `<div class="pm-doc"><div class="pm-h">대한민국 해군본부</div><div class="pm-no">인사명령 제${yr}-${no}호</div>${after >= 6 ? flagHTML(after, before) : `<div class="pm-ins">${insignia(after, 120)}</div>`}<div class="pm-rank">${ECON_RANKS[after]} 진급</div><div class="pm-name">${cmdr.name}</div><div class="pm-txt">위 사람을 ${ECON_RANKS[before]}에서 ${ECON_RANKS[after]}${josa(ECON_RANKS[after])} 진급시키고<br><b>${postOf(after)}</b>에 보함</div><div class="pm-u">${opens}</div>${handover}${after < 3 ? `<div class="pm-radio"><b>무전</b> ${radioAddr(after)}, 진급을 축하드립니다!</div>` : ""}<div id="pmPk"></div><button id="promoOk">명 받았습니다</button></div>`; if (preview) { pmOpts = rollPerks(after, staff.branch); $("#pmPk").innerHTML = `<div class="pk-h">진급 특기 부여 (택 1) · 미리보기</div><div class="pk-row">${pmOpts.map((k, i) => `<div class="pk${PERKS[k].tier ? " sp" : ""}">${i === 0 ? "<i>병과 추천</i>" : PERKS[k].tier ? `<i>${PERKS[k].c}</i>` : ""}<b>${PERKS[k].n}</b><small>${PERKS[k].c}</small><span>${PERKS[k].d}</span></div>`).join("")}</div>`; pmOpts = null; } else renderPerkPick("#pmPk", after);
+$("#promoM").innerHTML = `<div class="pm-doc"><div class="pm-h">대한민국 해군본부</div><div class="pm-no">인사명령 제${yr}-${no}호</div>${after >= 6 ? flagHTML(after, before) : `<div class="pm-ins">${insignia(after, 120)}</div>`}<div class="pm-rank">${ECON_RANKS[after]} 진급</div><div class="pm-name">${cmdr.name}</div><div class="pm-txt">위 사람을 ${ECON_RANKS[before]}에서 ${ECON_RANKS[after]}${josa(ECON_RANKS[after])} 진급시키고<br><b id="pmPostT">${postOf(after)}</b>에 보함</div><div class="pm-u">${opens}</div><div id="pmPost"></div>${handover}${after < 3 ? `<div class="pm-radio"><b>무전</b> ${radioAddr(after)}, 진급을 축하드립니다!</div>` : ""}<div id="pmPk"></div><button id="promoOk">명 받았습니다</button></div>`; if (preview) { pmOpts = rollPerks(after, staff.branch); $("#pmPk").innerHTML = `<div class="pk-h">진급 특기 부여 (택 1) · 미리보기</div><div class="pk-row">${pmOpts.map((k, i) => `<div class="pk${PERKS[k].tier ? " sp" : ""}">${i === 0 ? "<i>병과 추천</i>" : PERKS[k].tier ? `<i>${PERKS[k].c}</i>` : ""}<b>${PERKS[k].n}</b><small>${PERKS[k].c}</small><span>${PERKS[k].d}</span></div>`).join("")}</div>`; pmOpts = null; } else renderPerkPick("#pmPk", after);
+  renderPostPick(after);
   return handover;
+}
+/** 보직 순환: at each promotion pick the next posting — stay on your branch line or cross over (the career and its evaluation weights follow). */
+let pmPostG = 0, pmPostOpts = [], pmPostSel = null;
+function renderPostPick(g) {
+  const el = $("#pmPost"); if (!el || !staff.branch) { if (el) el.innerHTML = ""; return; }
+  if (pmPostG !== g || !pmPostOpts.includes(staff.branch)) { pmPostG = g; const others = Object.keys(BRANCHES).filter((k) => k !== staff.branch).sort(() => Math.random() - 0.5).slice(0, 2); pmPostOpts = [staff.branch, ...others]; pmPostSel = staff.branch; }
+  el.innerHTML = `<div class="pk-h">보직 선택 · 다음 근무평정은 선택한 보직 기준</div><div class="pst-row">${pmPostOpts.map((k, i) => `<button class="pst${k === pmPostSel ? " on" : ""}" data-post="${k}"><i>${i === 0 ? "현 병과 계속" : "병과 전환"}</i><b>${BRANCHES[k].t[g]}</b><small>${BRANCHES[k].n} 병과</small><span>평정 중점: ${FOCUS[k].f}</span></button>`).join("")}</div>`;
 }
 let pmOpts = null;
 function renderPerkPick(sel, g) {
@@ -650,6 +664,14 @@ function portraitHTML(g) {
     + `<rect x="80" y="250" width="40" height="11" rx="1.5" fill="#1c2430"/><text x="100" y="258.5" font-size="7.5" fill="#fff" text-anchor="middle" font-family="Noto Sans KR, sans-serif">${cmdr.name}</text>`
     + `<g transform="translate(35 30) scale(2.3)">${face(F, 100).replace(/^<svg /, "<svg x=\"0\" y=\"0\" ")}</g></svg>`;
 }
+/** 내 정보: current posting, this rank's evaluations and the promotion board checklist. */
+function evalHTML(rl) {
+  const g = rl.r, br = staff.branch || "sea", e = evalOf(g), b = board(g, xpGrade()), L = (career.evals?.[g] || []).slice(-6);
+  const ck = (ok, t) => `<li class="${ok ? "ok" : "no"}">${ok ? "✓" : "✗"} ${t}</li>`;
+  return `<h3>근무평정 · 진급 심사</h3><div class="mi-ev"><div class="ev-top"><div><span>현 보직</span><b>${postOf(g)}</b><small>${FOCUS[br].n} 병과 · 평정 중점 ${FOCUS[br].f}</small></div><div class="ev-g ${e.l}"><b>${e.l}</b><small>${e.n ? `평균 ${e.avg}점` : "평정 없음"}</small></div></div>`
+    + `<div class="ev-l">${L.length ? L.map((s) => `<i style="height:${Math.max(6, s)}%" title="${s}점"></i>`).join("") : "<em>이 계급에서 아직 출격 기록이 없습니다</em>"}</div>`
+    + (rl.next ? `<ul class="ev-ck">${ck(b.xp, `경험치 ${rl.next} 기준 도달`)}${ck(b.cnt, `이 계급 근무 ${e.n}/${b.need}회`)}${ck(b.score, `평정 평균 ${PASS}점 이상 (B)`)}</ul>${deferNote() ? `<div class="ev-warn">${deferNote()}</div>` : ""}` : `<div class="ev-max">최고 계급</div>`) + `</div>`;
+}
 function renderRecord() { /* 내 정보: profile card, perks, record, service record (약력), rank table */
   const rl = rankLine(), acc = profile.shots ? ((profile.hits / profile.shots) * 100).toFixed(1) : "0.0", best = profile.bestSeconds ? `${Math.floor(profile.bestSeconds / 60)}분 ${profile.bestSeconds % 60}초` : "—";
   const unlock = () => "";
@@ -662,6 +684,7 @@ function renderRecord() { /* 내 정보: profile card, perks, record, service re
   let h = `<div class="mi"><div class="mi-l">`
     + `<div class="mi-por-w">${portraitHTML(rl.r)}</div><div class="mi-card"><div><div class="mi-rk">${insignia(rl.r, 22)}<b>${rl.name} ${ps.step}호봉</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${postOf(rl.r)}${staff.branch ? ` · ${BRANCHES[staff.branch].n} 보직` : ""}</div></div></div>`
     + `<div class="mi-bar"><span>다음 호봉</span><div class="hbar"><i style="width:${Math.max(2, stepPct).toFixed(0)}%"></i></div></div><div class="mi-bar"><span>${rl.next ? `${rl.next} 진급` : "최고 계급"}</span><div class="hbar"><i style="width:${(rl.pct * 100).toFixed(0)}%;background:var(--gold)"></i></div><small>${rl.next ? `${fmt(rl.need - profile.xp)} XP 남음` : ""}</small></div>`
+    + evalHTML(rl)
     + `<h3>진급 특기</h3>${career.picks > 0 ? `<div id="miPk"></div>` : ""}<ul class="mi-pk">${perks}</ul>`
     + `<h3>훈장 · 표창</h3><div class="mi-md">${Object.entries(MEDALS).map(([k, M]) => `<div class="md${career.medals?.[k] ? "" : " no"}" title="${M.d}"><i>${M.rb.map((col) => `<b style="background:${col}"></b>`).join("")}</i><span>${M.n}</span><small>${career.medals?.[k] ? career.medals[k] : M.d}</small></div>`).join("")}</div>`
     + `<h3>사령부 참모</h3><div class="mi-st">${STAFF_ROLES.map((r) => `<span>${r.n}</span><b>${of(r.k).rk} ${of(r.k).nm}</b>`).join("")}</div>`
@@ -783,7 +806,7 @@ $("#recordP").addEventListener("click", (e) => {
   const pk = e.target.closest("[data-perk]"); if (pk) { sfx.coin(); takePerk(pk.dataset.perk); pmOpts = null; renderRecord(); return; }
   if (e.target.closest('[data-act="setrank"]') && profile.admin) {
     const g = +$("#setRank").value, before = myGrade(); if (g === before) return;
-    if (!act({ kind: "setxp", xp: ECON_RANK_XP[g] })) return; staff.adminPost = null; saveStaff();
+    if (!act({ kind: "setxp", xp: ECON_RANK_XP[g] })) return; setCap(g); staff.adminPost = null; saveStaff();
     if (g > before) { if (career.seen == null && staff.branch) careerInit(before, careerTitle(before), BRANCHES[staff.branch].n); career.picks += g - before; logPromotion({ g, t: postOf(g), b: BRANCHES[staff.branch]?.n || "", why: "관리자 진급" }); awardMedals({ won: false, flight: false, wins: profile.wins, sunk: 0, hp: 0, grade: g }); pmOpts = null; initAudio(); buildPromo(before, g); $("#promoM").style.display = "flex"; fanfare(g, staff.branch); }
     else toast(`관리자 — 계급을 ${ECON_RANKS[g]}(으)로 조정했습니다`);
     refreshMenus(); renderRecord(); return;
@@ -793,6 +816,7 @@ $("#recordP").addEventListener("click", (e) => {
 });
 $("#shipLine").addEventListener("click", (e) => { const b = e.target.closest("[data-flag]"); if (!b) return; sfx.click(); career.ship = b.dataset.flag; saveCareer(); refreshMenus(); showcase(flagshipId()); });
 $("#promoM").addEventListener("click", (e) => {
+  const ps = e.target.closest("[data-post]"); if (ps) { const k = ps.dataset.post; pmPostSel = k; if (pmPreview) { $("#pmPostT").textContent = BRANCHES[k].t[pmPostG]; sfx.click(); } else if (k !== staff.branch) { setBranch(k); const g = myGrade(), last = career.log[career.log.length - 1]; if (!pmPreview && last && last.g === g) { last.t = postOf(g); last.b = BRANCHES[staff.branch].n; saveCareer(); } $("#pmPostT").textContent = postOf(g); sfx.click(); } renderPostPick(pmPostG); return; }
   const pk = e.target.closest("[data-perk]"); if (pk) { if (pmTook) return; sfx.coin(); if (takePerk(pk.dataset.perk)) pmTook++; pmOpts = null; const P = PERKS[pk.dataset.perk]; $("#pmPk").innerHTML = `<div class="pk-done">진급 특기 부여 — <b>${P.n}</b>${career.picks > 0 ? `<br><small>남은 특기 ${career.picks}회는 '내 정보'에서 고를 수 있습니다</small>` : ""}</div>`; $("#promoOk")?.classList.remove("dim"); return; }
   if (e.target.closest("#promoOk")) { if (career.picks > 0 && !pmPreview && !pmTook) { sfx.deny(); const h = $("#pmPk .pk-h"); if (h) { h.classList.remove("nudge"); void h.offsetWidth; h.classList.add("nudge"); } return; } sfx.click(); stopFanfare(); $("#promoM").style.display = "none"; renderRecord(); }
 });
@@ -1870,7 +1894,7 @@ function drawFlyHUD() {
 }
 G.onIntercept = (m) => { if (m.side === "foe") { md.icpt = { t: 1.6, n: m.isJet ? `적 ${m.name} 격추` : `${m.W.name || "적 미사일"} 요격` }; G.stats.icpt = (G.stats.icpt || 0) + 1; } };
 function sortieJets(S, role) {
-  const n = Math.min(2, S.jetsReady); if (!n) return 0; S.jetsReady -= n;
+  const n = Math.min(2, S.jetsReady); if (!n) return 0; S.jetsReady -= n; if (S.side === "us") G.jetsOut = (G.jetsOut || 0) + n;
   for (let i = 0; i < n; i++) md.q.push({ t: i * 1.5, jet: true, S, role });
   log(`${S.side === "us" ? "" : "적 "}${S.cv.type} ${n}기 출격 (${S.name || "지상 비행장"})`, S.side === "us" ? "hit" : "bad"); if (S.side === "foe") sfx.alarm(); return n;
 }
