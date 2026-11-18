@@ -528,7 +528,8 @@ function finish() {
       if (handover) log(`지휘권 이양 — ${ECON_RANKS[after]} ${cmdr.name} 함대사령관 부임`, "hit"); }
     else $("#endPromo").innerHTML = `<span class="k">RANK</span><div class="ib new">${insignia(after, 64)}</div><div class="big" style="font-size:30px">${ECON_RANKS[after]}</div><div class="sub">${postOf(after)}<br>${rl.next ? `${rl.next}까지 ${fmt(rl.need - profile.xp)} XP` : "최고 계급"}</div><div class="rk"><div class="hbar"><i style="width:${rl.pct * 100}%;background:var(--gold)"></i></div></div>`;
     const P0 = G.player, got = awardMedals({ won, modern: !!G.modern, wins: profile.wins, sunk: G.enemies.filter((e) => !e.alive).length, hp: P0 ? P0.hp / P0.maxHp : 0, lowHp: (G.minHp ?? 1) <= 0.5, grade: after });
-    if (got.length) { html += `<span>훈장 수여</span><span style="color:var(--gold)">${got.map((k) => MEDALS[k].n).join(" · ")}</span>`; toast(`훈장 수여 — ${got.map((k) => MEDALS[k].n).join(" · ")}`, 4); }
+    pmMedals = got;
+    if (got.length) { html += `<span>훈장 수여</span><span style="color:var(--gold)">${got.map((k) => MEDALS[k].n).join(" · ")}</span>`; if (after <= before) toast(`훈장 수여 — ${got.map((k) => MEDALS[k].n).join(" · ")}`, 4); } /* on a promotion the order's medal page shows them */
   } else html += `<span>관전 모드</span><span>보상 없음</span>`;
   $("#endStats").innerHTML = html; $("#end").style.display = "grid"; bgm("menu");
 }
@@ -604,14 +605,23 @@ function waveMastFlag() {
   pos.needsUpdate = true;
 }
 function buildPromo(before, after, unl = "", preview = false) {
-  pmPreview = preview; pmTook = 0;
+  pmPreview = preview; pmTook = 0; pmPage = 1;
   const newRole = STAFF_ROLES.filter((r) => ROLE_UNLOCK[r.k] > before && ROLE_UNLOCK[r.k] <= after).map((r) => (r.k === "cos" ? "참모장" : `${HQ_DEPT[r.k]} 처장`)), yr = new Date().getFullYear(), no = String(((profile.xp * 7) % 97) + 1).padStart(2, "0");
   const opens = [newRole.length ? `사령부 ${newRole.join(" · ")} 임명` : "", `${ECON_RANKS[Math.min(10, after + 4)]}급 참모 영입`, unl ? `함선 ${unl}` : ""].filter(Boolean).join(" · ");
   const handover = after >= 8 && before < 8 ? `<div class="po-cc">중장 ${FLEET_CDR.nm} 제독이 귀관에게 함대 지휘권을 이양합니다. 이제부터 귀관이 함대사령관으로서 사령부 전 참모진과 기동함대를 직접 지휘합니다.</div>` : "";
   const josa = (w) => { const j = (w.charCodeAt(w.length - 1) - 0xac00) % 28; return j === 0 || j === 8 ? "로" : "으로"; };
-$("#promoM").innerHTML = `<div class="pm-doc"><div class="pm-h">대한민국 해군본부</div><div class="pm-no">인사명령 제${yr}-${no}호</div>${after >= 6 ? flagHTML(after, before) : `<div class="pm-ins">${insignia(after, 120)}</div>`}<div class="pm-rank">${ECON_RANKS[after]} 진급</div><div class="pm-name">${cmdr.name}</div><div class="pm-txt">위 사람을 ${ECON_RANKS[before]}에서 ${ECON_RANKS[after]}${josa(ECON_RANKS[after])} 진급시키고<br><b id="pmPostT">${postOf(after)}</b>에 보함</div><div class="pm-u">${opens}</div><div id="pmPost"></div>${handover}${after < 3 ? `<div class="pm-radio"><b>무전</b> ${radioAddr(after)}, 진급을 축하드립니다!</div>` : ""}<div id="pmPk"></div><button id="promoOk">명 받았습니다</button></div>`; if (preview) { pmOpts = rollPerks(after, staff.branch); $("#pmPk").innerHTML = `<div class="pk-h">진급 특기 부여 (택 1) · 미리보기</div><div class="pk-row">${pmOpts.map((k, i) => `<div class="pk${PERKS[k].tier ? " sp" : ""}">${i === 0 ? "<i>병과 추천</i>" : PERKS[k].tier ? `<i>${PERKS[k].c}</i>` : ""}<b>${PERKS[k].n}</b><small>${PERKS[k].c}</small><span>${PERKS[k].d}</span></div>`).join("")}</div>`; pmOpts = null; } else renderPerkPick("#pmPk", after);
+$("#promoM").innerHTML = `<div class="pm-doc"><div class="pm-pg on" data-pg="1"><div class="pm-h">대한민국 해군본부</div><div class="pm-no">인사명령 제${yr}-${no}호</div>${after >= 6 ? flagHTML(after, before) : `<div class="pm-ins">${insignia(after, 120)}</div>`}<div class="pm-rank">${ECON_RANKS[after]} 진급</div><div class="pm-name">${cmdr.name}</div><div class="pm-txt">위 사람을 ${ECON_RANKS[before]}에서 ${ECON_RANKS[after]}${josa(ECON_RANKS[after])} 진급시키고<br><b id="pmPostT">${postOf(after)}</b>에 보함</div><div class="pm-u">${opens}</div>${handover}${after < 3 ? `<div class="pm-radio"><b>무전</b> ${radioAddr(after)}, 진급을 축하드립니다!</div>` : ""}${MINISTER_SIGN}<button class="pm-next" data-pmgo="2">다음 ›</button></div><div class="pm-pg" data-pg="2"><div class="pm-h2">훈장 수여</div><div id="pmMed"></div><button class="pm-next" data-pmgo="3">다음 ›</button></div><div class="pm-pg" data-pg="3"><div class="pm-h2">보직 선택</div><div id="pmPost"></div><button class="pm-next" data-pmgo="4">다음 ›</button></div><div class="pm-pg" data-pg="4"><div class="pm-h2">진급 특기 부여</div><div id="pmPk"></div><button id="promoOk">명 받았습니다</button></div><div class="pm-dots">${[1, 2, 3, 4].map((n) => `<i data-d="${n}"${n === 1 ? ' class="on"' : ""}></i>`).join("")}</div></div>`; if (preview) { pmOpts = rollPerks(after, staff.branch); $("#pmPk").innerHTML = `<div class="pk-h">진급 특기 부여 (택 1) · 미리보기</div><div class="pk-row">${pmOpts.map((k, i) => `<div class="pk${PERKS[k].tier ? " sp" : ""}">${i === 0 ? "<i>병과 추천</i>" : PERKS[k].tier ? `<i>${PERKS[k].c}</i>` : ""}<b>${PERKS[k].n}</b><small>${PERKS[k].c}</small><span>${PERKS[k].d}</span></div>`).join("")}</div>`; pmOpts = null; } else renderPerkPick("#pmPk", after);
   renderPostPick(after);
   return handover;
+}
+const MINISTER_SIGN = `<div class="pm-sign"><div class="pm-date">${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월 ${new Date().getDate()}일</div><div class="pm-sg"><span>국방부장관</span><svg viewBox="0 0 150 54" width="150" height="54"><path d="M8 38 C18 10 30 12 26 30 C22 46 34 40 42 22 C46 14 50 18 48 30 C46 40 56 34 64 20 C68 30 70 36 80 28 C88 22 92 16 98 24 C104 32 112 30 120 18 M60 44 C80 40 110 40 142 34" stroke="#1d2340" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><i>國防部長官印</i></div></div>`; /* fictional signature, no real person's name */
+let pmMedals = [], pmPage = 1;
+function pmGo(n) {
+  if (n === 2 && !pmMedals.length && !pmPreview) n = 3; /* no medal this time: straight to the posting */
+  pmPage = n; for (const el of document.querySelectorAll("#promoM .pm-pg")) el.classList.toggle("on", +el.dataset.pg === n);
+  for (const d of document.querySelectorAll("#promoM .pm-dots i")) d.classList.toggle("on", +d.dataset.d === n);
+  if (n === 2) $("#pmMed").innerHTML = (pmMedals.length ? pmMedals : pmPreview ? Object.keys(MEDALS).filter((k) => career.medals?.[k]).slice(0, 3) : []).map((k) => `<div class="pm-md"><i>${MEDALS[k].rb.map((col) => `<b style="background:${col}"></b>`).join("")}</i><div><b>${MEDALS[k].n}</b><small>${MEDALS[k].d}</small></div></div>`).join("") || `<div class="pm-none">이번에 받은 훈장이 없습니다</div>`;
+  $("#promoM").scrollTop = 0; sfx.click();
 }
 /** 보직 순환: at each promotion pick the next posting — stay on your branch line or cross over (the career and its evaluation weights follow). */
 let pmPostG = 0, pmPostOpts = [], pmPostSel = null;
@@ -807,15 +817,16 @@ $("#recordP").addEventListener("click", (e) => {
   if (e.target.closest('[data-act="setrank"]') && profile.admin) {
     const g = +$("#setRank").value, before = myGrade(); if (g === before) return;
     if (!act({ kind: "setxp", xp: ECON_RANK_XP[g] })) return; setCap(g); staff.adminPost = null; saveStaff();
-    if (g > before) { if (career.seen == null && staff.branch) careerInit(before, careerTitle(before), BRANCHES[staff.branch].n); career.picks += g - before; logPromotion({ g, t: postOf(g), b: BRANCHES[staff.branch]?.n || "", why: "관리자 진급" }); awardMedals({ won: false, flight: false, wins: profile.wins, sunk: 0, hp: 0, grade: g }); pmOpts = null; initAudio(); buildPromo(before, g); $("#promoM").style.display = "flex"; fanfare(g, staff.branch); }
+    if (g > before) { if (career.seen == null && staff.branch) careerInit(before, careerTitle(before), BRANCHES[staff.branch].n); career.picks += g - before; logPromotion({ g, t: postOf(g), b: BRANCHES[staff.branch]?.n || "", why: "관리자 진급" }); pmMedals = awardMedals({ won: false, flight: false, wins: profile.wins, sunk: 0, hp: 0, grade: g }); pmOpts = null; initAudio(); buildPromo(before, g); $("#promoM").style.display = "flex"; fanfare(g, staff.branch); }
     else toast(`관리자 — 계급을 ${ECON_RANKS[g]}(으)로 조정했습니다`);
     refreshMenus(); renderRecord(); return;
   }
-  if (e.target.closest('[data-act="pvpromo"]') && profile.admin) { const g = +$("#pvRank").value; initAudio(); fanfare(g, staff.branch); buildPromo(g - 1, g, "", true); $("#promoM").style.display = "flex"; return; }
+  if (e.target.closest('[data-act="pvpromo"]') && profile.admin) { const g = +$("#pvRank").value; pmMedals = []; initAudio(); fanfare(g, staff.branch); buildPromo(g - 1, g, "", true); $("#promoM").style.display = "flex"; return; }
   if (e.target.closest('[data-act="miadmin"]')) { if (act({ kind: "admin", code: $("#miAdmin").value })) { sfx.coin(); toast("관리자 모드 활성화"); renderRecord(); } }
 });
 $("#shipLine").addEventListener("click", (e) => { const b = e.target.closest("[data-flag]"); if (!b) return; sfx.click(); career.ship = b.dataset.flag; saveCareer(); refreshMenus(); showcase(flagshipId()); });
 $("#promoM").addEventListener("click", (e) => {
+  const go = e.target.closest("[data-pmgo]"); if (go) { pmGo(+go.dataset.pmgo); return; }
   const ps = e.target.closest("[data-post]"); if (ps) { const k = ps.dataset.post; pmPostSel = k; if (pmPreview) { $("#pmPostT").textContent = BRANCHES[k].t[pmPostG]; sfx.click(); } else if (k !== staff.branch) { setBranch(k); const g = myGrade(), last = career.log[career.log.length - 1]; if (!pmPreview && last && last.g === g) { last.t = postOf(g); last.b = BRANCHES[staff.branch].n; saveCareer(); } $("#pmPostT").textContent = postOf(g); sfx.click(); } renderPostPick(pmPostG); return; }
   const pk = e.target.closest("[data-perk]"); if (pk) { if (pmTook) return; sfx.coin(); if (takePerk(pk.dataset.perk)) pmTook++; pmOpts = null; const P = PERKS[pk.dataset.perk]; $("#pmPk").innerHTML = `<div class="pk-done">진급 특기 부여 — <b>${P.n}</b>${career.picks > 0 ? `<br><small>남은 특기 ${career.picks}회는 '내 정보'에서 고를 수 있습니다</small>` : ""}</div>`; $("#promoOk")?.classList.remove("dim"); return; }
   if (e.target.closest("#promoOk")) { if (career.picks > 0 && !pmPreview && !pmTook) { sfx.deny(); const h = $("#pmPk .pk-h"); if (h) { h.classList.remove("nudge"); void h.offsetWidth; h.classList.add("nudge"); } return; } sfx.click(); stopFanfare(); $("#promoM").style.display = "none"; renderRecord(); }
