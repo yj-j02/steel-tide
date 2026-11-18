@@ -47,8 +47,8 @@ const YEONPYEONG = { x: 86, y: 30 };
 /* 구역(섹터): 편대·전단을 구역 단위로 배정한다 (지점을 일일이 찍지 않음) */
 const SECTORS = [
   { id: "s1", n: "대청 북", x0: 14, y0: 8, x1: 62, y1: 46, c: { x: 40, y: 34 } },
-  { id: "s2", n: "연평 서", x0: 62, y0: 8, x1: 100, y1: 46, c: { x: 82, y: 38 }, goal: true },
-  { id: "s3", n: "연평 동", x0: 100, y0: 8, x1: 126, y1: 46, c: { x: 108, y: 34 } },
+  { id: "s2", n: "연평 서", x0: 62, y0: 8, x1: 100, y1: 46, c: { x: 82, y: 38 }, goal: true, ly: 21 },
+  { id: "s3", n: "연평 동", x0: 100, y0: 8, x1: 126, y1: 46, c: { x: 108, y: 34 }, ly: 22 },
   { id: "s4", n: "대청 남", x0: 14, y0: 46, x1: 62, y1: 84, c: { x: 40, y: 62 } },
   { id: "s5", n: "덕적", x0: 62, y0: 46, x1: 100, y1: 84, c: { x: 84, y: 62 } },
   { id: "s6", n: "본토 연안", x0: 100, y0: 46, x1: 124, y1: 84, c: { x: 110, y: 62 } },
@@ -387,18 +387,18 @@ function draw() {
   const cv = $("#omCv"); if (!cv) return; const x = cv.getContext("2d"), { k, ox, oy } = view(), P = (px, py) => [ox + px * k, oy + py * k], dpr = devicePixelRatio, F = (n, w = 400) => `${w} ${n * dpr}px 'Noto Sans KR', sans-serif`;
   x.fillStyle = "#0a1822"; x.fillRect(0, 0, cv.width, cv.height);
   const sea = x.createRadialGradient(ox + W * k * 0.5, oy + H * k * 0.5, 10, ox + W * k * 0.5, oy + H * k * 0.5, W * k * 0.7); sea.addColorStop(0, "#173246"); sea.addColorStop(1, "#0c1d29"); x.fillStyle = sea; x.fillRect(ox, oy, W * k, H * k);
-  // sectors
-  for (const q of SECTORS) {
-    const st = secState(q), [a, b] = P(q.x0, q.y0), w = (q.x1 - q.x0) * k, h = (q.y1 - q.y0) * k, sel = S.sel && (S.sel.sec === q.id), hov = S.hover === q;
-    x.fillStyle = hov ? "rgba(242,202,92,.16)" : st.hot ? "rgba(255,107,94,.09)" : q.goal ? "rgba(77,232,212,.07)" : "rgba(255,255,255,.015)"; x.fillRect(a, b, w, h);
-    x.strokeStyle = hov ? COL.warn : sel ? COL.us : q.goal ? "rgba(77,232,212,.55)" : "rgba(110,160,180,.28)"; x.lineWidth = (hov || sel ? 2.5 : 1.2) * dpr; x.strokeRect(a, b, w, h);
-    x.fillStyle = st.hot ? "#ff9b8a" : q.goal ? COL.us : "#cfe"; x.font = F(14, 700); x.fillText(q.n + (q.goal ? " ★방어 목표" : ""), a + 10 * dpr, b + 20 * dpr);
-    st.ch.forEach(([c, t], i) => { x.font = F(11.5, 700); const tw = x.measureText(t).width + 16 * dpr, yy = b + (30 + i * 22) * dpr; x.fillStyle = "rgba(10,20,26,.85)"; x.beginPath(); x.roundRect(a + 10 * dpr, yy, tw, 18 * dpr, 9 * dpr); x.fill(); x.fillStyle = c; x.fillText(t, a + 18 * dpr, yy + 13 * dpr); });
-  }
   x.fillStyle = "#2c3b2f"; x.strokeStyle = "#5d7a5f"; x.lineWidth = 1.5 * dpr;
   for (const poly of LAND) { x.beginPath(); poly.forEach(([a, b], i) => (i ? x.lineTo(...P(a, b)) : x.moveTo(...P(a, b)))); x.closePath(); x.fill(); x.stroke(); }
   x.font = F(11);
-  for (const [n, a, b, r] of ISLES) { x.fillStyle = "#2c3b2f"; x.beginPath(); x.arc(...P(a, b), r * k, 0, Math.PI * 2); x.fill(); x.stroke(); x.fillStyle = "rgba(207,231,234,.75)"; x.fillText(n, ...P(a + r + 1, b + 0.6)); }
+  for (const [n, a, b, r] of ISLES) { x.fillStyle = "rgba(44,59,47,.55)"; x.beginPath(); x.arc(...P(a, b), r * k, 0, Math.PI * 2); x.fill(); x.stroke(); x.fillStyle = "rgba(207,231,234,.75)"; x.fillText(n, ...P(a + r + 1, b + 0.6)); }
+  // sectors
+  for (const q of SECTORS) {
+    const st = secState(q), [a, b] = P(q.x0, q.y0), w = (q.x1 - q.x0) * k, h = (q.y1 - q.y0) * k, sel = S.sel && (S.sel.sec === q.id), hov = S.hover === q;
+    x.fillStyle = hov ? "rgba(242,202,92,.16)" : st.hot ? "rgba(255,107,94,.09)" : q.goal ? "rgba(77,232,212,.06)" : "rgba(255,255,255,.012)"; x.fillRect(a, b, w, h);
+    x.strokeStyle = hov ? COL.warn : sel ? COL.us : q.goal ? "rgba(77,232,212,.55)" : "rgba(110,160,180,.28)"; x.lineWidth = (hov || sel ? 2.5 : 1.2) * dpr; x.strokeRect(a, b, w, h);
+    const lb = q.ly ? P(q.x0, q.ly)[1] : b, lab = q.n + (q.goal ? " ★방어 목표" : ""); x.font = F(14, 700); x.fillStyle = "rgba(10,20,26,.8)"; x.fillRect(a + 6 * dpr, lb + 4 * dpr, x.measureText(lab).width + 10 * dpr, 22 * dpr); x.fillStyle = st.hot ? "#ff9b8a" : q.goal ? COL.us : "#cfe"; x.fillText(lab, a + 11 * dpr, lb + 20 * dpr);
+    st.ch.forEach(([c, t], i) => { x.font = F(11.5, 700); const tw = x.measureText(t).width + 16 * dpr, yy = (q.ly ? P(q.x0, q.ly)[1] : b) + (30 + i * 22) * dpr; x.fillStyle = "rgba(10,20,26,.85)"; x.beginPath(); x.roundRect(a + 10 * dpr, yy, tw, 18 * dpr, 9 * dpr); x.fill(); x.fillStyle = c; x.fillText(t, a + 18 * dpr, yy + 13 * dpr); });
+  }
   x.setLineDash([10 * dpr, 8 * dpr]); x.strokeStyle = COL.foe; x.lineWidth = 2 * dpr; x.beginPath(); x.moveTo(...P(14, LINE_Y)); x.lineTo(...P(122, LINE_Y)); x.stroke(); x.setLineDash([]);
   x.strokeStyle = COL.warn; x.fillStyle = "rgba(242,202,92,.08)"; x.lineWidth = 2 * dpr; x.beginPath(); x.arc(...P(GOAL.x, GOAL.y), GOAL.r * k, 0, Math.PI * 2); x.fill(); x.stroke();
   // supports (sea): icon only, ring with the range layer
