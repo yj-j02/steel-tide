@@ -63,7 +63,8 @@ const kmh = (ms) => Math.round(Math.abs(ms) * 3.6);
 // ── rank: the player is the fleet commander; ship captains and pilots hold fixed grades ──
 const myGrade = () => econRank(profile.xp); /* full rank 0 소위 … 10 원수 */
 const myRank = () => Math.max(0, myGrade() - 3);
-const flagshipId = () => { const ok = profile.admin ? Object.keys(ECON_SHIPS) : shipsFor(myGrade()); return ok.includes(career.ship) ? career.ship : ok[ok.length - 1]; }; /* the navy assigns WWII flagships by rank (no shipyard) */ /* gameplay tier: ships, nations and enemy strength still count from 소령 */
+const econShipId = () => { const ok = shipsFor(myGrade()); return ok[ok.length - 1]; }; /* rewards and enemy strength still scale with this rank ladder */
+const flagshipId = () => NATIONS.kr.ships[0]; /* 한국 해군 기함 (WWII removed; archive branch ww2-archive) */ /* the navy assigns WWII flagships by rank (no shipyard) */ /* gameplay tier: ships, nations and enemy strength still count from 소령 */
 const RANK_STARS = ["소령", "중령", "대령", "★", "★★", "★★★", "★★★★", "★★★★★"];
 const escortsFor = (r) => Math.min(4, 1 + Math.floor(r / 2));
 const fightersFor = () => 9; // Lexington spots 9 Wildcats for this group
@@ -151,7 +152,7 @@ const MISSIONS = {
 for (const [k, v] of Object.entries(OPS)) MISSIONS[k] = v; // modern operations (ops.js)
 // who you can command and whom you fight: rank (index into ECON_RANKS) needed for each
 const SIDE_US = { kr: 0, us: 0, jp: 4 }, SIDE_FOE = { nk: 0, cn: 2 };
-function fixNations() { const rk = myRank(); if (!(SIDE_US[natUs] <= rk)) natUs = "kr"; if (!(SIDE_FOE[natFoe] <= rk)) natFoe = "nk"; }
+function fixNations() { const rk = myRank(); natUs = "kr"; /* 한국편 only for now */ if (!(SIDE_FOE[natFoe] <= rk)) natFoe = "nk"; }
 let natUs = "kr", natFoe = "nk"; try { const a = localStorage.getItem("steeltide:natUs"), b = localStorage.getItem("steeltide:natFoe"); if (NATIONS[a]) natUs = a; if (NATIONS[b]) natFoe = b; } catch {}
 // ── campaign: five Pacific battles in order, each unlocked by winning the one before ──
 const CAMP = [{ n: "진주만", d: "1941.12 · 정박 함선을 공습에서 지켜라", m: "raid", map: "pearl" }, { n: "산호해", d: "1942.5 · 남태평양 군도 함대 결전", m: "fleet", map: "arch" },
@@ -177,8 +178,8 @@ function kcampHTML() {
 }
 // ── menu as steps: era → campaign or single operation → operation → (modern) forces → theater/conditions ──
 let wz = "era", wzMode = "ops";
-const WZ_BACK = { mode: "era", camp: "mode", ops: "era", nat: "ops", map: () => (isModernOp(mission) ? "nat" : "ops") };
-function showWz(s, quiet) { wz = s; for (const el of document.querySelectorAll("#opsP .wz")) el.classList.toggle("on", el.dataset.step === s); $("#opsP .wz-back").disabled = s === "era"; wzCrumb(); if (!quiet) sfx.click(); }
+const WZ_BACK = { camp: "mode", ops: "mode", nat: "ops", map: () => (isModernOp(mission) ? "nat" : "ops") };
+function showWz(s, quiet) { wz = s; for (const el of document.querySelectorAll("#opsP .wz")) el.classList.toggle("on", el.dataset.step === s); $("#opsP .wz-back").disabled = s === "mode"; wzCrumb(); if (!quiet) sfx.click(); }
 function wzCrumb() {
   const era = isModernOp(mission) ? "현대전" : "2차대전", parts = [`<b>${era}</b>`];
   if (wz !== "era" && wz !== "mode") parts.push(wz === "camp" ? (era === "현대전" ? "한반도 시나리오" : "태평양 캠페인") : "단일 작전");
@@ -290,9 +291,9 @@ function saveCmdr() {
   $("#cmdrM").style.display = "none"; sfx.click(); refreshMenus();
 }
 // content trimmed for now (code for the others stays): fleet battle, missile battle, convoy escort
-const ACTIVE = ["fleet", "convoy", "modern", "modern:convoy"];
+const ACTIVE = ["modern", "modern:convoy"]; /* 2차대전 removed (branch ww2-archive) */
 let ww2Mission = "fleet"; try { const m = localStorage.getItem("steeltide:ww2mission"); if (m && !isModernOp(m) && ACTIVE.includes(m)) ww2Mission = m; } catch {}
-let mission = "fleet"; try { const m = localStorage.getItem("steeltide:mission"); if (MISSIONS[m] && ACTIVE.includes(m)) mission = m; } catch {}
+let mission = "modern"; try { const m = localStorage.getItem("steeltide:mission"); if (MISSIONS[m] && ACTIVE.includes(m)) mission = m; } catch {}
 
 // ── battle setup ────────────────────────────────────────────────────────────
 let endT = 0, show = null, showId = null, ap = mkBrain(9);
@@ -308,13 +309,13 @@ function disposeAll() {
 }
 function showcase(id) {
   if (showId === id && show) return;
-  disposeAll(); show = new Ship(SHIPS[id], 0, 0, 0, "us", perkMods().upg); show.tele = 3; show.speed = show.vmax * 0.5; G.ships = [show]; G.player = show; showId = id;
+  disposeAll(); show = new Ship(MODERN[id] || SHIPS[id], 0, 0, 0, "us", perkMods().upg); show.tele = 3; show.speed = show.vmax * 0.5; G.ships = [show]; G.player = show; showId = id;
 }
 const uniq = (list) => { for (const s of list) { const same = list.filter((o) => o.spec === s.spec); if (same.length > 1) s.name = `${s.spec.short} ${same.indexOf(s) + 1}`; } };
 /** An enemy squadron: first ship leads (brain), the rest keep station on it; optional carrier astern. */
 function foeGroup(tiers, cx, cz, h, withCarrier, free = false) {
   const out = tiers.map((t, i) => { const [x, z] = placeAt(cx, cz, h, ...STATIONS[i]); const s = new Ship(ENEMIES[t], x, z, h, "foe", foeUpg()); s.station = STATIONS[i]; s.br = mkBrain(18 + i * 5); s.free = free && i === 0; return s; });
-  if (withCarrier) { const [x, z] = placeAt(cx, cz, h, 3400, 0); const c = new Ship(FOE_CARRIER, x, z, h, "foe", foeUpg()); c.br = mkBrain(30); c.isCarrier = true; out.push(c); G.foeCarrier = c; G.foeSquad = 8 + (SHIPS[flagshipId()].tier >= 4 ? 1 : 0); G.foePlaneCD = 35; }
+  if (withCarrier) { const [x, z] = placeAt(cx, cz, h, 3400, 0); const c = new Ship(FOE_CARRIER, x, z, h, "foe", foeUpg()); c.br = mkBrain(30); c.isCarrier = true; out.push(c); G.foeCarrier = c; G.foeSquad = 8 + (SHIPS[econShipId()].tier >= 4 ? 1 : 0); G.foePlaneCD = 35; }
   for (const s of out) s.group = out;
   G.enemies.push(...out); G.ships.push(...out); return out;
 }
@@ -330,7 +331,7 @@ function newBattle() {
   disposeAll(); logs.length = 0; renderLog(); const mapId = mission === "raid" ? "pearl" : theater; makeIslands(mapId);
   const CS = campSel != null ? CAMPS()[campSel] : null; G.camp = campSel; G.campEra = campEra; G.hard = !!(CS && campEra === "modern" && campSel > 0 && !CS.bonus && kFail[campSel - 1]); G.tod = CS ? CS.tod || "day" : mission === "modern:emcon" ? "night" : todSel; G.wx = CS ? CS.wx || "clear" : wxSel; setWeather(G.tod, G.wx);
   G.visK = (G.tod === "night" ? 0.55 : 1) * (G.wx === "storm" ? 0.7 : 1); G.wxDisp = G.wx === "storm" ? 1.35 : 1; G.kc = null; formI = 0;
-  const id = flagshipId(), spec = SHIPS[id], rk = myRank(), tier = spec.tier;
+  const id = econShipId(), spec = SHIPS[id], rk = myRank(), tier = spec.tier;
   G.dryT = null; G.lastHitT = 0; G.mission = mission; G.result = null; G.goal = null; G.waves = null; G.foeLaunched = false; G.events = []; G.foeSquad = 0; G.foePlaneCD = 0;
   const modern = isModernOp(mission), OP = modern ? mission : null; G.modern = modern; G.mop = OP; G.staffK = modern ? staffMods(hqGrade(), hqBranch()) : null; G.perkK = perkMods(); /* promotion perks, both eras */ /* fleet HQ staff shape every modern battle, auto included */ if (modern) G.mission = "modern"; // economy and results count every modern operation as "modern" modern && (MSL.cam = null);
   const pSpec = modern ? MODERN[NATIONS[natUs].ships[0]] : spec;
@@ -623,7 +624,7 @@ function finish() {
   $("#endPromo").innerHTML = "";
   if (!G.auto) {
     const before = myGrade();
-    const a = { kind: "result", won, shots: Math.min(s.shots, 5000), hits: Math.min(s.hits, s.shots, 5000), seconds: Math.min(secs, 36000), tier: SHIPS[flagshipId()].tier, bombs: Math.min(s.bombs, 20), bullets: Math.min(s.bullets, 20000), planes: Math.min(s.planes || 0, 200), caps: Math.min(s.caps || 0, 10), mission: G.mission };
+    const a = { kind: "result", won, shots: Math.min(s.shots, 5000), hits: Math.min(s.hits, s.shots, 5000), seconds: Math.min(secs, 36000), tier: SHIPS[econShipId()].tier, bombs: Math.min(s.bombs, 20), bullets: Math.min(s.bullets, 20000), planes: Math.min(s.planes || 0, 200), caps: Math.min(s.caps || 0, 10), mission: G.mission };
     const r = econReward(a); act(a); sfx.coin();
     html += `<span>보상</span><span style="color:var(--warn)">+${fmt(r.money)} 크레딧 · +${fmt(r.xp)} 경험치</span>`;
     const after = myGrade(), rl = rankLine();
@@ -645,13 +646,13 @@ function finish() {
 // ── menus + shipyard ────────────────────────────────────────────────────────
 let screen = "menu", yardSel = profile.ship;
 function refreshMenus() {
-  const fid = flagshipId(), sp = SHIPS[fid], rl = rankLine(), g = GUNS[sp.gun], u = perkMods().upg;
+  const rl = rankLine(), u = perkMods().upg;
   $("#tbMoney").textContent = profile.admin ? "∞ CR (관리자)" : `${fmt(profile.money)} CR`;
   $("#tbRank").textContent = `${rl.name} ${payStep(profile.xp, rl.r, ECON_RANK_XP).step}호봉 · ${postOf(rl.r)}`; $("#tbIns").innerHTML = insignia(rl.r, 24);
   $("#rankBar").style.width = rl.pct * 100 + "%";
-  $("#shipLine").innerHTML = `<div class="fh">${FLAG.us(30)}<span>FLAGSHIP · TIER ${["", "I", "II", "III", "IV", "V"][sp.tier]} · ${sp.cls}</span></div><div class="nm">${sp.name.replace(/\s*\(.*\)/, "")}</div><div class="cap">함장 ${FLAG_CAPTAIN[fid]} ${captainOf(sp)}</div>`
-    + `<div class="grid"><span>${g.name.split(" ")[0]} ×${sp.turrets.reduce((n, t) => n + t.n, 0)}</span><span>장전 ${(g.reload * RELOAD_K * (1 - 0.08 * (u.gun || 0))).toFixed(1)}s</span><span>${(sp.vmax * (1 + 0.05 * (u.engine || 0))).toFixed(1)} kn</span><span>장갑 ${sp.belt} mm</span><span>피탐 ${(conceal({ spec: sp }) / 1000).toFixed(1)} km</span><span>호위 ${escortsFor(rl.r)}척 · 전투기 9기</span></div>`;
-  { const ok = profile.admin ? Object.keys(ECON_SHIPS) : shipsFor(rl.r); $("#shipLine").insertAdjacentHTML("beforeend", `<div class="flt"><span>2차대전 기함 (계급별 배속)</span>${ok.map((k) => `<button data-flag="${k}" class="${k === fid ? "on" : ""}">${SHIPS[k].short}</button>`).join("")}</div>`); }
+  { const sp = MODERN[flagshipId()], v = sp.vls || {}, cells = Object.values(v).reduce((n, x) => n + (x?.[1] || 0), 0), wp = Object.values(v).map((x) => x?.[0]).filter(Boolean).join(" · ");
+    $("#shipLine").innerHTML = `<div class="fh">${FLAGSVG.kr(30)}<span>FLAGSHIP · ${sp.cls}</span></div><div class="nm">${sp.name.replace(/\s*\(.*\)/, "")}</div><div class="cap">함장 ${ECON_RANKS[myGrade()]} ${cmdr.name}</div>`
+      + `<div class="grid"><span>VLS ${cells}셀</span><span>${(sp.vmax * (1 + 0.05 * (u.engine || 0))).toFixed(1)} kn</span><span>${wp}</span><span>근접방어 ${sp.pd?.[0] || "—"}</span><span>호위 ${myRank() >= 3 ? 2 : 1}척</span><span>${NATIONS.kr.cv ? `항공 ${MODERN[NATIONS.kr.cv].short}` : ""}</span></div>`; }
   $("#rankTxt").textContent = rl.next ? `${rl.name} → ${rl.next} · ${fmt(profile.xp)} / ${fmt(rl.need)} XP` : `${rl.name} · 최고 계급`;
   const acc = profile.shots ? ((profile.hits / profile.shots) * 100).toFixed(1) : "0.0";
   $("#record").textContent = profile.battles ? `${profile.wins}승 / ${profile.battles}전 · 명중률 ${acc}%` : "첫 출격 대기 중";
@@ -666,7 +667,7 @@ function refreshMenus() {
   $("#missions").innerHTML = Object.entries(MISSIONS).filter(([k]) => ACTIVE.includes(k) && isModernOp(k) === (era === "modern")).map(([k, m]) => `<button class="ms${k === mission ? " on" : ""}" data-m="${k}"><b>${m.n}</b><small>${m.d}</small></button>`).join("");
   $("#nations").style.display = isModernOp(mission) ? "" : "none";
   if (isModernOp(mission)) { fixNations(); const rk = myRank(), btn = (k, side, on, need) => `<button class="nt${on ? " on" : ""}" data-n${side}="${k}"${need > rk ? ` disabled title="${ECON_RANKS[need + 3]} 이상"` : ""}>${(FLAGSVG[k] || FLAG.us)(18)} ${NATIONS[k].n}${need > rk ? ` 🔒${ECON_RANKS[need + 3]}` : ""}</button>`;
-    $("#nations").innerHTML = `<div class="ph"><span>FORCES</span><span>아군 / 적군 국가</span></div><div class="natrow"><span>아군</span>${Object.entries(SIDE_US).map(([k, need]) => btn(k, "u", k === natUs, need)).join("")}</div><div class="natrow"><span>적군</span>${Object.entries(SIDE_FOE).map(([k, need]) => btn(k, "f", k === natFoe, need)).join("")}</div><div class="natnote">${natFoe === "cn" ? (rk >= 4 ? "중국 해군 주력 — 055형 3척 + 항모 산둥 (최고 난이도)" : "중국 해군 — 055형 2척 (소장부터 항모 전단)") : `북한 해군 — 연안 전투함${rk >= 3 ? " 3척" : " 2척"} + 지상 발진 MiG-29`}</div>`; }
+    $("#nations").innerHTML = `<div class="ph"><span>FORCES</span><span>적국 선택 (아군: 대한민국 해군)</span></div><div class="natrow"><span>아군</span>${btn("kr", "u", true, 0)}</div><div class="natrow"><span>적군</span>${Object.entries(SIDE_FOE).map(([k, need]) => btn(k, "f", k === natFoe, need)).join("")}</div><div class="natnote">${natFoe === "cn" ? (rk >= 4 ? "중국 해군 주력 — 055형 3척 + 항모 산둥 (최고 난이도)" : "중국 해군 — 055형 2척 (소장부터 항모 전단)") : `북한 해군 — 연안 전투함${rk >= 3 ? " 3척" : " 2척"} + 지상 발진 MiG-29`}</div>`; }
   $("#wx").innerHTML = [["tod", "day", "주간", "기본 시정"], ["tod", "night", "야간", "피탐 거리 −45%"], ["wx", "clear", "맑음", "기본"], ["wx", "storm", "폭풍", "시정 −30% · 포 산포 +35%"]]
     .map(([g, k, n, d]) => `<button class="mp${(g === "tod" ? todSel : wxSel) === k ? " on" : ""}" data-${g}="${k}"><b>${n}</b><small>${d}</small></button>`).join("") + `<div class="mpn">현대전에서는 화면만 바뀌고 레이더 탐지는 그대로</div>`;
   if (era === "modern") $("#camp").innerHTML = kcampHTML(); else $("#camp").innerHTML = CAMP.map((c, i) => `<button class="mp${i === campSel ? " on" : ""}" data-camp="${i}"${i > campProg ? " disabled" : ""}><b>${i < campProg ? "✓ " : ""}${i + 1}. ${c.n}</b><small>${i > campProg ? "잠김 — 이전 단계 승리 필요" : c.d}</small></button>`).join("")
@@ -683,7 +684,7 @@ $("#modeSel").addEventListener("click", (e) => { const b = e.target.closest("[da
 $("#opsP").addEventListener("click", (e) => { const back = e.target.closest(".wz-back"); if (back) { const t = WZ_BACK[wz]; if (t) showWz(typeof t === "function" ? t() : t); return; }
   const to = e.target.closest("[data-wzto]"); if (to) { showWz(to.dataset.wzto); return; }
   const go = e.target.closest("[data-wzgo]"); if (go) { campSel = null; start(false); } });
-showWz("era", true);
+showWz("mode", true);
 $("#briefNo").addEventListener("click", () => { $("#brief").style.display = "none"; sfx.click(); });
 $("#briefGo").addEventListener("click", () => { const c = KCAMP[briefI]; if (!c) return; $("#brief").style.display = "none"; campEra = "modern"; campSel = briefI; natUs = "kr"; natFoe = "nk"; mission = c.m; theater = c.map; start(false); });
 $("#cmdrEdit").addEventListener("click", () => openCmdr());
@@ -2483,7 +2484,7 @@ function drawAlerts(dt) {
   if (torpThreat && Math.floor(G.time * 4) % 2 === 0) txt(`어뢰 접근! ${torpThreat.toFixed(0)}초`, cx, 150, "#ff3b30", "bold 22px 'Noto Sans KR', sans-serif", "center");
   if (radioSub && MSL.list.some((m) => m.alive && m.side === "foe")) radioSub = null; if (radioSub) { radioSub.t -= dt; if (radioSub.t <= 0) radioSub = null; else { hx.globalAlpha = clamp(radioSub.t, 0, 1); rr(cx - 140, 168, 280, 26, 4); hx.fillStyle = "rgba(10,30,20,.75)"; hx.fill(); txt(`[무전] ${radioSub.text}`, cx, 181, "#b8ffb0", "bold 13px 'Noto Sans KR', sans-serif", "center"); hx.globalAlpha = 1; } }
 }
-const HELP = [["Space / Q", "주무장 발사 / 무기 전환 (2차대전 주포↔어뢰 · 현대전 대함미사일↔함포)"], ["F / N / I", "전투기 출격 / 임무 변경 (요격·공격) / 직접 조종·복귀"], ["G / E (2차대전)", "대공 사수 / 함대 진형 변경"], ["O / Y / T (현대전)", "레이더 방사·통제 / 정찰 헬기 / 미사일 추적 카메라 — 방공은 자동"], ["우클릭", "그 지점으로 이동 (Shift: 경유지 추가 · 기함 위: 정지)"], ["1 / 2 / 3 · 0", "속력: 미속 / 반속 / 전속 · 정지"], ["A / D", "사선(포 방향) 좌우 회전 — Shift: 미세"], ["W / S", "사거리 늘리기 / 줄이기"], ["더블클릭", "그 지점 조준 · 적함 더블클릭: 표적 고정 (리드 자동)"], ["좌클릭 끌기", "카메라 자유 이동 (C: 기함으로 복귀)"], ["Alt + 끌기 · Alt + 클릭", "아군 함선 선택 (Shift: 추가) → 우클릭: 선택한 함선 이동 · 기함 우클릭: 호위 복귀"], ["M", "지도 시점 — 위에서 전장 전체 보기 (휠: 축척)"], ["Space", "발사 (누르고 있으면 장전되는 대로 연사)"], ["Z", "자동 공격 켜기/끄기 — 주포 자동 조준·발사 + 어뢰 탑재함은 어뢰 자동 발사"], ["Q", "주포 ↔ 어뢰 (구축함)"], ["R", "수리반 — 화재·침수 진압 + 선체 복구"], ["F", "전투기 출격 (최대 9기) — 오른쪽 항공대 패널에서 기체별 임무: 요격 / 함대 공격 / 자동"], ["Tab", "카메라 대상: 기함 → 전투기 → 항모 → 표적"], ["Enter", "보고 있는 전투기 직접 조종 / 자동 조종 복귀"], ["우클릭 끌기 · 휠", "카메라 회전 · 확대/축소 (방향키도 가능)"], ["V (비행 중)", "조종석 1인칭 ↔ 추적 시점"], ["G", "대공 사수 1인칭 — 40mm 기관포로 적기 직접 사격"], ["미니맵", "우클릭: 이동 · 좌클릭: 조준 · 휠: 축척"], ["U", "화면 표시 모두 끄기 — 전투 장면만 보기 (다시 U)"], ["P", "메뉴 (계속 · 전투 포기 · 소리 설정)"]];
+const HELP = [["Space / Q", "주무장 발사 / 무기 전환 (대함미사일↔함포)"], ["F / N / I", "전투기 출격 / 임무 변경 (요격·공격) / 직접 조종·복귀"], ["G / 5", "대공 사수(요격) / 전투기 전체 귀환"], ["O / Y / T", "레이더 방사·통제 / 정찰 헬기 / 미사일 추적 카메라 — 방공은 자동"], ["우클릭", "그 지점으로 이동 (Shift: 경유지 추가 · 기함 위: 정지)"], ["1 / 2 / 3 · 0", "속력: 미속 / 반속 / 전속 · 정지"], ["A / D", "사선(포 방향) 좌우 회전 — Shift: 미세"], ["W / S", "사거리 늘리기 / 줄이기"], ["더블클릭", "그 지점 조준 · 적함 더블클릭: 표적 고정 (리드 자동)"], ["좌클릭 끌기", "카메라 자유 이동 (C: 기함으로 복귀)"], ["Alt + 끌기 · Alt + 클릭", "아군 함선 선택 (Shift: 추가) → 우클릭: 선택한 함선 이동 · 기함 우클릭: 호위 복귀"], ["M", "지도 시점 — 위에서 전장 전체 보기 (휠: 축척)"], ["Space", "발사 (누르고 있으면 장전되는 대로 연사)"], ["Z", "자동 공격 켜기/끄기 — 주포 자동 조준·발사 + 어뢰 탑재함은 어뢰 자동 발사"], ["Q", "주포 ↔ 어뢰 (구축함)"], ["R", "수리반 — 화재·침수 진압 + 선체 복구"], ["F", "전투기 출격 (최대 9기) — 오른쪽 항공대 패널에서 기체별 임무: 요격 / 함대 공격 / 자동"], ["Tab", "카메라 대상: 기함 → 전투기 → 항모 → 표적"], ["Enter", "보고 있는 전투기 직접 조종 / 자동 조종 복귀"], ["우클릭 끌기 · 휠", "카메라 회전 · 확대/축소 (방향키도 가능)"], ["V (비행 중)", "조종석 1인칭 ↔ 추적 시점"], ["G", "대공 사수 1인칭 — 40mm 기관포로 적기 직접 사격"], ["미니맵", "우클릭: 이동 · 좌클릭: 조준 · 휠: 축척"], ["U", "화면 표시 모두 끄기 — 전투 장면만 보기 (다시 U)"], ["P", "메뉴 (계속 · 전투 포기 · 소리 설정)"]];
 function drawHelp() {
   const x = 14, y = 70, w = 470, h = HELP.length * 20 + 40; panel(x, y, w, h); txt("조작법 (H: 닫기)", x + 14, y + 18, "#ffd166", "bold 13px 'Noto Sans KR', sans-serif");
   HELP.forEach(([k, v], i) => { txt(k, x + 14, y + 42 + i * 20, "#ffc857", "bold 12px 'Noto Sans KR', sans-serif"); txt(v, x + 140, y + 42 + i * 20, "#dfe8ec", "12px 'Noto Sans KR', sans-serif"); });
@@ -2640,7 +2641,7 @@ window.__st = { cicWcs, cicSetWcs, cicFeedInfo, aa, aimAAAt: (p) => { const o = 
   get paused() { return paused; }, get torpThreat() { return torpThreat; }, get radioSub() { return radioSub; }, keys, fireTorps, intercept, leadPoint, myRank, steer, setLockOn: (t) => { lockOn = t; }, get lockOn() { return lockOn; }, help: (v) => { helpOn = v; } };
 loadModels(); showcase(flagshipId()); refreshMenus(); connect(); bgm("menu"); /* the first port screen is not opened through openMenu, so ask for its music here (it starts on the first click) */
 if (params.has("autostart")) {
-  if (MISSIONS[params.get("mission")]) mission = params.get("mission");
+  if (MISSIONS[params.get("mission")] && isModernOp(params.get("mission"))) mission = params.get("mission");
   if (MAPS[params.get("theater")]) theater = params.get("theater");
   start(params.get("autostart") === "watch");
   const foc = params.get("focus");
