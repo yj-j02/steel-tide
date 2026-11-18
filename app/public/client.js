@@ -527,7 +527,8 @@ function finish() {
     const r = econReward(a); act(a); sfx.coin();
     html += `<span>보상</span><span style="color:var(--warn)">+${fmt(r.money)} 크레딧 · +${fmt(r.xp)} 경험치</span>`;
     const P1 = G.player, al = G.allies.filter((a) => a.spec && !a.isCarrier), ev = scoreBattle({ won, hp: P1 && P1.alive ? P1.hp / P1.maxHp : 0, sunk: G.enemies.filter((e) => !e.alive).length, foes: G.enemies.length, lost: al.filter((a) => !a.alive).length, allies: al.length, secs, jetsOut: G.jetsOut || 0 }, staff.branch || "sea");
-    recordEval(before, ev.s); const bd = runBoard(before, xpGrade()), eo = evalOf(before);
+    if (r.press) ev.s = Math.max(0, Math.min(100, ev.s + r.press)); /* 작전 후 기자회견 */
+  recordEval(before, ev.s); const bd = runBoard(before, xpGrade()), eo = evalOf(before);
     html += `<span>근무평정</span><span>${ev.s}점 · ${FOCUS[staff.branch || "sea"].n} 병과 기준 (이번 계급 평균 ${eo.avg}점 ${eo.l} · ${eo.n}회)</span>`;
     if (bd.xp && !bd.promoted) { const why = [!bd.cnt ? `이 계급 근무 ${bd.e.n}/${bd.need}회` : "", !bd.score ? `평정 평균 ${bd.e.avg}점 (기준 ${PASS}점)` : ""].filter(Boolean).join(" · "); html += `<span>진급 심사</span><span style="color:#ff9b8a">보류 — ${why}${deferNote() ? `<br>${deferNote()}` : ""}</span>`; }
     const after = myGrade(), rl = rankLine();
@@ -704,7 +705,7 @@ function storyCard(c) {
 /** 작전 지휘 (operation map): plan and run an operation on the chart; the result pays and is evaluated like a battle. */
 function startOpMap(airMode = false) {
   initAudio(); bgm("battle"); sfx.click(); const g = myGrade(), m = staffMods(hqGrade(), hqBranch()), pk = perkMods();
-  openOpMap({ grade: g, branch: staff.branch, ops: staff.branch === "ops", air: airMode && staff.branch === "air", mods: { outK: m.outK * (pk.fleetK || 1), inK: m.inK, icptK: m.icptK * (pk.icptK || 1) }, onDone: opMapDone });
+  openOpMap({ grade: g, branch: staff.branch, ops: staff.branch === "ops", air: airMode && staff.branch === "air", scen: storyOp != null ? "intercept" : undefined, onLeave: () => { bgm("menu"); refreshMenus(); }, mods: { outK: m.outK * (pk.fleetK || 1), inK: m.inK, icptK: m.icptK * (pk.icptK || 1) }, onDone: opMapDone });
 }
 let storyOp = null;
 function opMapDone(r) {
@@ -712,6 +713,7 @@ function opMapDone(r) {
   bgm("menu"); const before = myGrade(), a = { kind: "result", won: r.won, shots: r.shots, hits: r.hits, seconds: r.secs, tier: econTier(), bombs: 0, bullets: 0, mission: "modern" };
   const rw = econReward(a); act(a);
   const ev = scoreBattle({ won: r.won, hp: r.hp, sunk: r.sunk, foes: r.foes, lost: r.lost, allies: r.allies, secs: r.secs, jetsOut: r.jetsOut }, staff.branch || "sea");
+  if (r.press) ev.s = Math.max(0, Math.min(100, ev.s + r.press)); /* 작전 후 기자회견 */
   recordEval(before, ev.s); const bd = runBoard(before, xpGrade()), after = myGrade();
   const blocked = bd.xp && !bd.promoted ? ` · 진급 심사 보류 (${[!bd.cnt ? `근무 ${bd.e.n}/${bd.need}회` : "", !bd.score ? `평정 ${bd.e.avg}점` : ""].filter(Boolean).join(", ")})` : "";
   toast(`작전 ${r.won ? "성공" : "실패"} — +${fmt(rw.money)} CR · +${fmt(rw.xp)} XP · 근무평정 ${ev.s}점${blocked}`, 6);
