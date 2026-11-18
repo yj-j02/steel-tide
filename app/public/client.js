@@ -65,8 +65,12 @@ const kmh = (ms) => Math.round(Math.abs(ms) * 3.6);
 const xpGrade = () => econRank(profile.xp); /* the rank your XP alone reaches */
 const myGrade = () => { if (career.cap == null) { career.cap = xpGrade(); saveCareer(); } return Math.min(xpGrade(), career.cap); }; /* full rank 0 소위 … 10 원수, as approved by the promotion board */
 const myRank = () => Math.max(0, myGrade() - 3);
-const econTier = () => { const g = myGrade(); return g >= 7 ? 5 : g >= 6 ? 4 : g >= 4 ? 3 : g >= 3 ? 2 : 1; }; /* reward tier by rank (the old flagship ladder's tiers) */
-const flagshipId = () => NATIONS.kr.ships[0]; /* 한국 해군 기함 (WWII removed; archive branch ww2-archive) */ /* gameplay tier: ships, nations and enemy strength still count from 소령 */
+/** 함정 진급 경로: 계급이 오르면 더 큰 함정이 열리고, 열린 함정 중 하나를 기함으로 고른다 (career.ship). */
+const KR_LADDER = [{ g: 0, id: "pkg", sis: "pkg2", t: 1 }, { g: 3, id: "ffg", sis: "ffg2", t: 2 }, { g: 4, id: "ddh", sis: "ddh2", t: 3 }, { g: 5, id: "ddg", sis: "ddg2", t: 3 }, { g: 6, id: "jeongjo", sis: "jeongjo2", t: 5 }];
+const shipsOpen = (g = myGrade()) => KR_LADDER.filter((s) => g >= s.g);
+const ladderOf = (id) => KR_LADDER.find((s) => s.id === id) || KR_LADDER[KR_LADDER.length - 1];
+const econTier = () => { const g = myGrade(); return Math.min(g >= 7 ? 5 : g >= 6 ? 4 : g >= 4 ? 3 : g >= 3 ? 2 : 1, ladderOf(flagshipId()).t); }; /* reward tier by rank, capped by the ship you take out */
+const flagshipId = () => { const o = shipsOpen(); return (o.find((s) => s.id === career.ship) || o[o.length - 1]).id; }; /* 한국 해군 기함 (WWII removed; archive branch ww2-archive) */ /* gameplay tier: ships, nations and enemy strength still count from 소령 */
 const RANK_STARS = ["소령", "중령", "대령", "★", "★★", "★★★", "★★★★", "★★★★★"];
 const escortsFor = (r) => Math.min(4, 1 + Math.floor(r / 2));
 const fightersFor = () => 9;
@@ -118,7 +122,7 @@ const JP_NAMES = ["오카다 신이치", "무라타 겐조", "하야시 도루",
 const captainOf = (spec, side = "us") => (side === "foe" ? (spec.cls === "구축함" ? "중좌" : "대좌") : spec.cls === "구축함" ? "중령" : spec.cls === "수송선" ? "소령" : "대령");
 function assignCaptains() {
   let u = 0, j = 0; const us = US_NAMES.slice().sort(() => rnd() - 0.5), jp = JP_NAMES.slice().sort(() => rnd() - 0.5);
-  for (const s of G.ships) s.captain = `${s.isPlayer ? FLAG_CAPTAIN[s.spec.id] : s.side === "foe" ? jp[j++ % jp.length] : us[u++ % us.length]} ${captainOf(s.spec, s.side)}`;
+  for (const s of G.ships) s.captain = `${s.isPlayer ? FLAG_CAPTAIN[s.spec.id] || cmdr.name : s.side === "foe" ? jp[j++ % jp.length] : us[u++ % us.length]} ${captainOf(s.spec, s.side)}`;
 }
 const starPath = (cx, cy, R) => { let d = ""; for (let i = 0; i < 10; i++) { const a = -Math.PI / 2 + (i * Math.PI) / 5, rr = i % 2 ? R * 0.42 : R; d += `${i ? "L" : "M"}${(cx + Math.cos(a) * rr).toFixed(1)} ${(cy + Math.sin(a) * rr).toFixed(1)}`; } return d + "Z"; };
 /** 원수: five stars in a ring over a small wreath (not five in a row). */
@@ -320,7 +324,7 @@ function newBattle() {
   const modern = true, OP = mission; G.modern = modern; G.mop = OP; G.staffK = modern ? staffMods(hqGrade(), hqBranch()) : null; G.perkK = perkMods(); /* promotion perks, both eras */ /* fleet HQ staff shape every modern battle, auto included */ if (modern) G.mission = "modern"; // economy and results count every modern operation as "modern" modern && (MSL.cam = null);
   const pSpec = MODERN[flagshipId()];
   G.mastFlag = null; const P = new Ship(pSpec, 0, 0, 0, "us", perkMods().upg); P.isPlayer = true; P.name = pSpec.short; P.nav = []; P.lv = 3; P.lastLv = 3; P.nation = natUs; mArm(P);
-  const allies = [[-700, 900], ...(rk >= 3 ? [[-700, -900]] : [])].map((st, i) => { const [x, z] = placeAt(0, 0, 0, ...st); const s = new Ship(MODERN[NATIONS[natUs].ships[1]], x, z, 0, "us"); s.station = st; s.br = mkBrain(14 + i * 3); s.name = s.spec.short + (i ? " 2" : ""); s.nation = natUs; mArm(s); return s; }) // a second escort at higher rank, like the enemy's;
+  const allies = [[-700, 900], ...(rk >= 3 ? [[-700, -900]] : [])].map((st, i) => { const [x, z] = placeAt(0, 0, 0, ...st); const s = new Ship(MODERN[ladderOf(pSpec.id).sis], x, z, 0, "us"); s.station = st; s.br = mkBrain(14 + i * 3); s.name = s.spec.short + (i ? " 2" : ""); s.nation = natUs; mArm(s); return s; }) // a second escort at higher rank, like the enemy's;
   uniq(allies);
   G.ships = [P, ...allies]; G.player = P; G.allies = allies; G.carrier = null;
   {
@@ -328,14 +332,15 @@ function newBattle() {
     for (let k = 0; k < 16 && landAt(Math.cos(b) * r, Math.sin(b) * r, 4500); k++) b = wrap(b + 0.4); // open water for the enemy group
     const eh = wrap(PI + b + (rnd() - 0.5) * 0.8), N = NATIONS[natFoe];
     fixNations();
-    const keys0 = natFoe === "cn" && rk < 4 ? [N.ships[1], N.ships[1]] : [N.ships[0], N.ships[1], ...(rk >= 3 ? [N.ships[1]] : [])]; // the enemy grows with your rank
-    const keys = OP === "modern" ? keys0 : OP === "modern:emcon" ? [...keys0, N.ships[1], ...(G.hard ? [N.ships[1]] : [])] : OP === "modern:convoy" ? [N.ships[1]] : []; // other operations bring their own threats (ops.js)
+    const lt = KR_LADDER.indexOf(ladderOf(pSpec.id)), small = natFoe === "nk" && lt <= 1; /* 고속함·호위함에는 북한 유도탄정·호위함이 상대 */
+    const keys0 = small ? (lt === 0 ? ["nkosa", "nkosa", ...(myGrade() >= 2 ? ["nkosa"] : [])] : ["najin", "nkosa", "nkosa"]) : natFoe === "cn" && rk < 4 ? [N.ships[1], N.ships[1]] : [N.ships[0], N.ships[1], ...(rk >= 3 ? [N.ships[1]] : [])]; // the enemy grows with your rank and ship
+    const k1 = small ? keys0[1] : N.ships[1], keys = OP === "modern" ? keys0 : OP === "modern:emcon" ? [...keys0, k1, ...(G.hard ? [k1] : [])] : OP === "modern:convoy" ? [k1] : []; // other operations bring their own threats (ops.js)
     const out = keys.map((k, i) => { const [x, z] = placeAt(Math.cos(b) * r, Math.sin(b) * r, eh, ...STATIONS[i]); const s = new Ship(MODERN[k], x, z, eh, "foe"); s.prefRange = [5000, 8000]; s.station = STATIONS[i]; s.br = mkBrain(16 + i * 5); s.nation = natFoe; mArm(s); return s; });
     for (const s of out) s.group = out;
     const fcv = rk >= 4 && (OP === "modern" || OP === "modern:emcon") ? N.cv : null; if (fcv) { const [x, z] = placeAt(Math.cos(b) * r, Math.sin(b) * r, eh, 3500, 0); const c = new Ship(MODERN[fcv], x, z, eh, "foe"); c.isCarrier = true; c.br = mkBrain(30); c.nation = natFoe; c.group = out; mArm(c); out.push(c); }
     G.enemies.push(...out); G.ships.push(...out);
-    const ucv = NATIONS[natUs].cv; if (ucv) { const st = [3200, -900], [x, z] = placeAt(0, 0, 0, ...st); const c = new Ship(MODERN[ucv], x, z, 0, "us"); c.station = st; c.br = mkBrain(30); c.name = c.spec.short; c.nation = natUs; mArm(c); G.allies.push(c); G.ships.push(c); }
-    G.bases = []; for (const [side, nat, x, z] of [["us", natUs, -26000, 0], ["foe", natFoe, Math.cos(b) * (r + 22000), Math.sin(b) * (r + 22000)]]) if (NATIONS[nat].base && (side === "us" || ["modern", "modern:emcon", "modern:convoy"].includes(OP))) G.bases.push({ side, alive: true, isBase: true, pos: new THREE.Vector3(x, 0, z), heading: 0, spec: { fb: 0 }, cv: NATIONS[nat].base, name: "지상 비행장" });
+    const ucv = lt >= 2 ? NATIONS[natUs].cv : null; if (ucv) { /* 독도 항공 지원은 구축함부터 */ const st = [3200, -900], [x, z] = placeAt(0, 0, 0, ...st); const c = new Ship(MODERN[ucv], x, z, 0, "us"); c.station = st; c.br = mkBrain(30); c.name = c.spec.short; c.nation = natUs; mArm(c); G.allies.push(c); G.ships.push(c); }
+    G.bases = []; for (const [side, nat, x, z] of [["us", natUs, -26000, 0], ["foe", natFoe, Math.cos(b) * (r + 22000), Math.sin(b) * (r + 22000)]]) if (NATIONS[nat].base && (side === "us" ? lt >= 2 : !small && ["modern", "modern:emcon", "modern:convoy"].includes(OP))) G.bases.push({ side, alive: true, isBase: true, pos: new THREE.Vector3(x, 0, z), heading: 0, spec: { fb: 0 }, cv: NATIONS[nat].base, name: "지상 비행장" });
     for (const s of G.ships) if (s.spec.jets) s.cv = s.spec.jets; for (const s of [...G.ships, ...G.bases]) if (s.cv) { s.jetsReady = Math.max(0, s.cv.n + (s.side === "us" ? (G.staffK ? G.staffK.jets : 0) + (G.perkK?.jets || 0) : 0)); s.rearm = []; }
     if (OP === "modern" && !CS) { /* missile battle: three enemy groups in turn, then reach the destination */
       let gx = Math.cos(b) * 24000, gz = Math.sin(b) * 24000, k = 0; while (landAt(gx, gz, 2000) && k++ < 40) { gx *= 0.95; gz *= 0.95; }
@@ -527,7 +532,9 @@ function finish() {
     if (bd.xp && !bd.promoted) { const why = [!bd.cnt ? `이 계급 근무 ${bd.e.n}/${bd.need}회` : "", !bd.score ? `평정 평균 ${bd.e.avg}점 (기준 ${PASS}점)` : ""].filter(Boolean).join(" · "); html += `<span>진급 심사</span><span style="color:#ff9b8a">보류 — ${why}${deferNote() ? `<br>${deferNote()}` : ""}</span>`; }
     const after = myGrade(), rl = rankLine();
     html += `<span>계급</span><span>${rl.name}${rl.next ? ` — ${rl.next}까지 ${fmt(rl.need - profile.xp)} 경험치` : " (최고 계급)"}</span>`;
-    const unl = ""; /* no ship unlocks until the Korean ship ladder exists */
+    { const id = G.player?.spec?.id; if (id && MODERN[id]) { const L = (career.shipLog ??= {}), h = (L[id] ??= { b: 0, w: 0, k: 0 }); h.b++; if (won) h.w++; h.k += G.enemies.filter((e) => !e.alive).length; saveCareer(); } }
+    const newShips = KR_LADDER.filter((o) => o.g > before && o.g <= after), unl = newShips.map((o) => MODERN[o.id].name).join(", ");
+    if (newShips.length) { career.ship = null; saveCareer(); html += `<span>새 함정</span><span style="color:var(--gold)">${unl} — 다음 출전부터 기함</span>`; }
     if (after > before) {
       $("#endPromo").innerHTML = `<span class="k">RANK</span><div class="ib new">${insignia(after, 64)}</div><div class="big" style="font-size:30px">${ECON_RANKS[after]}</div><div class="sub">${postOf(after)}</div>`;
       if (career.seen == null && staff.branch) careerInit(before, careerTitle(before), BRANCHES[staff.branch].n); career.picks += after - before; logPromotion({ g: after, t: postOf(after), b: BRANCHES[staff.branch]?.n || "", why: res.why }); pmOpts = null;
@@ -550,8 +557,11 @@ function refreshMenus() {
   $("#tbRank").textContent = career.minister ? `국방부장관 · 예비역 ${rl.name}` : `${rl.name} ${payStep(profile.xp, rl.r, ECON_RANK_XP).step}호봉 · ${postOf(rl.r)}`; $("#tbIns").innerHTML = insignia(rl.r, 24);
   $("#rankBar").style.width = rl.pct * 100 + "%";
   { const sp = MODERN[flagshipId()], v = sp.vls || {}, cells = Object.values(v).reduce((n, x) => n + (x?.[1] || 0), 0), wp = Object.values(v).map((x) => x?.[0]).filter(Boolean).join(" · ");
+    const hist = career.shipLog || {}, open = shipsOpen(), pick = open.length > 1 ? `<div class="shp">${open.map((o) => { const m = MODERN[o.id], h = hist[o.id]; return `<button data-flag="${o.id}" class="${o.id === sp.id ? "on" : ""}" title="${m.cls}"><b>${m.short}</b><i>${m.cls.replace(/ \(.*\)/, "")}</i><i>${h ? `출전 ${h.b} · 격침 ${h.k}` : "출전 기록 없음"}</i></button>`; }).join("")}</div>` : "";
+    const nxt = KR_LADDER.find((o) => o.g > myGrade()), hs = hist[sp.id];
     $("#shipLine").innerHTML = `<div class="fh">${FLAGSVG.kr(30)}<span>FLAGSHIP · ${sp.cls}</span></div><div class="nm">${sp.name.replace(/\s*\(.*\)/, "")}</div><div class="cap">함장 ${ECON_RANKS[myGrade()]} ${cmdr.name}</div>`
-      + `<div class="grid"><span>VLS ${cells}셀</span><span>${(sp.vmax * (1 + 0.05 * (u.engine || 0))).toFixed(1)} kn</span><span>${wp}</span><span>근접방어 ${sp.pd?.[0] || "—"}</span><span>호위 ${myRank() >= 3 ? 2 : 1}척</span><span>${NATIONS.kr.cv ? `항공 ${MODERN[NATIONS.kr.cv].short}` : ""}</span></div>`; }
+      + `<div class="grid"><span>${v.S || v.M || v.L ? `VLS·미사일 ${cells}발` : `함대함 미사일 ${cells}발`}</span><span>${(sp.vmax * (1 + 0.05 * (u.engine || 0))).toFixed(1)} kn</span><span>${wp}</span><span>근접방어 ${sp.pd?.[0] || "—"}</span><span>호위 ${myRank() >= 3 ? 2 : 1}척</span><span>${ladderOf(sp.id).t >= 3 && NATIONS.kr.cv ? `항공 ${MODERN[NATIONS.kr.cv].short}` : "항공 지원 없음"}</span></div>`
+      + `<div class="shh">함정 이력 — ${hs ? `출전 ${hs.b}회 · 승리 ${hs.w} · 격침 ${hs.k}척` : "아직 출전 기록이 없습니다"}${nxt ? ` · 다음 함정 ${MODERN[nxt.id].short} (${ECON_RANKS[nxt.g]})` : ""}</div>` + pick; }
   $("#rankTxt").textContent = rl.next ? `${rl.name} → ${rl.next} · ${fmt(profile.xp)} / ${fmt(rl.need)} XP` : `${rl.name} · 최고 계급`;
   const acc = profile.shots ? ((profile.hits / profile.shots) * 100).toFixed(1) : "0.0";
   $("#record").textContent = profile.battles ? `${profile.wins}승 / ${profile.battles}전 · 명중률 ${acc}%` : "첫 출격 대기 중";

@@ -63,6 +63,9 @@
       button.go:hover { background:#fff; } button.go.alt { background:transparent; color:var(--fg); border:1px solid var(--line); } button.go.alt:hover { border-color:var(--fg); }
       button.go:disabled { opacity:.4; cursor:default; }
       #record, #shipLine { color:var(--dim); font-size:12px; min-height:1.4em; } #shipLine b { color:var(--fg); }
+      #shipLine .shh { margin-top:6px; font-size:11px; color:var(--dim); } #shipLine .shp { display:flex; gap:6px; margin-top:8px; flex-wrap:wrap; }
+      #shipLine .shp button { flex:1 1 0; min-width:84px; text-align:left; padding:6px 8px; border:1px solid rgba(255,255,255,.14); background:rgba(255,255,255,.04); color:var(--fg); border-radius:6px; cursor:pointer; display:flex; flex-direction:column; gap:1px; }
+      #shipLine .shp button.on { border-color:var(--warn); background:rgba(255,200,80,.12); } #shipLine .shp i { font-style:normal; font-size:10px; color:var(--dim); }
       #takeBtn { position:fixed; left:50%; top:24px; transform:translateX(-50%); display:none; z-index:5; } body.playing.auto #takeBtn { display:block; }
       #spdBtns { position:fixed; left:50%; top:66px; transform:translateX(-50%); display:none; gap:5px; align-items:center; font-size:12px; color:var(--cream2); background:var(--glass); backdrop-filter:blur(10px); border:1px solid var(--gline); padding:4px 10px; z-index:5; } body.playing.auto #spdBtns { display:flex; } #spdBtns button { background:rgba(20,24,20,.65); border:1px solid var(--gline); color:var(--cream); padding:3px 9px; cursor:pointer; font:600 12px/1.1 "Special Elite","Noto Sans KR",sans-serif; } #spdBtns button.on { background:rgba(232,196,90,.3); border-color:rgba(240,201,90,.85); color:#fbe9b0; }
       #autoModeBtn { position:fixed; right:258px; top:48px; display:none; padding:6px 11px; } body.playing:not(.auto):not(.flying):not(.jetfly):not(.aamode):not(.cinema) #autoModeBtn { display:block; }

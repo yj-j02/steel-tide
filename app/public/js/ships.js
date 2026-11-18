@@ -12,6 +12,8 @@ import { A, sfx, at } from "./audio.js";
 export const GUNS = {
   "5/62":   { name: '5인치/62구경 Mk 45 Mod 4',      cal: 127, V0: 808, k: 6.0e-5,  maxEl: 65, dmg: [1.7, 2.8], reload: 3, train: 30, elev: 20, disp: 0.011, len: 6.3 },
   "130":    { name: '130mm H/PJ-38',                cal: 130, V0: 850, k: 6.0e-5,  maxEl: 65, dmg: [1.7, 2.9], reload: 3.2, train: 30, elev: 20, disp: 0.012, len: 6.5 },
+  "76":     { name: '76mm/62 함포',                 cal: 76,  V0: 925, k: 1.0e-4,  maxEl: 85, dmg: [0.6, 1.0], reload: 1.2, train: 60, elev: 35, disp: 0.012, len: 4.7 },
+  "100":    { name: '100mm 함포',                   cal: 100, V0: 880, k: 9.0e-5,  maxEl: 80, dmg: [0.8, 1.4], reload: 2, train: 30, elev: 20, disp: 0.014, len: 5.6 },
   "5/38":   { name: '5인치/38구경 Mk 12',            cal: 127, V0: 792, k: 9.0e-5,  maxEl: 45, dmg: [0.55, 1.0], reload: 4, train: 25, elev: 15, disp: 0.014, len: 4.8 },
 };
 /** Game-speed reload: the listed (historical) cycle × this factor. */
@@ -63,6 +65,28 @@ export const MODERN = {
     vls: { L: ["SM-6", 12], M: ["SM-2", 32], S: ["K-SAAM", 16], A: ["해성", 16], B: ["초음속 대함", 4] }, pd: ["RAM", 21], nation: "kr" }),
   jeongjo2: MOD({ id: "jeongjo2", name: "ROKS 다산정약용 (DDG-996)", short: "다산정약용", cls: "이지스 구축함", tier: 5, L: 170, B: 21.4, fb: 7.4, vmax: 30, turn: 4.2, hp: 130, gun: "5/62", style: "aegis", ...HZ, paint: "kgray", hullNo: "996", deckHex: "#5a6266", turrets: [T1(66, 0, 0)], cans: 4,
     vls: { L: ["SM-6", 8], M: ["SM-2", 24], S: ["K-SAAM", 16], A: ["해성", 16], B: ["초음속 대함", 4] }, pd: ["RAM", 21], nation: "kr" }),
+  /* 한국 해군 함정 진급 경로 (소위 PKG → 소령 FFG → 중령 DDH → 대령 DDG → 준장 정조대왕). 치수·무장 종류는 공개 자료, 탄약 수는 게임 값 */
+  pkg: MOD({ id: "pkg", name: "ROKS 윤영하 (PKG-711)", short: "윤영하", cls: "유도탄고속함", tier: 1, L: 63, B: 9, D: 2.8, sheer: 1, fb: 3.4, vmax: 40, turn: 7.5, hp: 46, gun: "76", style: "patrol", ...HZ, paint: "kgray", hullNo: "711", deckHex: "#5a6266", turrets: [T1(21, 0, 0)], cans: 2,
+    vls: { A: ["해성", 4] }, pd: null, nation: "kr" }),
+  pkg2: MOD({ id: "pkg2", name: "ROKS 한상국 (PKG-712)", short: "한상국", cls: "유도탄고속함", tier: 1, L: 63, B: 9, D: 2.8, sheer: 1, fb: 3.4, vmax: 40, turn: 7.5, hp: 42, gun: "76", style: "patrol", ...HZ, paint: "kgray", hullNo: "712", deckHex: "#5a6266", turrets: [T1(21, 0, 0)], cans: 2,
+    vls: { A: ["해성", 4] }, pd: null, nation: "kr" }),
+  ffg: MOD({ id: "ffg", name: "ROKS 대구 (FFG-818)", short: "대구", cls: "대구급 호위함", tier: 2, L: 122, B: 14, D: 4.2, sheer: 1.8, fb: 5.4, vmax: 30, turn: 5.6, hp: 82, gun: "5/62", style: "frigate", ...HZ, paint: "kgray", hullNo: "818", deckHex: "#5a6266", turrets: [T1(45, 0, 0)], cans: 4,
+    ff: { vf: [2, 8], va: null, stacks: 1, heli: true }, vls: { S: ["K-SAAM", 16], A: ["해성", 8] }, pd: ["팰렁스", 12], nation: "kr" }),
+  ffg2: MOD({ id: "ffg2", name: "ROKS 경남 (FFG-819)", short: "경남", cls: "대구급 호위함", tier: 2, L: 122, B: 14, D: 4.2, sheer: 1.8, fb: 5.4, vmax: 30, turn: 5.6, hp: 78, gun: "5/62", style: "frigate", ...HZ, paint: "kgray", hullNo: "819", deckHex: "#5a6266", turrets: [T1(45, 0, 0)], cans: 4,
+    ff: { vf: [2, 8], va: null, stacks: 1, heli: true }, vls: { S: ["K-SAAM", 12], A: ["해성", 8] }, pd: ["팰렁스", 12], nation: "kr" }),
+  ddh: MOD({ id: "ddh", name: "ROKS 충무공이순신 (DDH-975)", short: "충무공이순신", cls: "충무공이순신급 구축함", tier: 3, L: 150, B: 17.4, D: 5.2, fb: 6.4, vmax: 29, turn: 4.8, hp: 108, gun: "5/62", style: "frigate", ...HZ, paint: "kgray", hullNo: "975", deckHex: "#5a6266", turrets: [T1(55, 0, 0)], cans: 4,
+    ff: { vf: [4, 8], va: [3, 8], stacks: 2, heli: true, ram: true }, vls: { M: ["SM-2", 24], A: ["해성", 8] }, pd: ["RAM", 21], nation: "kr" }),
+  ddh2: MOD({ id: "ddh2", name: "ROKS 문무대왕 (DDH-976)", short: "문무대왕", cls: "충무공이순신급 구축함", tier: 3, L: 150, B: 17.4, D: 5.2, fb: 6.4, vmax: 29, turn: 4.8, hp: 104, gun: "5/62", style: "frigate", ...HZ, paint: "kgray", hullNo: "976", deckHex: "#5a6266", turrets: [T1(55, 0, 0)], cans: 4,
+    ff: { vf: [4, 8], va: [3, 8], stacks: 2, heli: true, ram: true }, vls: { M: ["SM-2", 20], A: ["해성", 8] }, pd: ["RAM", 21], nation: "kr" }),
+  ddg: MOD({ id: "ddg", name: "ROKS 세종대왕 (DDG-991)", short: "세종대왕", cls: "세종대왕급 이지스 구축함", tier: 4, L: 166, B: 21.4, fb: 7.2, vmax: 30, turn: 4.3, hp: 128, gun: "5/62", style: "aegis", ...HZ, paint: "kgray", hullNo: "991", deckHex: "#5a6266", turrets: [T1(63, 0, 0)], cans: 4,
+    vls: { M: ["SM-2", 40], A: ["해성", 16] }, pd: ["RAM", 21], nation: "kr" }),
+  ddg2: MOD({ id: "ddg2", name: "ROKS 율곡이이 (DDG-992)", short: "율곡이이", cls: "세종대왕급 이지스 구축함", tier: 4, L: 166, B: 21.4, fb: 7.2, vmax: 30, turn: 4.3, hp: 122, gun: "5/62", style: "aegis", ...HZ, paint: "kgray", hullNo: "992", deckHex: "#5a6266", turrets: [T1(63, 0, 0)], cans: 4,
+    vls: { M: ["SM-2", 32], A: ["해성", 16] }, pd: ["RAM", 21], nation: "kr" }),
+  /* 북한 소형 전투함 (위관·소령 상대) */
+  nkosa: MOD({ id: "nkosa", name: "북한 유도탄정", short: "유도탄정", cls: "유도탄정 (오사급 계열)", tier: 1, L: 39, B: 7.6, D: 2, sheer: 0.8, fb: 2.6, vmax: 37, turn: 8, hp: 18, gun: "76", style: "patrol", ...KPN_C, paint: "kpn", hullNo: "", deckHex: "#55595b", turrets: [T1(12, 0, 0)], cans: 1,
+    vls: { A: ["스틱스", 2] }, pd: null, nation: "nk" }),
+  najin: MOD({ id: "najin", name: "북한 호위함", short: "나진급", cls: "나진급 호위함", tier: 2, L: 102, B: 10.5, D: 3.4, sheer: 1.6, fb: 4.6, vmax: 25, turn: 5, hp: 58, gun: "100", style: "frigate", ...KPN_C, paint: "kpn", hullNo: "531", deckHex: "#55595b", turrets: [T1(38, 0, 0)], cans: 2,
+    ff: { vf: null, va: null, stacks: 1, heli: false }, vls: { A: ["스틱스", 4] }, pd: null, nation: "nk" }),
   maya: MOD({ id: "maya", name: "JS 마야 (DDG-179)", short: "마야", cls: "이지스 호위함", tier: 5, L: 170, B: 21, fb: 7.3, vmax: 30, turn: 4.3, hp: 135, gun: "5/62", style: "aegis", ...HZ, paint: "haze", hullNo: "179", deckHex: "#5d6569", turrets: [T1(66, 0, 0)], cans: 4,
     vls: { L: ["SM-6", 12], M: ["SM-2", 32], S: ["ESSM", 32], A: ["17식", 16] }, pd: ["SeaRAM", 11], nation: "jp" }),
   haguro: MOD({ id: "haguro", name: "JS 하구로 (DDG-180)", short: "하구로", cls: "이지스 호위함", tier: 5, L: 170, B: 21, fb: 7.3, vmax: 30, turn: 4.3, hp: 125, gun: "5/62", style: "aegis", ...HZ, paint: "haze", hullNo: "180", deckHex: "#5d6569", turrets: [T1(66, 0, 0)], cans: 4,
@@ -594,7 +618,48 @@ function dress(g, spec) {
   }
   if (L > 100) for (const sd of [1, -1]) { const b = shadowed(new THREE.Mesh(new THREE.CapsuleGeometry(0.8, 4.2, 4, 8), mat(0x7a7f74))); b.rotation.z = PI / 2; b.position.set(-L * 0.04, deckY(spec, -L * 0.04) + 1.1, sd * halfBeam(spec, 0.46) * 0.55); g.add(b); }
 }
-const STYLE = { mcarrier, cargo, aegis, pla, kpn };
+/** 윤영하급 PKG / 소형 유도탄정: low stealth deckhouse, integrated mast with radome, canister launchers aft, 40mm aft. */
+function patrol(g, spec) {
+  const U = spec.upper, y = spec.fb, B = spec.B, k = spec.L / 63;
+  slab(g, 20 * k, 3.2 * Math.min(1, k + 0.2), B * 0.86, B * 0.72, 17 * k, U, 1.5 * k, y, 0);
+  const h1 = 3.2 * Math.min(1, k + 0.2);
+  slab(g, 9 * k, 2.5, B * 0.7, B * 0.5, 7 * k, U, 4.5 * k, y + h1, 0);
+  box(g, 0.4, 0.75, B * 0.48, 0x141a1f, 8.7 * k, y + h1 + 1.5, 0);
+  shipNavLights(g, 7.5 * k, y + h1 + 1.9, B * 0.38);
+  slab(g, 4 * k, 4.2 * k, 2.6 * k, 1.1 * k, 2.4 * k, U, 1.5 * k, y + h1 + 2.5, 0);
+  const top = y + h1 + 2.5 + 4.2 * k, d = shadowed(new THREE.Mesh(new THREE.SphereGeometry(0.85 * k, 12, 8), mat(0xe6e8e8))); d.position.set(1.5 * k, top + 0.9 * k, 0); g.add(d);
+  cyl(g, 0.05, 0.08, 4 * k, 0x3a4045, 0.5 * k, top, 0, 4);
+  box(g, 3 * k, 1.3, 2.2 * k, 0x1e2226, -6 * k, y + h1, 0);
+  cans(g, -13 * k, y, spec.cans || 2);
+  if (k > 0.8) ciws(g, -24 * k, deckY(spec, -24 * k), 0);
+  lines(g, [1.5 * k, top, 0, 29 * k, deckY(spec, 29 * k) + 1, 0, 1.5 * k, top, 0, -29 * k, y + 1, 0]);
+  g.userData.bridge = [9 * k, y + h1 + 2, 0]; g.userData.vls = [-13 * k];
+  return [];
+}
+/** 대구급 FFG / 충무공이순신급 DDH / 나진급: one long stealth deckhouse, pyramid mast, one or two stacks, canisters midships, hangar aft (spec.ff). */
+function frigate(g, spec) {
+  const U = spec.upper, y = spec.fb, B = spec.B, k = spec.L / 122, f = spec.ff || {}, vx = [];
+  if (f.vf) { vlsGrid(g, 33 * k, deckY(spec, 33 * k), ...f.vf); vx.push(33 * k); }
+  slab(g, 30 * k, 6.4, B * 0.84, B * 0.72, 27 * k, U, 12 * k, y, 0);
+  slab(g, 13 * k, 4.4, B * 0.64, B * 0.48, 10.5 * k, U, 16 * k, y + 6.4, 0);
+  box(g, 0.5, 1, B * 0.44, 0x141a1f, 21.6 * k, y + 9.2, 0);
+  box(g, 2.6 * k, 0.45, B * 0.9, U, 20.4 * k, y + 8.6, 0);
+  shipNavLights(g, 20.4 * k, y + 9.1, B * 0.45);
+  pyramidMast(g, 12.5 * k, y + 10.8, 11 * k, 1.9 * k, U);
+  if (f.stacks === 2) { stack(g, -1 * k, y, 7 * k, B * 0.3, 8.5, U); stack(g, -16 * k, y, 7 * k, B * 0.3, 8.5, U); }
+  else stack(g, -6 * k, y, 9 * k, B * 0.36, 8, U);
+  slab(g, 24 * k, 3, B * 0.58, B * 0.54, 24 * k, U, -9 * k, y, 0);
+  cans(g, -9 * k, y + 3, spec.cans || 4);
+  if (spec.L > 110) for (const s of [1, -1]) boat(g, -9 * k, y + 3, s * B * 0.4);
+  if (f.va) { vlsGrid(g, -25 * k, deckY(spec, -25 * k), ...f.va); vx.push(-25 * k); }
+  if (f.heli) { hangarDeck(g, spec, -34 * k, 12 * k, B * 0.84, 5.8, U); ciws(g, -34 * k, y + 5.8, 0); }
+  else { slab(g, 12 * k, 3, B * 0.6, B * 0.5, 10 * k, U, -32 * k, y, 0); }
+  if (f.ram) ciws(g, 24.5 * k, y + 6.4, 0);
+  lines(g, [12.5 * k, y + 10.8 + 11 * k + 6, 0, 56 * k, deckY(spec, 56 * k) + 2, 0, 12.5 * k, y + 10.8 + 11 * k + 6, 0, -56 * k, y + 2, 0]);
+  g.userData.bridge = [22 * k, y + 9.6, 0]; g.userData.vls = vx.length ? vx : [-9 * k];
+  return [];
+}
+const STYLE = { mcarrier, cargo, aegis, pla, kpn, patrol, frigate };
 
 const CASING_G = new THREE.CylinderGeometry(0.11, 0.12, 0.95, 8); CASING_G.rotateZ(-PI / 2);
 const CASING_M = new THREE.MeshStandardMaterial({ color: 0xe2b23c, roughness: 0.25, metalness: 0.85 });
@@ -608,7 +673,7 @@ const LOADER_M = {
 };
 function buildTurret(ship, t, i) {
   const spec = ship.spec, g = ship.gun, cal = g.cal, y = deckY(spec, t.x);
-  const tw = cal >= 380 ? 12 : cal >= 200 ? 9.2 : cal >= 150 ? 7.6 : 4.6, td = tw * 0.82, th = cal >= 380 ? 3 : cal >= 150 ? 2.5 : 2.3;
+  const tw = cal >= 380 ? 12 : cal >= 200 ? 9.2 : cal >= 150 ? 7.6 : cal < 90 ? 3 : cal < 120 ? 3.8 : 4.6, td = tw * 0.82, th = cal >= 380 ? 3 : cal >= 150 ? 2.5 : 2.3;
   cyl(ship.tilt, tw * 0.46, tw * 0.46, t.up + 1.2, spec.upper, t.x, y, 0, 18);
   cyl(ship.tilt, tw * 0.48, tw * 0.48, 0.4, 0x5a6266, t.x, y + t.up + 0.8, 0, 18);
   const grp = new THREE.Group(); grp.position.set(t.x, y + t.up + 1.2, 0); ship.tilt.add(grp);

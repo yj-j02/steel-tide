@@ -20,6 +20,7 @@ export const WPN = {
   "함대공(추정)": { role: "sam", range: 12000, v: 950, tier: "M", pk: { sub: 0.62, sup: 0.4, hyp: 0.08 } },
   SeaRAM: { role: "pd", range: 3200, v: 750, pk: { sub: 0.7, sup: 0.55, hyp: 0.2 } },
   RAM: { role: "pd", range: 3200, v: 750, pk: { sub: 0.7, sup: 0.55, hyp: 0.2 } },
+  "팰렁스": { role: "pd", range: 2000, v: 900, pk: { sub: 0.55, sup: 0.4, hyp: 0.1 } },
   "HQ-10": { role: "pd", range: 3000, v: 750, pk: { sub: 0.68, sup: 0.5, hyp: 0.18 } },
   "판치르-M": { role: "pd", range: 3500, v: 900, pk: { sub: 0.62, sup: 0.45, hyp: 0.12 } },
   MST: { role: "asm", name: "해상타격 토마호크", range: 40000, v: 250, cls: "sub", alt: "skim", dmg: 38 },
@@ -37,6 +38,7 @@ export const WPN = {
   "YJ-21": { role: "asm", name: "YJ-21", range: 40000, v: 1900, cls: "hyp", alt: "ball", dmg: 48 },
   "초음속 대함": { role: "asm", name: "초음속 대함(개발형)", range: 25000, v: 300, sprint: 880, cls: "sup", alt: "skim", dmg: 40 },
   "초음속 순항": { role: "asm", name: "초음속 순항미사일", range: 20000, v: 290, sprint: 800, cls: "sup", alt: "skim", dmg: 36 },
+  "스틱스": { role: "asm", name: "스틱스 계열", range: 9000, v: 250, cls: "sub", alt: "skim", dmg: 18 },
   "순항미사일": { role: "asm", name: "순항미사일", range: 16000, v: 260, cls: "sub", alt: "skim", dmg: 30 },
 };
 /** 1 up to 3 missiles arriving together; above that every extra missile cuts each intercept's odds (radars and launchers saturate). */
