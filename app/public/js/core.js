@@ -212,9 +212,7 @@ export function addIsland(x, z, r, h) { const m = islandMesh(r, h); m.position.s
 /** Theatres: island layout + sea/sky tint. Landmarks are stylised, not survey-accurate. */
 /** Each theatre has its own weather and light so they read differently at a glance (stylised, not a weather record). */
 export const MAPS = {
-  arch: { n: "남태평양 군도", d: "화산섬·산호 환초·열대 해안 비행장이 펼쳐진 남태평양 전장 · 쾌청", sky: [1.03, 1.07, 1.14], sea: [0.64, 1.16, 1.18], fog: 0xc8dce4, sun: [0.58, 0.42, -0.68], light: [0xfff0d4, 3.15], hemi: 0xd6ecfa, fogK: 0.000032, cloud: -0.04, pal: [0xeadcb6, 0x2a612d, 0x524e47] },
-  pearl: { n: "진주만 · 하와이", d: "오아후 섬 남쪽 앞바다 · 맑은 아침, 청록빛 바다", sky: [1.0, 1.05, 1.12], sea: [0.72, 1.32, 1.22], fog: 0xd4e6ee, sun: [-0.78, 0.24, -0.42], light: [0xffdcb0, 3.1], hemi: 0xd8f0fa, fogK: 0.000026, cloud: -0.1, pal: [0xe6dab4, 0x2c6e34, 0x5a6a4e] },
-  okinawa: { n: "오키나와", d: "오키나와 본섬 서쪽 앞바다 · 잔뜩 흐린 장마 하늘", sky: [0.7, 0.75, 0.8], sea: [0.62, 0.95, 0.9], fog: 0x939fa4, sun: [0.3, 0.6, -0.45], light: [0xd6dde2, 1.5], hemi: 0xa9b6be, fogK: 0.00006, cloud: 0.26, pal: [0xcfc7a8, 0x37573a, 0x585e58] },
+  arch: { n: "가상 군도", d: "화산섬·산호 환초·해안 비행장이 펼쳐진 남태평양 전장 · 쾌청", sky: [1.03, 1.07, 1.14], sea: [0.64, 1.16, 1.18], fog: 0xc8dce4, sun: [0.58, 0.42, -0.68], light: [0xfff0d4, 3.15], hemi: 0xd6ecfa, fogK: 0.000032, cloud: -0.04, pal: [0xeadcb6, 0x2a612d, 0x524e47] },
   uswest: { n: "미국 서해안", d: "샌디에이고 앞바다 · 짙은 해무, 마른 황금빛 언덕", sky: [0.9, 0.94, 0.99], sea: [0.74, 0.86, 0.98], fog: 0xb2bcc4, sun: [0.2, 0.45, 0.86], light: [0xf0eee8, 1.9], hemi: 0xc4ced8, fogK: 0.00007, cloud: 0.12, pal: [0xcdb88c, 0x9a8448, 0x7c6a54] },
   west: { n: "서해 · 백령도", d: "백령도·대청도 근해 · 옅은 해무, 잿빛 바다 (해안선 근사)", sky: [0.9, 0.93, 0.97], sea: [0.7, 0.82, 0.86], fog: 0xb8c0c4, sun: [0.4, 0.5, -0.6], light: [0xf0ece0, 2.2], hemi: 0xc4ccd2, fogK: 0.00005, cloud: 0.15, pal: [0xb8b09a, 0x4a6040, 0x6a6660] },
   east: { n: "동해 · 울릉도", d: "울릉도 근해 · 맑고 짙푸른 바다 (해안선 근사)", sky: [1, 1.02, 1.08], sea: [0.6, 0.9, 1.25], fog: 0xc8d6e0, sun: [0.5, 0.4, -0.7], light: [0xfff0d8, 3.0], hemi: 0xd0e2f0, fogK: 0.00003, cloud: 0.05, pal: [0x8a8478, 0x2f5a30, 0x4a4844] },
@@ -235,13 +233,6 @@ export function setWeather(tod, wx) {
 // ── real coastlines: outlines hand-traced from lon/lat of capes, bays and ports (simplified, not survey data) ──
 // peaks: [lon, lat, height m, radius m]. Game frame: +x north, +z east; S shrinks the geography to the game's scale.
 const GEO = {
-  pearl: { lat0: 21.05, lon0: -157.95, S: 0.75, land: [
-    { o: [[-158.282, 21.575], [-158.2, 21.582], [-158.12, 21.585], [-158.06, 21.62], [-158.03, 21.68], [-157.99, 21.71], [-157.93, 21.66], [-157.87, 21.56], [-157.83, 21.5], [-157.79, 21.46], [-157.73, 21.465], [-157.72, 21.4], [-157.68, 21.35], [-157.65, 21.31], [-157.69, 21.265], [-157.76, 21.27], [-157.81, 21.255], [-157.84, 21.27], [-157.87, 21.295], [-157.92, 21.315], [-157.965, 21.315], [-157.97, 21.345], [-157.95, 21.365], [-157.99, 21.39], [-158.02, 21.37], [-158.01, 21.33], [-157.98, 21.318], [-158.05, 21.3], [-158.11, 21.295], [-158.13, 21.34], [-158.18, 21.4], [-158.22, 21.46], [-158.25, 21.53]],
-      p: [[-158.14, 21.51, 1220, 6000], [-158.17, 21.44, 800, 5000], [-157.92, 21.53, 850, 5000], [-157.83, 21.41, 900, 5000], [-157.74, 21.33, 650, 4000], [-157.805, 21.262, 230, 800], [-157.69, 21.272, 370, 900]] }] },
-  okinawa: { lat0: 26.35, lon0: 127.55, S: 1, land: [
-    { o: [[128.26, 26.875], [128.32, 26.8], [128.3, 26.72], [128.23, 26.65], [128.18, 26.58], [128.1, 26.52], [128.05, 26.46], [127.98, 26.43], [127.95, 26.38], [127.98, 26.33], [127.93, 26.3], [127.86, 26.27], [127.82, 26.18], [127.76, 26.14], [127.72, 26.08], [127.66, 26.1], [127.66, 26.17], [127.68, 26.22], [127.71, 26.29], [127.73, 26.36], [127.71, 26.43], [127.78, 26.47], [127.85, 26.52], [127.92, 26.56], [127.88, 26.6], [127.86, 26.66], [127.89, 26.71], [127.96, 26.7], [128.03, 26.69], [128.12, 26.74], [128.18, 26.8], [128.22, 26.85]],
-      p: [[128.22, 26.72, 500, 5000], [128.14, 26.65, 420, 5000], [127.94, 26.66, 450, 3000], [127.8, 26.2, 120, 5000]] },
-    { o: [[127.75, 26.725], [127.78, 26.735], [127.82, 26.725], [127.83, 26.71], [127.79, 26.7], [127.75, 26.71]], p: [[127.81, 26.715, 170, 600]] }] },
   west: { lat0: 37.8, lon0: 124.55, S: 1, land: [
     { o: [[124.61, 37.97], [124.635, 37.99], [124.67, 37.995], [124.72, 37.985], [124.745, 37.965], [124.73, 37.94], [124.7, 37.925], [124.66, 37.93], [124.62, 37.945]], p: [[124.66, 37.965, 180, 1500]] },
     { o: [[124.69, 37.84], [124.72, 37.845], [124.735, 37.83], [124.71, 37.815], [124.69, 37.825]], p: [[124.712, 37.83, 340, 900]] },
@@ -339,10 +330,6 @@ export function makeIslands(id = "arch") {
   const I = addIsland;
   if (GEO[id]) { for (const L of GEO[id].land) geoLand(GEO[id], L); bakeCoastMap(); return; }
   if (id === "arch") { buildSouthPacific({ GROUND, fbm2, vnoise, inPoly, edgeDist, PAL, G, islands, scene, rnd, clamp }); bakeCoastMap(); return; }
-  if (id === "pearl") { I(0, -30000, 15000, 1000); I(-15000, -26000, 7000, 750); I(13000, -25000, 6000, 500); I(-34000, 6000, 5000, 600); I(36000, -4000, 4000, 400); I(24000, 30000, 2500, 260); I(-22000, 34000, 1800, 200); bakeCoastMap(); return; }
-  if (id === "okinawa") { const ux = 0.8, uz = 0.6, nx = -0.6, nz = 0.8;
-    for (let t = -60000; t <= 60000; t += 6500) { const big = Math.abs(t) < 15000, r = big ? 5200 : 1500 + rnd() * 2500; I(ux * t + nx * -24000, uz * t + nz * -24000, r, big ? 480 : 120 + rnd() * 250); }
-    for (let i = 0; i < 6; i++) I(-26000 + gauss() * 4000, 22000 + gauss() * 4000, 600 + rnd() * 1200, 80 + rnd() * 150); bakeCoastMap(); return; }
   if (id === "uswest") { for (let z = -70000; z <= 70000; z += 11000) I(42000 + gauss() * 2500, z, 15000 + rnd() * 3000, 700 + rnd() * 600);
     I(22000, 6000, 2600, 60); I(-30000, 12000, 5500, 550); I(-24000, -26000, 3500, 400); bakeCoastMap(); return; }
   if (id === "jeju") { I(-13000, -34000, 14000, 600); I(0, -36000, 16000, 1700); I(13000, -34000, 14000, 600); I(25000, -27000, 1500, 120); I(-4000, -19500, 700, 40); I(-6500, -21000, 1000, 40);
@@ -467,63 +454,6 @@ export function box(p, w, h, d, c, x, y, z) { const m = shadowed(new THREE.Mesh(
 export function cyl(p, rt, rb, h, c, x, y, z, seg = 14) { const m = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat(c))); m.position.set(x, y + h / 2, z); p.add(m); return m; }
 const lineMat = new THREE.LineBasicMaterial({ color: 0x353b3f });
 export function lines(g, pts) { const geo = new THREE.BufferGeometry(); geo.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3)); g.add(new THREE.LineSegments(geo, lineMat)); }
-
-/** Grumman F4F-4 / Zero style carrier fighter. Nose points +Z, up +Y. */
-export function planeMesh(scale = 1, foe = false) {
-  if (PLANE_HQ && !foe) return hqPlane(scale);
-  const g = new THREE.Group(), top = foe ? 0x55603f : 0x5d6f82, under = foe ? 0x9c9d8a : 0xb9c0c6, dark = 0x24282b;
-  const fus = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.66, 0.28, 7.6, 16), mat(top))); fus.rotation.x = PI / 2; fus.position.z = 0.1; g.add(fus);
-  const belly = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.3, 6.6, 16, 1, false, PI * 0.5, PI), mat(under))); belly.rotation.x = PI / 2; belly.position.set(0, -0.08, 0.4); g.add(belly);
-  const cowl = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.79, 0.72, 1.35, 18), mat(top))); cowl.rotation.x = PI / 2; cowl.position.z = 3.92; g.add(cowl);
-  const lip = new THREE.Mesh(new THREE.TorusGeometry(0.66, 0.12, 8, 18), mat(foe ? 0x2c3028 : top)); lip.position.z = 4.56; g.add(lip);
-  const face = new THREE.Mesh(new THREE.CircleGeometry(0.65, 16), mat(dark)); face.position.z = 4.52; g.add(face);
-  for (let i = 0; i < 7; i++) { const a = (i / 7) * TAU, cy = new THREE.Mesh(new THREE.BoxGeometry(0.22, 0.36, 0.22), mat(0x4b5156)); cy.position.set(Math.cos(a) * 0.42, Math.sin(a) * 0.42, 4.46); cy.rotation.z = a; g.add(cy); }
-  const scoop = new THREE.Mesh(new THREE.BoxGeometry(0.32, 0.22, 0.85), mat(dark)); scoop.position.set(0, -0.68, 3.6); g.add(scoop);
-  for (const s of [-1, 1]) { const ex = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.08, 0.42, 6), mat(0x2b2420)); ex.rotation.x = PI / 2; ex.rotation.y = s * 0.25; ex.position.set(s * 0.66, -0.22, 3.18); g.add(ex); }
-  const hub = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.56, 12), mat(0x30353a)); hub.rotation.x = PI / 2; hub.position.z = 4.82; g.add(hub);
-  const prop = new THREE.Group(); prop.position.z = 4.72; g.add(prop);
-  for (let i = 0; i < 3; i++) { const b = new THREE.Mesh(new THREE.BoxGeometry(0.16, 1.5, 0.05), mat(0x1c1e20)); b.position.y = 0.75; const a = new THREE.Group(); a.rotation.z = (i * TAU) / 3; a.add(b); prop.add(a); }
-  const disc = new THREE.Mesh(new THREE.CircleGeometry(1.55, 24), new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.18, depthWrite: false })); disc.position.z = 4.74; g.add(disc);
-  const wing = new THREE.Shape(); wing.moveTo(-5.8, -0.45); wing.lineTo(-5.6, 0.35); wing.lineTo(-1, 1.05); wing.lineTo(1, 1.05); wing.lineTo(5.6, 0.35); wing.lineTo(5.8, -0.45); wing.lineTo(1, -0.95); wing.lineTo(-1, -0.95); wing.closePath();
-  const wg = new THREE.ExtrudeGeometry(wing, { depth: 0.2, bevelEnabled: false }); wg.rotateX(PI / 2);
-  const w = shadowed(new THREE.Mesh(wg, mat(top))); w.position.set(0, -0.25, 0.7); g.add(w);
-  for (const gx of [-2.8, -2.25, 2.25, 2.8]) { const gun = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.04, 0.65, 6), mat(dark)); gun.rotation.x = PI / 2; gun.position.set(gx, -0.25, 1.65); g.add(gun); }
-  const st = new THREE.Shape(); st.moveTo(-2.1, -0.3); st.lineTo(-1.9, 0.25); st.lineTo(1.9, 0.25); st.lineTo(2.1, -0.3); st.lineTo(0, -0.55); st.closePath();
-  const sg = new THREE.ExtrudeGeometry(st, { depth: 0.1, bevelEnabled: false }); sg.rotateX(PI / 2);
-  const s = shadowed(new THREE.Mesh(sg, mat(top))); s.position.set(0, 0.05, -3.3); g.add(s);
-  const fin = shadowed(new THREE.Mesh(new THREE.BoxGeometry(0.1, 1.55, 1.25), mat(top))); fin.position.set(0, 0.85, -3.55); fin.rotation.x = -0.18; g.add(fin);
-  const tw = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 0.08, 8), mat(dark)); tw.rotation.z = PI / 2; tw.position.set(0, -0.32, -3.4); g.add(tw);
-  const tank = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 1.4, 4, 10), mat(under)); tank.rotation.x = PI / 2; tank.position.set(0, -0.58, 0.7); g.add(tank);
-  const can = new THREE.Mesh(new THREE.SphereGeometry(0.5, 14, 10), new THREE.MeshStandardMaterial({ color: 0x223040, metalness: 0.9, roughness: 0.1 })); can.scale.set(0.85, 0.75, 1.7); can.position.set(0, 0.55, 0.3); g.add(can);
-  for (const fz of [-0.15, 0.35, 0.85]) { const ho = new THREE.Mesh(new THREE.TorusGeometry(0.42, 0.03, 6, 14, PI), mat(top)); ho.position.set(0, 0.45, fz); g.add(ho); }
-  const mast = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.58, 0.1), mat(top)); mast.position.set(0, 0.96, -0.35); mast.rotation.x = -0.2; g.add(mast);
-  const ins = new THREE.MeshBasicMaterial({ color: foe ? 0xb8382c : 0x1d2f66 }), star = new THREE.MeshBasicMaterial({ color: 0xf2f2f2 });
-  if (foe) for (const sx of [-3.6, 3.6]) { const c = new THREE.Mesh(new THREE.CircleGeometry(0.62, 16), ins); c.rotation.x = -PI / 2; c.position.set(sx, -0.03, 0.55); g.add(c);
-    const r = new THREE.Mesh(new THREE.RingGeometry(0.62, 0.74, 20), new THREE.MeshBasicMaterial({ color: 0xe9d27a })); r.rotation.x = -PI / 2; r.position.set(sx, -0.025, 0.55); g.add(r); }
-  else for (const sx of [-3.6, 3.6]) { const c = new THREE.Mesh(new THREE.CircleGeometry(0.55, 16), ins); c.rotation.x = -PI / 2; c.position.set(sx, -0.03, 0.55); g.add(c);
-    const st5 = new THREE.Shape(); for (let i = 0; i < 10; i++) { const r = i % 2 ? 0.2 : 0.48, a = PI / 2 + (i * PI) / 5; st5[i ? "lineTo" : "moveTo"](Math.cos(a) * r, Math.sin(a) * r); }
-    const sm = new THREE.Mesh(new THREE.ShapeGeometry(st5), star); sm.rotation.x = -PI / 2; sm.position.set(sx, -0.02, 0.55); g.add(sm); }
-  g.userData = { prop, isPlane: true, sc: scale, foe }; g.scale.setScalar(scale);
-  return g;
-}
-// high-detail F4F (GLB, metres, nose +Z): built once by loadModels(), then every fighter uses it
-let PLANE_HQ = null, BLADE = null, PDISC = null;
-const F4F_K = 11.9;
-function hqPlane(scale) {
-  const g = new THREE.Group(); g.add(PLANE_HQ.clone());
-  if (!BLADE) { BLADE = new THREE.BoxGeometry(0.17, 0.165 * F4F_K, 0.05); BLADE.translate(0, 0.165 * F4F_K / 2, 0); PDISC = new THREE.CircleGeometry(0.165 * F4F_K, 28); }
-  const prop = new THREE.Group(); prop.position.set(0, 0.02 * F4F_K, 0.327 * F4F_K); g.add(prop);
-  for (let i = 0; i < 3; i++) { const b = new THREE.Mesh(BLADE, mat(0x1c1e20)); b.rotation.z = (i * TAU) / 3; prop.add(b); }
-  const disc = new THREE.Mesh(PDISC, new THREE.MeshBasicMaterial({ color: 0x222222, transparent: true, opacity: 0.16, depthWrite: false, side: THREE.DoubleSide })); disc.position.copy(prop.position).z += 0.04; g.add(disc);
-  g.userData = { prop, isPlane: true, hq: true, sc: scale }; g.scale.setScalar(scale);
-  return g;
-}
-/** Swap the GLB fighter in for every procedural one already built (flying or parked on deck). */
-export function setPlaneModel(group) {
-  PLANE_HQ = group; const old = [];
-  scene.traverse((o) => { if (o.userData.isPlane && !o.userData.hq && !o.userData.foe) old.push(o); });
-  for (const o of old) { const n = planeMesh(o.userData.sc); n.position.copy(o.position); n.quaternion.copy(o.quaternion); n.userData.prop.rotation.z = o.userData.prop.rotation.z; o.parent.add(n); o.parent.remove(o); G.onPlaneSwap?.(o, n); }
-}
 
 // ── particles ───────────────────────────────────────────────────────────────
 export class Pool {

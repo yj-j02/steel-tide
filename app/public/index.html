@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Steel Tide — 3D 해전 시뮬레이션</title>
     <meta property="og:title" content="Steel Tide — 3D 해전 지휘" />
-    <meta property="og:description" content="콜로라도·아이오와 등 실존 미 해군 함선을 조선소에서 사고 강화해, 탄도를 계산하며 싸우는 3D 해전. 항모에서 와일드캣을 직접 몰고 출격할 수도 있다." />
+    <meta property="og:description" content="대한민국 해군 이지스함으로 미사일 해전을 지휘하는 3D 해전 시뮬레이션. 계급·보직·참모진·합동지원." />
     <meta property="og:image" content="cover.jpg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -253,7 +253,6 @@
       #wx .mp.on, #camp .mp.on { background:rgba(242,202,92,.20); border-color:var(--gold); border-left:3px solid var(--gold); }
       #camp .mp:disabled { opacity:.35; cursor:default; }
       #wx .mpn, #camp .mpn { grid-column:1/-1; font-size:10.8px; color:var(--cream2); }
-      body.modern #airP { display:none !important; }
       #jetP { position:fixed; right:14px; top:258px; width:236px; max-height:calc(100vh - 404px); overflow:auto; pointer-events:auto; background:var(--glass); backdrop-filter:blur(14px) saturate(1.15); -webkit-backdrop-filter:blur(14px) saturate(1.15); border:1px solid var(--gline); border-top:2px solid var(--gold); border-radius:0; padding:8px 9px; font-size:11.5px; display:none; box-shadow:var(--panel-shadow); }
       body.noglass #jetP { backdrop-filter:none; -webkit-backdrop-filter:none; background:rgba(14,18,15,.94); }
       body.modern #jetP { display:block; } #jetP:empty { display:none !important; } body.cinema #jetP { display:none !important; } #jetP .sortie { width:100%; margin:6px 0; }
@@ -318,16 +317,8 @@
       .card.lock { opacity:.55; } .card.lock .pr { color:var(--dim); }
       #pause.menuset h2, #pause.menuset #quitYardBtn, #pause.menuset #quitMenuBtn, #pause.menuset .btns + div { display:none; }
       #pause .chk { display:flex; gap:8px; align-items:center; font-size:13px; color:var(--dim); }
-      body.cinema .hud, body.cinema #airP, body.cinema #toast, body.cinema #hudc, body.cinema #plotP, body.cinema #log, body.cinema #pauseBtn { display:none !important; }
+      body.cinema .hud, body.cinema #toast, body.cinema #hudc, body.cinema #plotP, body.cinema #log, body.cinema #pauseBtn { display:none !important; }
       #autoBtn { position:fixed; left:50%; bottom:96px; transform:translateX(-50%); font:700 12px/1 "Noto Sans KR",sans-serif; color:var(--fg); background:rgba(7,14,20,.8); border:1px solid var(--line); border-radius:14px; padding:6px 14px; cursor:pointer; display:none; } body.playing #autoBtn { display:block; } body.flying #autoBtn, body.auto #autoBtn { display:none; } #autoBtn.on { background:#8ef07a; color:#0b1217; border-color:#8ef07a; }
-      #airP { position:fixed; right:14px; top:252px; width:230px; max-height:calc(100vh - 270px); overflow:auto; pointer-events:auto; background:rgba(7,14,20,.74); border:1px solid var(--line); border-radius:6px; padding:8px 9px; font-size:11.5px; }
-      body.flying #airP { opacity:.6; } #airP .ah { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; } #airP .ah b { color:#cfe7ff; } #airP .ah span { color:var(--dim); } #airP i { color:var(--bad); font-style:normal; }
-      #airP .ar { display:flex; gap:4px; align-items:center; color:var(--dim); margin:4px 0; } #airP .ar.all { margin-top:8px; }
-      #airP .rb { font:600 11px/1 "Noto Sans KR",sans-serif; background:rgba(255,255,255,.07); color:var(--fg); border:1px solid var(--line); border-radius:3px; padding:4px 6px; cursor:pointer; } #airP .rb.on { background:var(--warn); color:#0b1217; border-color:var(--warn); }
-      #airP .sortie { width:100%; margin:4px 0 2px; font:700 12px/1 "Noto Sans KR",sans-serif; background:#dfe8ec; color:#0b1217; border:0; border-radius:3px; padding:8px; cursor:pointer; } #airP .sortie:disabled { opacity:.45; cursor:default; }
-      #airP .pl { display:flex; flex-wrap:wrap; gap:4px; align-items:center; border-top:1px solid var(--line); padding:6px 0; } #airP .pl.sel .pn { color:var(--warn); }
-      #airP .pn { flex:1 0 100%; display:flex; justify-content:space-between; align-items:baseline; gap:6px; cursor:pointer; font-weight:700; color:#cfe7ff; min-width:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; } #airP .pn small { display:inline; flex:0 1 auto; min-width:0; font-weight:400; color:var(--dim); font-size:10.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-      #airP .pl .rb { flex:1 1 auto; text-align:center; padding:4px 5px; font-size:10.5px; white-space:nowrap; } #airP .rb.home { border-color:rgba(124,196,255,.5); color:#9fd4ff; } #airP .rb.home.on { background:#7cc4ff; color:#0b1217; } #airP .cm { margin-top:6px; color:var(--warn); } #airP .ms2 { color:#7ff0e0; font-weight:700; margin-top:3px; }
 
       /* ═══ High-contrast tactical dark-olive glass & clear Korean hierarchy (2026-11) ═══ */
       :root { --cream:#f4ecd6; --cream2:#dcd1b0; --gold:#f2ca5c; --glass:rgba(14,18,15,.80); --glass-deep:rgba(11,15,12,.90); --gline:rgba(232,220,184,.38); --gline-soft:rgba(232,220,184,.20); --warm:rgba(38,13,12,.86); --ok:#9fe676; --bad:#ff6a55; --warn:#f2ca5c; --panel-shadow:0 10px 26px rgba(0,0,0,.48); }
@@ -339,7 +330,7 @@
       button { font-family:inherit; }
       /* battle panels */
       #shipCard { position:fixed; left:14px; bottom:12px; width:316px; padding:9px 12px; box-sizing:border-box; display:none; flex-direction:column; gap:4px; pointer-events:auto; z-index:4; border-top:2px solid var(--gold); }
-      body.jetfly #shipCard, body.jetfly #wpnBar, body.jetfly #tgtCard, body.jetfly #log, body.jetfly #airP { display:none !important; }
+      body.jetfly #shipCard, body.jetfly #wpnBar, body.jetfly #tgtCard, body.jetfly #log { display:none !important; }
       body.playing #shipCard { display:flex; } body.flying #shipCard, body.flying #wpnBar, body.flying #tgtCard, body.aamode #wpnBar, body.aamode #tgtCard, body.aamode #shipCard, body.aamode #airP, body.aamode #log, body.auto #wpnBar .slot { display:none !important; }
       #shipCard .row, #tgtCard .row { display:flex; align-items:center; gap:7px; } #shipCard .sub, #tgtCard .sub { font:500 11.5px/1.3 "Noto Sans KR",sans-serif; font-variant-numeric:tabular-nums; color:var(--cream2); }
       #shipCard .st, #shipCard .tw { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -367,8 +358,6 @@
       body.noglass #log:not(:empty) { backdrop-filter:none; -webkit-backdrop-filter:none; background:rgba(14,18,15,.94); }
       #plotP { position:fixed; right:14px; top:14px; width:236px; height:236px; padding:0; border-radius:50%; overflow:hidden; background:rgba(12,24,28,.78); border:2px solid rgba(232,220,184,.52); box-shadow:var(--panel-shadow); }
       #plot { width:236px; height:236px; }
-      #airP { top:258px; width:236px; max-height:calc(100vh - 404px); border-radius:0; background:var(--glass); backdrop-filter:blur(14px) saturate(1.15); -webkit-backdrop-filter:blur(14px) saturate(1.15); border:1px solid var(--gline); border-top:2px solid var(--gold); box-shadow:var(--panel-shadow); }
-      body.noglass #airP { backdrop-filter:none; background:rgba(14,18,15,.94); }
       /* ═══ Era-Adaptive Dual Skin: WWII Brass vs Modern Aegis NTDS ═══ */
       body.playing:not(.modern) #shipCard::before { content:"NAVAL COMMAND · SHIP STATUS"; display:block; font:700 9.5px/1 "Special Elite",monospace; letter-spacing:.08em; color:var(--gold); border-bottom:1px dashed var(--gline-soft); padding-bottom:3px; margin-bottom:1px; }
       body.modern { --cream:#e4f7f5; --cream2:#9bc8c3; --gold:#3fc7b5; --glass:rgba(6,18,22,.84); --glass-deep:rgba(4,13,17,.92); --gline:rgba(63,199,181,.44); --gline-soft:rgba(63,199,181,.22); --warm:rgba(34,10,14,.88); --ok:#4de8d4; --warn:#f2b544; --bad:#ff5f52; --panel-shadow:0 10px 28px rgba(0,8,12,.68), inset 0 0 18px rgba(63,199,181,.07); }
@@ -391,11 +380,6 @@
         #log { bottom:96px; right:14px; width:236px; max-height:104px; }
         #airP, #jetP { max-height:calc(100vh - 480px); }
       }
-      #airP .ah b { font:700 13px "Noto Sans KR",sans-serif; letter-spacing:.02em; color:#fff2c6; } #airP .ah span, #airP .pn small { font:500 11px "Noto Sans KR",sans-serif; font-variant-numeric:tabular-nums; color:var(--cream2); }
-      #airP .rb { border-radius:0; background:rgba(10,13,10,.55); border:1px solid var(--gline); font:600 11px "Noto Sans KR",sans-serif; color:var(--cream2); } #airP .rb.on { background:rgba(242,202,92,.26); color:#fff4cf; border-color:var(--gold); }
-      #airP .rb.home { color:#cfe7ff; } #airP .rb.home.on { background:rgba(124,196,255,.3); color:#e6f4ff; }
-      #airP .sortie { border-radius:0; background:rgba(242,202,92,.28); border:1px solid var(--gold); color:#fff4cf; font:700 13px "Noto Sans KR",sans-serif; letter-spacing:.06em; }
-      #airP .pl { border-top:1px dashed var(--gline-soft); } #airP .pn { color:var(--cream); font-family:"Noto Sans KR",sans-serif; }
       #jetP .ah { display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px; } #jetP .ah b { font:700 13px "Noto Sans KR",sans-serif; letter-spacing:.02em; color:#fff2c6; } #jetP .ah span, #jetP .pn small { font:500 11px "Noto Sans KR",sans-serif; font-variant-numeric:tabular-nums; color:var(--cream2); } #jetP i { color:var(--bad); font-style:normal; }
       #jetP .ar { display:flex; gap:4px; align-items:center; color:var(--cream2); margin:4px 0; } #jetP .ar.all { margin-top:8px; }
       #jetP .rb { border-radius:0; background:rgba(10,13,10,.55); color:var(--cream2); border:1px solid var(--gline); font:600 11px/1 "Noto Sans KR",sans-serif; padding:4px 6px; cursor:pointer; } #jetP .rb.on { background:rgba(242,202,92,.26); color:#fff4cf; border-color:var(--gold); }
@@ -706,7 +690,6 @@ body.modern #wpnBar .slot.main { min-width:210px; }
     <canvas id="hudc"></canvas>
     <div id="log" class="hud"></div>
     <div id="plotP" class="hud"><canvas id="plot" width="472" height="472"></canvas></div>
-    <div id="airP" class="hud"></div>
     <div id="jetP" class="hud"></div>
     <button id="flyBack" type="button">본함으로 복귀 (Tab)</button>
     <button id="autoBtn">자동 공격 꺼짐 (Z)</button>
@@ -810,7 +793,7 @@ body.modern #wpnBar .slot.main { min-width:210px; }
             <div class="pk-row"><kbd>마우스 휠</kbd><span>출력(속력) 조정</span></div>
             <div class="pk-row"><kbd>A·D / Q·E</kbd><span>롤 / 러더</span></div>
             <div class="pk-row"><kbd>좌클릭</kbd><span>기관포</span></div>
-            <div class="pk-row"><kbd>Space / 뒤로</kbd><span>대함 / 공대공(마우스 뒤로가기 버튼, B도 가능) · 폭탄(2차대전 B)</span></div>
+            <div class="pk-row"><kbd>Space / 뒤로</kbd><span>대함 / 공대공(마우스 뒤로가기 버튼, B도 가능)</span></div>
             <div class="pk-row"><kbd>T / X</kbd><span>표적 전환 / 플레어</span></div>
             <div class="pk-row"><kbd>L / K</kbd><span>착함 / 자동 조종</span></div>
             <div class="pk-row"><kbd>Alt·휠+마우스</kbd><span>둘러보기</span></div>

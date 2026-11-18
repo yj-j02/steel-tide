@@ -11,13 +11,13 @@ import { cicStart, cicBigFeeds, cicStop, cicStep, cicToggle, cicExpand, cicPendi
 import { post, renderFrame, renderPiP, renderToCanvas } from "./js/post.js";
 import { M as MSL, WPN, launch as mLaunch, JET_US, setTrails, stepMissiles, defend, decoy as mDecoy, pickSam, seen as mSeen, clearMissiles, arm as mArm, SENS as SR, jetFlare, jetGun, killMissile, launchHelo as mHelo, stepHelos, launchJet, stepJets, stepFlares, flaresOf } from "./js/modern.js";
 import { landAt, setWeather, setMapLook } from "./js/core.js";
-import { MODERN, GUNS, SHIPS, CARRIER, ENEMIES, TRANSPORT, FOE_CARRIER, TELE, Ship, table, solve, leadPoint, brain, escort, mkBrain, updateShells, clearShells, paintName, loadModels, MODEL_CFG, RELOAD_K, fireTorps, updateTorps, clearTorps, intercept, torpMount, TORP_SPREAD, torpPath, tubeBearing, hitFX } from "./js/ships.js";
-import { air, autopilot as planeAuto, aimDir, dirFrom, launchPlane, recallPlane, autopilot, takeControl, clearAir, updateAir, predictBomb, gunLead, spawnRaid, MODE_NAMES, ROLE_NAMES } from "./js/air.js";
-import { cockpit, updateCockpit, aaGun, updateAAGun, jetPit, updateJetPit } from "./js/interior.js";
+import { MODERN, TRANSPORT, Ship, solve, leadPoint, brain, escort, mkBrain, updateShells, clearShells, loadModels, fireTorps, updateTorps, clearTorps, intercept, torpMount, TORP_SPREAD, torpPath, tubeBearing, hitFX } from "./js/ships.js";
+import { air, dirFrom, clearAir, updateAir } from "./js/air.js";
+import { aaGun, updateAAGun, jetPit, updateJetPit } from "./js/interior.js";
 import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, updateMG } from "./js/infantry.js";
 import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, ROLE_UNLOCK, FLEET_CDR, BRANCHES, careerTitle, setBranch, POST_RANK, holds, saveStaff } from "./js/staff.js";
-import { PERKS, career, saveCareer, careerInit, rollPerks, takePerk, logPromotion, perkMods, payStep, shipsFor, MEDALS, awardMedals } from "./js/career.js";
-import { ECON_SHIPS, ECON_RANKS, ECON_RANK_XP, econRank, ECON_PARTS, ECON_MAX_LV, econPartCost, econNewProfile, econReward, econCheck, econApply } from "./js/shop.js";
+import { PERKS, career, saveCareer, careerInit, rollPerks, takePerk, logPromotion, perkMods, payStep, MEDALS, awardMedals } from "./js/career.js";
+import { ECON_RANKS, ECON_RANK_XP, econRank, econNewProfile, econReward, econCheck, econApply } from "./js/shop.js";
 
 // ── profile + room connection ───────────────────────────────────────────────
 const CACHE = "steeltide:profile";
@@ -56,18 +56,17 @@ const logs = [];
 function renderLog() { const L = $("#log"); L.innerHTML = ""; for (const l of logs) { const d = document.createElement("div"); d.textContent = l.text; d.className = l.cls; L.append(d); } }
 function log(text, cls = "") { logs.push({ text, cls }); if (logs.length > 6) logs.shift(); renderLog(); }
 G.log = log;
-const PART = { engine: { n: "기관 개량", e: "최대 속력 +5% / 단계" }, fc: { n: "사격통제장치", e: "산포 −15%, 포탑 선회 +10% / 단계" }, gun: { n: "주포 개량", e: "재장전 시간 −8% / 단계" }, armor: { n: "장갑 보강", e: "받는 피해 −8% / 단계" } };
 const signed = (v) => (v >= 0 ? "+" : "−") + fmt(Math.abs(v));
 const kmh = (ms) => Math.round(Math.abs(ms) * 3.6);
 
 // ── rank: the player is the fleet commander; ship captains and pilots hold fixed grades ──
 const myGrade = () => econRank(profile.xp); /* full rank 0 소위 … 10 원수 */
 const myRank = () => Math.max(0, myGrade() - 3);
-const econShipId = () => { const ok = shipsFor(myGrade()); return ok[ok.length - 1]; }; /* rewards and enemy strength still scale with this rank ladder */
-const flagshipId = () => NATIONS.kr.ships[0]; /* 한국 해군 기함 (WWII removed; archive branch ww2-archive) */ /* the navy assigns WWII flagships by rank (no shipyard) */ /* gameplay tier: ships, nations and enemy strength still count from 소령 */
+const econTier = () => { const g = myGrade(); return g >= 7 ? 5 : g >= 6 ? 4 : g >= 4 ? 3 : g >= 3 ? 2 : 1; }; /* reward tier by rank (the old flagship ladder's tiers) */
+const flagshipId = () => NATIONS.kr.ships[0]; /* 한국 해군 기함 (WWII removed; archive branch ww2-archive) */ /* gameplay tier: ships, nations and enemy strength still count from 소령 */
 const RANK_STARS = ["소령", "중령", "대령", "★", "★★", "★★★", "★★★★", "★★★★★"];
 const escortsFor = (r) => Math.min(4, 1 + Math.floor(r / 2));
-const fightersFor = () => 9; // Lexington spots 9 Wildcats for this group
+const fightersFor = () => 9;
 /** WWII US Navy billet typical for each rank (game simplification; see report). */
 const POSTS = ["함정 갑판사관", "함정 작전관", "구축함 부장", "구축함 함장", "구축대 사령 (DesDiv)", "구축전대 사령 · 코모도어 (DesRon)", "기동소함대 사령관 (Task Flotilla)", "기동전단 사령관 (Task Group)", "기동부대 사령관 (Task Force)", "함대 사령장관 (Fleet)", "태평양 함대 총사령관 (CINCPAC)"];
 const postOf = (r) => staff.branch ? careerTitle(clamp(r, 0, 10)) : POSTS[clamp(r, 0, POSTS.length - 1)]; /* career follows the branch picked as 소위 */
@@ -144,20 +143,13 @@ function insigniaField(r, size = 24) { // US Navy collar devices: oak leaf (gold
 
 // ── missions ────────────────────────────────────────────────────────────────
 const MISSIONS = {
-  fleet: { n: "함대 결전", d: "적 함대를 전멸시켜라. 티어 3 이상은 적 항모가 함께 나온다." },
-  convoy: { n: "호송 작전", d: "수송선 3척을 약 7 km 앞 집결지까지 호위하라. 2척을 잃으면 실패. (보상 +30%)" },
   modern: { n: "현대전 · 미사일 해전", d: "이지스함 대 적 구축함. 대함미사일과 다층 방공 — 1단계 (계급·크레딧 공유)" },
-  raid: { n: "진주만 방어", d: "적 공습 3파와 수상 함대로부터 정박 함선을 지켜라. 2척을 잃으면 실패. (보상 +30%)" },
 };
 for (const [k, v] of Object.entries(OPS)) MISSIONS[k] = v; // modern operations (ops.js)
 // who you can command and whom you fight: rank (index into ECON_RANKS) needed for each
 const SIDE_US = { kr: 0, us: 0, jp: 4 }, SIDE_FOE = { nk: 0, cn: 2 };
 function fixNations() { const rk = myRank(); natUs = "kr"; /* 한국편 only for now */ if (!(SIDE_FOE[natFoe] <= rk)) natFoe = "nk"; }
 let natUs = "kr", natFoe = "nk"; try { const a = localStorage.getItem("steeltide:natUs"), b = localStorage.getItem("steeltide:natFoe"); if (NATIONS[a]) natUs = a; if (NATIONS[b]) natFoe = b; } catch {}
-// ── campaign: five Pacific battles in order, each unlocked by winning the one before ──
-const CAMP = [{ n: "진주만", d: "1941.12 · 정박 함선을 공습에서 지켜라", m: "raid", map: "pearl" }, { n: "산호해", d: "1942.5 · 남태평양 군도 함대 결전", m: "fleet", map: "arch" },
-  { n: "미드웨이", d: "1942.6 · 적 항모를 동반한 기동부대", m: "fleet", map: "arch", cv: true }, { n: "과달카날", d: "1942.11 · 야간 호송 작전", m: "convoy", map: "arch", tod: "night" },
-  { n: "오키나와", d: "1945.4 · 폭풍 속 최후의 결전", m: "fleet", map: "okinawa", wx: "storm" }];
 // ── 한반도 시나리오 (fictional): a modern campaign, each stage built on one modern operation ──
 const KCAMP = [
   { n: "서해 초계", d: "백령도 근해 · 무인기 떼 기습", m: "modern:drone", map: "west", brief: ["가상의 20XX년. 서해 북방 해상의 긴장이 높아진 가운데, 백령도 근해를 초계하던 아군 전단에 정체불명의 무인기 떼가 다가온다.", "목표 — 자폭 드론 4차례 공격을 막고 군수지원함을 지켜라.", "할 일 — 자동 방공(근접방어무기·요격미사일)만으론 드론 떼를 다 못 막는다. G로 직접 대공 사격해 드론을 떨어뜨리고, 떼가 몰려오면 E로 재밍(전자전)해 통신을 끊어라. 기함을 군수지원함과 드론 사이로 옮겨 막아서는 것도 중요하다.", "팁 — 화면 위 상황판에 남은 드론과 다음 공격까지 남은 시간이 나온다. Space는 수동 요격탄(수가 적다)."] },
@@ -167,9 +159,9 @@ const KCAMP = [
   { n: "제주 남방 결전", d: "제주 남쪽 · 야간 EMCON 기습", m: "modern:emcon", map: "jeju", tod: "night", brief: ["제주 남쪽 해상에 적 주력 함대가 모였다. 수적 열세를 뒤집으려면 먼저 보고 먼저 쏴야 한다.", "목표 — 레이더를 끈 채(EMCON) 밤바다로 접근해 적 함대를 격멸하라.", "팁 — 적은 레이더를 켜고 있어 전자지원(ESM)으로 먼저 잡힌다. 아군 레이더(O)를 켜는 순간 들킨다. 해안 포대·공군 지원을 섞어라."] },
   { n: "섬 탈환 (보너스)", d: "가상의 섬 · 상륙 지원 함포", m: "modern:shore", map: "arch", bonus: true, brief: ["가상의 섬을 되찾기 위한 상륙 작전. 해안포와 대함미사일 진지가 상륙정을 노린다.", "목표 — 해안포·미사일 진지를 함포로 부수고 상륙정 2척 이상을 해안에 올려라.", "팁 — Q로 함포를 고르고 육지 목표를 더블클릭해 조준한 뒤 Space."] },
 ];
-let campEra = "ww2", kProg = 0, kStars = [], kFail = []; try { const k = JSON.parse(localStorage.getItem("steeltide:kcamp") || "null"); if (k) { kProg = k.p || 0; kStars = k.s || []; kFail = k.f || []; } } catch {}
+let kProg = 0, kStars = [], kFail = []; try { const k = JSON.parse(localStorage.getItem("steeltide:kcamp") || "null"); if (k) { kProg = k.p || 0; kStars = k.s || []; kFail = k.f || []; } } catch {}
 const saveK = () => { try { localStorage.setItem("steeltide:kcamp", JSON.stringify({ p: kProg, s: kStars, f: kFail })); } catch {} };
-const CAMPS = () => (campEra === "modern" ? KCAMP : CAMP);
+const CAMPS = () => KCAMP;
 const kLocked = (i) => (KCAMP[i].bonus ? kProg < 5 : i > kProg);
 function kcampHTML() {
   return KCAMP.map((c, i) => { const lock = kLocked(i), st = kStars[i] || 0;
@@ -181,7 +173,7 @@ let wz = "era", wzMode = "ops";
 const WZ_BACK = { camp: "mode", ops: "mode", nat: "ops", map: () => (isModernOp(mission) ? "nat" : "ops") };
 function showWz(s, quiet) { wz = s; for (const el of document.querySelectorAll("#opsP .wz")) el.classList.toggle("on", el.dataset.step === s); $("#opsP .wz-back").disabled = s === "mode"; wzCrumb(); if (!quiet) sfx.click(); }
 function wzCrumb() {
-  const era = isModernOp(mission) ? "현대전" : "2차대전", parts = [`<b>${era}</b>`];
+  const era = "현대전", parts = [`<b>${era}</b>`];
   if (wz !== "era" && wz !== "mode") parts.push(wz === "camp" ? (era === "현대전" ? "한반도 시나리오" : "태평양 캠페인") : "단일 작전");
   if (wz === "nat" || wz === "map") parts.push(MISSIONS[mission]?.n || "");
   if ((wz === "map") && isModernOp(mission)) parts.push(`${NATIONS[natUs].n} vs ${NATIONS[natFoe].n}`);
@@ -201,12 +193,11 @@ function kFinish(won) {
   if (i === kProg && !c.bonus) kProg = Math.min(5, i + 1); saveK();
   $("#endTitle").textContent += won ? ` · 한반도 ${c.bonus ? "보너스" : `${i + 1}단계`} ${c.n} ${"★".repeat(stars)}${"☆".repeat(3 - stars)}` : ` · ${c.n} 실패${!c.bonus && i < 4 ? ` — 다음 단계(${KCAMP[i + 1].n})는 더 어려워진다` : ""}`;
 }
-let campSel = null, campProg = 0; try { campProg = Math.min(CAMP.length, +localStorage.getItem("steeltide:camp") || 0); } catch {}
+let campSel = null;
 let todSel = "day", wxSel = "clear"; try { todSel = localStorage.getItem("steeltide:tod") === "night" ? "night" : "day"; wxSel = localStorage.getItem("steeltide:wx") === "storm" ? "storm" : "clear"; } catch {}
 let killcamOn = true; try { killcamOn = localStorage.getItem("steeltide:killcam") !== "0"; } catch {}
 let trailsOn = true; try { trailsOn = localStorage.getItem("steeltide:trails") !== "0"; } catch {} setTrails(trailsOn); /* missile trail lines, settings checkbox */
-let formI = 0;
-let theater = "arch"; try { const m = localStorage.getItem("steeltide:map"); if (MAPS[m]) theater = m; } catch {}
+let theater = "west"; try { const m = localStorage.getItem("steeltide:map"); if (MAPS[m]) theater = m; } catch {}
 // ── commander (사령관): name + one of four portraits, kept in this browser ──
 const CMDR_FACES = [
   { n: "노장 제독", skin: ["#e3b896", "#b98463", "#8a5a40"], hair: "#dcdcd6", brow: "#cfcfc8", age: 3, must: "full", glass: false, fem: false, jaw: 1.06, bg: "#2b3640" },
@@ -292,16 +283,12 @@ function saveCmdr() {
 }
 // content trimmed for now (code for the others stays): fleet battle, missile battle, convoy escort
 const ACTIVE = ["modern", "modern:convoy"]; /* 2차대전 removed (branch ww2-archive) */
-let ww2Mission = "fleet"; try { const m = localStorage.getItem("steeltide:ww2mission"); if (m && !isModernOp(m) && ACTIVE.includes(m)) ww2Mission = m; } catch {}
 let mission = "modern"; try { const m = localStorage.getItem("steeltide:mission"); if (MISSIONS[m] && ACTIVE.includes(m)) mission = m; } catch {}
 
 // ── battle setup ────────────────────────────────────────────────────────────
 let endT = 0, show = null, showId = null, ap = mkBrain(9);
-const FLEETS = { 1: [1, 1], 2: [2, 1], 3: [3, 2, 1], 4: [4, 2, 1], 5: [5, 4, 2] };
 const STATIONS = [[0, 0], [650, 520], [650, -520], [1300, 0], [1300, 1040], [1300, -1040], [1950, 520], [1950, -520]];
 /** WWII enemy ships get refits one level below the player's ship (refits used to make only our side stronger; full parity was too hard because our AI allies have none). */
-const foeUpg = () => { if (G.modern || !G.player?.upg) return {}; const u = {}; for (const k of ECON_PARTS) u[k] = Math.max(0, (G.player.upg[k] || 0) - 1); return u; };
-const ALLY_POOL = ["fletcher", "cleveland", "fletcher", "baltimore"], ALLY_ST = [[450, -420], [700, 480], [-650, 0], [1200, -480]];
 const placeAt = (lx, lz, h, back, side) => [lx - Math.cos(h) * back + Math.sin(h) * side, lz - Math.sin(h) * back - Math.cos(h) * side];
 function disposeAll() {
   for (const s of G.ships) s.dispose(); G.ships = []; G.player = G.enemy = G.carrier = G.foeCarrier = null; G.enemies = []; G.allies = []; G.convoy = []; G.events = []; G.cts.clear();
@@ -309,40 +296,24 @@ function disposeAll() {
 }
 function showcase(id) {
   if (showId === id && show) return;
-  disposeAll(); show = new Ship(MODERN[id] || SHIPS[id], 0, 0, 0, "us", perkMods().upg); show.tele = 3; show.speed = show.vmax * 0.5; G.ships = [show]; G.player = show; showId = id;
+  disposeAll(); show = new Ship(MODERN[id], 0, 0, 0, "us", perkMods().upg); show.tele = 3; show.speed = show.vmax * 0.5; G.ships = [show]; G.player = show; showId = id;
 }
 const uniq = (list) => { for (const s of list) { const same = list.filter((o) => o.spec === s.spec); if (same.length > 1) s.name = `${s.spec.short} ${same.indexOf(s) + 1}`; } };
 /** An enemy squadron: first ship leads (brain), the rest keep station on it; optional carrier astern. */
-function foeGroup(tiers, cx, cz, h, withCarrier, free = false) {
-  const out = tiers.map((t, i) => { const [x, z] = placeAt(cx, cz, h, ...STATIONS[i]); const s = new Ship(ENEMIES[t], x, z, h, "foe", foeUpg()); s.station = STATIONS[i]; s.br = mkBrain(18 + i * 5); s.free = free && i === 0; return s; });
-  if (withCarrier) { const [x, z] = placeAt(cx, cz, h, 3400, 0); const c = new Ship(FOE_CARRIER, x, z, h, "foe", foeUpg()); c.br = mkBrain(30); c.isCarrier = true; out.push(c); G.foeCarrier = c; G.foeSquad = 8 + (SHIPS[econShipId()].tier >= 4 ? 1 : 0); G.foePlaneCD = 35; }
-  for (const s of out) s.group = out;
-  G.enemies.push(...out); G.ships.push(...out); return out;
-}
 /** Second front: an allied AI task unit and an enemy AI unit that go for each other (they still shoot anything in reach). */
-function aiFleets(tier, b) {
-  const sd = b >= 0 ? -1 : 1, ax = -800, az = sd * 4600, keys = tier >= 3 ? ["cleveland", "fletcher", "fletcher"] : ["fletcher", "fletcher"];
-  const ea = sd * 1.15, ex = Math.cos(ea) * 13500, ez = Math.sin(ea) * 13500, toE = Math.atan2(ez - az, ex - ax);
-  const unit = keys.map((k, i) => { const s = new Ship(SHIPS[k], ax - Math.cos(toE) * i * 650, az - Math.sin(toE) * i * 650, toE, "us"); s.aiFleet = true; s.br = mkBrain(16 + i * 4); s.name = `${SHIPS[k].short} (제2전대)`; return s; });
-  G.allies.push(...unit); G.ships.push(...unit);
-  const eg = foeGroup(tier >= 3 ? [2, 1, 1] : [1, 1], ex, ez, wrap(toE + PI), false, true); for (const e of eg) e.aiFleet = true;
-}
 function newBattle() {
-  disposeAll(); logs.length = 0; renderLog(); const mapId = mission === "raid" ? "pearl" : theater; makeIslands(mapId);
-  const CS = campSel != null ? CAMPS()[campSel] : null; G.camp = campSel; G.campEra = campEra; G.hard = !!(CS && campEra === "modern" && campSel > 0 && !CS.bonus && kFail[campSel - 1]); G.tod = CS ? CS.tod || "day" : mission === "modern:emcon" ? "night" : todSel; G.wx = CS ? CS.wx || "clear" : wxSel; setWeather(G.tod, G.wx);
-  G.visK = (G.tod === "night" ? 0.55 : 1) * (G.wx === "storm" ? 0.7 : 1); G.wxDisp = G.wx === "storm" ? 1.35 : 1; G.kc = null; formI = 0;
-  const id = econShipId(), spec = SHIPS[id], rk = myRank(), tier = spec.tier;
+  disposeAll(); logs.length = 0; renderLog(); const mapId = theater; makeIslands(mapId);
+  const CS = campSel != null ? CAMPS()[campSel] : null; G.camp = campSel; G.campEra = "modern"; G.hard = !!(CS && campSel > 0 && !CS.bonus && kFail[campSel - 1]); G.tod = CS ? CS.tod || "day" : mission === "modern:emcon" ? "night" : todSel; G.wx = CS ? CS.wx || "clear" : wxSel; setWeather(G.tod, G.wx);
+  G.visK = (G.tod === "night" ? 0.55 : 1) * (G.wx === "storm" ? 0.7 : 1); G.wxDisp = G.wx === "storm" ? 1.35 : 1; G.kc = null;
+  const rk = myRank();
   G.dryT = null; G.lastHitT = 0; G.mission = mission; G.result = null; G.goal = null; G.waves = null; G.foeLaunched = false; G.events = []; G.foeSquad = 0; G.foePlaneCD = 0;
-  const modern = isModernOp(mission), OP = modern ? mission : null; G.modern = modern; G.mop = OP; G.staffK = modern ? staffMods(hqGrade(), hqBranch()) : null; G.perkK = perkMods(); /* promotion perks, both eras */ /* fleet HQ staff shape every modern battle, auto included */ if (modern) G.mission = "modern"; // economy and results count every modern operation as "modern" modern && (MSL.cam = null);
-  const pSpec = modern ? MODERN[NATIONS[natUs].ships[0]] : spec;
-  G.mastFlag = null; const P = new Ship(pSpec, 0, 0, 0, "us", perkMods().upg); P.isPlayer = true; P.name = pSpec.short; P.nav = []; P.lv = 3; P.lastLv = 3; if (modern) { P.nation = natUs; mArm(P); }
-  const anchored = mission === "raid";
-  const C = modern ? null : new Ship(CARRIER, anchored ? -2600 : -1700, anchored ? 300 : -900, 0, "us"); if (C) { C.speed = anchored ? 0 : C.vmax * 0.6; C.name = "렉싱턴"; }
-  const allies = modern ? [[-700, 900], ...(rk >= 3 ? [[-700, -900]] : [])].map((st, i) => { const [x, z] = placeAt(0, 0, 0, ...st); const s = new Ship(MODERN[NATIONS[natUs].ships[1]], x, z, 0, "us"); s.station = st; s.br = mkBrain(14 + i * 3); s.name = s.spec.short + (i ? " 2" : ""); s.nation = natUs; mArm(s); return s; }) // a second escort at higher rank, like the enemy's
-    : ALLY_POOL.slice(0, escortsFor(rk)).map((k, i) => { const st = ALLY_ST[i]; const [x, z] = placeAt(0, 0, 0, ...st); const s = new Ship(SHIPS[k], x, z, 0, "us"); s.station = st; s.br = mkBrain(14 + i * 4); s.name = SHIPS[k].short; return s; });
+  const modern = true, OP = mission; G.modern = modern; G.mop = OP; G.staffK = modern ? staffMods(hqGrade(), hqBranch()) : null; G.perkK = perkMods(); /* promotion perks, both eras */ /* fleet HQ staff shape every modern battle, auto included */ if (modern) G.mission = "modern"; // economy and results count every modern operation as "modern" modern && (MSL.cam = null);
+  const pSpec = MODERN[flagshipId()];
+  G.mastFlag = null; const P = new Ship(pSpec, 0, 0, 0, "us", perkMods().upg); P.isPlayer = true; P.name = pSpec.short; P.nav = []; P.lv = 3; P.lastLv = 3; P.nation = natUs; mArm(P);
+  const allies = [[-700, 900], ...(rk >= 3 ? [[-700, -900]] : [])].map((st, i) => { const [x, z] = placeAt(0, 0, 0, ...st); const s = new Ship(MODERN[NATIONS[natUs].ships[1]], x, z, 0, "us"); s.station = st; s.br = mkBrain(14 + i * 3); s.name = s.spec.short + (i ? " 2" : ""); s.nation = natUs; mArm(s); return s; }) // a second escort at higher rank, like the enemy's;
   uniq(allies);
-  G.ships = [P, ...allies, ...(C ? [C] : [])]; G.player = P; G.allies = allies; G.carrier = C;
-  if (modern) {
+  G.ships = [P, ...allies]; G.player = P; G.allies = allies; G.carrier = null;
+  {
     let b = (25 + rnd() * 30) * DEG * (rnd() < 0.5 ? -1 : 1); const r = 16000 + rnd() * 2000;
     for (let k = 0; k < 16 && landAt(Math.cos(b) * r, Math.sin(b) * r, 4500); k++) b = wrap(b + 0.4); // open water for the enemy group
     const eh = wrap(PI + b + (rnd() - 0.5) * 0.8), N = NATIONS[natFoe];
@@ -360,29 +331,6 @@ function newBattle() {
       let gx = Math.cos(b) * 24000, gz = Math.sin(b) * 24000, k = 0; while (landAt(gx, gz, 2000) && k++ < 40) { gx *= 0.95; gz *= 0.95; }
       G.goal = { x: gx, z: gz, label: "목적지" }; G.waves = { n: 1, max: 3, modern: true, keys0, nat: natFoe, rk, pending: false, told: false }; }
     opsInit(OP, { P, Ship, TRANSPORT, mkBrain, log, toast, hard: G.hard });
-  } else if (mission === "convoy") {
-    G.convoy = [0, 1, 2].map((i) => { const s = new Ship(TRANSPORT, -500 - i * 520, -1100, 0, "us"); s.name = `수송선 ${i + 1}`; s.br = mkBrain(20); s.speed = s.vmax * 0.8; return s; });
-    G.goal = { x: 6500, z: -1100 }; G.ships.push(...G.convoy);
-    const b = (35 + rnd() * 25) * DEG * (rnd() < 0.5 ? -1 : 1), r = 10400, h = wrap(PI + b + (rnd() - 0.5) * 0.6);
-    foeGroup(FLEETS[tier], 4000 + Math.cos(b) * r * 0.5, Math.sin(b) * r * 0.85, h, true); aiFleets(tier, b);
-    G.events.push({ t: 110, fn: () => { const s = -Math.sign(G.enemies[0].pos.z || 1), cz = G.player.pos.z + s * 7400, cx = G.player.pos.x + 4000; foeGroup([1, 1], cx, cz, Math.atan2(G.player.pos.z - cz, G.player.pos.x - cx), false, true); log("측면에서 적 구축함 2척 접근!", "bad"); G.radio("torp_warn"); } });
-  } else if (mission === "raid") {
-    addIsland(400, 3400, 2200, 320);
-    const md = new Ship(SHIPS.colorado, 900, 1200, 0, "us"); md.name = "메릴랜드 (정박)"; md.speed = 0;
-    G.convoy = [md, ...[0, 1].map((i) => { const s = new Ship(TRANSPORT, -900 + i * 800, 1500, 0.2, "us"); s.name = `수송선 ${i + 1} (정박)`; s.speed = 0; return s; })];
-    for (const s of G.convoy) { s.anchored = true; s.br = mkBrain(10); } G.ships.push(...G.convoy);
-    P.lv = 0; for (const a of allies) a.speed = 0;
-    const from = -PI / 2 + (rnd() - 0.5) * 1.2, wave = (n) => () => { const a = from + (rnd() - 0.5) * 0.5; spawnRaid(Math.cos(a) * 16000, Math.sin(a) * 16000, a + PI, n); log(`적 공습 ${n}기 접근! 대공 전투 배치`, "bad"); G.radio("battle"); sfx.alarm(); };
-    G.events.push({ t: 6, fn: wave(8) }, { t: 95, fn: wave(8 + (tier >= 3 ? 1 : 0)) },
-      { t: 190, fn: () => { wave(9)(); const a = from + 0.9; foeGroup([Math.min(tier, 2), 1, 1], Math.cos(a) * 9400, Math.sin(a) * 9400, a + PI, false, true); log("적 수상 함대 접근!", "bad"); } });
-  } else {
-    const fleet = mission === "fleet" && !CS ? FLEETS[tier] : [...FLEETS[tier], 1], E = ENEMIES[fleet[0]]; /* wave battle starts with the usual fleet; campaign stages get one more destroyer */
-    const b = (28 + rnd() * 30) * DEG * (rnd() < 0.5 ? -1 : 1), r = E.range[0] + rnd() * (E.range[1] - E.range[0]) + 3500, eh = wrap(PI + b + (rnd() - 0.5) * 1.2);
-    foeGroup(fleet, Math.cos(b) * r * 0.67, Math.sin(b) * r * 0.67, eh, tier >= 3 || !!CS?.cv); aiFleets(tier, b);
-    if (mission === "fleet" && !CS) { /* fleet battle: three enemy fleets one after another on the way, and the flagship must reach the destination */
-      let gx = Math.cos(b) * 12000, gz = Math.sin(b) * 12000, k = 0; while (landAt(gx, gz, 1500) && k++ < 40) { gx *= 0.95; gz *= 0.95; }
-      G.goal = { x: gx, z: gz, label: "목적지" }; G.waves = { n: 1, max: 3, tier, pending: false, told: false }; }
-    if (tier < 3) G.events.push({ t: 75, fn: () => { const a = b + (rnd() - 0.5) * 0.6; spawnRaid(Math.cos(a) * 15000, Math.sin(a) * 15000, a + PI, 8); log("적 육상기 편대 8기 접근! 대공 전투 배치", "bad"); G.radio("battle"); sfx.alarm(); } });
   }
   for (const s of G.ships) { let k = 0; const L = Math.hypot(s.pos.x, s.pos.z) || 1; while (landAt(s.pos.x, s.pos.z, 1200) && k++ < 80) { s.pos.x -= (s.pos.x / L) * 500; s.pos.z -= (s.pos.z / L) * 500; } } // spawned on land: slide toward the open battle area
   if (hqGrade() >= 6 && G.player) try { addMastFlag(G.player, hqGrade() - 5); } catch (e) { console.warn("flag", e); }
@@ -394,10 +342,10 @@ function newBattle() {
   cam.yaw = 0; cam.pitch = 0.95; cam.dist = 1300; cam.map = false; cam.free = false; cam.tgt = null; cam.focus.copy(P.pos); hintT = 22;
   const first = G.enemies[0];
   log(`전장: ${MAPS[mapId].n}${G.tod === "night" ? " · 야간" : ""}${G.wx === "storm" ? " · 폭풍" : ""} · ${ECON_RANKS[myGrade()]} ${cmdr.name} 사령관 지휘 개시`);
-  if (CS) log(`${campEra === "modern" ? "한반도 시나리오" : "캠페인"} ${CS.bonus ? "보너스" : `${campSel + 1}단계`} — ${CS.n}: ${CS.d}${G.hard ? " · 난이도 상승" : ""}`, "hit");
+  if (CS) log(`한반도 시나리오 ${CS.bonus ? "보너스" : `${campSel + 1}단계`} — ${CS.n}: ${CS.d}${G.hard ? " · 난이도 상승" : ""}`, "hit");
   if (G.tod === "night" || G.wx === "storm") log(`시정 불량 — 피탐 거리 ×${G.visK.toFixed(2)}${G.wxDisp > 1 ? " · 포 산포 +35%" : ""}`);
   if (G.waves) log(`${G.modern ? "미사일전" : "함대 결전"} — 적 함대 ${G.waves.max}개가 차례로 막아선다. 목적지(${fmt(Math.hypot(G.goal.x, G.goal.z))} m)로 항진 — 함대를 모두 격파하면 그 자리에서 임무 완료`, "hit");
-  log(mission === "raid" ? "진주만 — 정박 중. 적 공습 예상!" : mission === "convoy" ? `호송 작전 개시 — 집결지까지 ${fmt(G.goal.x)} m` : `${first ? `${first.spec.name} 외 ${G.enemies.length - 1}척 접근 중. 전투 배치!` : `작전: ${MISSIONS[G.mop]?.n || ""} — ${MISSIONS[G.mop]?.d || ""}`}`);
+  log(`${first ? `${first.spec.name} 외 ${G.enemies.length - 1}척 접근 중. 전투 배치!` : `작전: ${MISSIONS[G.mop]?.n || ""} — ${MISSIONS[G.mop]?.d || ""}`}`);
   G.radio("battle");
   if (G.staffK) { const k = G.staffK, o = officer(staff.a.ops), c = officer(staff.a.cos); log(`참모진 — 참모장 ${c.rk} ${c.nm} · 작전과장 ${o.rk} ${o.nm} | 화력 ${pctTxt(k.outK)} · 받는 피해 ${pctTxt(k.inK)} · 요격 ${pctTxt(k.icptK)}`); }
   if (modern) { const F = CMDR_FACES[cmdr.face] || CMDR_FACES[0]; cicStart({ md, face: face(myFace(), 110), faceSkin: F.skin?.[0], cmdrName: `${ECON_RANKS[myGrade()]} ${cmdr.name}`, nat: natUs, theater: mapId, toast, log, radio: G.radio, know, watchJet, watchMsl, isWatching: (j) => md.fly === j }); } else cicStop();
@@ -405,11 +353,10 @@ function newBattle() {
 G.toast = (m, t) => toast(m, t);
 G.onShellLand = (p, g, o) => G.modern && opsShellLand(p, g, o);
 G.onSunk = (ship) => {
-  if (ship === G.carrier) { log("렉싱턴 침몰! 더 이상 출격할 수 없습니다", "bad"); G.radio("ally_sunk"); return; }
   if (ship.side === "us" && !ship.isPlayer) { log(`${ship.name} 침몰!`, "bad"); G.radio("ally_sunk"); return; }
   if (ship.isPlayer) { log(`${ship.spec.short} 침몰 중… 총원 퇴함!`, "bad"); G.radio("abandon"); return; }
   G.ribbon(ship.isCarrier ? "항모 격침" : "격침"); const left = G.enemies.filter((e) => e.alive).length;
-  if (killcamOn && !G.plane && !(md.fly && md.fly.alive) && !cap.fps && !aa.on && !cam.map && (G.modern || G.battleT - (ship.myHitT ?? -99) < 30)) G.kc = { ship, t: 2.5, a: Math.atan2(camera.position.z - ship.pos.z, camera.position.x - ship.pos.x) };
+  if (killcamOn && !(md.fly && md.fly.alive) && !cap.fps && !aa.on && !cam.map && (G.modern || G.battleT - (ship.myHitT ?? -99) < 30)) G.kc = { ship, t: 2.5, a: Math.atan2(camera.position.z - ship.pos.z, camera.position.x - ship.pos.x) };
   log(left ? `${ship.name} 격침! 남은 적 ${left}척` : "적 함대 전멸!", "hit"); G.radio(left ? "sunk" : "fleet");
 };
 
@@ -464,23 +411,8 @@ const d2 = (a, b) => Math.hypot(a.x - b.x, a.z - b.z);
 const ours = () => G.ships.filter((s) => s.side === "us" && s.alive);
 const seenFoes = () => G.enemies.filter((e) => e.alive && e.root.visible);
 function fogStep(dt) {
-  const us = ours(), usPl = air.planes.filter((p) => p.side === "us" && p.alive), foePl = air.planes.filter((p) => p.side === "foe" && p.alive);
   for (const s of G.ships) s.revealT = Math.max(0, (s.revealT || 0) - dt);
-  if (G.modern) { sensorStep(dt); return; }
-  for (const e of G.enemies) {
-    let v = G.auto || !e.alive || e.revealT > 0;
-    if (!v) for (const s of us) if (d2(s.pos, e.pos) < conceal(e)) { v = true; break; }
-    if (!v) for (const p of usPl) if (d2(p.pos, e.pos) < 5000) { v = true; break; }
-    if (v && !e.root.visible && e.alive && G.battleT > 1) { log(`적 발견: ${e.name} (${(d2(G.player.pos, e.pos) / 1000).toFixed(1)} km)`, "hit"); sfx.click(); }
-    e.root.visible = v; if (v) e.last = { x: e.pos.x, z: e.pos.z, h: e.heading, t: G.time };
-  }
-  const foes = G.enemies.filter((e) => e.alive);
-  for (const s of us) {
-    let v = s.revealT > 0;
-    if (!v) for (const e of foes) if (d2(s.pos, e.pos) < conceal(s)) { v = true; break; }
-    if (!v) for (const p of foePl) if (d2(p.pos, s.pos) < 5000) { v = true; break; }
-    s.seenByFoe = v;
-  }
+  sensorStep(dt);
 }
 /** Enemy target choice: spread fire over our ships (fewer guns on a ship others already shoot at), the flagship a little less wanted; sticky for 25-40 s. */
 function pickFoe(e, list) {
@@ -501,8 +433,7 @@ function fleetAI(dt) {
   for (const e of G.enemies) {
     if (!e.alive) { e.rudderCmd = 0; continue; }
     const flag = e.group.find((o) => o.alive && !o.isCarrier);
-    const conv = G.convoy.filter((c) => c.alive && c.seenByFoe);
-    let t = (G.mission === "convoy" && conv.length ? nearestOf(e, conv) : null) || pickFoe(e, seen);
+    let t = pickFoe(e, seen);
     if (e.aiFleet) t = nearestOf(e, us.filter((s) => s.aiFleet && s.seenByFoe)) || t;
     e.br.blind = !t; if (!t) t = nearestOf(e, us) || P;
     if (e.isCarrier) { if (flag) escort(e, flag, dt, 3400, 0); else brain(e, t, e.br, dt); continue; }
@@ -515,25 +446,7 @@ function fleetAI(dt) {
     if (a.order) { const dx = a.order.x - a.pos.x, dz = a.order.z - a.pos.z, dd = Math.hypot(dx, dz); if (dd > 260) { a.rudderCmd = clamp(wrap(Math.atan2(dz, dx) - a.heading) * 2.2, -1, 1); a.tele = dd > 1200 ? 5 : 3; } else { a.tele = 1; a.rudderCmd = 0; } continue; }
     if (a.aiFleet) { const g = nearestOf(a, vis.filter((e) => e.aiFleet)) || t || nearestOf(a, G.enemies.filter((e) => e.aiFleet)) || nearestOf(a, G.enemies); a.br.blind = !t; if (g) brain(a, g, a.br, dt); continue; }
     if (!a.station) { if (a.anchored) { a.tele = 1; a.rudderCmd = 0; } continue; } // operation ships (supply ship, convoy) are steered by ops.js
-    if (G.mission === "raid" && G.battleT < 185) { a.tele = 1; a.rudderCmd = 0; }
-    else if (P.alive) escort(a, P, dt, a.station[0], a.station[1]); else if (t) brain(a, t, a.br, dt);
-  }
-  for (const c of G.convoy) {
-    if (!c.alive) { c.rudderCmd = 0; continue; }
-    const t = nearestOf(c, vis); if (t) { c.br.blind = false; brain(c, t, c.br, dt, false); }
-    if (c.anchored) { c.tele = 1; c.rudderCmd = 0; continue; }
-    if (c.arrived) { c.tele = 1; c.rudderCmd = 0; continue; }
-    const w = Math.atan2(G.goal.z - c.pos.z, G.goal.x - c.pos.x); c.rudderCmd = clamp(wrap(w - c.heading) * 2.2, -1, 1); c.tele = 4;
-    if (d2(c.pos, G.goal) < 700) { c.arrived = true; log(`${c.name} 집결지 도착`, "hit"); sfx.bell(); }
-  }
-  const C = G.carrier;
-  if (C && C.alive) { if (G.mission === "raid") { C.tele = 1; C.rudderCmd = 0; } else if (P.alive) escort(C, P, dt); }
-  // automatic battle: the carrier keeps fighters in the air
-  if (G.auto && C && C.alive && G.squad > 0 && G.planeCD <= 0 && (vis.length || air.planes.some((p) => p.side === "foe" && p.alive)) && air.planes.filter((p) => p.side === "us" && p.alive).length < 6) launchPlane(true, "us", "auto");
-  // enemy carrier strikes once our ships are within reach
-  const F = G.foeCarrier;
-  if (F && F.alive && G.foeSquad > 0 && G.foePlaneCD <= 0 && air.planes.filter((p) => p.side === "foe" && p.alive).length < 9) {
-    const n = nearestOf(F, us); if (n && d2(n.pos, F.pos) < 24000 && !launchPlane(true, "foe")) { if (!G.foeLaunched) { G.foeLaunched = true; log("적 항모에서 전투기 출격! 공중전 대비", "bad"); } }
+    if (P.alive) escort(a, P, dt, a.station[0], a.station[1]); else if (t) brain(a, t, a.br, dt);
   }
 }
 function events() { for (let i = G.events.length - 1; i >= 0; i--) if (G.battleT >= G.events[i].t) { const e = G.events[i]; G.events.splice(i, 1); e.fn(); } }
@@ -545,17 +458,8 @@ function dryCheck() {
   if (G.dryT == null) { G.dryT = 120; log("양측 대함미사일 소진 — 120초 포격전 후 잔존 선체로 판정", "bad"); toast("미사일 소진 — 120초 포격전, 잔존 선체가 많은 쪽 승리", 4); for (const s of G.enemies) if (s.prefRange) s.prefRange = [3000, 5000]; }
   return G.dryT <= 0;
 }
-/** WWII battles that stall: nobody has hit anything for 3 minutes and no aircraft are attacking → the enemy breaks off. */
-function stallCheck() {
-  if (G.modern || G.waves || G.battleT < 240) return null; /* the wave battle ends at the destination */
-  const quiet = G.battleT - (G.lastHitT || 0), raid = G.events.length > 0, foePl = air.planes.some((p) => p.side === "foe" && p.alive && p.mode !== "home");
-  if (quiet < 180 || raid || foePl) return null;
-  const lost = G.enemies.filter((e) => !e.alive).length, n = G.enemies.length;
-  return { won: true, why: `적 ${n - lost}척 퇴각 — 3분간 교전 없음 (격침 ${lost} / ${n})`, retreat: true };
-}
 /** Fleet battle waves: when a fleet is sunk the next one appears between the flagship and the destination; after the last one, reach the destination. */
-const WAVE_FLEETS = (tier, n) => (n === 2 ? FLEETS[tier] : [...FLEETS[tier], 2, 1]); /* the last fleet is the biggest (and brings a carrier from tier 3) */
-function nextWave() { if (G.waves?.modern) return nextWaveModern(); return nextWaveWW2(); }
+function nextWave() { return nextWaveModern(); }
 function nextWaveModern() { /* the next enemy surface group, 16-18 km ahead toward the destination, in open water */
   const W = G.waves, P = G.player, N = NATIONS[W.nat]; W.n++; W.pending = false;
   const keys = W.keys0, r = 16000 + rnd() * 2000; /* each group like the first (an extra ship in the last group was too much: autopilot lost 2 of 2 there) */
@@ -569,16 +473,8 @@ function nextWaveModern() { /* the next enemy surface group, 16-18 km ahead towa
   G.enemies.push(...out); G.ships.push(...out);
   log(`적 제${W.n}수상전투단 탐지 — ${out[0].spec.short || out[0].spec.name} 외 ${out.length - 1}척 · ${fmt(r)} m${W.n === W.max ? " (마지막 전투단)" : ""}`, "bad"); toast(`적 제${W.n}전투단 접근!`, 3); sfx.alarm(); G.radio("battle");
 }
-function nextWaveWW2() {
-  const W = G.waves, P = G.player; W.n++; W.pending = false; const fleet = WAVE_FLEETS(W.tier, W.n), E = ENEMIES[fleet[0]];
-  const g = Math.atan2(G.goal.z - P.pos.z, G.goal.x - P.pos.x) + (rnd() - 0.5) * 0.8, r = (E.range[0] + rnd() * (E.range[1] - E.range[0]) + 3500) * 0.67;
-  const out = foeGroup(fleet, P.pos.x + Math.cos(g) * r, P.pos.z + Math.sin(g) * r, wrap(g + PI + (rnd() - 0.5) * 0.8), W.n === W.max && W.tier >= 3);
-  for (const e of out) { let k = 0; while (landAt(e.pos.x, e.pos.z, 1200) && k++ < 80) { const dx = P.pos.x - e.pos.x, dz = P.pos.z - e.pos.z, L = Math.hypot(dx, dz) || 1; e.pos.x += dx / L * 500; e.pos.z += dz / L * 500; } }
-  uniq(G.enemies.filter((e) => !e.isCarrier)); assignCaptains();
-  log(`적 제${W.n}함대 출현 — ${out[0].spec.name} 외 ${out.length - 1}척${W.n === W.max ? " (마지막 함대)" : ""}`, "bad"); toast(`적 제${W.n}함대 접근!`, 3); sfx.alarm(); G.radio("battle");
-}
 function patchUp() { /* between fleets: our ships get 30% hull back, fires out, flooding halved, and the emergency repairs refilled */
-  for (const s of G.ships) if (s.alive && s.side === "us" && !s.sinking) { s.hp = Math.min(s.maxHp, s.hp + s.maxHp * (G.modern ? 0.5 : 0.3)); s.fires.length = 0; s.flooding *= 0.5;
+  for (const s of G.ships) if (s.alive && s.side === "us" && !s.sinking) { s.hp = Math.min(s.maxHp, s.hp + s.maxHp * 0.5); s.fires.length = 0; s.flooding *= 0.5;
     if (s.mag) mArm(s); } /* modern: 50% hull and full magazines (one missile hit costs far more than a shell) */
   rep.n = Math.max(rep.n, 2); }
 function waveCheck(P, foesAlive) {
@@ -589,33 +485,21 @@ function waveCheck(P, foesAlive) {
 }
 function missionCheck() {
   if (G.state !== "playing") return;
-  const P = G.player, foesAlive = G.enemies.some((e) => e.alive), foePlanes = air.planes.some((p) => p.side === "foe" && p.alive); let res = null, opRes;
+  const P = G.player, foesAlive = G.enemies.some((e) => e.alive); let res = null, opRes;
   if (!P.alive) res = { won: false, why: `${P.spec.short} 침몰` };
-  else if (G.modern && (opRes = opsCheck()) !== undefined) res = opRes; // ASW, BMD, drones, shore, convoy decide their own end
-  else if (!G.modern && G.mission !== "modern" && stallCheck()) res = stallCheck();
+  else if ((opRes = opsCheck()) !== undefined) res = opRes; // ASW, BMD, drones, shore, convoy decide their own end
   else if (G.mission === "modern" && !G.waves && foesAlive && dryCheck()) { const hp = (side) => { const L = G.ships.filter((s) => s.side === side && s.spec.modern && !s.spec.jets); return L.reduce((n, s) => n + (s.alive ? s.hp / s.maxHp : 0), 0) / Math.max(1, L.length); }, a = hp("us"), b = hp("foe");
     res = { won: a >= b, why: `양측 미사일 소진 · 포격전 종료 — 판정${a >= b ? "승" : "패"} (잔존 선체 아군 ${Math.round(a * 100)}% / 적 ${Math.round(b * 100)}%)` }; }
   else if (G.waves) res = waveCheck(P, foesAlive);
-  else if (G.mission === "fleet" || G.mission === "modern") { if (!foesAlive) res = { won: true, why: G.mission === "modern" ? "적 수상함 전멸 — 해상 우세 확보" : "적 함대 전멸" }; }
-  else if (G.mission === "convoy") {
-    const alive = G.convoy.filter((c) => c.alive);
-    if (alive.length < 2) res = { won: false, why: "수송선단 괴멸" };
-    else if (alive.every((c) => c.arrived)) res = { won: true, why: `수송선 ${alive.length}척 집결지 도착` };
-    else if (!foesAlive && !G.events.length && !foePlanes) res = { won: true, why: "적 습격 격퇴" };
-  } else {
-    const lost = G.convoy.filter((c) => !c.alive).length;
-    if (lost >= 2) res = { won: false, why: "정박 함선 피해 과다" };
-    else if (!G.events.length && !foesAlive && !foePlanes) res = { won: true, why: "공습 격퇴 — 진주만 방어 성공" };
-  }
+  else if (G.mission === "modern") { if (!foesAlive) res = { won: true, why: "적 수상함 전멸 — 해상 우세 확보" }; }
   if (res) { G.result = res; G.state = "ending"; endT = 5; log(res.won ? `승리 — ${res.why}` : `패배 — ${res.why}`, res.won ? "hit" : "bad"); }
 }
 function finish() {
   jetSound(0); droneSound(0); cicStop(); G.state = "ended"; toastT = 0; $("#toast").classList.remove("on"); const res = G.result || { won: false, why: "" }, won = res.won, secs = Math.max(1, Math.round(G.battleT));
   if (G.staffK) staffServe(won);
-  if (G.plane) recallPlane();
-  document.body.classList.remove("playing", "flying", "firstp"); cockpit.visible = false; if (goalMk) goalMk.visible = false; if (document.pointerLockElement) document.exitPointerLock();
+  document.body.classList.remove("playing", "flying", "firstp"); if (goalMk) goalMk.visible = false; if (document.pointerLockElement) document.exitPointerLock();
   $("#endSub").textContent = (MISSIONS[G.mop || G.mission] || MISSIONS[G.mission]).n; $("#endTitle").textContent = res.why;
-  if (G.camp != null && !G.auto && G.campEra === "modern") kFinish(won); else if (G.camp != null && !G.auto) { const c = CAMP[G.camp]; if (won && G.camp === campProg) { campProg++; try { localStorage.setItem("steeltide:camp", campProg); } catch {} } $("#endTitle").textContent += won ? (campProg >= CAMP.length ? ` · 캠페인 완료! ${c.n} 승리` : ` · 캠페인 ${G.camp + 1}단계 ${c.n} 돌파 — 다음: ${CAMP[Math.min(G.camp + 1, CAMP.length - 1)].n}`) : ` · 캠페인 ${G.camp + 1}단계 ${c.n} 재도전 필요`; } $("#endStamp").textContent = won ? "VICTORY" : "DEFEAT"; $("#endStamp").className = "stamp" + (won ? "" : " lose");
+  if (G.camp != null && !G.auto) kFinish(won);
   $("#endFoes").innerHTML = G.enemies.slice(0, 6).map((e) => `<div>${flagOf(e, 22)}<b>${e.name}</b><span class="c">함장 ${e.captain || ""}</span><span class="r${e.alive ? " alive" : ""}">${e.captured ? "나포" : e.alive ? "생존" : "격침"}</span></div>`).join("");
   const s = G.stats, acc = s.shots ? ((s.hits / s.shots) * 100).toFixed(1) : "0.0";
   let html = `<span>교전 시간</span><span>${Math.floor(secs / 60)}분 ${secs % 60}초</span><span>주포 발사 / 명중</span><span>${s.shots}발 / ${s.hits}발 (${acc}%)</span>`
@@ -624,12 +508,12 @@ function finish() {
   $("#endPromo").innerHTML = "";
   if (!G.auto) {
     const before = myGrade();
-    const a = { kind: "result", won, shots: Math.min(s.shots, 5000), hits: Math.min(s.hits, s.shots, 5000), seconds: Math.min(secs, 36000), tier: SHIPS[econShipId()].tier, bombs: Math.min(s.bombs, 20), bullets: Math.min(s.bullets, 20000), planes: Math.min(s.planes || 0, 200), caps: Math.min(s.caps || 0, 10), mission: G.mission };
+    const a = { kind: "result", won, shots: Math.min(s.shots, 5000), hits: Math.min(s.hits, s.shots, 5000), seconds: Math.min(secs, 36000), tier: econTier(), bombs: Math.min(s.bombs, 20), bullets: Math.min(s.bullets, 20000), planes: Math.min(s.planes || 0, 200), caps: Math.min(s.caps || 0, 10), mission: G.mission };
     const r = econReward(a); act(a); sfx.coin();
     html += `<span>보상</span><span style="color:var(--warn)">+${fmt(r.money)} 크레딧 · +${fmt(r.xp)} 경험치</span>`;
     const after = myGrade(), rl = rankLine();
     html += `<span>계급</span><span>${rl.name}${rl.next ? ` — ${rl.next}까지 ${fmt(rl.need - profile.xp)} 경험치` : " (최고 계급)"}</span>`;
-    const unl = Object.entries(ECON_SHIPS).filter(([, v]) => v.rank + 3 === after && after > 3).map(([k]) => SHIPS[k].short).join(", ");
+    const unl = ""; /* no ship unlocks until the Korean ship ladder exists */
     if (after > before) {
       $("#endPromo").innerHTML = `<span class="k">RANK</span><div class="ib new">${insignia(after, 64)}</div><div class="big" style="font-size:30px">${ECON_RANKS[after]}</div><div class="sub">${postOf(after)}</div>`;
       if (career.seen == null && staff.branch) careerInit(before, careerTitle(before), BRANCHES[staff.branch].n); career.picks += after - before; logPromotion({ g: after, t: postOf(after), b: BRANCHES[staff.branch]?.n || "", why: res.why }); pmOpts = null;
@@ -644,7 +528,7 @@ function finish() {
 }
 
 // ── menus + shipyard ────────────────────────────────────────────────────────
-let screen = "menu", yardSel = profile.ship;
+let screen = "menu";
 function refreshMenus() {
   const rl = rankLine(), u = perkMods().upg;
   $("#tbMoney").textContent = profile.admin ? "∞ CR (관리자)" : `${fmt(profile.money)} CR`;
@@ -657,80 +541,37 @@ function refreshMenus() {
   const acc = profile.shots ? ((profile.hits / profile.shots) * 100).toFixed(1) : "0.0";
   $("#record").textContent = profile.battles ? `${profile.wins}승 / ${profile.battles}전 · 명중률 ${acc}%` : "첫 출격 대기 중";
   renderRecord();
-  const era = isModernOp(mission) ? "modern" : "ww2";
-  document.body.classList.toggle("modern", era === "modern");
-  $("#era").innerHTML = `<button class="er${era === "ww2" ? " on" : ""}" data-era="ww2"><b>2차 세계대전</b><small>1941–45 · 전함 포격전 · 함재기 · 캠페인</small></button><button class="er${era === "modern" ? " on" : ""}" data-era="modern"><b>현대전</b><small>이지스함 · 대함미사일 · 전투기 · 국가 선택</small></button>`;
-  $("#modeSel").innerHTML = `<button class="er" data-mode="camp"><b>${era === "ww2" ? "태평양 전역 캠페인" : "한반도 시나리오"}</b><small>${era === "ww2" ? "진주만부터 오키나와까지 5단계 · 순서대로 열림" : "가상 시나리오 · 서해부터 제주 남방까지 5단계 + 보너스 · 브리핑과 별점"}</small></button><button class="er" data-mode="ops"><b>단일 작전</b><small>${era === "ww2" ? "함대 결전 · 호송 · 진주만 방어 중 하나를 골라 바로 출항" : "미사일 해전 · 대잠전 · 탄도미사일 방어 · 드론 · 상륙 지원 · 호송 · EMCON"}</small></button>`;
-  $("#wzSum").innerHTML = `선택: <b>${era === "ww2" ? "2차대전" : "현대전"}</b> · <b>${MISSIONS[mission]?.n || ""}</b>${isModernOp(mission) ? ` · <b>${NATIONS[natUs].n} vs ${NATIONS[natFoe].n}</b>` : ""} · <b>${MAPS[mission === "raid" ? "pearl" : theater]?.n || ""}</b> · ${todSel === "night" ? "야간" : "주간"}/${wxSel === "storm" ? "폭풍" : "맑음"}<button class="go" type="button" data-wzgo="1">이대로 출항</button>`;
+  document.body.classList.add("modern");
+  $("#modeSel").innerHTML = `<button class="er" data-mode="camp"><b>한반도 시나리오</b><small>가상 시나리오 · 서해부터 제주 남방까지 5단계 + 보너스 · 브리핑과 별점</small></button><button class="er" data-mode="ops"><b>단일 작전</b><small>미사일 해전 · 호송 등 작전 하나를 골라 출항</small></button>`;
+  $("#wzSum").innerHTML = `선택: <b>${MISSIONS[mission]?.n || ""}</b>${isModernOp(mission) ? ` · <b>${NATIONS[natUs].n} vs ${NATIONS[natFoe].n}</b>` : ""} · <b>${MAPS[theater]?.n || ""}</b> · ${todSel === "night" ? "야간" : "주간"}/${wxSel === "storm" ? "폭풍" : "맑음"}<button class="go" type="button" data-wzgo="1">이대로 출항</button>`;
   if (typeof wzCrumb === "function" && document.querySelector("#opsP .wz.on")) wzCrumb();
-  $("#campBox").style.display = ""; $("#campBox .ph span:last-child").textContent = era === "ww2" ? "태평양 전역 캠페인" : "한반도 시나리오 (가상)"; $("#opsTitle").textContent = era === "ww2" ? "단일 작전" : "현대전 작전 · 국가";
-  $("#missions").innerHTML = Object.entries(MISSIONS).filter(([k]) => ACTIVE.includes(k) && isModernOp(k) === (era === "modern")).map(([k, m]) => `<button class="ms${k === mission ? " on" : ""}" data-m="${k}"><b>${m.n}</b><small>${m.d}</small></button>`).join("");
+  $("#campBox").style.display = ""; $("#campBox .ph span:last-child").textContent = "한반도 시나리오 (가상)"; $("#opsTitle").textContent = "작전 선택";
+  $("#missions").innerHTML = Object.entries(MISSIONS).filter(([k]) => ACTIVE.includes(k)).map(([k, m]) => `<button class="ms${k === mission ? " on" : ""}" data-m="${k}"><b>${m.n}</b><small>${m.d}</small></button>`).join("");
   $("#nations").style.display = isModernOp(mission) ? "" : "none";
   if (isModernOp(mission)) { fixNations(); const rk = myRank(), btn = (k, side, on, need) => `<button class="nt${on ? " on" : ""}" data-n${side}="${k}"${need > rk ? ` disabled title="${ECON_RANKS[need + 3]} 이상"` : ""}>${(FLAGSVG[k] || FLAG.us)(18)} ${NATIONS[k].n}${need > rk ? ` 🔒${ECON_RANKS[need + 3]}` : ""}</button>`;
     $("#nations").innerHTML = `<div class="ph"><span>FORCES</span><span>적국 선택 (아군: 대한민국 해군)</span></div><div class="natrow"><span>아군</span>${btn("kr", "u", true, 0)}</div><div class="natrow"><span>적군</span>${Object.entries(SIDE_FOE).map(([k, need]) => btn(k, "f", k === natFoe, need)).join("")}</div><div class="natnote">${natFoe === "cn" ? (rk >= 4 ? "중국 해군 주력 — 055형 3척 + 항모 산둥 (최고 난이도)" : "중국 해군 — 055형 2척 (소장부터 항모 전단)") : `북한 해군 — 연안 전투함${rk >= 3 ? " 3척" : " 2척"} + 지상 발진 MiG-29`}</div>`; }
   $("#wx").innerHTML = [["tod", "day", "주간", "기본 시정"], ["tod", "night", "야간", "피탐 거리 −45%"], ["wx", "clear", "맑음", "기본"], ["wx", "storm", "폭풍", "시정 −30% · 포 산포 +35%"]]
     .map(([g, k, n, d]) => `<button class="mp${(g === "tod" ? todSel : wxSel) === k ? " on" : ""}" data-${g}="${k}"><b>${n}</b><small>${d}</small></button>`).join("") + `<div class="mpn">현대전에서는 화면만 바뀌고 레이더 탐지는 그대로</div>`;
-  if (era === "modern") $("#camp").innerHTML = kcampHTML(); else $("#camp").innerHTML = CAMP.map((c, i) => `<button class="mp${i === campSel ? " on" : ""}" data-camp="${i}"${i > campProg ? " disabled" : ""}><b>${i < campProg ? "✓ " : ""}${i + 1}. ${c.n}</b><small>${i > campProg ? "잠김 — 이전 단계 승리 필요" : c.d}</small></button>`).join("")
-    + `<div class="mpn">진행 ${campProg}/${CAMP.length}${campProg >= CAMP.length ? " · 캠페인 완료!" : ""} — 단계를 누르면 바로 출항 (현재 기함으로)</div>`;
-  $("#maps").innerHTML = Object.entries(MAPS).map(([k, m]) => `<button class="mp${(mission === "raid" ? "pearl" : theater) === k ? " on" : ""}" data-map="${k}"${mission === "raid" && k !== "pearl" ? " disabled" : ""}><b>${m.n}</b><small>${m.d}</small></button>`).join("") + (mission === "raid" ? `<div class="mpn">진주만 방어는 진주만 전장 고정</div>` : "");
+  $("#camp").innerHTML = kcampHTML();
+  $("#maps").innerHTML = Object.entries(MAPS).filter(([k]) => k !== "uswest").map(([k, m]) => `<button class="mp${theater === k ? " on" : ""}" data-map="${k}"><b>${m.n}</b><small>${m.d}</small></button>`).join("");
   $("#cmdrFace").innerHTML = face(myFace(), 46); $("#cmdrName").textContent = `${ECON_RANKS[rl.r]} ${cmdr.name}`;
-  if (screen === "yard") renderYard();
 }
 $("#nations").addEventListener("click", (e) => { const b = e.target.closest("[data-nu],[data-nf]"); if (!b || b.disabled) return; if (b.dataset.nu) natUs = b.dataset.nu; else natFoe = b.dataset.nf; try { localStorage.setItem("steeltide:natUs", natUs); localStorage.setItem("steeltide:natFoe", natFoe); } catch {} sfx.click(); refreshMenus(); });
 $("#maps").addEventListener("click", (e) => { const b = e.target.closest("[data-map]"); if (!b || b.disabled) return; theater = b.dataset.map; try { localStorage.setItem("steeltide:map", theater); } catch {} sfx.click(); refreshMenus(); });
 $("#wx").addEventListener("click", (e) => { const b = e.target.closest("[data-tod],[data-wx]"); if (!b) return; if (b.dataset.tod) todSel = b.dataset.tod; else wxSel = b.dataset.wx; try { localStorage.setItem("steeltide:tod", todSel); localStorage.setItem("steeltide:wx", wxSel); } catch {} sfx.click(); refreshMenus(); });
-$("#camp").addEventListener("click", (e) => { const kb = e.target.closest("[data-kcamp]"); if (kb) { if (!kb.disabled) openBrief(+kb.dataset.kcamp); return; } const b = e.target.closest("[data-camp]"); if (!b || b.disabled) return; const i = +b.dataset.camp, c = CAMP[i]; campEra = "ww2"; campSel = i; mission = c.m; theater = c.map; sfx.click(); start(false); });
+$("#camp").addEventListener("click", (e) => { const kb = e.target.closest("[data-kcamp]"); if (kb && !kb.disabled) openBrief(+kb.dataset.kcamp); });
 $("#modeSel").addEventListener("click", (e) => { const b = e.target.closest("[data-mode]"); if (!b) return; wzMode = b.dataset.mode; showWz(wzMode === "camp" ? "camp" : "ops"); });
 $("#opsP").addEventListener("click", (e) => { const back = e.target.closest(".wz-back"); if (back) { const t = WZ_BACK[wz]; if (t) showWz(typeof t === "function" ? t() : t); return; }
   const to = e.target.closest("[data-wzto]"); if (to) { showWz(to.dataset.wzto); return; }
   const go = e.target.closest("[data-wzgo]"); if (go) { campSel = null; start(false); } });
 showWz("mode", true);
 $("#briefNo").addEventListener("click", () => { $("#brief").style.display = "none"; sfx.click(); });
-$("#briefGo").addEventListener("click", () => { const c = KCAMP[briefI]; if (!c) return; $("#brief").style.display = "none"; campEra = "modern"; campSel = briefI; natUs = "kr"; natFoe = "nk"; mission = c.m; theater = c.map; start(false); });
+$("#briefGo").addEventListener("click", () => { const c = KCAMP[briefI]; if (!c) return; $("#brief").style.display = "none"; campSel = briefI; natUs = "kr"; natFoe = "nk"; mission = c.m; theater = c.map; start(false); });
 $("#cmdrEdit").addEventListener("click", () => openCmdr());
 $("#cmdrM").addEventListener("click", (e) => { const f = e.target.closest("[data-face]"); if (f) { cmdrDraft = +f.dataset.face; renderCmdr(); sfx.click(); return; } if (e.target.id === "cmdrOk") saveCmdr(); });
 $("#cmdrM").addEventListener("keydown", (e) => { if (e.key === "Enter") saveCmdr(); e.stopPropagation(); });
-$("#era").addEventListener("click", (e) => { const b = e.target.closest("[data-era]"); if (!b) return; setTimeout(() => showWz("ops"), 0); mission = b.dataset.era === "modern" ? (isModernOp(mission) ? mission : "modern") : ww2Mission; campSel = null; try { localStorage.setItem("steeltide:mission", mission); } catch {} sfx.click(); refreshMenus(); });
-$("#missions").addEventListener("click", (e) => { const b = e.target.closest("[data-m]"); if (!b) return; setTimeout(() => showWz(isModernOp(b.dataset.m) ? "nat" : "map"), 0); mission = b.dataset.m; if (!isModernOp(mission)) { ww2Mission = mission; try { localStorage.setItem("steeltide:ww2mission", mission); } catch {} } try { localStorage.setItem("steeltide:mission", mission); } catch {} sfx.click(); refreshMenus(); });
-function renderYard() {
-  const adm = !!profile.admin, rk = myRank(), ids = Object.keys(SHIPS).sort((a, b) => SHIPS[a].tier - SHIPS[b].tier || ECON_SHIPS[a].price - ECON_SHIPS[b].price);
-  let h = `<h3>조선소</h3><div class="money">${adm ? "무제한" : fmt(profile.money) + " 크레딧"}<small>${ECON_RANKS[myGrade()]} · 경험치 ${fmt(profile.xp)}</small></div>`;
-  if (adm) h += `<div class="adm">관리자 모드 — 모든 함선·강화 무료</div>`;
-  for (const id of ids) {
-    const s = SHIPS[id], own = profile.owned.includes(id), cur = profile.ship === id, need = ECON_SHIPS[id].rank, locked = !own && !adm && rk < need;
-    h += `<div class="card${yardSel === id ? " sel" : ""}${own ? " own" : ""}${locked ? " lock" : ""}" data-ship="${id}"><div class="c">${"★".repeat(s.tier)}${"☆".repeat(5 - s.tier)} · ${s.cls}</div><div class="nm">${s.name}</div><div class="pr">${cur ? "기함" : own ? "보유" : locked ? `🔒 ${ECON_RANKS[need + 3]} 이상` : adm ? "무료" : fmt(ECON_SHIPS[id].price) + " 크레딧"}</div></div>`;
-  }
-  if (!adm) h += `<div class="adminbox"><input id="adminCode" type="password" maxlength="32" placeholder="관리자 코드" autocomplete="off" /><button data-act="admin">적용</button></div>`;
-  $("#yardList").innerHTML = h;
-  const s = SHIPS[yardSel], g = GUNS[s.gun], tb = table(s.gun), own = profile.owned.includes(yardSel), u = profile.upg[yardSel] || { engine: 0, fc: 0, gun: 0, armor: 0 }, need = ECON_SHIPS[yardSel].rank;
-  const guns = s.turrets.reduce((n, t) => n + t.n, 0), layout = [...new Set(s.turrets.map((t) => t.n))].map((n) => `${n === 1 ? "단장" : n === 2 ? "2연장" : "3연장"}×${s.turrets.filter((t) => t.n === n).length}`).join(" + ");
-  let i = `<h3>${s.cls} · 티어 ${s.tier}</h3><div class="money" style="font-size:17px">${s.name}</div><div class="desc">${s.desc}</div><div class="spec">`
-    + `<span>함장</span><span>${FLAG_CAPTAIN[yardSel]} ${captainOf(s)}</span><span>필요 계급</span><span>${ECON_RANKS[need + 3]} 이상</span>`
-    + `<span>전장 / 전폭</span><span>${s.L} m / ${s.B} m</span><span>최대 속력</span><span>${(s.vmax * 1.852 * (1 + 0.05 * u.engine)).toFixed(0)} km/h (${(s.vmax * (1 + 0.05 * u.engine)).toFixed(1)} 노트)</span>`
-    + `<span>주포</span><span>${g.name}<br>${layout} (${guns}문)</span><span>재장전</span><span>${(g.reload * RELOAD_K * (1 - 0.08 * u.gun)).toFixed(1)}초</span>`
-    + `<span>최대 사거리</span><span>${(tb.max / 1000).toFixed(1)} km</span><span>주장갑대</span><span>${s.belt} mm</span><span>피탐 거리</span><span>${(conceal({ spec: s }) / 1000).toFixed(1)} km</span>`
-    + `<span>도장</span><span>${paintName(s)}</span>` + (MODEL_CFG[yardSel] ? `<span>모델</span><span style="color:var(--ok)">고해상도 3D 모델</span>` : "") + (s.torp ? `<span>어뢰</span><span>${s.torp.name}</span>` : "") + `<span>상대 함대</span><span>${FLEETS[s.tier].map((t) => ENEMIES[t].short).join(" · ")}${s.tier >= 3 ? " · 적 항모" : ""}</span></div>`;
-  if (own) for (const p of ECON_PARTS) {
-    const lv = u[p], max = lv >= ECON_MAX_LV, cost = max ? 0 : econPartCost(yardSel, p, lv);
-    i += `<div class="up"><div class="t">${PART[p].n} <span class="pips">${"●".repeat(lv)}${"○".repeat(ECON_MAX_LV - lv)}</span></div><button data-act="up" data-part="${p}"${max || (!adm && profile.money < cost) ? " disabled" : ""}>${max ? "최대" : adm ? "강화 (무료)" : `강화 ${fmt(cost)}`}</button><div class="e">${PART[p].e}</div></div>`;
-  }
-  const locked = !adm && rk < need;
-  if (!own) i += `<button class="yb" data-act="buy"${locked || (!adm && profile.money < ECON_SHIPS[yardSel].price) ? " disabled" : ""}>${locked ? `${ECON_RANKS[need + 3]} 진급 후 구매 가능` : `구매 — ${adm ? "무료" : fmt(ECON_SHIPS[yardSel].price) + " 크레딧"}`}</button>`;
-  else if (profile.ship !== yardSel) i += `<button class="yb" data-act="select">기함으로 지정</button>`;
-  else i += `<button class="yb" data-act="go">이 함선으로 출항 — ${MISSIONS[mission].n}</button>`;
-  $("#yardInfo").innerHTML = i;
-}
-$("#yard").addEventListener("click", (e) => {
-  const card = e.target.closest("[data-ship]"); if (card) { yardSel = card.dataset.ship; sfx.click(); showcase(yardSel); renderYard(); return; }
-  const b = e.target.closest("[data-act]"); if (!b || b.disabled) return;
-  const a = b.dataset.act;
-  if (a === "back") openMenu();
-  else if (a === "admin") { const code = $("#adminCode").value; if (act({ kind: "admin", code })) { sfx.coin(); toast("관리자 모드 활성화 — 모든 구매·강화 무료"); } }
-  else if (a === "buy") { if (act({ kind: "buy", ship: yardSel })) { sfx.coin(); toast(`${SHIPS[yardSel].short} 구매 완료`); showId = null; showcase(yardSel); } }
-  else if (a === "select") { if (act({ kind: "select", ship: yardSel })) { sfx.click(); toast(`${SHIPS[yardSel].short} 기함 지정`); } }
-  else if (a === "up") { if (act({ kind: "upgrade", ship: yardSel, part: b.dataset.part })) { sfx.coin(); toast(`${PART[b.dataset.part].n} 완료`); showId = null; showcase(yardSel); } }
-  else if (a === "go") { campSel = null; start(false); }
-});
+$("#missions").addEventListener("click", (e) => { const b = e.target.closest("[data-m]"); if (!b) return; setTimeout(() => showWz("nat"), 0); mission = b.dataset.m; try { localStorage.setItem("steeltide:mission", mission); } catch {} sfx.click(); refreshMenus(); });
+
 $("#yard").addEventListener("keydown", (e) => { if (e.target.id === "adminCode" && e.key === "Enter") $('[data-act="admin"]')?.click(); });
 /** The 해군본부 personnel order; preview = admin rehearsal (no picks, no record). Returns the handover text if any. */
 let pmPreview = false, pmTook = 0; /* one pick per 인사명령 is enough; leftovers wait in 내 정보 */
@@ -811,7 +652,7 @@ function portraitHTML(g) {
 }
 function renderRecord() { /* 내 정보: profile card, perks, record, service record (약력), rank table */
   const rl = rankLine(), acc = profile.shots ? ((profile.hits / profile.shots) * 100).toFixed(1) : "0.0", best = profile.bestSeconds ? `${Math.floor(profile.bestSeconds / 60)}분 ${profile.bestSeconds % 60}초` : "—";
-  const unlock = (r) => Object.entries(ECON_SHIPS).filter(([, v]) => v.rank + 3 === r && r > 3).map(([k]) => SHIPS[k].short).join(", ");
+  const unlock = () => "";
   if (staff.branch) careerInit(rl.r, postOf(rl.r), BRANCHES[staff.branch].n);
   const ps = payStep(profile.xp, rl.r, ECON_RANK_XP), lo = ECON_RANK_XP[rl.r], hi = ECON_RANK_XP[rl.r + 1], stepPct = ps.max ? (((profile.xp - lo) / (hi - lo)) * ps.max % 1) * 100 : ((profile.xp - lo) % 3000) / 30;
   const perks = Object.entries(career.perks).filter(([, v]) => v > 0).map(([k, v]) => `<li><b>${PERKS[k].n}</b>${PERKS[k].max > 1 ? `<em>${v}단계</em>` : ""}<small>${PERKS[k].d}</small></li>`).join("") || `<li class="none">아직 받은 진급 특기가 없습니다</li>`;
@@ -963,10 +804,9 @@ $("#hqP").addEventListener("click", (e) => {
 $("#tabPort").addEventListener("click", () => { sfx.click(); openMenu(); });
 function openRecord() { initAudio(); bgm("menu"); hideAll(); screen = "record"; G.state = "menu"; setTab("record"); $("#topbar").style.display = "flex"; renderRecord(); $("#recordP").style.display = "block"; showcase(flagshipId()); }
 $("#tabRecord").addEventListener("click", () => { sfx.click(); openRecord(); });
-function hideAll() { if (typeof md !== "undefined" && md.fly) { md.fly.pilot = false; md.fly = null; } document.body.classList.remove("jetfly"); jetSound(0); sel = []; $("#cmdrM").style.display = "none"; capClear(); aa.on = false; aaGun.visible = false; paused = false; $("#pause").style.display = "none"; $("#start").style.display = "none"; $("#end").style.display = "none"; $("#yard").style.display = "none"; $("#recordP").style.display = "none"; $("#hqP").style.display = "none"; $("#promoM").style.display = "none"; document.body.classList.remove("playing", "flying", "auto", "firstp"); cockpit.visible = false; if (goalMk) goalMk.visible = false; }
+function hideAll() { if (typeof md !== "undefined" && md.fly) { md.fly.pilot = false; md.fly = null; } document.body.classList.remove("jetfly"); jetSound(0); sel = []; $("#cmdrM").style.display = "none"; capClear(); aa.on = false; aaGun.visible = false; paused = false; $("#pause").style.display = "none"; $("#start").style.display = "none"; $("#end").style.display = "none"; $("#yard").style.display = "none"; $("#recordP").style.display = "none"; $("#hqP").style.display = "none"; $("#promoM").style.display = "none"; document.body.classList.remove("playing", "flying", "auto", "firstp"); if (goalMk) goalMk.visible = false; }
 function openYard() { return openRecord(); }
-function openYardOld() { initAudio(); bgm("menu"); hideAll(); screen = "yard"; G.state = "menu"; setTab("yard"); $("#topbar").style.display = "flex"; yardSel = profile.ship; $("#yard").style.display = "block"; showcase(yardSel); renderYard(); }
-function openMenu() { G.kc = null; cicStop(); droneSound(0); setMapLook(mission === "raid" ? "pearl" : theater); bgm("menu"); hideAll(); screen = "menu"; G.state = "menu"; setTab("menu"); $("#topbar").style.display = "flex"; $("#start").style.display = "block"; showcase(flagshipId()); refreshMenus(); }
+function openMenu() { G.kc = null; cicStop(); droneSound(0); setMapLook(theater); bgm("menu"); hideAll(); screen = "menu"; G.state = "menu"; setTab("menu"); $("#topbar").style.display = "flex"; $("#start").style.display = "block"; showcase(flagshipId()); refreshMenus(); }
 
 // ── controls (Navy Field style) ─────────────────────────────────────────────
 // right-click: sail there (Shift: add waypoint, on own ship: stop) · 1/2/3: speed · A/D W/S: lay the gun line
@@ -983,12 +823,12 @@ let SENS = 0.6; try { const v = parseFloat(localStorage.getItem("steeltide:sens"
 const aa = { on: false, ammo: "mg", shells: [], yaw: 0, pitch: 0.3, fov: 65, t: 0, side: 0, recoil: [0, 0], heat: 0, shots: 0, kills: 0, kick: 0, streak: 0, streakT: 0, lastKills: 0 };
 const gunner = { label: "본함 대공 사수", kills: 0, alive: false, own: true };
 function toggleAA(on = !aa.on) {
-  const P = G.player; if (on && (!P.alive || G.plane || cap.fps)) { sfx.deny(); return; }
+  const P = G.player; if (on && (!P.alive || cap.fps)) { sfx.deny(); return; }
   aa.on = on; aaGun.visible = false;
   if (on) { const f = foeNearestPlane(); aa.yaw = f ? Math.atan2(f.pos.z - P.pos.z, f.pos.x - P.pos.x) : P.heading + PI / 2; aa.pitch = f ? clamp(Math.atan2(f.pos.y, d2(f.pos, P.pos)), 0.05, 1.3) : 0.25; aa.fov = 65; lockPointer(); toast("대공 사수 — 마우스 조준 · 좌클릭/Space 사격 · Q 기관포/대공탄 전환 · 휠 확대 · G 복귀", 3.4); }
   else { if (document.pointerLockElement) document.exitPointerLock(); toast("함대 지휘로 복귀"); }
 }
-const foeNearestPlane = () => { const P = G.player; let b = null, d = Infinity; for (const p of air.planes) if (p.side === "foe" && p.alive && !p.crashed) { const dd = p.pos.distanceTo(P.pos); if (dd < d) { d = dd; b = p; } } return b; };
+const foeNearestPlane = () => null; /* no propeller aircraft any more */
 const aaMount = () => { const P = G.player; P.tilt.updateWorldMatrix(true, false); const sd = Math.sin(wrap(aa.yaw - P.heading)) >= 0 ? 1 : -1; return P.tilt.localToWorld(new THREE.Vector3(-P.spec.L * 0.08, P.spec.fb + 9, (P.spec.B * 0.5 + 2.5) * sd)); };
 // modern gunner view, missile mode: keep a drone/missile in the sight to lock (seek beeps → solid tone), then fire an interceptor at it
 const AA_LOCK = 0.9;
@@ -1022,7 +862,7 @@ function aaDrones() { // modern: the gunner's rounds also hit drones and sea-ski
 }
 function aaStep(dt) {
   aaDrones();
-  aaShellStep(dt); const P = G.player; if (!aa.on) return; if (!P.alive || G.plane || G.state !== "playing") { toggleAA(false); return; }
+  aaShellStep(dt); const P = G.player; if (!aa.on) return; if (!P.alive || G.state !== "playing") { toggleAA(false); return; }
   aa.t -= dt; aa.heat = Math.max(0, aa.heat - dt * 0.14); aa.recoil = aa.recoil.map((r) => Math.max(0, r - dt * 8));
   const firing = (keys.has("Space") || (lDown && document.pointerLockElement === canvas)) && aa.heat < 1;
   if (aa.ammo === "msl") { aaLockStep(dt); if (firing && !aa.prevFire) aaMslFire(); aa.prevFire = firing; return; }
@@ -1054,7 +894,7 @@ function aaShellStep(dt) {
   for (let i = aa.shells.length - 1; i >= 0; i--) {
     const s = aa.shells[i]; let boom = false;
     for (let k = 0; k < 3 && !boom; k++) { s.p.addScaledVector(s.v, dt / 3); s.v.y -= 9.81 * dt / 3; s.t += dt / 3;
-      if (s.t > 0.35) for (const p of air.planes) if (p.alive && p.side === "foe" && p.pos.distanceTo(s.p) < 34) { boom = true; break; } }
+      }
     if (boom || s.t > 7) { air.flak.push({ t: 0, side: "us", p: s.p.clone(), own: true, by: gunner }); aa.shells.splice(i, 1); continue; }
     if (s.p.y < 0) { aa.shells.splice(i, 1); continue; }
     if (n < 58) { const q = s.p.clone().addScaledVector(s.v, -0.03); a.set([s.p.x, s.p.y, s.p.z, q.x, q.y, q.z], n * 6); n++; }
@@ -1063,15 +903,6 @@ function aaShellStep(dt) {
 }
 function drawAAHUD() {
   const W = hud.width, H = hud.height, cx = W / 2, cy = H / 2, P = G.player; hx.textBaseline = "middle";
-  for (const p of air.planes) {
-    if (!p.alive || p.crashed) continue; const q = proj(p.pos); if (!q) continue; const d = p.pos.distanceTo(camera.position);
-    if (p.side === "foe" && q.on) { hx.fillStyle = "rgba(0,0,0,.6)"; hx.fillRect(q.x - 22, q.y + 14, 44, 5); hx.fillStyle = p.hp > 50 ? "#ffd166" : "#ff5a4e"; hx.fillRect(q.x - 22, q.y + 14, 44 * (p.hp / 100), 5); }
-    if (p.side === "foe") {
-      if (q.on) { const s = clamp(5000 / d, 8, 26); hx.strokeStyle = "#ff6b5e"; hx.lineWidth = 1.5; hx.strokeRect(q.x - s, q.y - s * 0.7, s * 2, s * 1.4); txt(`${p.callsign} ${fmt(d)} m`, q.x + s + 6, q.y, "#ff8a7a", "bold 11px 'Noto Sans KR', sans-serif");
-        if (d < (aa.ammo === "flak" ? 6000 : 3500)) { const tof = d / (aa.ammo === "flak" ? 700 : 880), L = p.pos.clone().addScaledVector(p.vel.sub(P.vel), tof); L.y += 0.5 * 9.81 * tof * tof; const lq = proj(L); if (lq && lq.on) { hx.strokeStyle = "#ffd166"; hx.beginPath(); hx.arc(lq.x, lq.y, 7, 0, TAU); hx.stroke(); hx.setLineDash([3, 4]); hx.beginPath(); hx.moveTo(q.x, q.y); hx.lineTo(lq.x, lq.y); hx.stroke(); hx.setLineDash([]); } } }
-      else { const v = p.pos.clone().project(camera), back = v.z > 1, ax = back ? -v.x : v.x, ay = back ? -v.y : v.y, m = Math.max(Math.abs(ax), Math.abs(ay), 1e-6), ex = cx + (ax / m) * (W / 2 - 50), ey = cy - (ay / m) * (H / 2 - 60); hx.fillStyle = "#ff6b5e"; hx.beginPath(); hx.arc(ex, ey, 7, 0, TAU); hx.fill(); txt(`${fmt(d)} m`, ex, ey + 16, "#ff8a7a", "10px 'Noto Sans KR', sans-serif", "center"); }
-    } else if (q.on) { hx.strokeStyle = "#7cc4ff"; hx.strokeRect(q.x - 7, q.y - 7, 14, 14); }
-  }
   { hx.save(); hx.globalAlpha = 0.8; hx.strokeStyle = hx.fillStyle = "#ff4a3d"; hx.lineWidth = 1.5; hx.beginPath(); hx.arc(cx, cy, 2.5, 0, TAU); hx.fill(); hx.beginPath(); for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { hx.moveTo(cx + dx * 10, cy + dy * 10); hx.lineTo(cx + dx * 18, cy + dy * 18); } hx.stroke(); hx.restore(); } // small aim dot + 4 ticks: leaves the target visible
   if (gunner.kills > aa.lastKills) { aa.streak = aa.streakT > 0 ? aa.streak + 1 : 1; aa.streakT = 6; aa.lastKills = gunner.kills; } aa.streakT = Math.max(0, aa.streakT - 1 / 60);
   if (air.killMark > 1.6) { hx.fillStyle = `rgba(255,200,120,${(air.killMark - 1.6) * 0.5})`; hx.fillRect(0, 0, W, H); }
@@ -1118,7 +949,7 @@ function figure(side) { return soldier(side === "us" ? "us" : "jp").root; }
 /** null when boarding `T` is possible now, otherwise the reason. */
 function canBoard(T) {
   const P = G.player;
-  if (!T || T.side !== "foe" || !T.alive || T.captured || !P || !P.alive || G.plane) return "목표 없음";
+  if (!T || T.side !== "foe" || !T.alive || T.captured || !P || !P.alive) return "목표 없음";
   if (cap.phase) return "작전 진행 중"; if (profile.admin) return null; if (cap.used >= CAP_MAX) return "해병대 소진";
   if (T.hp / T.maxHp > 0.5 && T.speed > 1.5) return "적함 체력 50% 이하 또는 기관 정지 시";
   return null;
@@ -1171,7 +1002,7 @@ function boardDeck(n) {
 function captureShip() {
   const T = cap.tgt; T.captured = true; T.alive = false; T.tele = 1; T.rudderCmd = 0; cap.kills = cap.kills;
   G.stats.caps = (G.stats.caps || 0) + 1; G.ribbon("나포"); if (lock === T) lock = null;
-  const left = G.enemies.filter((e) => e.alive).length; log(`${T.name} 나포 성공! 성조기 게양${left ? ` — 남은 적 ${left}척` : ""}`, "hit"); sfx.bell?.(); G.radio?.(left ? "sunk" : "fleet");
+  const left = G.enemies.filter((e) => e.alive).length; log(`${T.name} 나포 성공! 태극기 게양${left ? ` — 남은 적 ${left}척` : ""}`, "hit"); sfx.bell?.(); G.radio?.(left ? "sunk" : "fleet");
   capClear();
 }
 const capW2L = (T, wx, wz) => { const c = Math.cos(T.heading), s = Math.sin(T.heading); return [wx * c + wz * s, -wx * s + wz * c]; };
@@ -1312,7 +1143,6 @@ let altMod = false; /* Alt from the modifier flag of the latest key/mouse event:
 const altDown = () => keys.has("AltLeft") || keys.has("AltRight") || altMod;
 const shiftDown = () => keys.has("ShiftLeft") || keys.has("ShiftRight");
 const commanding = () => G.state === "playing" && !paused && !G.auto && G.player && G.player.alive;
-const isPlane = (o) => !!(o && o.obj && o.fwd && o.callsign);
 
 // rangekeeper (cf. USN Mk 8): aims where the target will be when the shells land; spotted salvos shrink the error
 const fc = { tgt: null, sig: 1, errR: 0, errB: 0, hdg: 0, n: 0 };
@@ -1343,17 +1173,6 @@ function updateGrid() {
   mapGrid.geometry.setDrawRange(0, GRID_N * 4); mapGrid.geometry.attributes.position.needsUpdate = true;
 }
 // bomb tracks: where each of our bombs flew (solid) and is going (dotted), plus the impact marker
-const BT_MAX = 900, bombLines = lineObj(BT_MAX * 2, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.95, depthTest: false }), true);
-bombLines.geometry.setAttribute("color", new THREE.BufferAttribute(new Float32Array(BT_MAX * 6), 3)); bombLines.visible = true;
-function updateBombLines() {
-  const a = bombLines.geometry.attributes.position.array, c = bombLines.geometry.attributes.color.array; let n = 0;
-  const seg = (p, q, r, g, b) => { if (n >= BT_MAX) return; a.set([p.x, p.y, p.z, q.x, q.y, q.z], n * 6); c.set([r, g, b, r, g, b], n * 6); n++; };
-  for (const tr of air.bombTrails) { const k = clamp(tr.t / 3, 0, 1); for (let i = 1; i < tr.pts.length; i++) seg(tr.pts[i - 1], tr.pts[i], 1 * k, 0.55 * k, 0.2 * k); }
-  for (const b of air.bombs) { if (b.side !== "us") continue;
-    for (let i = 1; i < b.trail.length; i++) seg(b.trail[i - 1], b.trail[i], 1, 0.62, 0.25); seg(b.trail[b.trail.length - 1], b.p, 1, 0.62, 0.25);
-    const p = b.p.clone(), v = b.v.clone(); let i = 0; while (p.y > 0 && i++ < 120) { const q = p.clone(); for (let k = 0; k < 2; k++) { v.y -= 9.81 * 0.05; v.multiplyScalar(1 - 0.03 * 0.05); p.addScaledVector(v, 0.05); } if (i % 2) seg(q, p, 1, 0.9, 0.5); } }
-  bombLines.geometry.setDrawRange(0, n * 2); bombLines.geometry.attributes.position.needsUpdate = true; bombLines.geometry.attributes.color.needsUpdate = true;
-}
 G.onBombImpact = (pos, hit, miss, from) => {
   const k = markers[markerN++ % markers.length]; k.t = 9; k.pos = pos.setY(0.8); k.hit = hit; k.text = hit ? `폭탄 명중${from ? ` (${from.callsign})` : ""}` : `폭탄 빗나감 ${miss} m`;
   k.m.position.copy(k.pos); k.m.scale.setScalar(26); k.m.material.color.setHex(hit ? 0xff6b5e : 0xffb347); k.m.visible = true;
@@ -1372,7 +1191,7 @@ const TCOL3 = { dead: 0x000000, reload: 0x8a959b, arc: 0xff6b5e, turn: 0xffd166,
 const tState = (t) => (!t.alive ? "dead" : t.reload > 0 ? "reload" : !t.inArc ? "arc" : t.onTarget ? "ready" : "turn");
 const col = new THREE.Color();
 function updateOverlays(dt) {
-  const P = G.player, on = G.state === "playing" && P && P.alive && !G.auto && !G.plane;
+  const P = G.player, on = G.state === "playing" && P && P.alive && !G.auto;
   gunLines.visible = arcLine.visible = maxRing.visible = on && weapon === "gun"; fanLines.visible = on && weapon === "torp" && !!P?.spec.torp;
   for (const k of markers) { if (k.t <= 0) continue; k.t -= dt; k.m.material.opacity = clamp(k.t / 2, 0, 0.9); if (k.t <= 0) k.m.visible = false; }
   const nav = on && P.nav.length; navLine.visible = !!nav; for (let i = 0; i < navRings.length; i++) navRings[i].visible = !!nav && i < P.nav.length;
@@ -1459,7 +1278,7 @@ function navStep(dt) {
   P.tele = SPEED_TELE[lv];
 }
 function gunStep(dt) {
-  const P = G.player; if (!P.alive || G.auto || G.plane || md.fly) return; // flying a jet: W/S/A/D belong to the aircraft
+  const P = G.player; if (!P.alive || G.auto || md.fly) return; // flying a jet: W/S/A/D belong to the aircraft
   const k = shiftDown() ? 0.25 : 1, turn = (keys.has("KeyD") ? 1 : 0) - (keys.has("KeyA") ? 1 : 0), rng = (keys.has("KeyW") ? 1 : 0) - (keys.has("KeyS") ? 1 : 0);
   if (lock && (!lock.alive || !lock.root.visible)) { if (lock.alive) log("표적을 시야에서 놓쳤습니다"); lock = null; corrR = corrB = 0; }
   const torp = weapon === "torp" && P.spec.torp;
@@ -1490,7 +1309,7 @@ function gunStep(dt) {
   if (fireHold > 0) { fireHold -= dt; if (P.fire()) fireHold = Math.min(fireHold, 0.5); }
 }
 function tryFire() {
-  if (!commanding() || G.plane) return; const P = G.player;
+  if (!commanding()) return; const P = G.player;
   if (weapon === "torp") {
     const { arc } = torpMount(P, torpB);
     if (fireTorps(P, torpB)) { sfx.torpLaunch(); G.radio("torp_launch"); log(`어뢰 ${P.spec.torp.n}발 발사 — 방위 ${brg(torpB)}`); }
@@ -1500,12 +1319,6 @@ function tryFire() {
   const allies = sel.filter((a) => !a.isPlayer && a.alive); for (const a of allies) a.holdT = 6; if (allies.length) log(`선택 함선 ${allies.length}척 동시 포격 — ${lock && lock.alive ? lock.name : "사선 지점"}`);
   if (!P.fire()) { const any = P.turrets.some((t) => t.alive && t.reload <= 0 && t.inArc); if (any) { fireHold = 6; } else { const al = P.turrets.filter((t) => t.alive); log(al.some((t) => t.reload <= 0) ? "사각 밖 — 사선을 함선 측면으로" : `장전 중 — ${Math.ceil(Math.min(...al.map((t) => t.reload)))}초`); sfx.deny(); } }
 }
-const FORMS = [["기본 호위", ALLY_ST], ["단종진", [[700, 0], [1400, 0], [2100, 0], [2800, 0]]], ["횡진", [[0, 800], [0, -800], [0, 1600], [0, -1600]]], ["윤형진", [[-900, 0], [0, 850], [0, -850], [900, 0]]]];
-function cycleForm() {
-  if (G.modern || G.mission === "raid" || G.auto) { sfx.deny(); toast(G.modern ? "진형은 2차대전 함대에서만" : "지금은 진형을 바꿀 수 없습니다"); return; }
-  formI = (formI + 1) % FORMS.length; const [n, st] = FORMS[formI]; let i = 0; for (const a of G.allies) if (!a.aiFleet && a.station && a.alive) a.station = st[i++ % st.length];
-  sfx.click(); toast(`진형: ${n} (N: 다음 진형)`); log(`함대 진형 변경 — ${n}`);
-}
 function useRepair() {
   const P = G.player; if (rep.cd > 0 || rep.n <= 0 || !P.alive) { sfx.deny(); toast(rep.n <= 0 ? "수리반을 모두 사용했습니다" : `수리반 준비 중 — ${Math.ceil(rep.cd)}초`); return; }
   rep.n--; rep.cd = 60; rep.act = 20; P.fires.length = 0; P.flooding = 0; P.rudderJam = 0; P.engine = Math.max(P.engine, 0.7); sfx.bell();
@@ -1514,23 +1327,9 @@ function useRepair() {
 }
 function reserveStep() { // launch reserved sorties as soon as the deck (WWII) or the rearm crews (modern) allow
   if (!(G.sortieRes > 0) || G.state !== "playing") return;
-  if (G.modern) { const C = myAir(); if (!C) { G.sortieRes = 0; return; } if (C.jetsReady >= 1) { G.sortieRes--; sortieJets(C, md.role); toast(`예약 출격 — ${C.cv.type} · 임무 ${JR[md.role]}${G.sortieRes ? ` (남은 예약 ${G.sortieRes})` : ""}`, 2.5); } return; }
-  if (!G.carrier?.alive) { G.sortieRes = 0; return; } if (G.planeCD <= 0 && G.squad > 0) { G.sortieRes--; if (!launchPlane(true, "us", sortieRole)) { const p = air.planes[air.planes.length - 1]; toast(`예약 사출 — ${p.label} · 임무 ${ROLE_NAMES[sortieRole]}${G.sortieRes ? ` (남은 예약 ${G.sortieRes})` : ""}`, 2.5); G.radio("launch"); airSig = ""; } }
-}
-function cancelRes() { if (!(G.sortieRes > 0)) return false; G.sortieRes = 0; sfx.click(); toast("출격 예약 취소"); airSig = ""; return true; }
-function sortie() {
-  if (G.state !== "playing" || G.auto) return;
-  if (G.plane) { recallPlane(); leaveFlight(); return; }
-  const err = launchPlane(true, "us", sortieRole);
-  if (err) { if (G.carrier?.alive && (G.planeCD > 0 || G.refit?.length) && (G.sortieRes || 0) < Math.min(4, G.squad + (G.refit?.length || 0))) { /* only as many as planes that can launch */ G.sortieRes = (G.sortieRes || 0) + 1; sfx.click(); toast(`사출 예약 ${G.sortieRes}기 — ${G.planeCD > 0 ? "갑판 정리" : "정비"}가 끝나면 자동 사출 (Shift+F: 예약 취소)`, 3); airSig = ""; } else { toast(err); sfx.deny(); } return; }
-  G.radio("launch");
-  const p = air.planes[air.planes.length - 1]; toast(`${p.label} 출격 — 임무: ${ROLE_NAMES[sortieRole]} · 오른쪽 항공대 패널에서 임무 변경`, 3.2);
+  const C = myAir(); if (!C) { G.sortieRes = 0; return; } if (C.jetsReady >= 1) { G.sortieRes--; sortieJets(C, md.role); toast(`예약 출격 — ${C.cv.type} · 임무 ${JR[md.role]}${G.sortieRes ? ` (남은 예약 ${G.sortieRes})` : ""}`, 2.5); }
 }
 // ── air group panel: sortie role, each fighter's mission, camera ───────────
-let sortieRole = "auto", airSig = "";
-function recall(p) { if (!p.alive || p === G.plane) return; p.mode = "home"; p.bandit = null; p.recalled = true; sfx.click(); log(`${p.label} 귀환 명령`); airSig = ""; }
-function setRole(p, r) { if (p.mode === "home" && p.hp >= 30 && (p.ammo > 0 || p.bombs > 0)) { p.mode = r === "fighter" ? "cap" : "climb"; p.recalled = false; } p.role = r; if (r === "strike" && (p.mode === "dogfight" || p.mode === "cap")) { p.mode = "climb"; p.bandit = null; } if (r === "fighter" && /climb|dive|extend/.test(p.mode)) p.mode = "cap"; sfx.click(); log(`${p.label} 임무 변경: ${ROLE_NAMES[r]}`); airSig = ""; }
-function missionLine() { return G.mission === "convoy" ? `수송선 ${G.convoy.filter((c) => c.alive).length}/3 · 도착 ${G.convoy.filter((c) => c.arrived).length}` : G.mission === "raid" ? `정박 함선 ${G.convoy.filter((c) => c.alive).length}/3 · 남은 공습 ${G.events.length}파` : ""; }
 const pSig = {};
 function setHTML(sel, h) { if (pSig[sel] === h) return; pSig[sel] = h; $(sel).innerHTML = h; }
 function updatePanels() {
@@ -1547,21 +1346,13 @@ function updatePanels() {
     setHTML("#tgtCard", `<div class="row">${flagOf(T, 24)}<span class="st" style="font-size:15px">${lock ? "◆ " : ""}TARGET — ${T.isCarrier ? "항모" : T.spec.cls} ${T.name}</span><span class="km">${(d2(P.pos, T.pos) / 1000).toFixed(1)} KM</span></div>`
       + `<div class="hbar"><i style="width:${Math.round((T.hp / T.maxHp) * 100)}%"></i></div><div class="sub tw" style="font-size:11.5px"><span>함장 ${T.captain || ""}${T.isrBoostT > 0 ? ` · <b style="color:#4de8d4">SAT-ISR ${Math.ceil(T.isrBoostT)}s</b>` : ""}</span><span>${P.ammo === "he" ? "HE" : "AP"} · ${lock ? fcGrade() : "더블클릭: 고정"}</span></div>${canBoard(T) ? "" : `<div class="sub" style="font-size:11.5px;color:#ffd166">⚓ B · 나포 가능 — 해병대 상륙정 발진</div>`}`);
   } else tc.classList.add("off");
-  const torp = P.spec.torp, st = (t) => (!t.alive ? (t.fixT > 0 ? "reload" : "dead") : t.reload > 0 ? "reload" : !t.inArc ? "arc" : t.onTarget ? "ready" : "turn");
-  const tur = P.turrets.map((t) => { const k = st(t); return `<i><b style="width:${t.alive ? Math.round((1 - t.reload / P.reloadT) * 100) : 100}%;background:${TCOL[k]}"></b></i>`; }).join("");
-  const tReady = torp ? P.torps.filter((m) => m.reload <= 0).length : 0;
-  if (G.modern) { setHTML("#wpnBar", modernBar()); return; }
-  const isTorp = weapon === "torp";
-  setHTML("#wpnBar", helmHTML() + `<div class="slot main grp g on" data-key="Space"><span class="t">${isTorp ? "어뢰" : `주포 ${GUNS[P.spec.gun].name.split(" ")[0]}`}</span><span class="v">${isTorp ? (torp ? `${tReady}/${P.torps.length} 발사 가능` : "탑재 안 됨") : `${P.ammo === "he" ? "HE" : "AP"} · ${P.turrets.filter((t) => t.alive && t.reload <= 0).length}/${P.turrets.filter((t) => t.alive).length} 장전`}</span>${isTorp ? "" : `<span class="tur">${tur}</span>`}<div class="sub2"><button data-key="KeyQ">Q ▸ ${isTorp ? "주포" : "어뢰"}</button><button data-key="KeyZ" class="${autoFire ? "on" : ""}">Z 자동 ${autoFire ? "ON" : "OFF"}</button></div></div>`
-    + `<button class="slot g${aa.on ? " on" : ""}" data-key="KeyG"><span class="t">G · 대공</span><span class="v">${aa.on ? (aa.ammo === "flak" ? "대공탄" : "기관포") : "사수"}</span></button>`
-    + `<button class="slot g${cap.phase ? " on" : ""}${!cap.phase && !canBoard(lock || G.enemy) ? "" : ""}" data-key="${cap.phase ? "KeyV" : "KeyB"}"><span class="t">B · 나포</span><span class="v">${cap.phase ? (cap.phase === "boats" ? "상륙정 접근" : "갑판 전투") : cap.used >= CAP_MAX ? "소진" : canBoard(lock || G.enemy) ? `${CAP_MAX - cap.used}회` : "가능!"}</span></button>`
-    + repairSlot());
+  setHTML("#wpnBar", modernBar());
 }
 $("#wpnBar").addEventListener("mousedown", (e) => e.stopPropagation());
 $("#wpnBar").addEventListener("click", (e) => { const sp = e.target.closest("[data-speed],[data-act]"); if (sp) { e.stopPropagation(); if (!commanding()) return; if (sp.dataset.speed) setSpeed(+sp.dataset.speed); else useRepair(); return; } const b = e.target.closest("[data-key]"); if (!b) return; e.stopPropagation(); window.dispatchEvent(new KeyboardEvent("keydown", { code: b.dataset.key })); setTimeout(() => window.dispatchEvent(new KeyboardEvent("keyup", { code: b.dataset.key })), 0); });
 $("#shipCard").addEventListener("mousedown", (e) => e.stopPropagation());
 $("#shipCard").addEventListener("click", (e) => { e.stopPropagation(); const b = e.target.closest("[data-speed],[data-act]"); if (!b || !commanding()) return; if (b.dataset.speed) setSpeed(+b.dataset.speed); else useRepair(); });
-// modern air group panel (right side, like the WWII one): default mission, sortie, each jet's mission, fly, recall
+// modern air group panel (right side, like the WWII one): default mission, each jet's mission, fly, recall
 function goalBeacon() { /* destination shown in the 3D battle too: a tall light column, a ring on the water, distance tag via the label sprite */
   const on = !!(G.goal && G.state === "playing" && G.player?.alive);
   if (!goalMk) { if (!on) return;
@@ -1604,26 +1395,9 @@ function renderJetPanel() {
 }
 function recallAllJets() { /* 5: every fighter heads home (the one you fly stays yours) */
   let n = 0;
-  if (G.modern) { for (const j of MSL.jets) if (j.alive && j.side === "us" && !j.support && j !== md.fly && !j.home) { j.home = true; n++; } jetSig = ""; }
-  else { for (const p of air.planes) if (p.side === "us" && !p.crashed && p.alive && p !== G.plane) { recall(p); n++; } airSig = ""; }
+  { for (const j of MSL.jets) if (j.alive && j.side === "us" && !j.support && j !== md.fly && !j.home) { j.home = true; n++; } jetSig = ""; }
   if (n) { sfx.click(); toast(`전 전투기 귀환 명령 — ${n}기 (5)`); } else { sfx.deny(); toast("귀환시킬 전투기가 없습니다"); }
 }
-function renderAirPanel() {
-  const el = $("#airP"); if (!el) return;
-  const ps = air.planes.filter((p) => p.side === "us" && !p.crashed), foeN = air.planes.filter((p) => p.side === "foe" && p.alive).length;
-  const camName = cam.free ? "자유 카메라 · C: 기함으로" : `카메라: ${!cam.tgt ? "기함" : isPlane(cam.tgt) ? cam.tgt.callsign : cam.tgt.name}${cam.map ? " · 지도" : ""} · Tab`;
-  const sig = JSON.stringify([G.squad, Math.ceil(G.planeCD), sortieRole, camName, missionLine(), foeN, !!G.carrier?.alive, ps.map((p) => [p.callsign, p.role, p.activity, Math.round(p.hp / 10), p.ammo, p.bombs, p === G.plane, p.kills])]);
-  if (sig === airSig) return; airSig = sig;
-  const rb = (cur, val, attrs) => `<button class="rb${cur === val ? " on" : ""}" ${attrs}>${ROLE_NAMES[val]}</button>`;
-  let h = `<div class="ah"><b>항공대 · 렉싱턴</b><span>대기 ${G.squad}${G.refit?.length ? ` · 정비 ${G.refit.length}` : ""}${G.sortieRes ? ` · 예약 ${G.sortieRes}` : ""} · 비행 ${ps.length}${foeN ? ` · <i>적기 ${foeN}</i>` : ""}</span></div>`;
-  h += `<div class="ar">출격 임무 ${["auto", "fighter", "strike"].map((r) => rb(sortieRole, r, `data-def="${r}"`)).join("")}</div>`;
-  h += `<button class="sortie"${!G.carrier?.alive || !G.squad || G.planeCD > 0 ? " disabled" : ""} data-act="sortie">${!G.carrier?.alive ? "렉싱턴 침몰" : !G.squad ? "대기 전투기 없음" : G.planeCD > 0 ? `사출 준비 ${Math.ceil(G.planeCD)}초` : `F 출격 (${ROLE_NAMES[sortieRole]})`}</button>`;
-  if (ps.length) h += `<div class="ar all">전체 ${["fighter", "strike"].map((r) => `<button class="rb" data-all="${r}">${ROLE_NAMES[r]}</button>`).join("")}<button class="rb home" data-allhome="1">귀환</button></div>`;
-  for (const p of ps) h += `<div class="pl${p === cam.tgt ? " sel" : ""}"><div class="pn" data-cam="${p.callsign}">${p.callsign.replace("와일드캣 ", "WC-")} · ${p.pilot || ""}<small>${p === G.plane ? "직접 조종" : !p.alive ? "격추됨" : p.activity} · ${Math.round(p.hp)}% · 폭탄 ${p.bombs}${p.kills ? ` · 격추 ${p.kills}` : ""}</small></div>${p === G.plane || !p.alive ? "" : ["fighter", "strike", "auto"].map((r) => rb(p.mode === "home" ? "" : p.role, r, `data-p="${p.callsign}" data-r="${r}"`)).join("") + `<button class="rb home${p.mode === "home" ? " on" : ""}" data-home="${p.callsign}">귀환</button>`}</div>`;
-  h += `<div class="cm">${camName}</div>`; if (missionLine()) h += `<div class="ms2">${missionLine()}</div>`;
-  el.innerHTML = h;
-}
-$("#airP").addEventListener("click", (e) => e.stopPropagation());
 $("#jetP").addEventListener("click", (e) => e.stopPropagation());
 $("#jetP").addEventListener("mousedown", (e) => {
   e.stopPropagation(); if (e.button !== 0) return; const b = e.target.closest("[data-jdef],[data-jact],[data-jall],[data-jallhome],[data-jp],[data-jfly],[data-jwatch],[data-jhome]"); if (!b || G.state !== "playing") return;
@@ -1641,31 +1415,13 @@ $("#jetP").addEventListener("mousedown", (e) => {
 $("#flyBack").addEventListener("click", (e) => { e.stopPropagation(); if (md.fly) releaseFly(); });
 $("#autoBtn").addEventListener("click", (e) => { e.stopPropagation(); window.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyZ" })); setTimeout(() => window.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyZ" })), 0); });
 function syncAutoBtn() { const b = $("#autoBtn"), t = autoFire ? `자동 공격 켜짐 — 주포${G.player?.spec.torp ? "·어뢰" : ""} (Z)` : "자동 공격 꺼짐 (Z)"; if (b.textContent !== t) b.textContent = t; b.classList.toggle("on", autoFire); }
-$("#airP").addEventListener("mousedown", (e) => {
-  e.stopPropagation(); if (e.button !== 0) return; const b = e.target.closest("[data-def],[data-p],[data-all],[data-allhome],[data-home],[data-cam],[data-act]"); if (!b || b.disabled || G.state !== "playing") return;
-  const find = (cs) => air.planes.find((p) => p.callsign === cs && !p.crashed);
-  if (b.dataset.def) { sortieRole = b.dataset.def; sfx.click(); airSig = ""; }
-  else if (b.dataset.act === "sortie") sortie();
-  else if (b.dataset.allhome) { for (const p of air.planes) if (p.side === "us" && !p.crashed && p.alive && p !== G.plane) recall(p); }
-  else if (b.dataset.home) { const p = find(b.dataset.home); if (p) recall(p); }
-  else if (b.dataset.all) { for (const p of air.planes) if (p.side === "us" && !p.crashed && p !== G.plane) setRole(p, b.dataset.all); }
-  else if (b.dataset.p) { const p = find(b.dataset.p); if (p) setRole(p, b.dataset.r); }
-  else if (b.dataset.cam) { const p = find(b.dataset.cam); if (p) { cam.tgt = p; cam.free = false; cam.map = false; cam.pYaw = 0; sfx.click(); airSig = ""; } }
-});
-function flightToggle() { // I / Enter: fly a fighter yourself, or hand it back to the autopilot
-  if (G.plane) { const p = G.plane; autopilot(); leaveFlight(); cam.tgt = p; toast("자동 조종 — 카메라는 계속 이 기체를 따라갑니다 (I: 다시 조종 · Tab: 전환)"); return; }
-  if (isPlane(cam.tgt)) enterFlight(cam.tgt); else { const p = air.planes.find((q) => q.side === "us" && q.alive && !q.crashed); if (p) enterFlight(p); else toast("비행 중인 아군 전투기가 없습니다 — F: 출격"); }
-}
-function enterFlight(p) { if (aa.on) toggleAA(false); if (!takeControl(p)) { sfx.deny(); return; } document.body.classList.add("flying"); air.cockpit = false; lockOn = null; cam.tgt = p; toast("직접 조종 — 화면 클릭 후 마우스로 비행 · Tab: 본함 시점 복귀", 3); }
-function leaveFlight() { document.body.classList.remove("flying"); if (document.pointerLockElement) document.exitPointerLock(); cockpit.visible = false; }
+
 function cycleCam() {
-  const L = [null, ...air.planes.filter((p) => p.side === "us" && !p.crashed)]; if (G.carrier?.alive) L.push(G.carrier); const T = lock || G.enemy; if (T && T.alive && T.root.visible) L.push(T);
-  const i = L.indexOf(cam.tgt); cam.tgt = L[(i + 1) % L.length]; cam.free = false; if (isPlane(cam.tgt)) cam.map = false; sfx.click();
-  if (isPlane(cam.tgt)) { cam.pYaw = 0; toast(`카메라: ${cam.tgt.label} — Enter: 직접 조종`); } else toast(`카메라: ${cam.tgt ? cam.tgt.name : "본함"}`);
+  const L = [null]; const T = lock || G.enemy; if (T && T.alive && T.root.visible) L.push(T);
+  const i = L.indexOf(cam.tgt); cam.tgt = L[(i + 1) % L.length]; cam.free = false; sfx.click(); toast(`카메라: ${cam.tgt ? cam.tgt.name : "본함"}`);
 }
 function toAuto() {
   if (G.auto || G.state !== "playing" || !G.player?.alive) return;
-  if (G.plane) { planeAuto(); leaveFlight(); } if (aa.on) toggleAA(false); if (cap.fps) toggleCapFps(false);
   G.auto = true; document.body.classList.add("auto"); autoFire = false; log("자동 전투로 전환 — 관전 중 (Enter: 직접 지휘)"); toast("자동 전투 — Enter 또는 버튼으로 다시 직접 지휘");
 }
 let autoSpeed = 1;
@@ -1676,7 +1432,7 @@ function setPause(on) {
   if (G.state !== "playing" && G.state !== "ending") return; paused = on; $("#pause").style.display = on ? "grid" : "none"; $("#pause").classList.remove("menuset"); $("#pause h1").textContent = "일시정지"; $("#resumeBtn").textContent = "계속 (P)";
   if (on && document.pointerLockElement) document.exitPointerLock();
 }
-function forfeit(dest) { paused = false; if (md.fly) releaseFly(); jetSound(0); droneSound(0); cicStop(); document.body.classList.remove("jetfly", "modern"); if (G.plane) recallPlane(); cockpit.visible = false; G.state = "menu"; toast("전투 포기 — 보상 없음"); if (dest === "yard") openYard(); else openMenu(); }
+function forfeit(dest) { paused = false; if (md.fly) releaseFly(); jetSound(0); droneSound(0); cicStop(); document.body.classList.remove("jetfly", "modern"); G.state = "menu"; toast("전투 포기 — 보상 없음"); if (dest === "yard") openYard(); else openMenu(); }
 function start(spectate) {
   autoSpeed = 1; $("#spdBtns")?.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.spd === "1")); initAudio(); bgm("battle"); G.auto = spectate === true; newBattle(); G.state = "playing"; screen = "battle";
   hideAll(); $("#topbar").style.display = "none"; document.body.classList.add("playing"); document.body.classList.toggle("auto", G.auto); document.body.classList.toggle("modern", !!G.modern); tutStart();
@@ -1709,7 +1465,6 @@ function pick(sx, sy) {
 function plotPick(e) { const r = plot.getBoundingClientRect(), k = plot.width / r.width, px = (e.clientX - r.left) * k, py = (e.clientY - r.top) * k; const c = plot.width / 2, f = (c - py) / plotSc, s = (px - c) / plotSc, P = G.player, cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw); return { x: P.pos.x + f * cy - s * sy, z: P.pos.z + f * sy + s * cy }; }
 
 // ── input events ────────────────────────────────────────────────────────────
-function steer(dx, dy) { air.aimYaw = wrap(air.aimYaw + dx * 0.0022); air.aimPitch = clamp(air.aimPitch - dy * 0.0022, -80 * DEG, 80 * DEG); }
 function lockPointer() { try { const r = canvas.requestPointerLock?.(); if (r && r.catch) r.catch(() => {}); } catch {} }
 canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 $("#plot").addEventListener("contextmenu", (e) => e.preventDefault());
@@ -1722,35 +1477,32 @@ canvas.addEventListener("mousedown", (e) => {
   if (e.button !== 0) return; lDown = st;
   if (G.modern && e.ctrlKey && G.state === "playing" && !md.fly && !paused) { const h = pick(e.clientX, e.clientY); if (h) { md.aimPt = md.supPt = { x: h.x, z: h.z }; lock = null; sfx.click(); toast("타격 지점 지정 — Space: 그 근방 적함을 자동 표적 · ` 지휘통제실 합동 지원도 이 지점으로"); } return; }
   if (md.fly && G.state === "playing" && !paused) { if (document.pointerLockElement !== canvas) lockPointer(); return; }
-  if ((G.plane || aa.on || cap.fps) && G.state === "playing" && !paused) { lockPointer(); return; }
+  if ((aa.on || cap.fps) && G.state === "playing" && !paused) { lockPointer(); return; }
 });
 canvas.addEventListener("dblclick", (e) => {
-  if (!commanding() || G.plane) return; const h = pick(e.clientX, e.clientY); if (!h) return;
+  if (!commanding()) return; const h = pick(e.clientX, e.clientY); if (!h) return;
   const foe = h.ship && h.ship.side === "foe" ? h.ship : null; if (foe) lockShip(foe); else { aimAtPoint(h.x, h.z); sfx.click(); }
 });
 window.addEventListener("mouseup", (e) => {
   if (e.button === 1) { mDown = null; md.lookHeld = false; }
-  if (e.button === 2 && rDown) { const click = rDown.d < 6 && !cap.fps; rDown = null; if (click && commanding() && !G.plane && e.target === canvas) { const h = pick(e.clientX, e.clientY); if (h) orderSelected(h, e.shiftKey); } }
-  if (e.button === 0 && lDown) { const L = lDown; lDown = null; if (screen === "battle" && commanding() && !G.plane && !aa.on && !cap.fps && e.target === canvas) { if (L.box) boxSelect(L.x, L.y, e.clientX, e.clientY, e.shiftKey); else if (L.d < 5 && e.altKey) clickSelect(e.clientX, e.clientY, e.shiftKey); } }
+  if (e.button === 2 && rDown) { const click = rDown.d < 6 && !cap.fps; rDown = null; if (click && commanding() && e.target === canvas) { const h = pick(e.clientX, e.clientY); if (h) orderSelected(h, e.shiftKey); } }
+  if (e.button === 0 && lDown) { const L = lDown; lDown = null; if (screen === "battle" && commanding() && !aa.on && !cap.fps && e.target === canvas) { if (L.box) boxSelect(L.x, L.y, e.clientX, e.clientY, e.shiftKey); else if (L.d < 5 && e.altKey) clickSelect(e.clientX, e.clientY, e.shiftKey); } }
 });
 document.addEventListener("mousemove", (e) => {
   const dx = e.movementX, dy = e.movementY; mouseX = e.clientX; mouseY = e.clientY;
   altMod = e.altKey; if (md.fly && G.state === "playing" && document.pointerLockElement === canvas) { const s = SENS / 0.6; if (altDown() || md.lookHeld) { md.lookYaw = clamp((md.lookYaw || 0) + dx * 0.004, -3.1, 3.1); md.lookPitch = clamp((md.lookPitch || 0) - dy * 0.004, -1.2, 1.2); } else { md.mdx = (md.mdx || 0) + dx * s; md.mdy = (md.mdy || 0) + dy * s; } return; }
   for (const s of [lDown, rDown, mDown]) if (s) s.d += Math.abs(dx) + Math.abs(dy);
-  if (lDown && lDown.d > 4 && !G.plane && !aa.on && !cap.fps && screen === "battle" && e.buttons & 1 && e.altKey && !isPlane(cam.tgt) && commanding()) { lDown.box = true; return; }
-  if (lDown && lDown.d > 4 && !G.plane && !aa.on && !cap.fps && screen === "battle" && e.buttons & 1) { // left-drag: pan the camera freely over the sea
-    if (isPlane(cam.tgt)) { cam.pYaw += dx * 0.006; cam.pPitch = clamp(cam.pPitch + dy * 0.004, -0.5, 1.3); return; }
+  if (lDown && lDown.d > 4 && !aa.on && !cap.fps && screen === "battle" && e.buttons & 1 && e.altKey && commanding()) { lDown.box = true; return; }
+  if (lDown && lDown.d > 4 && !aa.on && !cap.fps && screen === "battle" && e.buttons & 1) { // left-drag: pan the camera freely over the sea
     const k = (2 * (cam.map ? cam.mapDist : cam.dist) * Math.tan((camera.fov * DEG) / 2)) / innerHeight, cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw), vk = cam.map ? 1 : 1 / Math.max(Math.sin(cam.pitch), 0.4);
     cam.free = true; cam.tgt = null; cam.focus.x += (sy * dx + cy * dy * vk) * k; cam.focus.z += (-cy * dx + sy * dy * vk) * k; return;
   }
   if (cap.fps && G.state === "playing" && (document.pointerLockElement === canvas || (lDown && e.buttons & 1))) { const k = 0.0022 * SENS / 0.6; cap.yaw = wrap(cap.yaw + dx * k); cap.pitch = clamp(cap.pitch - dy * k, -1.2, 1.2); return; }
   if (aa.on && G.state === "playing" && (document.pointerLockElement === canvas || (lDown && e.buttons & 1))) { const k = (aa.fov / 55) * 0.0022 * SENS / 0.6; aa.yaw = wrap(aa.yaw + dx * k); aa.pitch = clamp(aa.pitch - dy * k, -0.12, 1.5); return; }
-  if (G.plane && G.state === "playing") { if (document.pointerLockElement === canvas || (lDown && e.buttons & 1)) { if (altDown()) { freeYaw = clamp(freeYaw + dx * 0.004, -2.9, 2.9); freePitch = clamp(freePitch - dy * 0.004, -1.25, 1.25); } else steer(dx * SENS / 0.6, dy * SENS / 0.6); } return; }
   const rot = (mDown && e.buttons & 4) || (rDown && rDown.d > 6 && e.buttons & 2);
   if (!rot) return;
   if (screen !== "battle") { cam.orbYaw += dx * 0.005; cam.orbPitch = clamp(cam.orbPitch + dy * 0.004, 0.03, 1.2); return; }
-  if (isPlane(cam.tgt)) { cam.pYaw += dx * 0.006; cam.pPitch = clamp(cam.pPitch + dy * 0.004, -0.5, 1.3); }
-  else { cam.yaw = wrap(cam.yaw + dx * 0.005); cam.pitch = clamp(cam.pitch + dy * 0.004, 0.3, 1.5); }
+  { cam.yaw = wrap(cam.yaw + dx * 0.005); cam.pitch = clamp(cam.pitch + dy * 0.004, 0.3, 1.5); }
 });
 window.addEventListener("wheel", (e) => {
   const f = Math.exp(e.deltaY * 0.0012);
@@ -1758,12 +1510,10 @@ window.addEventListener("wheel", (e) => {
   if (screen !== "battle") cam.orbDist = clamp(cam.orbDist * f, 60, 2200);
   else if (aa.on) aa.fov = clamp(aa.fov * f, 14, 80);
   else if (G.modern && md.fly && !md.flyAuto) md.fly.thr = clamp((md.fly.thr || (md.fly.heavy ? 165 : 240)) - Math.sign(e.deltaY) * (md.fly.heavy ? 8 : 16), md.fly.heavy ? 125 : 110, md.fly.heavy ? 185 : md.fly.hit ? 250 : 330);
-  else if (G.plane) G.plane.throttle = clamp(G.plane.throttle - Math.sign(e.deltaY) * 0.08, 0, 1);
-  else if (isPlane(cam.tgt)) cam.pDist = clamp(cam.pDist * f, 18, 600);
   else if (cam.map) cam.mapDist = clamp(cam.mapDist * f, 3000, 45000);
   else cam.dist = clamp(cam.dist * f, 160, 18000);
 }, { passive: true });
-$("#plot").addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); if (!commanding() || G.plane) return; const p = plotPick(e); if (e.button === 2) moveOrder(p.x, p.z, e.shiftKey); else if (e.button === 0) aimAtPoint(p.x, p.z); });
+$("#plot").addEventListener("mousedown", (e) => { e.preventDefault(); e.stopPropagation(); if (!commanding()) return; const p = plotPick(e); if (e.button === 2) moveOrder(p.x, p.z, e.shiftKey); else if (e.button === 0) aimAtPoint(p.x, p.z); });
 window.addEventListener("keydown", (e) => {
   altMod = e.altKey; if (e.code === "AltLeft" || e.code === "AltRight") e.preventDefault();
   if (e.target && e.target.tagName === "INPUT") return;
@@ -1775,45 +1525,26 @@ window.addEventListener("keydown", (e) => {
   if (e.code === "KeyU" && screen === "battle") { cinema = !cinema; document.body.classList.toggle("cinema", cinema); return; }
   if (G.state !== "playing" || paused) return;
   if (e.code === "KeyH") { helpOn = !helpOn; return; }
-  if (e.code === "KeyE" && !G.plane && !G.modern) { cycleForm(); return; }
-  if (e.code === "KeyN" && !G.modern) { const order = ["auto", "fighter", "strike"]; sortieRole = order[(order.indexOf(sortieRole) + 1) % 3]; for (const p of air.planes) if (p.side === "us" && p.alive && !p.crashed && p !== G.plane) setRole(p, sortieRole === "auto" ? "fighter" : sortieRole); airSig = ""; sfx.click(); toast(`항공 임무: ${ROLE_NAMES[sortieRole]} — 다음 출격과 비행 중인 전투기에 적용 (N: 변경)`, 3); return; }
-  if (!G.modern && (e.code === "KeyI" || (e.code === "KeyK" && G.plane))) { flightToggle(); return; }
-  if (e.code === "Tab" && (md.fly || G.plane)) { if (md.fly) releaseFly(); else { flightToggle(); cam.tgt = null; } toast("본함 시점으로 복귀"); return; } // Tab while flying: straight back to the flagship
+  if (e.code === "Tab" && md.fly) { releaseFly(); toast("본함 시점으로 복귀"); return; } // Tab while flying: straight back to the flagship
   if (e.code === "Tab") { cycleCam(); return; }
-  if (e.code === "KeyM" && !G.plane) { cam.map = !cam.map; if (cam.map && isPlane(cam.tgt)) cam.tgt = null; sfx.click(); toast(cam.map ? "지도 시점 — 휠: 축척 · 좌클릭 끌기: 이동 · M: 복귀" : "지휘 시점"); return; }
-  if (e.code === "KeyC" && !G.plane) { cam.free = false; cam.tgt = null; sfx.click(); toast("카메라: 기함"); return; }
+  if (e.code === "KeyM") { cam.map = !cam.map; sfx.click(); toast(cam.map ? "지도 시점 — 휠: 축척 · 좌클릭 끌기: 이동 · M: 복귀" : "지휘 시점"); return; }
+  if (e.code === "KeyC") { cam.free = false; cam.tgt = null; sfx.click(); toast("카메라: 기함"); return; }
   if (e.code === "KeyJ" && G.state === "playing") { if (G.auto) takeOver(); else toAuto(); return; }
   if (e.code === "Enter") {
     if (G.auto) { takeOver(); return; }
-    if (G.modern) { if (md.fly) releaseFly(); else takeJet(); return; }
-    flightToggle(); return;
-  }
-  if (false) {
-    if (G.plane) { const p = G.plane; autopilot(); leaveFlight(); cam.tgt = p; toast("자동 조종 — 카메라는 계속 이 기체를 따라갑니다 (Tab: 전환)"); return; }
-    if (isPlane(cam.tgt)) enterFlight(cam.tgt); else { const p = air.planes.find((q) => q.side === "us" && q.alive && !q.crashed); if (p) enterFlight(p); else toast("비행 중인 아군 전투기가 없습니다 — F: 출격"); }
-    return;
+    if (md.fly) releaseFly(); else takeJet(); return;
   }
   if (G.auto) return;
   if (e.code === "Digit5" && G.state === "playing") { recallAllJets(); return; }
-  if (G.modern && G.state === "playing" && !G.plane && !cap.fps && modernKey(e.code)) return; // modern keys first: G = jets, I = fly, B = jet's anti-ship missiles
-  if (e.code === "KeyB" && !G.plane && G.state === "playing") { startBoard(); return; }
-  if (e.code === "KeyV" && !G.plane && cap.phase) { toggleCapFps(); return; }
-  if (e.code === "KeyG" && !G.plane && !G.modern) { toggleAA(); return; }
-  if (e.code === "KeyF") { if ((keys.has("ShiftLeft") || keys.has("ShiftRight")) && cancelRes()) return; if (aa.on) toggleAA(false); sortie(); return; }
-  if (G.plane) {
-    if (e.code === "Space") air.firing = true;
-    if (e.code === "KeyB") G.plane.dropBomb();
-    if (e.code === "KeyX") { if (!G.plane.dropFlare()) sfx.deny(); }
-    if (e.code === "KeyQ") { lockOn = lockOn ? null : flightTarget(); sfx.click(); if (!lockOn) toast("락온 해제"); }
-    if (e.code === "KeyV") { air.cockpit = !air.cockpit; }
-    return;
-  }
+  if (G.modern && G.state === "playing" && !cap.fps && modernKey(e.code)) return; // modern keys first: G = jets, I = fly, B = jet's anti-ship missiles
+  if (e.code === "KeyB" && G.state === "playing") { startBoard(); return; }
+  if (e.code === "KeyV" && cap.phase) { toggleCapFps(); return; }
   if (/^Digit[1-3]$/.test(e.code)) setSpeed(+e.code.slice(5));
   if (e.code === "Digit0" || e.code === "Backquote") setSpeed(0);
   if (e.code === "KeyQ" && aa.on) { aa.ammo = aa.ammo === "mg" ? "flak" : "mg"; aa.t = 0.3; sfx.click(); toast(aa.ammo === "flak" ? "대공탄 — 느리지만 적기 근처에서 터져 넓게 피해" : "기관포 — 빠른 연사, 직격해야 피해"); return; }
   if (e.code === "KeyQ") { if (G.player.spec.torp) { weapon = weapon === "gun" ? "torp" : "gun"; sfx.click(); toast(weapon === "torp" ? "어뢰 — A/D로 방향, Space 발사 (Q: 주포)" : "주포 (Q: 어뢰)"); } else { sfx.deny(); toast("이 함선에는 어뢰가 없습니다"); } }
   if (e.code === "KeyR") useRepair();
-  if (e.code === "KeyZ") { autoFire = !autoFire; sfx.click(); toast(autoFire ? `자동 공격 켬 — 주포${G.player.spec.torp ? "·어뢰" : ""} 자동 조준·발사 (Z: 끄기)` : "자동 공격 끔 (Z)"); airSig = ""; }
+  if (e.code === "KeyZ") { autoFire = !autoFire; sfx.click(); toast(autoFire ? `자동 공격 켬 — 주포${G.player.spec.torp ? "·어뢰" : ""} 자동 조준·발사 (Z: 끄기)` : "자동 공격 끔 (Z)"); }
   if (e.code === "Space" && !aa.on && !cap.fps) tryFire();
 });
 window.addEventListener("keyup", (e) => { if (e.code === "AltLeft" || e.code === "AltRight") e.preventDefault(); keys.delete(e.code); altMod = e.altKey; if (e.code === "Space") air.firing = false; });
@@ -1836,13 +1567,6 @@ $("#sens").addEventListener("input", (e) => { SENS = +e.target.value; $("#sensV"
 window.addEventListener("pointerdown", () => initAudio(), { once: true });
 for (const ev of ["mouseup", "auxclick"]) window.addEventListener(ev, (e) => { if ((e.button === 3 || e.button === 4) && G.state === "playing") e.preventDefault(); }); /* the mouse back/forward buttons must not leave the game page during a battle */ for (const ev of ["click", "keydown"]) window.addEventListener(ev, () => initAudio()); /* resume sound (and the music) if the browser kept it suspended */
 /** Flight lock-on: the nearest enemy fighter in front, else the enemy ship nearest the nose. */
-function flightTarget() {
-  const pl = G.plane, cd = camera.getWorldDirection(new THREE.Vector3()); let best = null, s = Infinity;
-  for (const p of air.planes) if (p.side === "foe" && p.alive) { const v = p.pos.clone().sub(pl.pos), d = v.length(), a = cd.angleTo(v); if (d < 3500 && a < 40 * DEG && a * 3 + d / 2000 < s) { s = a * 3 + d / 2000; best = p; } }
-  if (best) return best;
-  for (const e of seenFoes()) { const v = e.pos.clone().setY(10).sub(pl.pos), a = cd.angleTo(v); if (v.length() < 9000 && a < 35 * DEG && a < s) { s = a; best = e; } }
-  return best;
-}
 
 // ── cameras ─────────────────────────────────────────────────────────────────
 const camPos = new THREE.Vector3(-260, 80, 120), tmp = new THREE.Vector3(), FLIP = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), PI), eu = new THREE.Euler();
@@ -1850,28 +1574,17 @@ let near = 4;
 function setNear(n) { if (Math.abs(n - near) > 0.05) { near = n; camera.near = n; camera.updateProjectionMatrix(); } }
 /** Returns "cockpit" | "flight" | "watch" | "command" | null (menus). */
 function updateCamera(dt) {
-  const P = G.player, pl = G.plane; cockpit.visible = false; jetPit.visible = false; garandVM.visible = mgVM.visible = false;
+  const P = G.player; jetPit.visible = false; garandVM.visible = mgVM.visible = false;
   if (screen !== "battle" || !P) {
     const L = P ? P.spec.L : 190, R = cam.orbDist * (L / 190) * 1.05, a = cam.orbYaw + G.time * 0.04;
     camera.position.set(Math.cos(a) * Math.cos(cam.orbPitch) * R, Math.sin(cam.orbPitch) * R + 8, Math.sin(a) * Math.cos(cam.orbPitch) * R).add(P ? P.pos : tmp.set(0, 0, 0));
     camera.fov = 42; setNear(4); camera.updateProjectionMatrix(); camera.up.set(0, 1, 0); camera.lookAt(P ? P.pos.clone().setY(L * 0.06) : tmp.set(0, 0, 0)); return null;
   }
   G.shake = (G.shake || 0) * Math.exp(-dt * 4.5);
-  for (const p of air.planes) p.obj.visible = true; mapGrid.visible = false; scene.fog.density = 0.00005;
-  if (G.kc && !(pl && !pl.crashed) && !(G.modern && md.fly && md.fly.alive)) { // kill-cam: slow orbit around the ship going down
+  mapGrid.visible = false; scene.fog.density = 0.00005;
+  if (G.kc && !(md.fly && md.fly.alive)) { // kill-cam: slow orbit around the ship going down
     const s = G.kc.ship, L = s.spec.L, u = 1 - G.kc.t / 2.5, a = G.kc.a + u * 0.9, R = L * 1.7 + 170; setNear(1.2);
     camera.position.set(s.pos.x + Math.cos(a) * R, L * 0.3 + 28 + u * 22, s.pos.z + Math.sin(a) * R); camPos.copy(camera.position); camera.fov = 50; camera.updateProjectionMatrix(); camera.up.set(0, 1, 0); camera.lookAt(s.pos.x, L * 0.04, s.pos.z); aaGun.visible = false; return "kill";
-  }
-  if (pl && !pl.crashed) {
-    if (air.cockpit) { pl.obj.visible = false;
-      setNear(0.5); camera.position.copy(pl.obj.localToWorld(new THREE.Vector3(0, 0.85, 0.15)));
-      const lookQ = new THREE.Quaternion().setFromEuler(eu.set(freePitch, -freeYaw, 0, "YXZ"));
-      camera.quaternion.copy(pl.obj.quaternion).multiply(FLIP).multiply(lookQ); cockpit.quaternion.copy(lookQ).invert(); camera.fov = 68; camera.updateProjectionMatrix(); camPos.copy(camera.position);
-      cockpit.visible = true; updateCockpit(pl, dt); return "cockpit";
-    }
-    setNear(1.2); const d = dirFrom(air.aimYaw + freeYaw, clamp(air.aimPitch + freePitch, -1.5, 1.5)), D = cam.pDist * 0.5;
-    camPos.copy(pl.pos).addScaledVector(d, -D).add(tmp.set(0, D * 0.2, 0)); camera.position.copy(camPos); camera.fov = 62; camera.updateProjectionMatrix();
-    camera.up.set(0, 1, 0); camera.lookAt(pl.pos.clone().addScaledVector(d, 90)); return "flight";
   }
   if (G.modern && md.fly && md.fly.alive) { flyCamera(dt); aaGun.visible = false; return "fly"; }
   if (G.modern && MSL.cam && missileCamera(dt)) { aaGun.visible = false; return "missile"; }
@@ -1881,13 +1594,6 @@ function updateCamera(dt) {
     scene.fog.density = 0.000022; camera.fov = aa.fov; camera.updateProjectionMatrix(); camera.up.set(0, 1, 0); aa.kick = Math.max(0, aa.kick - dt * 14); camera.lookAt(o.clone().add(dirFrom(aa.yaw, aa.pitch + aa.kick * 0.0025))); aaGun.visible = true; updateAAGun(aa.recoil); return "aa"; // steady sight: only a small smooth climb per shot
   }
   aaGun.visible = false;
-  if (isPlane(cam.tgt) && (!air.planes.includes(cam.tgt) || cam.tgt.crashed)) { toast(`${cam.tgt.label} ${cam.tgt.landed ? "착함" : "추락"} — 카메라 본함 복귀`); cam.tgt = null; }
-  if (isPlane(cam.tgt)) {
-    const p = cam.tgt, f = p.fwd, hdg = Math.atan2(f.z, f.x); setNear(1.2);
-    const want = p.pos.clone().addScaledVector(dirFrom(hdg + cam.pYaw, -cam.pPitch), -cam.pDist); if (want.y < 3) want.y = 3;
-    if (camPos.distanceTo(want) > 900) camPos.copy(want); else camPos.lerp(want, 1 - Math.exp(-dt * 6));
-    camera.position.copy(camPos); camera.fov = 55; camera.updateProjectionMatrix(); camera.up.set(0, 1, 0); camera.lookAt(p.pos.clone().addScaledVector(f, 12)); return "watch";
-  }
   if (cam.tgt && (!cam.tgt.alive && cam.tgt.sinking > 25 || !cam.tgt.root.visible)) cam.tgt = null;
   const F = cam.tgt || P;
   if (!cam.free) { if (cam.focus.distanceTo(F.pos) > 4000) cam.focus.copy(F.pos); else cam.focus.lerp(F.pos, 1 - Math.exp(-dt * 5)); }
@@ -1905,7 +1611,6 @@ function proj(v) { const p = v.clone().project(camera); if (p.z > 1) return null
 function rr(x, y, w, h, r) { hx.beginPath(); hx.moveTo(x + r, y); hx.arcTo(x + w, y, x + w, y + h, r); hx.arcTo(x + w, y + h, x, y + h, r); hx.arcTo(x, y + h, x, y, r); hx.arcTo(x, y, x + w, y, r); hx.closePath(); }
 function panel(x, y, w, h) { rr(x, y, w, h, 0); hx.fillStyle = "rgba(28,30,24,.62)"; hx.fill(); hx.strokeStyle = "rgba(170,200,210,.22)"; hx.lineWidth = 1; hx.stroke(); }
 function txt(s, x, y, c = "#fff", font = "12px 'Noto Sans KR', sans-serif", align = "left") { hx.font = font; hx.textAlign = align; hx.fillStyle = "rgba(0,0,0,.55)"; hx.fillText(s, x + 1, y + 1); hx.fillStyle = c; hx.fillText(s, x, y); }
-const TCOL = { dead: "#ff5a4e", reload: "#7f8b92", arc: "#ffb347", turn: "#ffd166", ready: "#8ef07a" };
 // ── 현대전: offence AI, player salvo, air-defence modes, missile camera, HUD ──
 const md = { salvo: 2, mode: "auto", decoyCd: 0, fireCd: 0, eCd: 0, q: [], role: "multi", flyAuto: false };
 const JR = { cap: "요격", strike: "함선 공격", multi: "다목적" }, JR_NEXT = { multi: "cap", cap: "strike", strike: "multi" };
@@ -2222,7 +1927,6 @@ function modernKey(code) {
   if (code === "KeyQ" && aa.on) { aa.ammo = aa.ammo === "msl" ? "mg" : "msl"; aa.lockC = null; aa.lockT = 0; sfx.click(); toast(aa.ammo === "msl" ? "요격미사일 — 조준원 안에 표적을 잡고 있으면 삐빅… 삐— (록온) → Space/클릭 발사 · Q: 기관포" : "근접 기관포 — 좌클릭/Space 연사 · Q: 요격미사일", 4); return true; }
   if (code === "Backquote" && !md.fly) { (keys.has("ShiftLeft") || keys.has("ShiftRight")) ? cicExpand() : cicToggle(); return true; }
   if (cicPending() && (code === "KeyY" || code === "KeyN")) { cicResolve(code === "KeyY"); return true; }
-  if (code === "KeyF" && (keys.has("ShiftLeft") || keys.has("ShiftRight")) && cancelRes()) return true;
   if (code === "Space" && !md.fly && weapon === "asw") { const sc = nearestSubContact(G.player.pos), pt = md.aimPt ? new THREE.Vector3(md.aimPt.x, 0, md.aimPt.z) : sc?.ep;
     if (!pt) { sfx.deny(); toast("잠수함 접촉 없음 — Y 헬기로 소노부이를 뿌리거나 속력을 줄여(소나) 찾으세요"); } else if (!aswRocket(G.player, pt.clone(), { log })) { sfx.deny(); toast("대잠로켓 소진"); } return true; }
   if (code === "Space" && !md.fly && weapon === "msl" && (G.mop === "modern:bmd" || G.mop === "modern:drone" || !G.enemies.some((e) => e.alive))) { manualSam(); return true; }
@@ -2331,14 +2035,8 @@ function drawCommandHUD(mode) {
     hx.fillStyle = "rgba(0,0,0,.55)"; hx.fillRect(q.x - 30, q.y - 1, 60, 4); hx.fillStyle = c; hx.fillRect(q.x - 30, q.y - 1, 60 * hp, 4);
     if (S === lock) { hx.strokeStyle = "#ff3b30"; hx.lineWidth = 2; const s = 18 + Math.sin(G.time * 6) * 2; hx.beginPath(); hx.moveTo(q.x, q.y + 6); hx.lineTo(q.x + s, q.y + 6 + s); hx.lineTo(q.x, q.y + 6 + 2 * s); hx.lineTo(q.x - s, q.y + 6 + s); hx.closePath(); hx.stroke(); }
   }
-  for (const p of air.planes) {
-    if (!p.alive || p.crashed) continue; const q = proj(p.pos); if (!q || !q.on) continue;
-    const c = p.side === "us" ? "#9fd4ff" : "#ff8a7a"; hx.strokeStyle = hx.fillStyle = c; hx.lineWidth = 1.5;
-    hx.beginPath(); hx.moveTo(q.x, q.y - 6); hx.lineTo(q.x + 6, q.y + 4); hx.lineTo(q.x - 6, q.y + 4); hx.closePath(); hx.stroke();
-    if (!cam.map && (cam.dist < 5000 || mode === "watch")) txt(p.side === "us" ? p.callsign.replace("와일드캣 ", "WC-") : p.callsign, q.x + 9, q.y, c, "10px 'Noto Sans KR', sans-serif");
-  }
   for (const k of markers) { if (k.t <= 0 || (effDist() > 7000 && !/폭탄/.test(k.text))) continue; const q = proj(k.pos); if (q && q.on) txt(k.text, q.x, q.y - 14, k.hit ? "#ff8a7a" : "#ffe066", "bold 11px 'Noto Sans KR', sans-serif", "center"); }
-  if (!cam.map && effDist() < 1900 && P.alive && !G.plane && mode !== "watch") {
+  if (!cam.map && effDist() < 1900 && P.alive && mode !== "watch") {
     P.tilt.updateWorldMatrix(true, false);
     const drawCallout = (pos, label, pct, col) => {
       const q = proj(pos); if (!q || !q.on) return;
@@ -2363,7 +2061,7 @@ function drawCommandHUD(mode) {
   }
   if (!P.alive || G.auto) return;
   // aim point
-  if (!G.plane && mode !== "watch") {
+  if (mode !== "watch") {
     const torpOn = weapon === "torp" && P.spec.torp, AP = torpOn ? (torpLead ? new THREE.Vector3(torpLead.x, 1, torpLead.z) : new THREE.Vector3(P.pos.x + Math.cos(torpB) * P.spec.torp.range * 0.6, 1, P.pos.z + Math.sin(torpB) * P.spec.torp.range * 0.6)) : P.aimPoint();
     const q = proj(AP.clone().setY(1));
     if (!q || !q.on) { // aim point off screen: arrow at the edge
@@ -2390,50 +2088,11 @@ function drawWatchCaption(p) {
   txt(`${kmh(p.speed)} km/h · 고도 ${Math.round(p.pos.y)} m · 탄약 ${p.ammo} · 폭탄 ${p.bombs} · 기체 ${Math.round(p.hp)}% · 격추 ${p.kills}`, cx, 101, "#9fb0b8", "11px 'Noto Sans KR', sans-serif", "center");
   txt("Enter: 직접 조종 · Tab: 다음 · 우클릭 끌기: 시점 회전 · 휠: 거리", cx, 124, "#ffd166", "11px 'Noto Sans KR', sans-serif", "center");
 }
-function drawFlightHUD(pl, mode) {
-  const W = hud.width, H = hud.height, cx = W / 2, cy = H / 2, GRN = "rgba(110,255,140,.92)", RED = "rgba(255,90,80,.95)", BLU = "rgba(120,200,255,.95)";
-  hx.lineWidth = 1.6; hx.strokeStyle = hx.fillStyle = GRN; hx.font = "bold 13px monospace"; hx.textAlign = "center"; hx.textBaseline = "middle";
-  const cd = camera.getWorldDirection(new THREE.Vector3()), cyaw = Math.atan2(cd.z, cd.x), cp = camera.position;
-  const ck = mode === "cockpit";
-  if (!ck) for (let p = -60; p <= 60; p += 10) {
-    const a = proj(cp.clone().addScaledVector(dirFrom(cyaw - (p ? 5 : 12) * DEG, p * DEG), 2000)), b = proj(cp.clone().addScaledVector(dirFrom(cyaw + (p ? 5 : 12) * DEG, p * DEG), 2000));
-    if (!a || !b) continue; hx.setLineDash(p < 0 ? [6, 5] : []); hx.beginPath(); hx.moveTo(a.x, a.y); hx.lineTo(b.x, b.y); hx.stroke(); hx.setLineDash([]);
-    if (p) { hx.fillText(String(p), a.x - 16, a.y); hx.fillText(String(p), b.x + 16, b.y); }
-  }
-  const sp = kmh(pl.speed), alt = Math.round(pl.pos.y), f = pl.fwd, hdg = ((Math.atan2(f.z, f.x) / DEG) % 360 + 360) % 360;
-  if (!ck) { hx.strokeRect(W * 0.3 - 46, cy - 14, 92, 28); hx.fillText(`${sp} km/h`, W * 0.3, cy); hx.fillText("SPEED", W * 0.3, cy - 28);
-  hx.strokeRect(W * 0.7 - 46, cy - 14, 92, 28); hx.fillText(`${alt} m`, W * 0.7, cy); hx.fillText("ALT", W * 0.7, cy - 28);
-  for (let d = -30; d <= 30; d += 5) { const hh = (Math.round(hdg / 5) * 5 + d + 360) % 360, x = cx + (hh - hdg + (hh - hdg > 180 ? -360 : hh - hdg < -180 ? 360 : 0)) * 7; hx.beginPath(); hx.moveTo(x, 92); hx.lineTo(x, hh % 10 ? 98 : 104); hx.stroke(); if (hh % 10 === 0) hx.fillText(String(hh).padStart(3, "0"), x, 114); }
-  hx.strokeRect(cx - 22, 70, 44, 18); hx.fillText(String(Math.round(hdg)).padStart(3, "0"), cx, 79); }
-  const nose = proj(pl.pos.clone().addScaledVector(f, 600));
-  if (nose && mode !== "cockpit") { hx.beginPath(); hx.arc(nose.x, nose.y, 8, 0, TAU); hx.moveTo(nose.x - 20, nose.y); hx.lineTo(nose.x - 8, nose.y); hx.moveTo(nose.x + 8, nose.y); hx.lineTo(nose.x + 20, nose.y); hx.moveTo(nose.x, nose.y - 8); hx.lineTo(nose.x, nose.y - 14); hx.stroke(); }
-  const am = proj(pl.pos.clone().addScaledVector(aimDir(), 600));
-  if (am) { hx.strokeStyle = "rgba(255,210,90,.95)"; hx.beginPath(); hx.moveTo(am.x - 8, am.y); hx.lineTo(am.x + 8, am.y); hx.moveTo(am.x, am.y - 8); hx.lineTo(am.x, am.y + 8); hx.stroke(); hx.strokeStyle = GRN; }
-  if (air.hitMark > 0 && nose) { hx.save(); hx.strokeStyle = "#ffffff"; hx.lineWidth = 2.4; for (const [sx, sy] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) { hx.beginPath(); hx.moveTo(nose.x + sx * 11, nose.y + sy * 11); hx.lineTo(nose.x + sx * 22, nose.y + sy * 22); hx.stroke(); } hx.restore(); }
-  if (Math.abs(freeYaw) + Math.abs(freePitch) > 0.05) hx.fillText(`자유 시점 (Alt) ${Math.round(freeYaw / DEG)}°`, cx, 140);
-  // hostile planes + ships, lock-on, lead
-  if (lockOn && (lockOn.alive === false || (lockOn.root && !lockOn.root.visible))) lockOn = null;
-  const box = (p, c, s, name) => { const q = proj(p); if (!q || !q.on) return null; hx.strokeStyle = hx.fillStyle = c; hx.strokeRect(q.x - s, q.y - s * 0.7, s * 2, s * 1.4); hx.textAlign = "left"; hx.fillText(name, q.x + s + 6, q.y); hx.textAlign = "center"; return q; };
-  for (const p of air.planes) if (p !== pl && p.alive) box(p.pos, p.side === "foe" ? (p === lockOn ? RED : "rgba(255,140,120,.9)") : BLU, 9, `${p.side === "foe" ? "BANDIT" : "WC"} ${fmt(pl.pos.distanceTo(p.pos))} m`);
-  for (const e of seenFoes()) box(e.pos.clone().setY(e.spec.fb + 6), e === lockOn ? RED : "rgba(255,140,120,.9)", 14, `${e.name} ${fmt(pl.pos.distanceTo(e.pos))} m`);
-  for (const s of ours()) if (!s.isPlayer || true) { const q = proj(s.pos.clone().setY(s.spec.fb + 6)); if (q && q.on) { hx.strokeStyle = hx.fillStyle = BLU; hx.strokeRect(q.x - 8, q.y - 8, 16, 16); } }
-  const L = lockOn; let locked = false;
-  if (L) {
-    const tpos = L.root ? L.pos.clone().setY(L.spec.fb + 6) : L.pos.clone(), d = pl.pos.distanceTo(tpos), ang = cd.angleTo(tpos.clone().sub(cp));
-    locked = d < (L.root ? 8000 : 3500) && ang < 40 * DEG;
-    if (locked) { const LL = gunLead(pl, tpos, L.vel), q = proj(LL.lead); if (q) { hx.strokeStyle = hx.fillStyle = RED; hx.beginPath(); hx.arc(q.x, q.y, 11, 0, TAU); hx.moveTo(q.x - 4, q.y); hx.lineTo(q.x + 4, q.y); hx.stroke(); hx.fillText(LL.d < (L.root ? 1200 : 600) ? "FIRE" : "LEAD", q.x, q.y + 22); } }
-    else { const dir = tpos.clone().sub(cp).normalize(), ax = dir.dot(new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion)), ay = dir.dot(new THREE.Vector3(0, 1, 0).applyQuaternion(camera.quaternion)), m = Math.hypot(ax, ay) || 1, ex = cx + (ax / m) * Math.min(W, H) * 0.42, ey = cy - (ay / m) * Math.min(W, H) * 0.42; hx.fillStyle = RED; hx.beginPath(); hx.arc(ex, ey, 7, 0, TAU); hx.fill(); hx.fillText(`TGT ${fmt(d)} m`, ex, ey + 18); }
-  }
-  if (locked && !wasLocked) sfx.lockTone(); wasLocked = locked; hx.strokeStyle = hx.fillStyle = GRN;
-  if (pl.bombs > 0) { const imp = predictBomb(pl); if (imp) { const q = proj(imp); if (q && q.on) { const hitIt = seenFoes().some((E) => Math.hypot(imp.x - E.pos.x, imp.z - E.pos.z) < E.spec.L * 0.35); hx.strokeStyle = hx.fillStyle = hitIt ? RED : GRN; hx.beginPath(); hx.moveTo(q.x - 10, q.y); hx.lineTo(q.x + 10, q.y); hx.moveTo(q.x, q.y - 10); hx.lineTo(q.x, q.y + 10); hx.stroke(); hx.fillText(hitIt ? "BOMB — 투하!" : "BOMB", q.x, q.y + 20); hx.strokeStyle = hx.fillStyle = GRN; } } }
-  if (ck) { hx.font = "bold 12px monospace"; hx.textAlign = "center"; } hx.fillText(`${pl.label}   격추 ${pl.kills}   THR ${Math.round(pl.throttle * 100)}%   AMMO ${pl.ammo}   BOMB ${pl.bombs}   FLARE ${pl.flares}   DMG ${Math.round(100 - pl.hp)}%   ${lockOn ? `LOCK ${lockOn.callsign || lockOn.name}` : "LOCK OFF"}`, cx, ck ? 28 : H - 60);
-  hx.fillStyle = "rgba(220,235,240,.8)"; hx.font = "12px 'Noto Sans KR', sans-serif"; hx.fillText(document.pointerLockElement === canvas ? "마우스·W/S 비행 · 휠 출력(속력) · Space 기총 · Q 락온 · B 폭탄 · X 플레어 · V 조종석 · Enter 자동조종 · F 귀환" : "화면을 클릭하면 마우스로 비행합니다 (Esc: 커서 해제)", cx, ck ? 48 : H - 36);
-}
 // ── key remapping: a capture listener turns the physical key into the game's default code before any handler sees it ──
 const KEY_ACTIONS = [["주무장 발사 (주포 / 대함미사일) · 기관포 · 비행 중 대함", "Space"], ["지휘통제실 (현대전 합동 지원)", "Backquote"], ["무기 전환 (주포↔어뢰 / 함포↔미사일)", "KeyQ"], ["자동 공격", "KeyZ"], ["전투기 출격", "KeyF"], ["전투기 임무 변경", "KeyN"], ["전투기 직접 조종 / 복귀", "KeyI"], ["자동 조종 (비행 중)", "KeyK"],
-  ["대공 사수 · 현대전 미사일·적기 요격", "KeyG"], ["함대 진형 (2차대전)", "KeyE"], ["나포 · 비행 중 폭탄/공대공", "KeyB"], ["직접 전투·시점 전환", "KeyV"], ["자동 전투 전환", "KeyJ"], ["지도 시점", "KeyM"], ["기함 카메라", "KeyC"], ["표시 숨김", "KeyU"], ["수리", "KeyR"],
+  ["대공 사수 · 현대전 미사일·적기 요격", "KeyG"], ["나포 · 비행 중 폭탄/공대공", "KeyB"], ["직접 전투·시점 전환", "KeyV"], ["자동 전투 전환", "KeyJ"], ["지도 시점", "KeyM"], ["기함 카메라", "KeyC"], ["표시 숨김", "KeyU"], ["수리", "KeyR"],
   ["일시정지", "KeyP"], ["도움말 / 조종 키 표시", "KeyH"], ["카메라 순환", "Tab"], ["사선 왼쪽 / 롤 왼쪽", "KeyA"], ["사선 오른쪽 / 롤 오른쪽", "KeyD"], ["사거리 + / 기수 내림", "KeyW"], ["사거리 − / 기수 올림", "KeyS"],
-  ["러더 왼쪽", "KeyQ2"], ["플레어", "KeyX"], ["착함", "KeyL"], ["미사일 추적 카메라 (현대전)", "KeyT"], ["레이더 (현대전)", "KeyO"], ["헬기 정찰 (현대전)", "KeyY"], ["전투기 전체 귀환", "Digit5"]].filter((a) => a[1] !== "KeyQ2");
+  ["러더 왼쪽", "KeyQ2"], ["플레어", "KeyX"], ["착함", "KeyL"], ["미사일 추적 카메라 (현대전)", "KeyT"], ["레이더 (현대전)", "KeyO"], ["헬기 정찰 (현대전)", "KeyY"], ["전자 재밍", "KeyE"], ["전투기 전체 귀환", "Digit5"]].filter((a) => a[1] !== "KeyQ2");
 let keyBind = {}; try { keyBind = JSON.parse(localStorage.getItem("steeltide:keys") || "{}") || {}; } catch {}
 let keyPhys = {}; function buildKeyPhys() { keyPhys = {}; for (const [, def] of KEY_ACTIONS) { const k = keyBind[def]; if (k && k !== def) keyPhys[k] = def; } for (const [, def] of KEY_ACTIONS) { const k = keyBind[def]; if (k && k !== def && !keyPhys[def]) { const owner = KEY_ACTIONS.find(([, d]) => (keyBind[d] || d) === def); if (!owner) keyPhys[def] = "__none"; } } } buildKeyPhys();
 const keyName = (c) => (c || "").replace(/^Key/, "").replace(/^Digit/, "").replace("Space", "스페이스").replace("ShiftLeft", "Shift").replace("ControlLeft", "Ctrl");
@@ -2463,13 +2122,11 @@ $("#keysM").addEventListener("click", (e) => {
 });
 // ── tutorial: a short step card on the first battle of each mode ──
 const TUT = {
-  ww2: [["우클릭으로 바다를 찍어 기함을 이동시키세요", () => G.player?.nav?.length > 0], ["적함을 더블클릭해 표적으로 고정하세요", () => !!lock], ["Space로 주포를 쏘세요 — 포탑이 표적을 향하면 발사됩니다", () => G.stats.shots > 0],
-    ["F로 전투기를 출격시키세요 (N: 임무 · I: 직접 조종)", () => air.planes.some((p) => p.side === "us")], ["M으로 지도 시점을 열어 보세요 (다시 M으로 닫기)", () => cam.map], ["끝! J 자동 전투 · E 진형 · G 대공 사수 · H 전체 조작", null]],
   modern: [["적함을 더블클릭해 표적으로 고정하세요 (없으면 가장 가까운 적을 노립니다)", () => !!lock], ["Space로 대함미사일을 일제사격하세요 (Q: 함포 전환)", () => G.stats.shots > 0], ["T로 내가 쏜 미사일을 따라가 보세요 (다시 T로 끝)", () => !!MSL.cam],
     ["F로 전투기를 출격시키세요 (N: 임무 변경)", () => MSL.jets.some((j) => j.alive && j.side === "us")], ["I로 전투기를 직접 조종하세요 — W/S 기수 위·아래 · 휠 속력 · A/D 롤 · 좌클릭 기관포", () => !!md.fly], ["끝! K 자동 조종 · X 플레어 · L 착함 · I 함대 복귀 · H 조작 키", null]],
 };
 const tut = { mode: null, i: 0, t: 0 };
-function tutStart() { const k = G.modern ? "modern" : "ww2"; let done = false; try { done = localStorage.getItem(`steeltide:tut:${k}`) === "1"; } catch {} tut.mode = !G.auto && !done ? k : null; tut.i = 0; tut.t = 0; }
+function tutStart() { const k = "modern"; let done = false; try { done = localStorage.getItem(`steeltide:tut:${k}`) === "1"; } catch {} tut.mode = !G.auto && !done ? k : null; tut.i = 0; tut.t = 0; }
 function tutDone() { try { localStorage.setItem(`steeltide:tut:${tut.mode}`, "1"); } catch {} tut.mode = null; }
 function tutStep(dt) {
   if (!tut.mode || G.state !== "playing" || G.auto) return; const L = TUT[tut.mode], s = L[tut.i]; tut.t += dt;
@@ -2478,7 +2135,7 @@ function tutStep(dt) {
   txt(`튜토리얼 ${Math.min(tut.i + 1, L.length)}/${L.length} — ${L[tut.i][0]}`, W / 2, y + 16, "#ffd166", "bold 12.5px 'Noto Sans KR', sans-serif", "center");
   txt("Esc: 튜토리얼 건너뛰기", W / 2, y + 33, "#cfd8dc", "11px 'Noto Sans KR', sans-serif", "center");
 }
-$("#tutReset").addEventListener("click", () => { try { localStorage.removeItem("steeltide:tut:ww2"); localStorage.removeItem("steeltide:tut:modern"); } catch {} toast("다음 전투에서 튜토리얼이 다시 나옵니다"); });
+$("#tutReset").addEventListener("click", () => { try { localStorage.removeItem("steeltide:tut:modern"); } catch {} toast("다음 전투에서 튜토리얼이 다시 나옵니다"); });
 function drawAlerts(dt) {
   const W = hud.width, cx = W / 2; hx.textBaseline = "middle";
   if (torpThreat && Math.floor(G.time * 4) % 2 === 0) txt(`어뢰 접근! ${torpThreat.toFixed(0)}초`, cx, 150, "#ff3b30", "bold 22px 'Noto Sans KR', sans-serif", "center");
@@ -2526,7 +2183,7 @@ function updateMapIn() {
   pctx.fillStyle = "rgba(48,78,44,.62)"; pctx.strokeStyle = "rgba(150,230,140,.6)"; pctx.lineWidth = 2; for (const isl of G.islands) { if (isl.poly) { pctx.beginPath(); isl.poly.forEach(([px, pz], i) => { const [x, y] = M(px, pz); i ? pctx.lineTo(x, y) : pctx.moveTo(x, y); }); pctx.closePath(); pctx.fill(); pctx.stroke(); continue; } /* land: dark fill, bright coastline echo */ const [x, y] = M(isl.x, isl.z), r = isl.r * plotSc; if (x + r < 0 || y + r < 0 || x - r > W || y - r > W) continue; pctx.beginPath(); pctx.arc(x, y, Math.max(r, 1.5), 0, TAU); pctx.fill(); }
   if (G.goal) { const [gx, gy] = M(G.goal.x, G.goal.z); pctx.strokeStyle = "#7ff0e0"; pctx.lineWidth = 2; pctx.strokeRect(gx - 9, gy - 9, 18, 18); pctx.fillStyle = "#7ff0e0"; pctx.font = "16px 'Noto Sans KR', sans-serif"; pctx.fillText(G.goal.label || "집결지", gx, gy - 20); }
   if (P.nav.length) { pctx.strokeStyle = "#8ef07a"; pctx.setLineDash([6, 6]); pctx.lineWidth = 2; pctx.beginPath(); pctx.moveTo(c, c); for (const w of P.nav) pctx.lineTo(...M(w.x, w.z)); pctx.stroke(); pctx.setLineDash([]); }
-  if (P.alive && !G.plane) { const tp = weapon === "torp" && P.spec.torp ? { x: P.pos.x + Math.cos(torpB) * P.spec.torp.range, z: P.pos.z + Math.sin(torpB) * P.spec.torp.range } : P.aimPoint(), [ax, ay] = M(tp.x, tp.z); pctx.strokeStyle = weapon === "torp" ? "#9be06a" : "#fff2c4"; pctx.lineWidth = 1.5; pctx.beginPath(); pctx.moveTo(c, c); pctx.lineTo(ax, ay); pctx.stroke(); pctx.beginPath(); pctx.arc(ax, ay, 6, 0, TAU); pctx.stroke(); }
+  if (P.alive) { const tp = weapon === "torp" && P.spec.torp ? { x: P.pos.x + Math.cos(torpB) * P.spec.torp.range, z: P.pos.z + Math.sin(torpB) * P.spec.torp.range } : P.aimPoint(), [ax, ay] = M(tp.x, tp.z); pctx.strokeStyle = weapon === "torp" ? "#9be06a" : "#fff2c4"; pctx.lineWidth = 1.5; pctx.beginPath(); pctx.moveTo(c, c); pctx.lineTo(ax, ay); pctx.stroke(); pctx.beginPath(); pctx.arc(ax, ay, 6, 0, TAU); pctx.stroke(); }
   for (const e of G.enemies) {
     if (!e.alive) continue;
     if (G.modern) { const ct = G.cts.get(e); if (!ct) continue; const [x, y] = M(ct.x, ct.z), firm = ct.q >= 0.6;
@@ -2540,7 +2197,6 @@ function updateMapIn() {
   if (J) { tri(J.pos.x, J.pos.z, J.pyaw ?? 0, "#7ff0ff", 12); pctx.fillStyle = "#7ff0ff"; pctx.font = "bold 15px 'Noto Sans KR', sans-serif"; pctx.textAlign = "center"; pctx.textBaseline = "top"; pctx.fillText("나", c, c + 14); } /* the jet you fly, always at the centre pointing up */
   if (G.modern) { for (const s of G.ships) if (s.side === "us" && s.alive && s.spec.modern) { const [x, y] = M(s.pos.x, s.pos.z); ntds(pctx, x, y, 15, false, s === P ? "#9be06a" : "#7cc4ff"); }
     for (const h of MSL.helos) if (h.alive && h.side === "us") { const [x, y] = M(h.pos.x, h.pos.z); ntds(pctx, x, y, 9, false, "#cfe7ff", false, true); pctx.beginPath(); pctx.setLineDash([2, 5]); pctx.strokeStyle = "rgba(207,231,255,.35)"; pctx.arc(x, y, SR.helo * plotSc, 0, TAU); pctx.stroke(); pctx.setLineDash([]); } }
-  for (const p of air.planes) if (p.alive && !p.crashed) { const [x, y] = M(p.pos.x, p.pos.z); pctx.fillStyle = p.side === "us" ? "#cfe7ff" : "#ffaa99"; pctx.fillRect(x - 3, y - 3, 6, 6); }
   pctx.fillStyle = "#ffc857"; for (const s of G.shells) { const [x, y] = M(s.pos.x, s.pos.z); pctx.fillRect(x - 1.5, y - 1.5, 3, 3); }
   pctx.fillStyle = "#e0f8ff"; for (const t of G.torps) { if (t.owner.side === "foe" && !t.warned && !G.auto) continue; const [x, y] = M(t.pos.x, t.pos.z); pctx.fillRect(x - 1.5, y - 1.5, 3, 3); }
 }
@@ -2568,29 +2224,21 @@ function pickTarget() {
   G.enemy = best || G.enemies.find((e) => e.alive) || G.enemies[0] || null;
 }
 function step(dt) {
-  G.time += dt; if (!G.modern && G.state === "playing") reserveStep();
+  G.time += dt;
   if (screen === "battle") { const k = dt * 1.4; if (keys.has("ArrowLeft")) cam.yaw = wrap(cam.yaw - k); if (keys.has("ArrowRight")) cam.yaw = wrap(cam.yaw + k); if (keys.has("ArrowUp")) cam.pitch = clamp(cam.pitch + k * 0.6, 0.3, 1.5); if (keys.has("ArrowDown")) cam.pitch = clamp(cam.pitch - k * 0.6, 0.3, 1.5); }
   if (G.state === "playing" || G.state === "ending") {
-    const P = G.player, pl = G.plane;
+    const P = G.player;
     if (G.state === "playing") { G.battleT += dt; events(); }
     hintT = Math.max(0, hintT - dt);
     fogStep(dt); pickTarget();
     if (!G.auto) { navStep(dt); if (!cap.fps) gunStep(dt); aaStep(dt); }
     capStep(dt); if (G.modern) modernStep(dt);
-    if (pl && pl.alive) {
-      if (keys.has("KeyS")) air.aimPitch = clamp(air.aimPitch + dt * 1.15, -80 * DEG, 80 * DEG);
-      if (keys.has("KeyW")) air.aimPitch = clamp(air.aimPitch - dt * 1.15, -80 * DEG, 80 * DEG);
-      if (shiftDown()) pl.throttle = clamp(pl.throttle + dt * 0.6, 0, 1);
-      if (keys.has("KeyC")) pl.throttle = clamp(pl.throttle - dt * 0.6, 0, 1);
-      if (P.alive && G.enemy && G.enemy.root.visible && G.state === "playing") brain(P, G.enemy, ap, dt, false);
-    }
     fleetAI(dt);
     if (G.auto && P.alive && G.state === "playing") { if (G.waves && G.goal && !G.enemies.some((e) => e.alive)) { const w = Math.atan2(G.goal.z - P.pos.z, G.goal.x - P.pos.x); P.rudderCmd = clamp(wrap(w - P.heading) * 2.2, -1, 1); P.tele = 4; } /* automatic battle: no fleet left, head for the destination */
       else { const t = G.enemy || P; ap.blind = !(G.enemy && G.enemy.root.visible); brain(P, t, ap, dt); } }
     for (const s of G.ships) s.update(dt);
     updateShells(dt); updateTorps(dt); updateAir(dt); torpWatch(dt);
     if (P.alive && P.hp / P.maxHp < 0.3 && !hullWarned) { hullWarned = true; G.radio("hull"); }
-    if (!G.plane && document.body.classList.contains("flying")) leaveFlight();
     rep.cd = Math.max(0, rep.cd - dt);
     for (const t of P.turrets) if (!t.alive && t.fixT > 0 && P.alive) { t.fixT -= dt; if (t.fixT <= 0) { t.alive = true; t.reload = P.reloadT; t.fixT = 0; log(`${t.i + 1}번 포탑 수리 완료 — 사격 재개`, "hit"); sfx.ready(); } }
     if (G.mastFlag) waveMastFlag();
@@ -2603,31 +2251,28 @@ function step(dt) {
   } else { for (const s of G.ships) s.update(dt); updateShells(dt); updateTorps(dt); }
   if (toastT > 0) { toastT -= dt; if (toastT <= 0) $("#toast").classList.remove("on"); }
   if (!altDown()) { const k = 1 - Math.exp(-dt * 7); freeYaw -= freeYaw * k; freePitch -= freePitch * k; }
-  updateAudio(dt, { cockpit: fp === "cockpit", nearShip: fp === "command" ? clamp(1 - effDist() / 4000, 0.3, 1) : 0.35 });
+  updateAudio(dt, { cockpit: false, nearShip: fp === "command" ? clamp(1 - effDist() / 4000, 0.3, 1) : 0.35 });
 }
 function loop() { frameOnce(Math.min(clock.getDelta(), 0.05)); requestAnimationFrame(loop); }
 /** One full frame (sim, camera, HUD, render); also driven directly by tests while the tab is hidden. */
 function frameOnce(dt) {
-  G.frames = (G.frames || 0) + 1; if (!paused) { const sdt = G.kc ? dt * 0.35 : dt; step(sdt); if (G.auto && G.state === "playing" && !G.kc) for (let k = 1; k < autoSpeed; k++) step(dt); if (G.kc && (G.kc.t -= dt) <= 0) G.kc = null; } fp = updateCamera(dt); updateOverlays(paused ? 0 : dt); updateBombLines();
-  if (cinema) { for (const o of [gunLines, arcLine, maxRing, navLine, fanLines, bombLines, mapGrid, ...navRings]) o.visible = false; for (const k of markers) k.m.visible = false; }
-  else bombLines.visible = true;
-  updateWorld(dt, G.plane && !G.plane.crashed ? G.plane.pos : isPlane(cam.tgt) ? cam.tgt.pos : screen === "battle" ? cam.focus : G.player ? G.player.pos : null);
+  G.frames = (G.frames || 0) + 1; if (!paused) { const sdt = G.kc ? dt * 0.35 : dt; step(sdt); if (G.auto && G.state === "playing" && !G.kc) for (let k = 1; k < autoSpeed; k++) step(dt); if (G.kc && (G.kc.t -= dt) <= 0) G.kc = null; } fp = updateCamera(dt); updateOverlays(paused ? 0 : dt); if (cinema) { for (const o of [gunLines, arcLine, maxRing, navLine, fanLines, mapGrid, ...navRings]) o.visible = false; for (const k of markers) k.m.visible = false; }
+  updateWorld(dt, screen === "battle" ? cam.focus : G.player ? G.player.pos : null);
   const battle = (G.state === "playing" || G.state === "ending") && G.player;
-  document.body.classList.toggle("firstp", fp === "cockpit" && !!battle);
+  document.body.classList.toggle("firstp", false);
   hx.clearRect(0, 0, hud.width, hud.height);
   if (battle && !cinema) {
-    if (G.plane) drawFlightHUD(G.plane, fp);
-    else if (fp === "aa") { drawAAHUD(); if (G.modern) { drawOpsLine(); if (aa.ammo === "msl") drawAAMsl(); } }
+    if (fp === "aa") { drawAAHUD(); if (G.modern) { drawOpsLine(); if (aa.ammo === "msl") drawAAMsl(); } }
     else if (fp === "board") drawBoardHUD();
     else if (fp === "missile") { drawModernHUD(); drawMissileCamHUD(); }
     else if (fp === "fly") { drawModernHUD(); drawFlyHUD(); if (md.fly && (helpOn || G.time < (md.keysUntil ??= G.time + 12))) drawFlyKeys(md.fly); } /* key card: first 12 s of the first flight, then H */
     else if (fp === "kill") { const W = hud.width; panel(W / 2 - 170, 66, 340, 40); txt(`격침 — ${G.kc?.ship.name || ""}`, W / 2, 91, "#ffd27a", "bold 16px 'Noto Sans KR', sans-serif", "center"); }
     else { drawCommandHUD(fp); drawBoardStatus(); drawSel(); if (G.modern) drawModernHUD(); if (fp === "watch") drawWatchCaption(cam.tgt); if (helpOn) drawHelp(); }
     drawAlerts(paused ? 0 : dt); if (!paused) tutStep(dt);
-    if (frame++ % 2 === 0) updateMap(); if (frame % 6 === 0) { renderAirPanel(); renderJetPanel(); } if (frame % 4 === 0) updatePanels(); syncAutoBtn();
+    if (frame++ % 2 === 0) updateMap(); if (frame % 6 === 0) renderJetPanel(); if (frame % 4 === 0) updatePanels(); syncAutoBtn();
     document.body.classList.toggle("aamode", fp === "aa" || fp === "board");
   }
-  const ov = cockpit.visible || aaGun.visible || jetPit.visible || garandVM.visible || mgVM.visible; if (ov) { ovCam.fov = camera.fov; ovCam.updateProjectionMatrix(); }
+  const ov = aaGun.visible || jetPit.visible || garandVM.visible || mgVM.visible; if (ov) { ovCam.fov = camera.fov; ovCam.updateProjectionMatrix(); }
   renderFrame(ov);
   if (G.modern && G.state === "playing") {
     const pip = cicFeedInfo();
@@ -2636,9 +2281,9 @@ function frameOnce(dt) {
   }
 }
 
-window.__st = { cicWcs, cicSetWcs, cicFeedInfo, aa, aimAAAt: (p) => { const o = aaMount(), v = p.clone().sub(o); aa.yaw = Math.atan2(v.z, v.x); aa.pitch = Math.atan2(v.y, Math.hypot(v.x, v.z)); }, aaMslFire, KCAMP, openBrief, get kProg() { return kProg; }, opsDebug, get weapon() { return weapon; }, setJetRole, setFlyAuto, get kc() { return G.kc; }, cycleForm, get formI() { return formI; }, CAMP, get campProg() { return campProg; }, setCamp: (i) => { campSel = i; const c = CAMP[i]; mission = c.m; theater = c.map; }, setWx: (t, w) => { todSel = t; wxSel = w; }, conceal, get tut() { return tut; }, setKey, get keyPhys() { return keyPhys; }, flyControl, flyFlare, md, MSL2: MSL, frameOnce, takeJet, releaseFly, flyFire, flyStrike, get flyLock() { return md.flyLock; }, know, sortieJets, myAir, landAt, setSel, get sel() { return sel; }, get lock() { return lock; }, setLock: (v) => { lock = v; }, sensorStep, bestContact, SR, WPN, G, air, cam, aa, MSL, md, fireSalvo, modernKey, setNat: (a, b) => { natUs = a; natFoe = b; }, toAuto, takeOver, setTheater: (t) => { theater = t; }, get cmdr() { return cmdr; }, toggleAA, cap, startBoard, toggleCapFps, canBoard, lockShip: (s) => lockShip(s), setRole, setSortieRole: (r) => { sortieRole = r; }, renderAirPanel, fc, get profile() { return profile; }, start, step, frame: (dt) => { step(dt); updateCamera(dt); }, tryFire, sortie, openYard, openMenu, act, setPause, forfeit,
-  moveOrder, aimAtPoint, lockShip, setSpeed, cycleCam, enterFlight, pick, useRepair, setMission: (m) => { mission = m; }, get lock() { return lock; }, get weapon() { return weapon; }, setWeapon: (w) => { weapon = w; },
-  get paused() { return paused; }, get torpThreat() { return torpThreat; }, get radioSub() { return radioSub; }, keys, fireTorps, intercept, leadPoint, myRank, steer, setLockOn: (t) => { lockOn = t; }, get lockOn() { return lockOn; }, help: (v) => { helpOn = v; } };
+window.__st = { cicWcs, cicSetWcs, cicFeedInfo, aa, aimAAAt: (p) => { const o = aaMount(), v = p.clone().sub(o); aa.yaw = Math.atan2(v.z, v.x); aa.pitch = Math.atan2(v.y, Math.hypot(v.x, v.z)); }, aaMslFire, KCAMP, openBrief, get kProg() { return kProg; }, opsDebug, get weapon() { return weapon; }, setJetRole, setFlyAuto, get kc() { return G.kc; }, setWx: (t, w) => { todSel = t; wxSel = w; }, conceal, get tut() { return tut; }, setKey, get keyPhys() { return keyPhys; }, flyControl, flyFlare, md, MSL2: MSL, frameOnce, takeJet, releaseFly, flyFire, flyStrike, get flyLock() { return md.flyLock; }, know, sortieJets, myAir, landAt, setSel, get sel() { return sel; }, get lock() { return lock; }, setLock: (v) => { lock = v; }, sensorStep, bestContact, SR, WPN, G, air, cam, aa, MSL, md, fireSalvo, modernKey, setNat: (a, b) => { natUs = a; natFoe = b; }, toAuto, takeOver, setTheater: (t) => { theater = t; }, get cmdr() { return cmdr; }, toggleAA, cap, startBoard, toggleCapFps, canBoard, lockShip: (s) => lockShip(s), fc, get profile() { return profile; }, start, step, frame: (dt) => { step(dt); updateCamera(dt); }, tryFire, openYard, openMenu, act, setPause, forfeit,
+  moveOrder, aimAtPoint, lockShip, setSpeed, cycleCam, pick, useRepair, setMission: (m) => { mission = m; }, get lock() { return lock; }, get weapon() { return weapon; }, setWeapon: (w) => { weapon = w; },
+  get paused() { return paused; }, get torpThreat() { return torpThreat; }, get radioSub() { return radioSub; }, keys, fireTorps, intercept, leadPoint, myRank, setLockOn: (t) => { lockOn = t; }, get lockOn() { return lockOn; }, help: (v) => { helpOn = v; } };
 loadModels(); showcase(flagshipId()); refreshMenus(); connect(); bgm("menu"); /* the first port screen is not opened through openMenu, so ask for its music here (it starts on the first click) */
 if (params.has("autostart")) {
   if (MISSIONS[params.get("mission")] && isModernOp(params.get("mission"))) mission = params.get("mission");

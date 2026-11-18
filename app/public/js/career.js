@@ -16,9 +16,6 @@ export const PERKS = {
 };
 const FAVOR = { sea: ["hull", "engine", "repair"], ops: ["reload", "fc"], int: ["ad", "fc"], log: ["reload", "repair"], air: ["air", "ad"] };
 
-/** Flagship (WWII) the navy assigns by rank, 0 소위 … */
-export const SHIP_BY_GRADE = [[0, "fletcher"], [3, "cleveland"], [4, "baltimore"], [5, "colorado"], [6, "northcarolina"], [7, "iowa"]];
-export const shipsFor = (grade) => SHIP_BY_GRADE.filter(([g]) => grade >= g).map(([, id]) => id);
 
 const KEY = "steeltide:career";
 export const career = (() => { let c = null; try { c = JSON.parse(localStorage.getItem(KEY) || "null"); } catch {} return c && c.perks ? c : null; })() || { perks: {}, picks: 0, log: [], ship: null, seen: null };
@@ -81,12 +78,11 @@ export const MEDALS = {
   eulji: { n: "을지무공훈장", d: "장성(준장) 진급", rb: ["#c8202c", "#e8d35a", "#c8202c", "#e8d35a", "#c8202c"] },
   taeguk: { n: "태극무공훈장", d: "원수 진급", rb: ["#c8202c", "#1d4e9e", "#ffffff", "#1d4e9e", "#c8202c"] },
   modern: { n: "현대전 참전기장", d: "현대전 첫 출격", rb: ["#3a7ca5", "#ffffff", "#3a7ca5"] },
-  pacific: { n: "태평양 전역 참전기장", d: "2차대전 첫 출격", rb: ["#b38b2e", "#ffffff", "#b38b2e"] },
 };
 /** Award what this battle (and promotion) earned; returns the new medal keys. */
 export function awardMedals(o) {
   career.medals ||= {}; const got = [], give = (k) => { if (!career.medals[k]) { career.medals[k] = new Date().toISOString().slice(0, 10); got.push(k); } };
-  if (o.flight !== false) give(o.modern ? "modern" : "pacific");
+  if (o.flight !== false) give("modern");
   if (o.won) { give("commend"); if (o.wins >= 10) give("service"); if (o.sunk >= 3) give("inheon"); if (o.lowHp) give("hwarang"); if (o.hp >= 0.995) give("chungmu"); }
   if (o.grade >= 3) give("samil"); if (o.grade >= 5) give("cheonsu"); if (o.grade >= 6) give("eulji"); if (o.grade >= 10) give("taeguk");
   if (got.length) saveCareer(); return got;

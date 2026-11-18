@@ -4,24 +4,15 @@
  * simulation, shells, damage and the computer captains.
  */
 import { landAt } from "./core.js";
-import { THREE, PI, TAU, DEG, KN, GRAV, clamp, wrap, fmt, rnd, gauss, G, scene, camera, mat, box, cyl, shadowed, lines, planeMesh, setPlaneModel, WEAR, paint, SCHEMES, hullTexture, upperTexture, deckTexture, textTex,
+import { THREE, PI, TAU, DEG, KN, GRAV, clamp, wrap, fmt, rnd, gauss, G, scene, camera, mat, box, cyl, shadowed, lines, WEAR, paint, SCHEMES, hullTexture, upperTexture, deckTexture, textTex,
   smoke, flash, spray, spark, rings, spawnSplash, spawnWake } from "./core.js";
 import { A, sfx, at } from "./audio.js";
-import { GLTFLoader } from "../vendor/addons/loaders/GLTFLoader.js";
 
 // ── guns + exterior ballistics (quadratic drag, k = ρ·Cd·A / 2m) ────────────
 export const GUNS = {
-  "16/45":  { name: '16인치/45구경 Mk 1',            cal: 406, V0: 768, k: 2.3e-5,  maxEl: 30, dmg: [4.5, 8.0], reload: 32,  train: 4,  elev: 6,  disp: 0.011, len: 18 },
-  "16/45b": { name: '16인치/45구경 Mk 6 (초중량탄)', cal: 406, V0: 701, k: 1.85e-5, maxEl: 45, dmg: [5.2, 8.8], reload: 30,  train: 5,  elev: 8,  disp: 0.010, len: 18 },
-  "16/50":  { name: '16인치/50구경 Mk 7',            cal: 406, V0: 762, k: 1.85e-5, maxEl: 45, dmg: [5.5, 9.0], reload: 30,  train: 5,  elev: 10, disp: 0.009, len: 20 },
-  "8/55":   { name: '8인치/55구경 Mk 12',            cal: 203, V0: 762, k: 3.8e-5,  maxEl: 41, dmg: [1.8, 3.2], reload: 15,  train: 8,  elev: 10, disp: 0.010, len: 11 },
-  "6/47":   { name: '6인치/47구경 Mk 16',            cal: 152, V0: 762, k: 5.6e-5,  maxEl: 47, dmg: [1.0, 1.8], reload: 7.5, train: 10, elev: 12, disp: 0.012, len: 7.2 },
   "5/62":   { name: '5인치/62구경 Mk 45 Mod 4',      cal: 127, V0: 808, k: 6.0e-5,  maxEl: 65, dmg: [1.7, 2.8], reload: 3, train: 30, elev: 20, disp: 0.011, len: 6.3 },
   "130":    { name: '130mm H/PJ-38',                cal: 130, V0: 850, k: 6.0e-5,  maxEl: 65, dmg: [1.7, 2.9], reload: 3.2, train: 30, elev: 20, disp: 0.012, len: 6.5 },
   "5/38":   { name: '5인치/38구경 Mk 12',            cal: 127, V0: 792, k: 9.0e-5,  maxEl: 45, dmg: [0.55, 1.0], reload: 4, train: 25, elev: 15, disp: 0.014, len: 4.8 },
-  "15e":    { name: '15인치 (가상)', cal: 381, V0: 790, k: 2.4e-5, maxEl: 30, dmg: [4.2, 7.4], reload: 31, train: 4, elev: 6, disp: 0.011, len: 17 },
-  "15e2":   { name: '15인치 (가상)', cal: 381, V0: 800, k: 2.4e-5, maxEl: 40, dmg: [4.4, 7.6], reload: 30, train: 5, elev: 8, disp: 0.010, len: 17 },
-  "16e":    { name: '16인치 (가상)', cal: 406, V0: 780, k: 2.1e-5, maxEl: 42, dmg: [5.2, 8.6], reload: 30, train: 5, elev: 9, disp: 0.010, len: 19 },
 };
 /** Game-speed reload: the listed (historical) cycle × this factor. */
 export const RELOAD_K = 0.6;
@@ -48,46 +39,8 @@ export function solve(tb, range) {
 
 // ── catalogue ───────────────────────────────────────────────────────────────
 const US = { hull: 0x7a848b, deck: 0xa58b62, upper: 0x86909a };
-const FOE = { hull: 0x56606a, deck: 0x6f736c, upper: 0x66707a }; // lighter: the old one read as black at range
-const T1 = (x, up, rest) => ({ x, up, rest, n: 1 }), T2 = (x, up, rest) => ({ x, up, rest, n: 2 }), T3 = (x, up, rest) => ({ x, up, rest, n: 3 });
-export const SHIPS = {
-  fletcher: { id: "fletcher", name: "USS 플레처 (DD-445)", short: "플레처", cls: "구축함", tier: 1, L: 114.8, B: 12, D: 4.2, fb: 5.4, sheer: 2.6, vmax: 36.5, turn: 7, hp: 55, belt: 19,
-    gun: "5/38", style: "dd", ...US, paint: "ms32a", hullNo: "445", deckHex: "#4a5663", planks: false, turrets: [T1(40, 0, 0), T1(31, 2.3, 0), T1(-17, 2.6, PI), T1(-31, 1.4, PI), T1(-41, 0, PI)],
-    torp: { name: "Mk 15 어뢰 5연장 ×2", n: 5, mounts: [3, -8], v: 45, range: 5500, reload: 70, dmg: 20 },
-    desc: "미 해군 2차대전 주력 구축함. 36노트의 속력과 분당 15발을 쏘는 5인치 속사포 5문." },
-  cleveland: { id: "cleveland", name: "USS 클리블랜드 (CL-55)", short: "클리블랜드", cls: "경순양함", tier: 2, L: 186, B: 20.2, D: 7.5, fb: 7, sheer: 3, vmax: 32.5, turn: 4.5, hp: 75, belt: 127,
-    gun: "6/47", style: "cruiser", ...US, paint: "ms33", hullNo: "55", deckHex: "#56616b", planks: false, turrets: [T3(62, 0, 0), T3(49, 3.2, 0), T3(-50, 3.2, PI), T3(-63, 0, PI)],
-    desc: "6인치 3연장 포탑 4기, 12문의 빠른 연사로 적을 압도하는 경순양함." },
-  colorado: { id: "colorado", name: "USS 콜로라도 (BB-45)", short: "콜로라도", cls: "전함", tier: 3, L: 190, B: 29.7, D: 9.3, fb: 6.2, sheer: 0.6, vmax: 21, turn: 2.7, hp: 100, belt: 343,
-    gun: "16/45", style: "cage", ...US, paint: "ms21", hullNo: "45", deckHex: "#465566", planks: true, turrets: [T2(58, 0, 0), T2(45, 2.0, 0), T2(-45, 1.8, PI), T2(-60, 0, PI)],
-    desc: "1920년대 '빅 파이브' 전함. 미 해군 최초로 16인치 주포를 단 함선." },
-  baltimore: { id: "baltimore", name: "USS 볼티모어 (CA-68)", short: "볼티모어", cls: "중순양함", tier: 3, L: 205, B: 21.6, D: 7.3, fb: 7.4, sheer: 3.2, vmax: 33, turn: 4, hp: 85, belt: 152,
-    gun: "8/55", style: "cruiser", ...US, paint: "ms32b", hullNo: "68", deckHex: "#4a5663", planks: false, big: true, turrets: [T3(66, 0, 0), T3(52, 3.4, 0), T3(-66, 0, PI)],
-    desc: "8인치/55구경 9문의 중순양함. 전함보다 빠르고 경순양함보다 단단하다." },
-  northcarolina: { id: "northcarolina", name: "USS 노스캐롤라이나 (BB-55)", short: "노스캐롤라이나", cls: "전함", tier: 4, L: 222, B: 33, D: 10, fb: 8.2, sheer: 3.4, vmax: 28, turn: 2.9, hp: 105, belt: 305,
-    gun: "16/45b", style: "tower", ...US, paint: "ms32c", hullNo: "55", deckHex: "#4a5663", planks: true, turrets: [T3(72, 0, 0), T3(55, 4, 0), T3(-70, 0, PI)],
-    desc: "조약 이후 첫 신형 전함. 초중량탄을 쏘는 16인치 3연장 포탑 3기." },
-  iowa: { id: "iowa", name: "USS 아이오와 (BB-61)", short: "아이오와", cls: "전함", tier: 5, L: 270, B: 33, D: 11, fb: 8.8, sheer: 4.2, vmax: 33, turn: 2.8, hp: 115, belt: 307,
-    gun: "16/50", style: "tower", ...US, paint: "ms22", hullNo: "61", deckHex: "#a3875c", planks: true, turrets: [T3(88, 0, 0), T3(70, 4.2, 0), T3(-88, 0, PI)],
-    desc: "미 해군 최후의 전함. 33노트 고속과 16인치/50구경 9문." },
-};
-export const CARRIER = { id: "lexington", name: "USS 렉싱턴 (CV-2)", short: "렉싱턴", cls: "항공모함", tier: 0, L: 270.7, B: 32.3, D: 9.3, fb: 9, sheer: 1.5, vmax: 33.25, turn: 2.4, hp: 100, belt: 178,
-  gun: "5/38", style: "carrier", ...US, paint: "ms1", hullNo: "", deckHex: "#7a6a52", planks: true, turrets: [] };
-export const ENEMIES = {
-  1: { id: "viper", name: "가상 구축함 '바이퍼'", short: "바이퍼", cls: "구축함", tier: 1, L: 118, B: 11.5, D: 4, fb: 5.3, sheer: 2.8, vmax: 37, turn: 7, hp: 55, belt: 20, gun: "5/38", style: "foeDD", ...FOE, paint: "f2", deckHex: "#5b5f5c", planks: false,
-    turrets: [T1(41, 0, 0), T1(31, 2.2, 0), T1(-31, 2.2, PI), T1(-42, 0, PI)], range: [5500, 7000], aa: 0.6,
-    torp: { name: "어뢰 4연장 ×2 (가상)", n: 4, mounts: [-9, -21], v: 48, range: 7000, reload: 80, dmg: 18 } },
-  2: { id: "siren", name: "가상 경순양함 '세이렌'", short: "세이렌", cls: "경순양함", tier: 2, L: 182, B: 19, D: 7, fb: 6.8, sheer: 3, vmax: 33, turn: 4.5, hp: 75, belt: 120, gun: "6/47", style: "foeCL", ...FOE, paint: "f3", deckHex: "#6b5a46", planks: true,
-    turrets: [T3(60, 0, 0), T3(46, 3, 0), T3(-60, 0, PI)], range: [8000, 10000], aa: 1,
-    torp: { name: "어뢰 3연장 (가상)", n: 3, mounts: [-30], v: 50, range: 6500, reload: 90, dmg: 18 } },
-  3: { id: "kraken", name: "가상 전함 '크라켄'", short: "크라켄", cls: "전함", tier: 3, L: 205, B: 30, D: 9.5, fb: 7.5, sheer: 3.5, vmax: 23, turn: 2.5, hp: 100, belt: 320, gun: "15e", style: "raider", ...FOE, paint: "f1", deckHex: "#64665f", planks: true,
-    turrets: [T2(56, 0, 0), T2(40, 3.4, 0), T2(-52, 0, PI)], range: [9200, 10400], aa: 1.4 },
-  4: { id: "leviathan", name: "가상 전함 '레비아탄'", short: "레비아탄", cls: "전함", tier: 4, L: 238, B: 32, D: 10, fb: 8, sheer: 3.6, vmax: 29, turn: 2.7, hp: 108, belt: 330, gun: "15e2", style: "pagoda", ...FOE, paint: "f4", deckHex: "#7a5d45", planks: true,
-    turrets: [T2(76, 0, 0), T2(60, 4, 0), T2(-62, 4, PI), T2(-78, 0, PI)], range: [11000, 13500], aa: 1.7 },
-  5: { id: "titan", name: "가상 전함 '타이탄'", short: "타이탄", cls: "전함", tier: 5, L: 262, B: 36, D: 11, fb: 8.6, sheer: 4, vmax: 30, turn: 2.6, hp: 118, belt: 350, gun: "16e", style: "titan", ...FOE, paint: "f5", deckHex: "#8a7254", planks: true,
-    turrets: [T3(86, 0, 0), T3(69, 4.2, 0), T3(-86, 0, PI)], range: [12000, 15000], aa: 2 },
-};
-
+const T1 = (x, up, rest) => ({ x, up, rest, n: 1 });
+export const SHIPS = {}; /* WWII fleet removed (branch ww2-archive) */
 const hexN = (h) => parseInt(h.slice(1), 16);
 /** Liberty-type transport (convoy missions) and the enemy fleet carrier (fictional). */
 // ── modern era (현대전): hulls + magazines. Ranges/speeds are game values (see the design doc: ~1/15 of real reach, order kept) ──
@@ -125,69 +78,10 @@ export const MODERN = {
 };
 export const TRANSPORT = { id: "transport", name: "수송선", short: "수송선", cls: "수송선", tier: 0, L: 135, B: 17.3, D: 8.5, fb: 6, sheer: 1.6, vmax: 15, turn: 3, hp: 42, belt: 10,
   gun: "5/38", style: "cargo", ...US, paint: "ms1", hullNo: "", deckHex: "#5b5348", planks: false, turrets: [T1(-58, 0, PI)], aa: 0.25 };
-export const FOE_CARRIER = { ...CARRIER, id: "harpy", name: "가상 항모 '하피'", short: "하피", ...FOE, paint: "f1", deckHex: "#6a5a44", hp: 90, foe: true, aa: 1.2, range: [14000, 18000] };
-for (const [k, v] of Object.entries({ fletcher: 0.8, cleveland: 1.4, colorado: 1.1, baltimore: 1.5, northcarolina: 1.9, iowa: 2.3 })) SHIPS[k].aa = v;
-CARRIER.aa = 1.3;
-for (const sp of [...Object.values(SHIPS), ...Object.values(ENEMIES)]) if (sp.torp) sp.torp.v *= 2; // game speed: torpedoes run twice their historical speed
-for (const sp of [...Object.values(SHIPS), CARRIER, TRANSPORT, FOE_CARRIER, ...Object.values(ENEMIES)]) sp.upper = hexN(SCHEMES[sp.paint].upper);
+TRANSPORT.upper = hexN(SCHEMES[TRANSPORT.paint].upper);
 export const paintName = (sp) => SCHEMES[sp.paint].name;
 
-// ── high-detail models (Higgsfield 3D) ──────────────────────────────────────
-/** Per-ship GLB: scale into metres (bow +X, waterline at y=0), the boxes cut out where the
- *  model's fixed turrets were (the game's own trainable turrets go there), funnels and bridge. */
-export const MODEL_CFG = {
-  colorado: { url: "models/colorado.glb", sx: 193, sy: 170, sz: 172, wl: -0.135,
-    cut: [[51, 85, 8.5, 6.6, 13.5], [39.5, 62, 8.5, 8.3, 15], [-62, -39, 8.5, 8.0, 15], [-85, -52, 8.5, 6.6, 13]],
-    funnels: [[-5, 32, 0], [5, 32, 0]], bridge: [36.5, 15.5, 0] },
-};
-const MODELS = {}; export const modelState = { loading: 0, ready: 0 };
-export function loadModels() {
-  const loader = new GLTFLoader();
-  // F4F (Higgsfield 3D): cut away the lowered landing gear and the fixed prop blades; a spinning prop is added in core.hqPlane
-  loader.load("models/f4f.glb", (gltf) => {
-    const grp = new THREE.Group(); gltf.scene.updateMatrixWorld(true);
-    gltf.scene.traverse((o) => {
-      if (!o.isMesh) return;
-      const g = o.geometry.clone(); g.applyMatrix4(o.matrixWorld);
-      const p = g.attributes.position, idx = g.index ? g.index.array : Array.from({ length: p.count }, (_, i) => i), keep = [];
-      for (let i = 0; i < idx.length; i += 3) {
-        const a = idx[i], b = idx[i + 1], d = idx[i + 2];
-        const x = (p.getX(a) + p.getX(b) + p.getX(d)) / 3, y = (p.getY(a) + p.getY(b) + p.getY(d)) / 3, z = (p.getZ(a) + p.getZ(b) + p.getZ(d)) / 3;
-        const gear = y < -0.062 && Math.abs(x) > 0.075 && z > 0.13 && z < 0.34, blade = z > 0.312 && z < 0.34 && Math.hypot(x, y - 0.02) > 0.075;
-        if (!gear && !blade) keep.push(a, b, d);
-      }
-      g.setIndex(keep); g.scale(11.9, 11.9, 11.9); g.computeBoundingSphere();
-      const m = new THREE.Mesh(g, o.material); m.castShadow = true; grp.add(m);
-    });
-    modelState.plane = true; setPlaneModel(grp);
-  }, undefined, () => {});
-  for (const [id, c] of Object.entries(MODEL_CFG)) {
-    modelState.loading++;
-    loader.load(c.url, (gltf) => {
-      let mesh = null; gltf.scene.traverse((o) => { if (o.isMesh && !mesh) mesh = o; });
-      if (!mesh) return;
-      const g = mesh.geometry.clone(); g.applyMatrix4(new THREE.Matrix4().makeScale(c.sx, c.sy, c.sz)); g.translate(0, -c.wl * c.sy, 0);
-      const p = g.attributes.position, idx = g.index.array, keep = [];
-      const inCut = (x, y, z) => c.cut.some(([x0, x1, hz, y0, y1]) => x > x0 && x < x1 && Math.abs(z) < hz && y > y0 && y < y1);
-      for (let i = 0; i < idx.length; i += 3) {
-        const a = idx[i], b = idx[i + 1], d = idx[i + 2];
-        const cx = (p.getX(a) + p.getX(b) + p.getX(d)) / 3, cy = (p.getY(a) + p.getY(b) + p.getY(d)) / 3, cz = (p.getZ(a) + p.getZ(b) + p.getZ(d)) / 3;
-        if (!inCut(cx, cy, cz)) keep.push(a, b, d);
-      }
-      g.setIndex(keep); g.computeBoundingSphere();
-      const m = mesh.material; m.envMapIntensity = 0.7; m.side = THREE.FrontSide;
-      const out = new THREE.Mesh(g, m); out.castShadow = out.receiveShadow = true;
-      MODELS[id] = out; modelState.ready++;
-      for (const s of G.ships) if (s.spec.id === id) applyModel(s);
-    }, undefined, () => { modelState.loading--; });
-  }
-}
-function applyModel(ship) {
-  const m = MODELS[ship.spec.id]; if (!m || ship.model) return;
-  for (const o of ship.body) o.visible = false;
-  ship.model = m.clone(); ship.tilt.add(ship.model);
-  const c = MODEL_CFG[ship.spec.id]; ship.funnels = c.funnels; ship.bridge = c.bridge;
-}
+export function loadModels() {} /* the WWII GLB models (Colorado, F4F) went with the WWII fleet */
 
 // ── hull ────────────────────────────────────────────────────────────────────
 export function halfBeam(spec, t) {
@@ -251,145 +145,6 @@ function hullDetails(g, spec) {
 // ── superstructure styles ───────────────────────────────────────────────────
 const latticeMat = new THREE.LineBasicMaterial({ color: 0x626a70 });
 const coreMat = new THREE.MeshStandardMaterial({ color: 0x7b8489, transparent: true, opacity: 0.42 });
-function cageMast(p, x, y, h, rb, rt) {
-  const pts = [], n = 16;
-  for (let i = 0; i < n; i++) for (const s of [1, -1]) { const a0 = (i / n) * TAU, a1 = a0 + s * 1.85; pts.push(rb * Math.cos(a0), 0, rb * Math.sin(a0), rt * Math.cos(a1), h, rt * Math.sin(a1)); }
-  const g = new THREE.BufferGeometry(); g.setAttribute("position", new THREE.Float32BufferAttribute(pts, 3));
-  const l = new THREE.LineSegments(g, latticeMat); l.position.set(x, y, 0); p.add(l);
-  const core = new THREE.Mesh(new THREE.CylinderGeometry(rt * 0.8, rb * 0.72, h, 12, 1, true), coreMat); core.position.set(x, y + h / 2, 0); p.add(core);
-}
-function sec5(g, c, x, y, z, rot) {
-  const m = new THREE.Group(); m.position.set(x, y, z); m.rotation.y = rot; g.add(m); box(m, 4.4, 2.1, 3.6, c, 0, 0, 0);
-  for (const s of [-0.7, 0.7]) { const b = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.15, 4.6, 6), mat(0x41474b))); b.rotation.z = -PI / 2 + 0.12; b.position.set(4.3, 1.2, s); m.add(b); }
-}
-function tub40(g, c, x, y, z) {
-  cyl(g, 1.4, 1.5, 1.1, c, x, y, z, 10);
-  for (const s of [-0.45, -0.15, 0.15, 0.45]) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.07, 2.4, 5), mat(0x3a3f43)); b.rotation.z = -PI / 2 + 0.6; b.position.set(x + 0.9, y + 1.9, z + s); g.add(b); }
-}
-function aaStation(g, c, x, y, z) { box(g, 1.6, 1.3, 1.6, c, x, y, z); }
-function colorado(g, spec) {
-  const U = spec.upper, y = spec.fb;
-  box(g, 58, 3.2, 17, U, -1, y, 0); box(g, 24, 3, 12.5, U, 12, y + 3.2, 0); cyl(g, 3.3, 3.3, 5.5, U, 25.5, y + 3.2, 0);
-  box(g, 9, 4.5, 11, U, 17, y + 6.2, 0); box(g, 7, 0.9, 15, U, 17, y + 10.7, 0);
-  cageMast(g, 13, y + 6.2, 36, 3.7, 1.8); cyl(g, 4.3, 3.6, 3.2, U, 13, y + 42.2, 0); cyl(g, 2.4, 2.4, 2.2, U, 13, y + 45.4, 0);
-  for (const fx of [1, -11]) { cyl(g, 2.7, 3.1, 16, U, fx, y + 3.2, 0); cyl(g, 2.76, 2.76, 1.6, 0x1c1e20, fx, y + 19.2, 0); }
-  box(g, 12, 3, 10, U, -24, y + 3.2, 0); cageMast(g, -23, y + 6.2, 34, 3.5, 1.7); cyl(g, 4.0, 3.3, 3, U, -23, y + 40.2, 0);
-  for (const sx of [22, 14, 6, -5, -14]) for (const s of [1, -1]) { const b = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.3, 5, 8), mat(0x4b5256)); b.rotation.x = (PI / 2) * s; b.position.set(sx, y + 1.9, s * 10.3); g.add(b); }
-  for (const s of [1, -1]) box(g, 9, 1.4, 2.6, 0xd6d3c6, -5, y + 3.2, s * 5.6);
-  box(g, 22, 0.9, 1.8, 0x596064, -80, y + 1.4, 0).rotation.y = 0.22; box(g, 0.8, 9, 0.8, 0x596064, -91, y, 3.5);
-  for (const [ax, az] of [[30, 6], [30, -6], [6, 7.6], [6, -7.6], [-17, 7], [-17, -7], [-30, 4], [-30, -4]]) {
-    cyl(g, 0.9, 1.1, 1.2, U, ax, y + 3.2, az, 8); const b = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.14, 3.6, 6), mat(0x3f4549))); b.rotation.z = ax > 0 ? -0.95 : 0.95; b.position.set(ax + (ax > 0 ? 1.2 : -1.2), y + 5.3, az); g.add(b); }
-  for (const fx of [1, -11]) { cyl(g, 0.3, 0.3, 15, U, fx - 3.2, y + 3.2, 0, 6); cyl(g, 2.9, 2.9, 0.35, 0x6d757a, fx, y + 12, 0); box(g, 2, 0.3, 9, U, fx, y + 12.4, 0); for (const s of [1, -1]) cyl(g, 0.75, 0.75, 1, 0xdfe2e0, fx, y + 12.7, s * 3.9, 10); }
-  box(g, 0.35, 0.35, 17, 0x474d51, 13, y + 33, 0); box(g, 0.35, 0.35, 14, 0x474d51, -23, y + 31, 0);
-  for (const s of [1, -1]) { box(g, 0.5, 11, 0.5, 0x596064, -16, y + 3.2, s * 6.2).rotation.x = s * 0.45; box(g, 7, 1.2, 2.2, 0xd6d3c6, 7, y + 6.2, s * 4.6); }
-  cyl(g, 0.12, 0.16, 5, 0x474d51, 93, deckY(spec, 93), 0, 5); cyl(g, 0.12, 0.16, 6.5, 0x474d51, -93, y, 0, 5);
-  const flag = new THREE.Mesh(new THREE.PlaneGeometry(4.2, 2.4), new THREE.MeshBasicMaterial({ color: 0xb8323a, side: THREE.DoubleSide })); flag.position.set(-95.3, y + 5.2, 0); g.add(flag);
-  for (const s of [1, -1]) box(g, 1.7, 2.3, 0.45, 0x26292c, 85, 4.6, s * 4.0);
-  const sp = new THREE.Group(); sp.position.set(-80, y + 2.4, 0); sp.rotation.y = 0.22; g.add(sp);
-  box(sp, 7.5, 1.1, 1.1, 0xc8cbc2, 0, 0.5, 0); box(sp, 1.7, 0.16, 10.5, 0xc8cbc2, 1, 1.9, 0); box(sp, 1.1, 0.14, 3.6, 0xc8cbc2, -3.3, 1.2, 0); box(sp, 5.5, 0.6, 0.9, 0xb9bcb4, 0.3, -0.25, 0); box(sp, 0.9, 1.6, 0.12, 0xc8cbc2, -3.4, 1.2, 0);
-  const top = y + 45.4, at2 = y + 43;
-  lines(g, [13, top, 0, 93, deckY(spec, 93) + 5, 0, 13, top, 0, -23, at2, 0, -23, at2, 0, -93, y + 6.5, 0, 13, y + 33, 8.4, 13, top, 0, 13, y + 33, -8.4, 13, top, 0, -23, y + 31, 7, -23, at2, 0, -23, y + 31, -7, -23, at2, 0]);
-  g.userData.bridge = [19.5, y + 9.4, 0];
-  return [[1, y + 21, 0], [-11, y + 21, 0]];
-}
-function tower(g, spec) {
-  const U = spec.upper, y = spec.fb, L = spec.L, B = spec.B, iowa = spec.id === "iowa", fx = L * 0.12, y1 = y + 3.4;
-  box(g, L * 0.42, 3.4, B * 0.66, U, -L * 0.03, y, 0);
-  box(g, L * 0.14, 3.2, B * 0.48, U, fx, y1, 0); box(g, L * 0.08, 3, B * 0.34, U, fx + L * 0.01, y1 + 3.2, 0);
-  cyl(g, 3.6, 3.8, 5.5, U, fx + L * 0.06, y1 + 3.2, 0, 16);
-  box(g, 8.5, 12, 7.5, U, fx - 2, y1 + 6.2, 0); box(g, 11, 2.2, 13, U, fx - 2, y1 + 18.2, 0); box(g, 6.5, 3, 5.5, U, fx - 1, y1 + 20.4, 0);
-  box(g, 1.2, 1, 14, 0x51595e, fx - 1, y1 + 23.4, 0); cyl(g, 0.4, 0.5, 13, 0x51595e, fx - 5, y1 + 20.4, 0, 6); box(g, 0.3, 0.3, 9, 0x474d51, fx - 5, y1 + 30.5, 0);
-  const fs = iowa ? [-L * 0.02, -L * 0.12] : [L * 0.03, -L * 0.06];
-  for (const x of fs) { const f = cyl(g, 3.3, 3.8, 13, U, x, y1, 0, 16); f.scale.z = 0.72; const c = cyl(g, 3.35, 3.35, 1.2, 0x1c1e20, x, y1 + 13, 0, 16); c.scale.z = 0.72; }
-  box(g, L * 0.1, 3, B * 0.36, U, -L * 0.18, y1, 0); box(g, 5.5, 2.8, 4.8, U, -L * 0.18, y1 + 3, 0); cyl(g, 0.35, 0.45, 15, 0x51595e, -L * 0.16, y1 + 3, 0, 6);
-  for (const x of [L * 0.13, L * 0.06, -L * 0.01, -L * 0.08, -L * 0.15]) for (const s of [1, -1]) sec5(g, U, x, y1, s * B * 0.27, s > 0 ? -PI / 2 : PI / 2);
-  for (const [x, z, h] of [[L * 0.21, 6, 0], [L * 0.21, -6, 0], [-L * 0.25, 5, 0], [-L * 0.25, -5, 0], [L * 0.02, B * 0.43, 0], [L * 0.02, -B * 0.43, 0], [-L * 0.12, B * 0.43, 0], [-L * 0.12, -B * 0.43, 0], [fx + 4, 5, 6.4], [fx + 4, -5, 6.4]]) tub40(g, U, x, h ? y1 + h : y, z);
-  for (const s of [1, -1]) box(g, 21, 0.8, 1.6, 0x596064, -L * 0.43, y + 1, s * 6).rotation.y = s * 0.3;
-  const top = y1 + 31;
-  lines(g, [fx - 5, top, 0, L * 0.48, deckY(spec, L * 0.48) + 4, 0, fx - 5, top, 0, -L * 0.16, y1 + 18, 0, -L * 0.16, y1 + 18, 0, -L * 0.48, y + 4, 0]);
-  g.userData.bridge = [fx + 2.7, y1 + 19.5, 0];
-  return fs.map((x) => [x, y1 + 14.4, 0]);
-}
-function cruiser(g, spec) {
-  const U = spec.upper, y = spec.fb, L = spec.L, B = spec.B, fx = L * 0.1, y1 = y + 3;
-  box(g, L * 0.34, 3, B * 0.62, U, -L * 0.02, y, 0);
-  box(g, L * 0.11, 3, B * 0.5, U, fx, y1, 0); box(g, L * 0.07, 2.8, B * 0.38, U, fx + 1, y1 + 3, 0); box(g, 8, 1.2, B * 0.66, U, fx + 2, y1 + 5.8, 0);
-  box(g, 4.5, 2.6, 4, U, fx, y1 + 7, 0); box(g, 1, 0.8, 9, 0x51595e, fx, y1 + 9.6, 0);
-  cyl(g, 0.45, 0.55, 17, 0x5b6368, fx - 5, y1 + 3, 0, 6);
-  for (const s of [1, -1]) { const l = box(g, 0.4, 16, 0.4, 0x5b6368, fx - 7, y1 + 3, s * 1.6); l.rotation.x = s * 0.12; l.rotation.z = 0.2; }
-  box(g, 0.3, 0.3, 8, 0x474d51, fx - 5, y1 + 17, 0);
-  if (spec.big) { box(g, 7, 6, 6.5, U, fx - 3, y1 + 5.8, 0); box(g, 5, 2.6, 5, U, fx - 3, y1 + 11.8, 0); box(g, 1, 0.8, 11, 0x51595e, fx - 3, y1 + 14.4, 0); }
-  const fs = spec.big ? [-L * 0.02, -L * 0.065] : [L * 0.01, -L * 0.085];
-  for (const x of fs) { const f = cyl(g, 2.5, 2.9, 10, U, x, y1, 0, 14); f.scale.z = 0.75; const c = cyl(g, 2.55, 2.55, 1, 0x1c1e20, x, y1 + 10, 0, 14); c.scale.z = 0.75; }
-  box(g, L * 0.07, 2.8, B * 0.38, U, -L * 0.15, y1, 0); box(g, 4.2, 2.4, 3.8, U, -L * 0.15, y1 + 2.8, 0); cyl(g, 0.3, 0.4, 13, 0x5b6368, -L * 0.12, y1 + 2.8, 0, 6);
-  for (const x of [L * 0.05, -L * 0.1]) for (const s of [1, -1]) sec5(g, U, x, y1, s * B * 0.3, s > 0 ? -PI / 2 : PI / 2);
-  sec5(g, U, fx + L * 0.03, y1 + 3, 0, 0);
-  for (const [x, z] of [[L * 0.17, 4], [L * 0.17, -4], [-L * 0.21, 3.5], [-L * 0.21, -3.5], [L * 0.0, B * 0.42], [L * 0.0, -B * 0.42]]) tub40(g, U, x, y, z);
-  for (const s of [1, -1]) box(g, 14, 0.7, 1.3, 0x596064, -L * 0.41, y + 0.9, s * 4.5).rotation.y = s * 0.3;
-  const top = y1 + 20;
-  lines(g, [fx - 5, top, 0, L * 0.48, deckY(spec, L * 0.48) + 3, 0, fx - 5, top, 0, -L * 0.12, y1 + 15.8, 0, -L * 0.12, y1 + 15.8, 0, -L * 0.48, y + 3, 0]);
-  g.userData.bridge = [fx + 1 + L * 0.033, y1 + 5.3, 0];
-  return fs.map((x) => [x, y1 + 11, 0]);
-}
-function torpBank(g, U, y, x, n, len, col) {
-  cyl(g, 1.2, 1.3, 0.6, U, x, y, 0, 10);
-  const grp = new THREE.Group(); grp.position.set(x, y + 1.05, 0); g.add(grp);
-  const tubeG = new THREE.CylinderGeometry(0.28, 0.28, len, 8), noseG = new THREE.SphereGeometry(0.23, 8, 6);
-  const tubeM = mat(col), tipM = mat(0xc85432), tips = [];
-  for (let i = 0; i < n; i++) {
-    const zz = (i - (n - 1) / 2) * 0.66;
-    const t = shadowed(new THREE.Mesh(tubeG, tubeM)); t.rotation.z = PI / 2; t.position.z = zz; grp.add(t);
-    const tip = new THREE.Mesh(noseG, tipM); tip.scale.set(1.6, 0.95, 0.95); tip.position.set(len * 0.5 + 0.08, 0, zz); grp.add(tip);
-    tips.push(tip);
-  }
-  (g.userData.torpMounts ??= []).push({ x, grp, tips, len });
-}
-function dd(g, spec) {
-  const U = spec.upper, y = spec.fb, B = spec.B;
-  box(g, 14, 3, B * 0.62, U, 19, y, 0); box(g, 9, 2.6, B * 0.5, U, 20, y + 3, 0); box(g, 5, 1.1, B * 0.82, U, 21, y + 5.6, 0);
-  box(g, 3.2, 1.8, 3, U, 19, y + 6.7, 0); box(g, 0.7, 0.6, 5, 0x51595e, 19, y + 8.5, 0);
-  cyl(g, 0.25, 0.32, 14, 0x5b6368, 13, y + 3, 0, 6); box(g, 0.2, 0.2, 7, 0x474d51, 13, y + 13.5, 0);
-  for (const x of [8, -2]) { const f = cyl(g, 1.5, 1.8, 7, U, x, y, 0, 12); f.scale.z = 0.8; const c = cyl(g, 1.55, 1.55, 0.7, 0x1c1e20, x, y + 7, 0, 12); c.scale.z = 0.8; }
-  box(g, 10, 2.6, B * 0.5, U, -17, y, 0);
-  for (const x of [3, -8]) torpBank(g, U, y, x, 5, 6, 0x6b7378);
-  for (const [x, z] of [[-24, 2.5], [-24, -2.5], [9, 4.2], [9, -4.2]]) tub40(g, U, x, y, z);
-  for (const s of [1, -1]) box(g, 4, 1, 1, 0x3a3f43, -52, y, s * 2.5);
-  lines(g, [13, y + 17, 0, 56, deckY(spec, 56) + 2, 0, 13, y + 17, 0, -56, y + 2, 0]);
-  g.userData.bridge = [22.5, y + 6.2, 0];
-  return [[8, y + 7.7, 0], [-2, y + 7.7, 0]];
-}
-function raider(g, spec) {
-  const U = spec.upper, y = spec.fb, s = spec.L / 205, b = spec.B / 30, h = Math.max(0.55, s), y1 = y + 3.4 * h;
-  box(g, 54 * s, 3.4 * h, 16.5 * b, U, 2 * s, y, 0);
-  box(g, 10 * s, 20 * h, 8.5 * b, U, 21 * s, y1, 0);
-  box(g, 13 * s, 2.2 * h, 12.5 * b, U, 21 * s, y + 12 * h, 0); box(g, 12 * s, 2 * h, 11 * b, U, 21 * s, y + 18 * h, 0);
-  cyl(g, 3.6 * b, 3.0 * b, 3 * h, U, 21 * s, y + 23.4 * h, 0); box(g, 1.2, 1, 13 * b, U, 21 * s, y + 26.4 * h, 0);
-  const fn = cyl(g, 3.3 * b, 3.9 * b, 15 * h, U, 3 * s, y1, 0); fn.rotation.z = 0.12; cyl(g, 3.35 * b, 3.35 * b, 1.6 * h, 0x151718, 1.4 * s, y + 17.6 * h, 0);
-  cyl(g, 0.5, 0.7, 30 * h, U, -17 * s, y1, 0); cyl(g, 2.2 * b, 2.2 * b, 1.6, U, -17 * s, y + 26 * h, 0);
-  box(g, 14 * s, 3.2 * h, 10 * b, U, -22 * s, y1, 0);
-  if (spec.L > 150) for (const sx of [26, 12, -4, -14]) for (const k of [1, -1]) box(g, 4 * s, 2 * h, 3.4 * b, U, sx * s, y1, k * 6.6 * b);
-  for (const [ax, az] of [[30, 6], [30, -6], [-8, 7], [-8, -7], [-28, 4.5], [-28, -4.5]]) { cyl(g, 0.9, 1.1, 1.2, U, ax * s, y1, az * b, 8); const bb = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.14, 3.6, 6), mat(0x2c3134))); bb.rotation.z = ax > 0 ? -0.95 : 0.95; bb.position.set(ax * s + (ax > 0 ? 1.2 : -1.2), y1 + 2.1, az * b); g.add(bb); }
-  box(g, 0.35, 0.35, 15 * b, 0x33393d, -17 * s, y + 22 * h, 0); if (spec.L > 150) for (const k of [1, -1]) box(g, 8 * s, 1.2, 2.3 * b, 0x9a9990, -8 * s, y1, k * 4.4 * b);
-  lines(g, [21 * s, y + 27 * h, 0, spec.L * 0.48, deckY(spec, spec.L * 0.48) + 2, 0, 21 * s, y + 27 * h, 0, -17 * s, y + 29 * h, 0, -17 * s, y + 29 * h, 0, -spec.L * 0.48, y + 3, 0]);
-  return [[1.4 * s, y + 20 * h, 0]];
-}
-function carrier(g, spec) {
-  const U = spec.upper, y = spec.fb, L = spec.L, B = spec.B, iz = B * 0.47, yd = y + 8.6;
-  box(g, L * 0.84, 7.5, B * 0.92, U, -L * 0.02, y, 0);
-  box(g, L * 0.95, 1.1, B * 1.02, spec.deck, -L * 0.01, y + 7.5, 0);
-  box(g, L * 0.9, 0.06, 0.5, 0xd8d8d0, -L * 0.01, yd + 0.02, 0); for (const s of [1, -1]) box(g, L * 0.9, 0.06, 0.35, 0xd8d8d0, -L * 0.01, yd + 0.02, s * B * 0.48);
-  for (const x of [L * 0.38, -L * 0.42]) box(g, 0.4, 0.06, B * 0.9, 0xd8d8d0, x, yd + 0.02, 0);
-  box(g, 34, 9, 5, U, L * 0.07, yd, iz); box(g, 18, 5, 4.5, U, L * 0.1, yd + 9, iz); box(g, 5, 3, 4, U, L * 0.1, yd + 14, iz);
-  cyl(g, 0.5, 0.6, 14, 0x5b6368, L * 0.12, yd + 9, iz, 6); box(g, 0.3, 0.3, 8, 0x474d51, L * 0.12, yd + 22, iz);
-  box(g, 42, 20, 6, U, -L * 0.05, yd, iz); box(g, 42.2, 1.4, 6.2, 0x1c1e20, -L * 0.05, yd + 20, iz);
-  for (const [x, dir] of [[L * 0.2, 0], [L * 0.155, 0], [-L * 0.16, PI], [-L * 0.205, PI]]) {
-    const t = new THREE.Group(); t.position.set(x, yd, iz - 1.2); t.rotation.y = -dir; g.add(t); box(t, 7, 2.4, 6, U, 0, 0, 0);
-    for (const s of [-1.2, 1.2]) { const b = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.28, 9, 8), mat(0x474e52))); b.rotation.z = -PI / 2; b.position.set(7.5, 1.3, s); t.add(b); }
-  }
-  for (let i = 0; i < 9; i++) { const p = planeMesh(1, !!spec.foe); p.position.set(-L * 0.3 - (i % 3) * 15, yd + 1.3, (((i / 3) | 0) - 1) * 11); p.rotation.y = PI / 2; g.add(p); }
-  g.userData.bridge = [L * 0.1 + 7, yd + 11.5, iz];
-  return [[-L * 0.05, yd + 21, iz]];
-}
 /** Modern flattop: hangar hull, overhanging flight deck (angled deck / ski jump), starboard island with radar faces, parked jets. */
 function mcarrier(g, spec) {
   const U = spec.upper, y = spec.fb, L = spec.L, B = spec.B, W = spec.deckW || B, yd = y + 7.2, iz = W * 0.4, ix = spec.islandX || 0;
@@ -608,57 +363,6 @@ export function heavyMesh(foe) {
   g.userData.ab = { burners: [], strobe };
   return g;
 }
-function foeDD(g, spec) {
-  const U = spec.upper, y = spec.fb, B = spec.B;
-  box(g, 11, 3.4, B * 0.6, U, 22, y, 0); box(g, 6, 3, B * 0.5, U, 23, y + 3.4, 0); box(g, 3, 1.6, B * 0.7, U, 24, y + 6.4, 0);
-  for (const s of [1, -1]) { const l = box(g, 0.35, 15, 0.35, 0x3b4246, 18, y + 3.4, s * 1.3); l.rotation.x = s * 0.1; }
-  cyl(g, 0.3, 0.35, 15, 0x3b4246, 16.5, y + 3.4, 0, 6); box(g, 0.2, 0.2, 6, 0x33393d, 17, y + 16, 0);
-  const f = cyl(g, 2.4, 2.8, 8.5, U, 2, y, 0, 12); f.rotation.z = 0.22; f.scale.z = 0.75; const c = cyl(g, 2.45, 2.45, 0.8, 0x151718, 0.2, y + 8.2, 0, 12); c.rotation.z = 0.22; c.scale.z = 0.75;
-  for (const x of [-9, -21]) torpBank(g, U, y, x, 4, 6.5, 0x5d6568);
-  box(g, 9, 2.6, B * 0.45, U, -30, y, 0); tub40(g, U, 9, y, 3.6); tub40(g, U, 9, y, -3.6);
-  lines(g, [17, y + 18, 0, 58, deckY(spec, 58) + 2, 0, 17, y + 18, 0, -58, y + 2, 0]);
-  return [[0.2, y + 9.2, 0]];
-}
-function foeCL(g, spec) {
-  const U = spec.upper, y = spec.fb, L = spec.L, B = spec.B, fx = L * 0.13;
-  box(g, L * 0.32, 3, B * 0.6, U, -L * 0.03, y, 0);
-  for (let i = 0; i < 4; i++) box(g, 9 - i * 1.4, 3, B * (0.5 - i * 0.07), U, fx - i * 0.6, y + 3 + i * 3, 0);
-  box(g, 3, 1.2, B * 0.75, U, fx, y + 15, 0); box(g, 1, 0.8, 10, 0x2f3638, fx - 1, y + 16.2, 0);
-  for (const s of [1, -1]) { const l = box(g, 0.45, 22, 0.45, 0x3b4246, fx - 6, y + 3, s * 1.8); l.rotation.x = s * 0.09; }
-  cyl(g, 0.4, 0.5, 26, 0x3b4246, fx - 4.5, y + 3, 0, 6);
-  const f = box(g, 15, 13, 6.5, U, -L * 0.03, y + 3, 0); f.rotation.z = 0.28; box(g, 15.2, 1, 6.7, 0x151718, -L * 0.03 - 3.4, y + 15.6, 0).rotation.z = 0.28;
-  for (const s of [1, -1]) { const l = box(g, 0.4, 17, 0.4, 0x3b4246, -L * 0.15, y + 3, s * 1.5); l.rotation.x = s * 0.1; }
-  box(g, 14, 0.8, 1.4, 0x4a5256, -L * 0.1, y + 3.2, 0).rotation.y = 0.5; cyl(g, 0.5, 0.6, 9, 0x4a5256, -L * 0.08, y + 3, B * 0.3, 6);
-  for (const [x, z] of [[L * 0.05, B * 0.36], [L * 0.05, -B * 0.36], [-L * 0.12, B * 0.36], [-L * 0.12, -B * 0.36]]) sec5(g, U, x, y + 3, z, z > 0 ? -PI / 2 : PI / 2);
-  lines(g, [fx - 4.5, y + 29, 0, L * 0.48, deckY(spec, L * 0.48) + 3, 0, fx - 4.5, y + 29, 0, -L * 0.15, y + 20, 0, -L * 0.15, y + 20, 0, -L * 0.48, y + 3, 0]);
-  return [[-L * 0.03 - 3.8, y + 16.6, 0]];
-}
-function pagoda(g, spec) {
-  const U = spec.upper, y = spec.fb, L = spec.L, B = spec.B, fx = L * 0.12;
-  box(g, L * 0.36, 3.6, B * 0.6, U, -L * 0.03, y, 0);
-  const lv = [[16, 4, 0.5], [13, 3.4, 0.46], [10, 3, 0.52], [12, 2.4, 0.58], [7.5, 3, 0.36], [10, 2.2, 0.48], [6, 2.8, 0.3], [8.5, 2, 0.4], [5, 2.6, 0.24]];
-  let h = y + 3.6; for (const [len, hh, w] of lv) { box(g, len, hh, B * w, U, fx - (len - 10) * 0.2, h, 0); h += hh; }
-  box(g, 1.4, 1.2, 14, 0x2f3638, fx, h, 0); box(g, 4, 2.4, 3.6, U, fx, h + 1.2, 0); cyl(g, 0.4, 0.5, 9, 0x3b4246, fx - 1, h + 3.6, 0, 6);
-  const f = cyl(g, 4, 4.8, 15, U, -L * 0.02, y + 3.6, 0, 16); f.rotation.z = 0.3; f.scale.z = 0.7; const c = cyl(g, 4.05, 4.05, 1.3, 0x151718, -L * 0.02 - 4.6, y + 17.4, 0, 16); c.rotation.z = 0.3; c.scale.z = 0.7;
-  for (const s of [1, -1]) { const l = box(g, 0.5, 20, 0.5, 0x3b4246, -L * 0.13, y + 3.6, s * 2); l.rotation.x = s * 0.1; }
-  box(g, 10, 3, B * 0.34, U, -L * 0.17, y + 3.6, 0);
-  for (const x of [L * 0.05, -L * 0.02, -L * 0.09]) for (const s of [1, -1]) { box(g, 5, 2, 4, U, x, y, s * B * 0.44); const b = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.22, 6, 6), mat(0x2c3134))); b.rotation.x = PI / 2 * s; b.position.set(x, y + 1.2, s * (B * 0.44 + 3)); g.add(b); }
-  for (const s of [1, -1]) box(g, 18, 0.8, 1.5, 0x4a5256, -L * 0.42, y + 1, s * 5).rotation.y = s * 0.35;
-  lines(g, [fx - 1, h + 12, 0, L * 0.48, deckY(spec, L * 0.48) + 3, 0, fx - 1, h + 12, 0, -L * 0.13, y + 24, 0, -L * 0.13, y + 24, 0, -L * 0.48, y + 3, 0]);
-  return [[-L * 0.02 - 4.6, y + 18.7, 0]];
-}
-function titan(g, spec) {
-  const U = spec.upper, y = spec.fb, L = spec.L, B = spec.B, fx = L * 0.11;
-  box(g, L * 0.4, 4, B * 0.62, U, -L * 0.03, y, 0); box(g, L * 0.2, 3.5, B * 0.46, U, fx - L * 0.03, y + 4, 0);
-  box(g, 14, 16, 10, U, fx, y + 7.5, 0); box(g, 16, 2.6, 15, U, fx + 1, y + 23.5, 0); box(g, 9, 4, 8, U, fx, y + 26.1, 0);
-  box(g, 1.6, 1.4, 18, 0x2f3638, fx, y + 30.1, 0); box(g, 5, 3, 5, U, fx - 1, y + 31.5, 0); cyl(g, 0.45, 0.55, 10, 0x3b4246, fx - 3, y + 34.5, 0, 6);
-  const f = box(g, 18, 16, 10, U, -L * 0.04, y + 7.5, 0); f.rotation.z = 0.2; box(g, 18.3, 1.2, 10.3, 0x151718, -L * 0.04 - 3.2, y + 23.2, 0).rotation.z = 0.2;
-  box(g, 12, 7, 8, U, -L * 0.16, y + 7.5, 0); cyl(g, 0.4, 0.5, 18, 0x3b4246, -L * 0.15, y + 14.5, 0, 6);
-  for (const x of [L * 0.1, L * 0.02, -L * 0.06, -L * 0.13]) for (const sd of [1, -1]) sec5(g, U, x, y + 4, sd * B * 0.36, sd > 0 ? -PI / 2 : PI / 2);
-  for (const [x, z] of [[L * 0.2, 5], [L * 0.2, -5], [-L * 0.24, 4], [-L * 0.24, -4], [L * 0.0, B * 0.44], [L * 0.0, -B * 0.44], [-L * 0.1, B * 0.44], [-L * 0.1, -B * 0.44]]) tub40(g, U, x, y, z);
-  lines(g, [fx - 3, y + 44, 0, L * 0.48, deckY(spec, L * 0.48) + 3, 0, fx - 3, y + 44, 0, -L * 0.15, y + 32, 0, -L * 0.15, y + 32, 0, -L * 0.48, y + 3, 0]);
-  return [[-L * 0.04 - 3.4, y + 24.5, 0]];
-}
 function cargo(g, spec) {
   const U = spec.upper, y = spec.fb, L = spec.L, B = spec.B;
   box(g, L * 0.14, 6, B * 0.72, U, -L * 0.02, y, 0); box(g, L * 0.1, 2.6, B * 0.62, U, -L * 0.02, y + 6, 0); box(g, 6, 2.4, B * 0.8, U, -L * 0.0, y + 8.6, 0);
@@ -722,7 +426,6 @@ function vlsGrid(g, x, y, rows, cols) {
     g.add(inst);
   }
 }
-function array4(g, pts, r) { for (const [x, y, z, a] of pts) { const m = shadowed(new THREE.Mesh(new THREE.CylinderGeometry(r, r, 0.35, 8), mat(0x56606a))); m.geometry.rotateZ(PI / 2); m.position.set(x, y, z); m.rotation.y = -a; g.add(m); } }
 function ciws(g, x, y, z) {
   cyl(g, 0.85, 1.05, 1.45, 0x9aa2a6, x, y, z, 10);
   const yawGrp = new THREE.Group(); yawGrp.position.set(x, y + 1.45, z); g.add(yawGrp);
@@ -883,7 +586,7 @@ function aaMount(g, x, y, z, out) {
   for (const dz of [-0.28, 0.28]) { const br = new THREE.Mesh(AA_GEO.barrel, mat(0x2e3337)); br.position.set(0.3, 1.0, dz); br.rotation.z = 0.45; m.add(br); }
 }
 function dress(g, spec) {
-  if (spec.modern || ["carrier", "cargo", "mcarrier"].includes(spec.style) || MODELS[spec.id]) return;
+  if (spec.modern || ["carrier", "cargo", "mcarrier"].includes(spec.style)) return;
   const L = spec.L, busy = spec.turrets.map((t) => t.x), n = Math.max(2, Math.round(L / 30));
   for (let i = 0; i < n; i++) {
     const x = -L * 0.3 + (i / (n - 1)) * L * 0.58; if (busy.some((bx) => Math.abs(bx - x) < 10)) continue;
@@ -891,7 +594,7 @@ function dress(g, spec) {
   }
   if (L > 100) for (const sd of [1, -1]) { const b = shadowed(new THREE.Mesh(new THREE.CapsuleGeometry(0.8, 4.2, 4, 8), mat(0x7a7f74))); b.rotation.z = PI / 2; b.position.set(-L * 0.04, deckY(spec, -L * 0.04) + 1.1, sd * halfBeam(spec, 0.46) * 0.55); g.add(b); }
 }
-const STYLE = { mcarrier, cage: colorado, tower, cruiser, dd, raider, carrier, foeDD, foeCL, pagoda, titan, cargo, aegis, pla, kpn };
+const STYLE = { mcarrier, cargo, aegis, pla, kpn };
 
 const CASING_G = new THREE.CylinderGeometry(0.11, 0.12, 0.95, 8); CASING_G.rotateZ(-PI / 2);
 const CASING_M = new THREE.MeshStandardMaterial({ color: 0xe2b23c, roughness: 0.25, metalness: 0.85 });
@@ -971,7 +674,7 @@ export class Ship {
     this.pdMounts = this.tilt.userData.pdMounts || [];
     paint.color = null; paint.map = null;
     this.bridge = this.tilt.userData.bridge || [spec.L * 0.15, spec.fb + 8, 0];
-    this.model = null; if (MODELS[spec.id]) applyModel(this);
+    this.model = null;
     scene.add(this.root); this.sync(0);
   }
   get fwd() { return new THREE.Vector3(Math.cos(this.heading), 0, Math.sin(this.heading)); }
