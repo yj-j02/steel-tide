@@ -1,18 +1,14 @@
 // 작전 지휘 (operation map): plan on a 2D chart of the West Sea, then run the operation in
 // real time (pause, x1/x2/x4). Groups move along the paths you draw; when a group detects an
 // enemy group within missile range the exchange is resolved on the chart (salvos, interceptions,
-// hits). Staff and promotion perks feed the numbers. Geography is a stylised sketch, not a survey.
+// hits). Staff and promotion perks feed the numbers. Coastline: Natural Earth 1:10m (west of Incheon, 1 unit ≈ 1.4 km).
 
 const KM = 1; /* map unit: kilometres; x east, y south */
 const W = 150, H = 96;
-const LAND = [
-  /* north shore (stylised) */ [[52, 0], [150, 0], [150, 14], [128, 18], [112, 15], [96, 20], [84, 16], [70, 19], [60, 12]],
-  /* west coast of the peninsula (stylised) */ [[150, 14], [150, 96], [124, 96], [120, 84], [126, 74], [118, 66], [124, 56], [118, 46], [126, 38], [122, 28], [132, 22]],
-];
-const ISLES = [["백령도", 30, 27, 2.6], ["대청도", 33, 33, 1.8], ["소청도", 35, 36, 1.1], ["연평도", 86, 30, 1.6], ["덕적도", 100, 66, 1.8], ["굴업도", 92, 72, 0.9]];
-const LINE_Y = 25; /* boundary line (fictional) */
-const GOAL = { x: 86, y: 38, r: 9, n: "연평 해역" };
-const BATTERY = { x: 120, y: 44, range: 48 };
+import { COAST, ISLES, PLACES, NLL, GEO } from "./westsea.js";
+const LAND = COAST; /* real coastline (Natural Earth), see westsea.js */
+const GOAL = { x: 75, y: 47, r: 9, n: "연평 해역" };
+const BATTERY = { x: 126, y: 38, range: 48 };
 
 const SHIP_T = {
   aegis: { n: "이지스구축함", hp: 100, asm: 16, sam: 48 },
@@ -27,7 +23,7 @@ const MISS = { strike: "타격", hold: "방어", scout: "정찰" };
 const SUP = { cap: { n: "공군 CAP", c: 2, d: "반경 15km 아군 요격률 +20%" }, battery: { n: "해안 지대함 포대", c: 2, d: "사거리 48km, 2분마다 2발" }, p3c: { n: "P-3C 초계 정찰", c: 1, d: "반경 30km 적 위치 공개" }, sub: { n: "잠수함 매복", c: 1, d: "반경 8km 첫 통과 적함에 어뢰" } };
 
 /* 항공 작전 (항공 병과): 지도에서 항공 편대에 임무를 주고 출격·체공·귀환·재무장을 관리한다 */
-const AIRBASE = { x: 131, y: 58, n: "서산 공군기지" };
+const AIRBASE = { x: 132, y: 94, n: "서산 공군기지" };
 const AIR_T = {
   fighter: { n: "전투기", sp: 0.5, det: 25, fuel: 700, asm: 4, jobs: ["cap", "strike", "escort"], re: 150 },
   mpa: { n: "해상초계기", sp: 0.3, det: 45, fuel: 1500, asm: 0, jobs: ["patrol"], re: 180 },
@@ -43,15 +39,15 @@ const JOB = {
   refuel: ["공중급유", "지정 지점 상공 반경 20km 안의 아군기 연료 보충"],
   airlift: ["연평도 긴급 공수", "연평도에 해병 지대함 유도탄 반을 공수 — 도착 40초 후 섬에서 미사일 사격 시작"],
 };
-const YEONPYEONG = { x: 86, y: 30 };
+const YEONPYEONG = { x: 78.1, y: 42.1 };
 /* 구역(섹터): 편대·전단을 구역 단위로 배정한다 (지점을 일일이 찍지 않음) */
 const SECTORS = [
-  { id: "s1", n: "대청 북", x0: 14, y0: 8, x1: 62, y1: 46, c: { x: 40, y: 34 } },
-  { id: "s2", n: "연평 서", x0: 62, y0: 8, x1: 100, y1: 46, c: { x: 82, y: 38 }, goal: true, ly: 21 },
-  { id: "s3", n: "연평 동", x0: 100, y0: 8, x1: 126, y1: 46, c: { x: 108, y: 34 }, ly: 22 },
-  { id: "s4", n: "대청 남", x0: 14, y0: 46, x1: 62, y1: 84, c: { x: 40, y: 62 } },
-  { id: "s5", n: "덕적", x0: 62, y0: 46, x1: 100, y1: 84, c: { x: 84, y: 62 } },
-  { id: "s6", n: "본토 연안", x0: 100, y0: 46, x1: 124, y1: 84, c: { x: 110, y: 62 } },
+  { id: "s1", n: "백령·대청", x0: 0, y0: 8, x1: 45, y1: 48, c: { x: 30, y: 40 } },
+  { id: "s2", n: "연평", x0: 45, y0: 8, x1: 90, y1: 48, c: { x: 70, y: 46 }, goal: true, ly: 36 },
+  { id: "s3", n: "강화 앞바다", x0: 90, y0: 8, x1: 130, y1: 48, c: { x: 100, y: 42 }, ly: 31 },
+  { id: "s4", n: "서해 남서", x0: 0, y0: 48, x1: 45, y1: 90, c: { x: 25, y: 68 } },
+  { id: "s5", n: "덕적 북방", x0: 45, y0: 48, x1: 90, y1: 90, c: { x: 70, y: 70 } },
+  { id: "s6", n: "인천 근해", x0: 90, y0: 48, x1: 130, y1: 90, c: { x: 105, y: 66 } },
 ];
 const secOf = (p) => SECTORS.find((q) => p.x >= q.x0 && p.x < q.x1 && p.y >= q.y0 && p.y < q.y1) || null;
 const secById = (id) => SECTORS.find((q) => q.id === id);
@@ -76,14 +72,14 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fmtT = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 function forces(grade) {
-  const us = [{ id: "u1", name: "제1전단", x: 116, y: 86, ships: [ship("aegis", "정조대왕함"), ship("ffg", "대구함")], mission: "strike", path: [] }];
-  if (grade >= 3) us.push({ id: "u2", name: "제2전단", x: 106, y: 90, ships: [ship("ddh", "충무공이순신함"), ship("ffg", "경기함"), ship("pkg", "윤영하함")], mission: "hold", path: [] });
-  if (grade >= 6) us.push({ id: "u3", name: "제3전단", x: 122, y: 76, ships: [ship("ddh", "왕건함"), ship("ffg", "서울함")], mission: "scout", path: [] });
+  const us = [{ id: "u1", name: "제1전단", x: 104, y: 66, ships: [ship("aegis", "정조대왕함"), ship("ffg", "대구함")], mission: "strike", path: [] }];
+  if (grade >= 3) us.push({ id: "u2", name: "제2전단", x: 98, y: 80, ships: [ship("ddh", "충무공이순신함"), ship("ffg", "경기함"), ship("pkg", "윤영하함")], mission: "hold", path: [] });
+  if (grade >= 6) us.push({ id: "u3", name: "제3전단", x: 116, y: 62, ships: [ship("ddh", "왕건함"), ship("ffg", "서울함")], mission: "scout", path: [] });
   const foe = [
-    { id: "f1", name: "적 제1전단", x: 46, y: 8, ships: [ship("foeDD", "최현"), ship("foeFF", "적 호위함 1")], path: [{ x: 60, y: 30 }, { x: GOAL.x, y: GOAL.y }], seen: false },
-    { id: "f2", name: "적 제2전단", x: 96, y: 6, ships: [ship("foeFF", "적 호위함 2"), ship("foeFAC", "적 유도탄정 1"), ship("foeFAC", "적 유도탄정 2")], path: [{ x: 94, y: 24 }, { x: GOAL.x + 4, y: GOAL.y }], seen: false, delay: 150 },
+    { id: "f1", name: "적 제1전단", x: 22, y: 12, ships: [ship("foeDD", "최현"), ship("foeFF", "적 호위함 1")], path: [{ x: 30, y: 30 }, { x: 55, y: 44 }, { x: GOAL.x, y: GOAL.y }], seen: false },
+    { id: "f2", name: "적 제2전단", x: 88, y: 26, ships: [ship("foeFF", "적 호위함 2"), ship("foeFAC", "적 유도탄정 1"), ship("foeFAC", "적 유도탄정 2")], path: [{ x: 90, y: 36 }, { x: GOAL.x + 5, y: GOAL.y - 1 }], seen: false, delay: 480 },
   ];
-  if (grade >= 4) foe.push({ id: "f3", name: "적 제3전단", x: 20, y: 18, ships: [ship("foeDD", "강건"), ship("foeFF", "적 호위함 3")], path: [{ x: 40, y: 44 }, { x: 70, y: 46 }, { x: GOAL.x, y: GOAL.y }], seen: false, delay: 300 });
+  if (grade >= 4) foe.push({ id: "f3", name: "적 제3전단", x: 5, y: 40, ships: [ship("foeDD", "강건"), ship("foeFF", "적 호위함 3")], path: [{ x: 30, y: 50 }, { x: 55, y: 50 }, { x: GOAL.x, y: GOAL.y }], seen: false, delay: 300 });
   for (const g of [...us, ...foe]) { g.side = us.includes(g) ? "us" : "foe"; g.fireT = 30; g.home = { x: g.x, y: g.y }; }
   return { us, foe };
 }
@@ -92,10 +88,10 @@ function forces(grade) {
 export function openOpMap(ctx) {
   const F = forces(ctx.grade), isAir = !!ctx.air;
   if (isAir) { /* 항공 작전: 함정은 소규모 초계전단 하나만 자동 방어 — 항공 지원 없이는 버티기 어렵다 */
-    const g = { id: "u1", name: "초계전단", x: 116, y: 86, ships: [ship("ffg", "대구함"), ship("pkg", "윤영하함")], mission: "hold", path: [{ x: 82, y: 46 }], side: "us", fireT: 30 }; g.home = { x: g.x, y: g.y }; F.us = [g]; }
+    const g = { id: "u1", name: "초계전단", x: 104, y: 66, ships: [ship("ffg", "대구함"), ship("pkg", "윤영하함")], mission: "hold", path: [{ x: 95, y: 62 }, { x: 70, y: 50 }], side: "us", fireT: 30 }; g.home = { x: g.x, y: g.y }; F.us = [g]; }
   const A = isAir ? airForces(ctx.grade) : [];
   Object.assign(S, { on: true, ctx, air: A, isAir, layers: { det: false, rng: false, path: false }, hist: {}, drag: null, hover: null, raids: [], isleBat: null, airLost: 0, sorties: 0, us: F.us, foe: F.foe, t: 0, run: false, speed: 1, paused: false, sel: isAir ? A[0] : F.us[0], phase: "plan",
-    pts: isAir ? 0 : 6 + (ctx.ops ? 2 : 0), sup: [], place: null, msl: [], fx: [], log: [], evt: null, evtDone: {}, evade: 0, preempt: 0, decoy: { x: 58, y: 40, gone: false },
+    pts: isAir ? 0 : 6 + (ctx.ops ? 2 : 0), sup: [], place: null, msl: [], fx: [], log: [], evt: null, evtDone: {}, evade: 0, preempt: 0, decoy: { x: 40, y: 50, gone: false },
     shots: 0, hits: 0, inside: {}, result: null });
   build(); S.brief = true; say(`작전 개시 전입니다. 왼쪽 '작전 순서'를 따라 계획을 세우십시오.`);
   let last = performance.now();
@@ -134,7 +130,7 @@ function close() { S.on = false; removeEventListener("keydown", S.key, true); re
 
 function view() { const cv = $("#omCv"), k = Math.min(cv.width / W, cv.height / H), ox = (cv.width - W * k) / 2, oy = (cv.height - H * k) / 2; return { k, ox, oy }; }
 function toMap(e) { const cv = $("#omCv"), r = cv.getBoundingClientRect(), { k, ox, oy } = view(); return { x: ((e.clientX - r.left) * devicePixelRatio - ox) / k, y: ((e.clientY - r.top) * devicePixelRatio - oy) / k }; }
-function inLand(p) { if (p.x < 0 || p.y < 0 || p.x > W || p.y > H) return true; return LAND.some((poly) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if (yi > p.y !== yj > p.y && p.x < ((xj - xi) * (p.y - yi)) / (yj - yi) + xi) c = !c; } return c; }) || ISLES.some(([, x, y, r]) => Math.hypot(p.x - x, p.y - y) < r + 0.6); }
+function inLand(p) { if (p.x < 0 || p.y < 0 || p.x > W || p.y > H) return true; return LAND.some((poly) => { let c = false; for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) { const [xi, yi] = poly[i], [xj, yj] = poly[j]; if (yi > p.y !== yj > p.y && p.x < ((xj - xi) * (p.y - yi)) / (yj - yi) + xi) c = !c; } return c; }); }
 
 function addWaypoint(p, append) {
   const g = S.sel; if (!g || !alive(g).length) return; if (inLand(p)) { say("육지에는 경로점을 둘 수 없습니다.", "bad"); return; }
@@ -175,7 +171,7 @@ const confirmNoPath = () => { say("경로가 없는 전단은 제자리에서 �
 
 // ── simulation (game seconds) ────────────────────────────────────────────
 function moveTo(g, p, dt, v) { const dx = p.x - g.x, dy = p.y - g.y, L = Math.hypot(dx, dy); if (L < 0.3) return true; const s = Math.min(L, v * dt); const nx = g.x + (dx / L) * s, ny = g.y + (dy / L) * s; if (!inLand({ x: nx, y: ny })) { g.x = nx; g.y = ny; } else { g.x += (-dy / L) * s; g.y += (dx / L) * s; } return L < 0.6; }
-const SPD = 0.035; /* km per game second on the compressed chart: an unopposed enemy reaches the goal in about 20 minutes */
+const SPD = 0.05; /* chart units per game second (1 unit ≈ 1.4 km): an unopposed enemy reaches the goal in about 25 minutes */
 const LIMIT = 1800; /* 30:00 */
 function detR(g) { return g.side === "us" ? (g.mission === "scout" ? 52 : 36) : 30; }
 function seenFoe(f) { if (S.us.some((u) => alive(u).length && d2(u, f) < detR(u))) return true; if (S.air?.some((u) => airborne(u) && AIR_T[u.t].det && d2(u, f) < AIR_T[u.t].det)) return true; return S.sup.some((s) => s.k === "p3c" && d2(s, f) < 30); }
@@ -188,15 +184,25 @@ function assignSector(id, q) {
   const u = S.air.find((a) => a.id === id), g = S.us.find((x) => x.id === id);
   if (u) {
     if (u.st === "lost") return;
-    if (u.t === "transport" && !q.goal) { say("대형수송기는 연평 서 구역(연평도)에만 공수할 수 있습니다.", "bad"); return; }
+    if (u.t === "transport" && !q.goal) { say("대형수송기는 연평 구역(연평도)에만 공수할 수 있습니다.", "bad"); return; }
     if (u.t === "transport" && S.isleBat) { say("연평도 지대함 유도탄 반은 이미 전개됐습니다.", "bad"); return; }
     u.sec = q.id; secJob(u); S.sel = u; say(`${u.name} → ${q.n} · ${JOB[u.job][0]}`);
     if (S.phase === "run" && u.st === "ready") launch(u);
   } else if (g && alive(g).length) {
     const c = { ...q.c }; for (let k = 0; k < 20 && inLand(c); k++) c.x -= 2;
-    g.sec = q.id; g.path = [c]; S.sel = g; say(`${g.name} → ${q.n} 구역으로 기동`);
+    g.sec = q.id; g.path = route(g, c); S.sel = g; say(`${g.name} → ${q.n} 구역으로 기동`);
   }
   S.dirty = true;
+}
+/** sea lane: straight if clear of land, otherwise through the best of a few open-water hubs */
+const HUBS = [{ x: 95, y: 62 }, { x: 70, y: 60 }, { x: 50, y: 55 }, { x: 85, y: 50 }, { x: 40, y: 45 }, { x: 105, y: 55 }];
+const clear = (a, b) => { const n = Math.ceil(d2(a, b) / 0.6); for (let i = 1; i < n; i++) if (inLand({ x: a.x + ((b.x - a.x) * i) / n, y: a.y + ((b.y - a.y) * i) / n })) return false; return true; };
+function route(a, b) {
+  if (clear(a, b)) return [b];
+  let best = null; for (const h of HUBS) if (clear(a, h) && clear(h, b)) { const L = d2(a, h) + d2(h, b); if (!best || L < best.L) best = { L, p: [h, b] }; }
+  if (best) return best.p;
+  for (const h of HUBS) for (const h2 of HUBS) if (h !== h2 && clear(a, h) && clear(h, h2) && clear(h2, b)) return [h, h2, b];
+  return [b];
 }
 function secJob(u) {
   const q = secById(u.sec); if (!q) return;
@@ -290,7 +296,7 @@ function usMove(g, dt) {
 }
 function foeMove(f, dt) {
   if (f.gone) return; const t = nearest(f, S.us);
-  if (strength(f) < 0.3) { if (!f.retreat) { f.retreat = true; say(`${f.name} 퇴각 개시`, "hit"); } if (moveTo(f, { x: f.home.x, y: -6 }, dt, SPD)) f.gone = true; return; }
+  if (strength(f) < 0.3) { if (!f.retreat) { f.retreat = true; say(`${f.name} 퇴각 개시`, "hit"); } if (moveTo(f, f.home, dt, SPD)) f.gone = true; return; }
   if (t && t.d < 24) return; /* hold and shoot */
   if (f.path.length) { if (moveTo(f, f.path[0], dt, SPD * 0.9)) f.path.shift(); }
 }
@@ -343,7 +349,7 @@ const AIR_EVENTS = [
 function events() { for (const e of S.isAir ? AIR_EVENTS : EVENTS) if (!S.evtDone[e.id] && S.t >= e.at) { S.evtDone[e.id] = true; S.evt = e; S.dirty = true; return; } }
 function resolveEvent(k) {
   const e = S.evt; if (!e) return; S.evt = null;
-  if (k === "reserve") { if (S.pts >= 1) { S.pts--; const g = { id: "u9", name: "예비 고속정 편대", x: 120, y: 86, ships: [ship("pkg", "고속함 1"), ship("pkg", "고속함 2")], mission: "strike", path: [], side: "us", fireT: 30 }; g.home = { x: g.x, y: g.y }; S.us.push(g); say("예비 고속정 편대 합류.", "hit"); } else say("지원 포인트가 없어 투입하지 못했습니다.", "bad"); }
+  if (k === "reserve") { if (S.pts >= 1) { S.pts--; const g = { id: "u9", name: "예비 고속정 편대", x: 110, y: 72, ships: [ship("pkg", "고속함 1"), ship("pkg", "고속함 2")], mission: "strike", path: [], side: "us", fireT: 30 }; g.home = { x: g.x, y: g.y }; S.us.push(g); say("예비 고속정 편대 합류.", "hit"); } else say("지원 포인트가 없어 투입하지 못했습니다.", "bad"); }
   if (k === "scramble") { const u = air("a9", "fighter", "비상대기 편대 (FA-50)"); u.asm = 2; u.sec = "s2"; S.air.push(u); secJob(u); launch(u); }
   if (k === "evade") { S.evade = 300; say("전 전단 회피 기동.", "hit"); }
   if (k === "preempt") { S.preempt = 2; say("선제 타격 준비 — 다음 사격 증강.", "hit"); }
@@ -383,23 +389,65 @@ function secState(q) {
   }
   return { ch, hot: foes.length > 0 };
 }
+/** Chart base (sea depth bands, tidal flats, land relief, coast, graticule, names, scale) — drawn once per canvas size. */
+let BASE = null;
+function chartBase(cv, k, ox, oy, dpr) {
+  const key = `${cv.width}x${cv.height}`; if (BASE && BASE.key === key) return BASE.c;
+  const c = document.createElement("canvas"); c.width = cv.width; c.height = cv.height; const x = c.getContext("2d"), P = (px, py) => [ox + px * k, oy + py * k], F = (n, w = 400, f = "'Noto Sans KR', sans-serif") => `${w} ${n * dpr}px ${f}`;
+  const path = () => { x.beginPath(); for (const poly of LAND) { poly.forEach(([a, b], i) => (i ? x.lineTo(...P(a, b)) : x.moveTo(...P(a, b)))); x.closePath(); } };
+  x.fillStyle = "#08141b"; x.fillRect(0, 0, c.width, c.height);
+  // open sea: deeper (darker) to the south-west, the shallow Gyeonggi Bay lighter to the east
+  const g = x.createLinearGradient(ox, oy + H * k, ox + W * k, oy); g.addColorStop(0, "#0b2433"); g.addColorStop(0.55, "#123448"); g.addColorStop(1, "#1a4152"); x.fillStyle = g; x.fillRect(ox, oy, W * k, H * k);
+  x.save(); x.beginPath(); x.rect(ox, oy, W * k, H * k); x.clip();
+  // depth bands: shallow water halos around every coast (the Yellow Sea is shallow and muddy near shore)
+  x.lineJoin = "round"; x.lineCap = "round";
+  for (const [wu, a] of [[12, 0.028], [7, 0.04], [4, 0.055], [2.2, 0.08], [1, 0.12]]) { path(); x.strokeStyle = `rgba(120,185,190,${a})`; x.lineWidth = wu * k; x.stroke(); }
+  // tidal flats (갯벌) along the Gyeonggi coast and Ganghwa
+  x.save(); x.beginPath(); x.rect(...P(100, 20), 50 * k, 70 * k); x.clip(); path(); x.strokeStyle = "rgba(140,120,80,.28)"; x.lineWidth = 2.6 * k; x.stroke(); path(); x.strokeStyle = "rgba(170,150,100,.25)"; x.lineWidth = 1.2 * k; x.stroke(); x.restore();
+  // land: base, relief noise, inland darkening, coastline
+  path(); x.fillStyle = "#33442f"; x.fill("evenodd");
+  x.save(); path(); x.clip("evenodd");
+  let seed = 7; const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+  for (let i = 0; i < 9000; i++) { const px = rnd() * W, py = rnd() * H, r = (0.25 + rnd() * 0.9) * k; x.fillStyle = rnd() < 0.5 ? `rgba(110,125,80,${0.05 + rnd() * 0.07})` : `rgba(18,26,16,${0.06 + rnd() * 0.08})`; x.beginPath(); x.arc(...P(px, py), r, 0, Math.PI * 2); x.fill(); }
+  for (const [wu, a] of [[6, 0.18], [3, 0.12]]) { path(); x.strokeStyle = `rgba(150,165,110,${a})`; x.lineWidth = wu * k; x.stroke(); } /* lighter lowland along the shore */
+  x.restore();
+  path(); x.strokeStyle = "rgba(10,18,14,.9)"; x.lineWidth = 2.2 * dpr; x.stroke(); path(); x.strokeStyle = "rgba(205,220,175,.7)"; x.lineWidth = 0.9 * dpr; x.stroke();
+  // graticule (every 0.25° lat / 0.5° lon) with edge labels
+  x.strokeStyle = "rgba(190,215,225,.07)"; x.lineWidth = 1 * dpr; x.fillStyle = "rgba(190,215,225,.45)"; x.font = F(10, 400, "monospace");
+  const LX = (lon) => ((lon - GEO.lon0) / (GEO.lon1 - GEO.lon0)) * W, LY = (lat) => ((GEO.lat1 - lat) / (GEO.lat1 - GEO.lat0)) * H;
+  for (let lon = 124.5; lon < GEO.lon1; lon += 0.5) { const [a] = P(LX(lon), 0); x.beginPath(); x.moveTo(a, oy); x.lineTo(a, oy + H * k); x.stroke(); x.fillText(`${Math.floor(lon)}°${lon % 1 ? "30'" : "00'"}E`, a + 3 * dpr, oy + H * k - 5 * dpr); }
+  for (let lat = 37; lat < GEO.lat1; lat += 0.25) { const [, b] = P(0, LY(lat)); x.beginPath(); x.moveTo(ox, b); x.lineTo(ox + W * k, b); x.stroke(); x.fillText(`${Math.floor(lat)}°${String(Math.round((lat % 1) * 60)).padStart(2, "0")}'N`, ox + 4 * dpr, b - 3 * dpr); }
+  // names
+  for (const [n, a, b, t] of PLACES) {
+    const [px, py] = P(a, b);
+    if (t === "sea") { x.font = F(t === "sea" && n.length > 4 ? 22 : 15, 300); x.fillStyle = "rgba(190,220,235,.2)"; x.textAlign = "center"; x.fillText(n, px, py); x.textAlign = "left"; continue; }
+    if (t === "city") { x.fillStyle = "rgba(235,230,210,.85)"; x.beginPath(); x.arc(px, py, 2.6 * dpr, 0, Math.PI * 2); x.fill(); x.font = F(11.5, 600); x.fillText(n, px + 5 * dpr, py + 4 * dpr); continue; }
+    x.font = F(t === "region" ? 13 : 11, t === "region" ? 500 : 600); x.fillStyle = t === "region" ? "rgba(225,230,200,.4)" : "rgba(225,235,215,.7)"; x.fillText(n, px, py);
+  }
+  x.font = F(11, 600); for (const [n, a, b, r] of ISLES) { x.fillStyle = "rgba(10,18,14,.65)"; const [px, py] = P(a + r + 0.6, b + 0.6), w = x.measureText(n).width; x.fillRect(px - 2 * dpr, py - 10 * dpr, w + 4 * dpr, 13 * dpr); x.fillStyle = "rgba(235,242,230,.9)"; x.fillText(n, px, py); }
+  // fictional boundary line
+  x.setLineDash([10 * dpr, 7 * dpr]); x.strokeStyle = "rgba(255,107,94,.85)"; x.lineWidth = 2 * dpr; x.beginPath(); NLL.forEach(([a, b], i) => (i ? x.lineTo(...P(a, b)) : x.moveTo(...P(a, b)))); x.stroke(); x.setLineDash([]);
+  x.fillStyle = "#ff8a7a"; x.font = F(11, 600); x.fillText("경계선 (게임용 가상선)", ...P(96, 41.5));
+  // scale bar + north arrow
+  const u20 = 20 / GEO.kmPerUnit, [sx, sy] = P(W - 12 - u20, 9); x.fillStyle = "rgba(8,16,22,.75)"; x.fillRect(sx - 8 * dpr, sy - 22 * dpr, u20 * k + 16 * dpr, 30 * dpr);
+  x.strokeStyle = "#dfe8e4"; x.lineWidth = 2 * dpr; x.beginPath(); x.moveTo(sx, sy); x.lineTo(sx + u20 * k, sy); x.moveTo(sx, sy - 5 * dpr); x.lineTo(sx, sy); x.moveTo(sx + (u20 * k) / 2, sy - 3 * dpr); x.lineTo(sx + (u20 * k) / 2, sy); x.moveTo(sx + u20 * k, sy - 5 * dpr); x.lineTo(sx + u20 * k, sy); x.stroke();
+  x.fillStyle = "#dfe8e4"; x.font = F(10, 600); x.fillText("0", sx - 3 * dpr, sy - 8 * dpr); x.fillText("10", sx + (u20 * k) / 2 - 5 * dpr, sy - 8 * dpr); x.fillText("20 km", sx + u20 * k - 12 * dpr, sy - 8 * dpr);
+  const [nx, ny] = P(W - 5, 6); x.fillStyle = "rgba(230,235,225,.85)"; x.beginPath(); x.moveTo(nx, ny - 12 * dpr); x.lineTo(nx + 6 * dpr, ny + 6 * dpr); x.lineTo(nx, ny + 2 * dpr); x.lineTo(nx - 6 * dpr, ny + 6 * dpr); x.closePath(); x.fill(); x.font = F(11, 700); x.textAlign = "center"; x.fillText("N", nx, ny - 15 * dpr); x.textAlign = "left";
+  x.restore();
+  x.strokeStyle = "rgba(120,160,175,.35)"; x.lineWidth = 1 * dpr; x.strokeRect(ox, oy, W * k, H * k);
+  BASE = { key, c }; return c;
+}
 function draw() {
   const cv = $("#omCv"); if (!cv) return; const x = cv.getContext("2d"), { k, ox, oy } = view(), P = (px, py) => [ox + px * k, oy + py * k], dpr = devicePixelRatio, F = (n, w = 400) => `${w} ${n * dpr}px 'Noto Sans KR', sans-serif`;
-  x.fillStyle = "#0a1822"; x.fillRect(0, 0, cv.width, cv.height);
-  const sea = x.createRadialGradient(ox + W * k * 0.5, oy + H * k * 0.5, 10, ox + W * k * 0.5, oy + H * k * 0.5, W * k * 0.7); sea.addColorStop(0, "#173246"); sea.addColorStop(1, "#0c1d29"); x.fillStyle = sea; x.fillRect(ox, oy, W * k, H * k);
-  x.fillStyle = "#2c3b2f"; x.strokeStyle = "#5d7a5f"; x.lineWidth = 1.5 * dpr;
-  for (const poly of LAND) { x.beginPath(); poly.forEach(([a, b], i) => (i ? x.lineTo(...P(a, b)) : x.moveTo(...P(a, b)))); x.closePath(); x.fill(); x.stroke(); }
-  x.font = F(11);
-  for (const [n, a, b, r] of ISLES) { x.fillStyle = "rgba(44,59,47,.55)"; x.beginPath(); x.arc(...P(a, b), r * k, 0, Math.PI * 2); x.fill(); x.stroke(); x.fillStyle = "rgba(207,231,234,.75)"; x.fillText(n, ...P(a + r + 1, b + 0.6)); }
+  x.drawImage(chartBase(cv, k, ox, oy, dpr), 0, 0);
   // sectors
   for (const q of SECTORS) {
     const st = secState(q), [a, b] = P(q.x0, q.y0), w = (q.x1 - q.x0) * k, h = (q.y1 - q.y0) * k, sel = S.sel && (S.sel.sec === q.id), hov = S.hover === q;
-    x.fillStyle = hov ? "rgba(242,202,92,.16)" : st.hot ? "rgba(255,107,94,.09)" : q.goal ? "rgba(77,232,212,.06)" : "rgba(255,255,255,.012)"; x.fillRect(a, b, w, h);
-    x.strokeStyle = hov ? COL.warn : sel ? COL.us : q.goal ? "rgba(77,232,212,.55)" : "rgba(110,160,180,.28)"; x.lineWidth = (hov || sel ? 2.5 : 1.2) * dpr; x.strokeRect(a, b, w, h);
+    x.fillStyle = hov ? "rgba(242,202,92,.16)" : st.hot ? "rgba(255,107,94,.09)" : q.goal ? "rgba(77,232,212,.05)" : "rgba(0,0,0,0)"; x.fillRect(a, b, w, h);
+    x.strokeStyle = hov ? COL.warn : sel ? COL.us : q.goal ? "rgba(77,232,212,.5)" : "rgba(170,210,225,.22)"; x.lineWidth = (hov || sel ? 2.5 : 1.2) * dpr; x.strokeRect(a, b, w, h);
     const lb = q.ly ? P(q.x0, q.ly)[1] : b, lab = q.n + (q.goal ? " ★방어 목표" : ""); x.font = F(14, 700); x.fillStyle = "rgba(10,20,26,.8)"; x.fillRect(a + 6 * dpr, lb + 4 * dpr, x.measureText(lab).width + 10 * dpr, 22 * dpr); x.fillStyle = st.hot ? "#ff9b8a" : q.goal ? COL.us : "#cfe"; x.fillText(lab, a + 11 * dpr, lb + 20 * dpr);
     st.ch.forEach(([c, t], i) => { x.font = F(11.5, 700); const tw = x.measureText(t).width + 16 * dpr, yy = (q.ly ? P(q.x0, q.ly)[1] : b) + (30 + i * 22) * dpr; x.fillStyle = "rgba(10,20,26,.85)"; x.beginPath(); x.roundRect(a + 10 * dpr, yy, tw, 18 * dpr, 9 * dpr); x.fill(); x.fillStyle = c; x.fillText(t, a + 18 * dpr, yy + 13 * dpr); });
   }
-  x.setLineDash([10 * dpr, 8 * dpr]); x.strokeStyle = COL.foe; x.lineWidth = 2 * dpr; x.beginPath(); x.moveTo(...P(14, LINE_Y)); x.lineTo(...P(122, LINE_Y)); x.stroke(); x.setLineDash([]);
   x.strokeStyle = COL.warn; x.fillStyle = "rgba(242,202,92,.08)"; x.lineWidth = 2 * dpr; x.beginPath(); x.arc(...P(GOAL.x, GOAL.y), GOAL.r * k, 0, Math.PI * 2); x.fill(); x.stroke();
   // supports (sea): icon only, ring with the range layer
   for (const sp of S.sup) {
@@ -444,7 +492,7 @@ function plane(x, [a, b], ang, c, dpr, sz = 1) {
   x.moveTo(9, 0); x.lineTo(-2, -2); x.lineTo(-3, -9); x.lineTo(-6, -9); x.lineTo(-5, -2); x.lineTo(-8, -1.5); x.lineTo(-10, -5); x.lineTo(-11, -5); x.lineTo(-10, 0); x.lineTo(-11, 5); x.lineTo(-10, 5); x.lineTo(-8, 1.5); x.lineTo(-5, 2); x.lineTo(-6, 9); x.lineTo(-3, 9); x.lineTo(-2, 2); x.closePath(); x.fill(); x.restore();
 }
 function drawAir(x, P, k, dpr, F) {
-  const [bx, by] = P(AIRBASE.x, AIRBASE.y); x.fillStyle = COL.ally; x.fillRect(bx - 8 * dpr, by - 2 * dpr, 16 * dpr, 4 * dpr); x.font = F(11); x.fillText(AIRBASE.n, bx - 34 * dpr, by + 16 * dpr);
+  const [bx, by] = P(AIRBASE.x, AIRBASE.y); x.fillStyle = COL.ally; x.fillRect(bx - 8 * dpr, by - 2 * dpr, 16 * dpr, 4 * dpr); x.font = F(11, 600); x.fillText(AIRBASE.n, bx - 34 * dpr, by - 8 * dpr);
   for (const u of S.air) {
     if (!airborne(u)) continue; const sel = u === S.sel, T = AIR_T[u.t], c = sel ? COL.us : { fighter: "#9fd8ff", mpa: COL.ok, helo: COL.ok, tanker: COL.fuel, transport: "#d9c7ff" }[u.t];
     const dest = u.st === "rtb" ? airHome(u) : u.job === "strike" ? u.tgt : u.job === "escort" ? u.follow : u.pt;
@@ -480,30 +528,30 @@ function threats() {
   }
   if (unseen) L.push({ cd: null, t: `미탐지 적 전단 ${unseen}개`, sub: S.isAir ? "북쪽 구역에 초계기를 배정해 먼저 찾으십시오" : "P-3C나 정찰 전단으로 북쪽을 수색하십시오", cls: "y" });
   if (S.isAir) {
-    for (const at of RAIDS) if (S.t < at) L.push({ cd: at - S.t, t: "적 전투기 편대 출격 예상", sub: "CAP이 없으면 초계기·급유기가 노려집니다", cls: "y", act: !S.air.some((u) => u.job === "cap" && u.sec) && free()[0] ? [`대응: ${short(free()[0].name)} → 연평 서 CAP`, () => assignSector(free()[0].id, secById("s2"))] : null });
+    for (const at of RAIDS) if (S.t < at) L.push({ cd: at - S.t, t: "적 전투기 편대 출격 예상", sub: "CAP이 없으면 초계기·급유기가 노려집니다", cls: "y", act: !S.air.some((u) => u.job === "cap" && u.sec) && free()[0] ? [`대응: ${short(free()[0].name)} → 연평 CAP`, () => assignSector(free()[0].id, secById("s2"))] : null });
     for (const r of S.raids) if (r.alive) { const prey = S.air.filter((u) => airborne(u) && u.t !== "fighter").sort((a, b) => d2(a, r) - d2(b, r))[0]; L.push({ cd: prey ? d2(prey, r) / 0.45 : 0, t: `적 전투기 → ${prey ? short(prey.name) : "아군 전단"}`, sub: "방공 레이더 추적 중", cls: "", act: prey ? [`대응: ${short(prey.name)} 귀환`, () => { prey.st = "rtb"; say(`${prey.name} 위협 회피 — 귀환`); }] : null }); }
   }
   return L.sort((a, b) => (a.cd ?? 1e9) - (b.cd ?? 1e9)).slice(0, 4);
 }
 function airAdvice() {
   const by = (t) => S.air.filter((u) => u.t === t && u.st !== "lost"), free = by("fighter").filter((u) => !u.sec);
-  if (!by("mpa").some((u) => u.sec)) { const u = by("mpa")[0]; if (u) return [`항공작전과장: "초계기를 대청 북 구역에 띄우면 경계선 너머 적 전단을 먼저 찾습니다."`, () => assignSector(u.id, secById("s1"))]; }
-  if (!by("fighter").some((u) => u.job === "cap" && u.sec)) { const u = free[0] || by("fighter")[0]; if (u) return [`항공작전과장: "적 전투기가 내려옵니다. ${short(u.name)}를 연평 서에 CAP으로 거십시오."`, () => assignSector(u.id, secById("s2"))]; }
+  if (!by("mpa").some((u) => u.sec)) { const u = by("mpa")[0]; if (u) return [`항공작전과장: "초계기를 백령·대청 구역에 띄우면 서쪽으로 들어오는 적 전단을 먼저 찾습니다."`, () => assignSector(u.id, secById("s1"))]; }
+  if (!by("fighter").some((u) => u.job === "cap" && u.sec)) { const u = free[0] || by("fighter")[0]; if (u) return [`항공작전과장: "적 전투기가 내려옵니다. ${short(u.name)}를 연평 구역에 CAP으로 거십시오."`, () => assignSector(u.id, secById("s2"))]; }
   const raid = S.raids.find((r) => r.alive); if (raid) return ["방공 통제관: \"적 전투기 편대 남하 중! 위협 카드에서 표적이 된 항공기를 물리십시오.\"", null];
   const seen = S.foe.find((f) => f.seen && alive(f).length && !f.gone && !(f.delay && S.t < f.delay)), sq = seen && (secOf(seen) || nextSec(seen)?.q);
   if (seen && sq && !by("fighter").some((u) => u.job === "strike")) { const u = free[0] || by("fighter").find((v) => v.job !== "cap") || by("fighter")[1]; if (u) return [`항공작전과장: "${seen.name}이 ${sq.n}에 있습니다. ${short(u.name)}를 그 구역에 넣으면 자동으로 대함 타격합니다."`, () => assignSector(u.id, sq)]; }
-  const tk = by("tanker")[0]; if (tk && !tk.sec) return ["항공작전과장: \"급유기를 덕적 구역에 두면 전투기 교대 없이 오래 버팁니다.\"", () => assignSector(tk.id, secById("s5"))];
+  const tk = by("tanker")[0]; if (tk && !tk.sec) return ["항공작전과장: \"급유기를 덕적 북방 구역에 두면 전투기 교대 없이 오래 버팁니다.\"", () => assignSector(tk.id, secById("s5"))];
   const tr = by("transport")[0]; if (tr && tr.sec == null && !S.isleBat) return ["항공작전과장: \"수송기로 연평도에 지대함 유도탄 반을 공수하면 섬이 직접 싸웁니다.\"", () => assignSector(tr.id, secById("s2"))];
   return ["항공작전과장: \"현 편성 유지. 귀환한 편대는 재무장 후 같은 구역으로 자동 재출격합니다.\"", null];
 }
 function staffAdvice() {
   if (!S.ctx.ops) return [S.phase === "plan" ? "참모: \"작전 계획은 사령관 판단에 맡기겠습니다.\" (작전 병과 지휘관에게는 구체적인 참모 의견이 올라옵니다)" : "참모: \"현 상황 보고 — 교전 지속 중.\"", null];
   const hidden = S.foe.some((f) => alive(f).length && !f.seen && !(f.delay && S.t < f.delay)), noP3 = !S.sup.some((s) => s.k === "p3c");
-  if (S.phase === "plan" && noP3) return ["정보처장: \"적 전단 위치가 일부만 확인됩니다. P-3C 초계를 경계선 남쪽에 두면 조기 탐지가 가능합니다.\"", S.pts >= SUP.p3c.c ? () => { S.pts -= SUP.p3c.c; S.sup.push({ k: "p3c", x: 70, y: 32, used: false }); say("P-3C 초계 배치 완료 (연평 서 북쪽)."); } : null];
-  if (S.phase === "plan" && !S.us.some((g) => g.path.length)) return ["작전처장: \"제1전단을 연평 서 구역으로 전개해 적의 접근로를 막으십시오.\"", () => assignSector(S.us[0].id, secById("s2"))];
+  if (S.phase === "plan" && noP3) return ["정보처장: \"적 전단 위치가 일부만 확인됩니다. P-3C 초계를 경계선 남쪽에 두면 조기 탐지가 가능합니다.\"", S.pts >= SUP.p3c.c ? () => { S.pts -= SUP.p3c.c; S.sup.push({ k: "p3c", x: 45, y: 44, used: false }); say("P-3C 초계 배치 완료 (연평 서쪽)."); } : null];
+  if (S.phase === "plan" && !S.us.some((g) => g.path.length)) return ["작전처장: \"제1전단을 연평 구역으로 전개해 적의 접근로를 막으십시오.\"", () => assignSector(S.us[0].id, secById("s2"))];
   if (!S.decoy.gone) return ["정보처장: \"서방 미확인 접촉(?)은 기만일 가능성이 있습니다. 정찰 전단으로 확인을 권고합니다.\"", null];
   if (hidden) return ["작전처장: \"미탐지 적 전력이 남아 있습니다. 방어 전단은 목표 해역을 유지하십시오.\"", null];
-  const weak = S.us.find((g) => alive(g).length && strength(g) < 0.4); if (weak) return [`작전처장: "${weak.name} 전력 저하. 덕적 구역으로 물려 재정비를 권고합니다."`, () => assignSector(weak.id, secById("s5"))];
+  const weak = S.us.find((g) => alive(g).length && strength(g) < 0.4); if (weak) return [`작전처장: "${weak.name} 전력 저하. 덕적 북방 구역으로 물려 재정비를 권고합니다."`, () => assignSector(weak.id, secById("s5"))];
   return ["작전처장: \"현 기동 유지. 적 전단이 사거리에 들어오면 즉시 타격합니다.\"", null];
 }
 function rightPanel() {
@@ -530,7 +578,7 @@ function panel() {
     const ST = { ready: "대기", out: "이동", station: "임무 중", rtb: "귀환", rearm: "재무장", lost: "손실" };
     side.innerHTML = obj + `<div class="om-h">항공 편대 — 카드를 지도 구역으로 끌기</div>${S.air.map((a) => { const q = secById(a.sec); return `<div class="om-card${a === g ? " on" : ""}${a.st === "lost" ? " dead" : ""}${a.st === "rearm" || a.st === "rtb" ? " wait" : ""}" draggable="${a.st !== "lost"}" data-drag="${a.id}" data-om="asel:${a.id}"><span class="ic">${AIR_IC[a.t]}</span><span class="tx"><b>${short(a.name)}</b><small>${a.name.match(/\((.*)\)/)?.[1] || a.n} · ${q ? `${q.n} · ${JOB[a.job]?.[0] || ""}` : a.st === "lost" ? "손실" : "구역 미배정"}</small></span><span class="tag">${a.st === "rearm" ? fmtT(a.cd) : ST[a.st]}</span></div>`; }).join("")}`
       + (g && g.t ? `<div class="om-row" style="margin-top:6px">${airborne(g) ? `<button data-om="rtb">${short(g.name)} 귀환</button>` : ""}${g.sec ? `<button data-om="unsec">배정 해제</button>` : ""}</div>` : "")
-      + `<div class="om-note" style="margin-top:8px">구역에 놓으면 임무가 자동으로 정해집니다 — 전투기: 적이 있으면 <b style="color:#ffb35c">대함 타격</b>, 없으면 <b style="color:#4de8d4">CAP</b> · 초계기·헬기: <b style="color:#9be06a">정찰</b> · 급유기: <b style="color:#ffe066">급유 궤도</b> · 수송기: 연평 서에만</div>`
+      + `<div class="om-note" style="margin-top:8px">구역에 놓으면 임무가 자동으로 정해집니다 — 전투기: 적이 있으면 <b style="color:#ffb35c">대함 타격</b>, 없으면 <b style="color:#4de8d4">CAP</b> · 초계기·헬기: <b style="color:#9be06a">정찰</b> · 급유기: <b style="color:#ffe066">급유 궤도</b> · 수송기: 연평 구역에만</div>`
       + `<div class="om-h">함정 전단 (자동 방어)</div>${S.us.map((x) => `<div class="om-note">${x.name} — 전력 ${Math.round(strength(x) * 100)}%</div>`).join("")}`
       + (S.phase === "plan" ? `<button class="om-go" data-om="go">작전 개시 ›</button>` : "");
     return;
@@ -546,6 +594,6 @@ function briefCards() {
   const bf = $("#omBrief"); if (!bf) return;
   if (!S.brief) { bf.innerHTML = ""; return; }
   bf.innerHTML = S.isAir
-    ? `<div class="om-brief"><div class="om-bh">항공 작전 브리핑 · 서해 항공 지원</div><p><b>상황</b> 적 수상전단 ${S.foe.length}개가 연평 해역으로 남하합니다. 아군 초계전단은 연평 서 구역을 자동으로 지킵니다. 귀관은 <b>항공 전력</b>을 지휘합니다.</p><p><b>목표</b> 30분 동안 적이 연평 해역(노란 원)에 들어오지 못하게 막으십시오. 적 전투기 편대가 두 차례 내려옵니다.</p><p><b>조작</b> 왼쪽 편대 카드를 지도의 <b>구역</b>에 끌어다 놓으면 끝입니다. 임무는 구역 상황에 맞게 자동으로 정해지고, 연료가 떨어지면 귀환해 재무장 후 같은 구역으로 다시 나갑니다.</p><p><b>읽는 법</b> 오른쪽 <b>다가오는 위협</b> 카드에 시간순으로 위협이 쌓이고, 버튼 한 번으로 대응할 수 있습니다. 아래 <b>시간표</b>로 언제 하늘이 비는지 확인하십시오. 원·경로선은 선택한 편대만 보이고, 위쪽 '지도 표시'로 켤 수 있습니다.</p><button data-om="brief">계획 시작 ›</button></div>`
+    ? `<div class="om-brief"><div class="om-bh">항공 작전 브리핑 · 서해 항공 지원</div><p><b>상황</b> 적 수상전단 ${S.foe.length}개가 연평 해역으로 남하합니다. 아군 초계전단은 연평 구역을 자동으로 지킵니다. 귀관은 <b>항공 전력</b>을 지휘합니다.</p><p><b>목표</b> 30분 동안 적이 연평 해역(노란 원)에 들어오지 못하게 막으십시오. 적 전투기 편대가 두 차례 내려옵니다.</p><p><b>조작</b> 왼쪽 편대 카드를 지도의 <b>구역</b>에 끌어다 놓으면 끝입니다. 임무는 구역 상황에 맞게 자동으로 정해지고, 연료가 떨어지면 귀환해 재무장 후 같은 구역으로 다시 나갑니다.</p><p><b>읽는 법</b> 오른쪽 <b>다가오는 위협</b> 카드에 시간순으로 위협이 쌓이고, 버튼 한 번으로 대응할 수 있습니다. 아래 <b>시간표</b>로 언제 하늘이 비는지 확인하십시오. 원·경로선은 선택한 편대만 보이고, 위쪽 '지도 표시'로 켤 수 있습니다.</p><button data-om="brief">계획 시작 ›</button></div>`
     : `<div class="om-brief"><div class="om-bh">작전 브리핑 · 서해 해상 차단</div><p><b>상황</b> 적 수상전단 ${S.foe.length}개가 북쪽 경계선을 넘어 <b>연평 해역</b>으로 남하하고 있습니다. 일부는 아직 위치가 확인되지 않았습니다.</p><p><b>목표</b> 30분 동안 적이 연평 해역(노란 원)에 들어오지 못하게 막으십시오. 적 전단을 격멸하거나 퇴각시키면 바로 성공입니다.</p><p><b>조작</b> 왼쪽 전단 카드를 지도의 <b>구역</b>으로 끌어다 놓으면 그 구역으로 기동합니다. 세밀한 경로가 필요하면 우클릭으로 경로점을 찍으십시오.</p><p><b>읽는 법</b> 빨간 화살표 = 적의 <b>다음 행동</b>만 표시합니다. 오른쪽 <b>다가오는 위협</b> 카드의 버튼으로 바로 대응할 수 있고, 참모의 '추천대로 실행'도 있습니다.</p><button data-om="brief">계획 시작 ›</button></div>`;
 }
