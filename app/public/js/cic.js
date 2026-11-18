@@ -125,7 +125,7 @@ export function cicInit(deps) { // deps: { md, face, faceSkin, cmdrName, nat, th
       if (mHit) { mHit.pri = !mHit.pri; sfx.click(); say(mHit.pri ? `요격 우선표적 지정 (${mHit.W.name}) — 방공체계가 최우선 요격합니다.` : "우선 요격 표적 지정을 해제했습니다."); return; }
     }
     const pick = mapPick(e); if (!pick) return;
-    C.deps.md.supPt = { x: pick.x, z: pick.z }; sfx.click();
+    C.deps.md.supPt = C.deps.md.aimPt = { x: pick.x, z: pick.z }; sfx.click();
     say(pick.snap ? `표적 고정 [${pick.snap}] (${pick.km} km · ${pick.brg}) — 지원 수단을 선택하십시오.` : `타격 지점 지정 (${pick.km} km · 방위 ${pick.brg}) — 지원 수단을 고르십시오.`);
   });
   $(".cic-tools")?.addEventListener("click", (e) => {
@@ -135,12 +135,12 @@ export function cicInit(deps) { // deps: { md, face, faceSkin, cmdrName, nat, th
     else if (k === "out") C.zoom = clamp(C.zoom / 1.35, 0.4, 4);
     else if (k === "home") C.zoom = 1;
     else if (k === "wide") C.zoom = 0.5;
-    else if (k === "clr") { C.deps.md.supPt = null; C.pend = null; C.sig = ""; say("타격 지점 지정을 해제했습니다."); }
+    else if (k === "clr") { C.deps.md.supPt = C.deps.md.aimPt = null; C.pend = null; C.sig = ""; say("타격 지점 지정을 해제했습니다."); }
   });
   $(".cic-tracks")?.addEventListener("click", (e) => {
     const b = e.target.closest("[data-trk]"); if (!b) return; e.stopPropagation();
     const t = C.trkList[+b.dataset.trk]; if (!t) return;
-    C.deps.md.supPt = { x: t.x, z: t.z }; sfx.click();
+    C.deps.md.supPt = C.deps.md.aimPt = { x: t.x, z: t.z }; sfx.click();
     say(`표적 지정 [${t.name}] (${t.km} km · ${t.brg}) — 지원 수단 선택 후 승인 바랍니다.`);
   });
   $(".cic-cards").addEventListener("click", (e) => {
@@ -325,8 +325,7 @@ function assets() {
   out.push({ id: "fighter", t: `공군 전투기 편대 (CAP+타격) · ${A.fighter.type}`, d: `지정 해역 반경 11km 90초 방공우산(적기·미사일 요격) 및 ${WPN[A.fighter.asm]?.name || A.fighter.asm} 공대함 타격`, ok: true });
   out.push({ id: "heavy", t: `공군 대형수송기 · ${A.heavy.type}`, d: `안전 공역 진입 후 후방 램프에서 ${WPN[A.heavy.asm]?.name || A.heavy.asm} ${A.heavy.n}발 원거리 포화 투하`, ok: true });
   out.push(C.battery ? { id: "battery", t: `${C.battery.name} · 우회 기습`, d: `해안 발사 후 측후방 우회 경로로 ${WPN[C.battery.key]?.name || C.battery.key} 4발 기습 침투 · 사거리 ${(WPN[C.battery.key].range / 1000) | 0}km`, ok: true } : { id: "battery", t: "지대함 포대", d: "이 전장·국가에선 지원 불가 (한반도=해성 · 오키나와=12식 · 미 서부=NMESIS)", ok: false });
-  out.push({ id: "recon", t: "위성 · 합동 ISR 레이저 스캔", d: "11km 해역 3D 정찰 스캔 + Link-16 표적 빔 30초 연동 (적 함정 실시간 미사일 유도)", ok: true });
-  out.push({ id: "tot", t: "TOT · 함대 합동 동시탄착 사격", d: "기함·아군 구축함 대함미사일 발사 시차를 자동 계산해 모든 미사일이 같은 시각 표적에 동시 포화 돌입", ok: true });
+  /* 위성 레이저 스캔 · TOT removed from the menu (owner's call) */
   return out;
 }
 function watchSupport(id) {
