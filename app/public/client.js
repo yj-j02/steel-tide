@@ -599,7 +599,7 @@ $("#missions").addEventListener("click", (e) => { const b = e.target.closest("[d
 
 $("#yard").addEventListener("keydown", (e) => { if (e.target.id === "adminCode" && e.key === "Enter") $('[data-act="admin"]')?.click(); });
 /** The 해군본부 personnel order; preview = admin rehearsal (no picks, no record). Returns the handover text if any. */
-let pmPreview = false, pmTook = 0; /* one pick per 인사명령 is enough; leftovers wait in 내 정보 */
+let pmPreview = false, pmTook = 0, pmAfter = 0, pmTakenL = []; /* one pick per 인사명령 is enough; leftovers wait in 내 정보 */
 /** 3D general's flag at the masthead from 준장 up: canvas cloth, waved per vertex each frame. */
 function flagCanvas(n) {
   const cv = document.createElement("canvas"); cv.width = 256; cv.height = 170; const x = cv.getContext("2d");
@@ -623,7 +623,7 @@ function waveMastFlag() {
   pos.needsUpdate = true;
 }
 function buildPromo(before, after, unl = "", preview = false) {
-  pmPreview = preview; pmTook = 0; pmPage = 1;
+  pmPreview = preview; pmTook = 0; pmPage = 1; pmAfter = after; pmTakenL = [];
   const newRole = echOf(after) !== echOf(before) ? [`${ECH[echOf(after)].u} 지휘 — ${ECH[echOf(after)].rk}급 참모진 편성 (${Object.values(ECH[echOf(after)].t).slice(0, 3).join(" · ")} 등)`] : [], yr = new Date().getFullYear(), no = String(((profile.xp * 7) % 97) + 1).padStart(2, "0");
   const opens = [newRole.join(""), unl ? `함선 ${unl}` : ""].filter(Boolean).join(" · ");
   const handover = after >= 8 && before < 8 ? `<div class="po-cc">중장 ${FLEET_CDR.nm} 제독이 귀관에게 작전 지휘권을 이양합니다. 이제부터 귀관이 사령부 전 참모진과 기동함대를 직접 지휘합니다.</div>` : "";
@@ -882,7 +882,11 @@ $("#promoM").addEventListener("click", (e) => {
   const fp = e.target.closest("[data-fpost]"); if (fp) { const p = FLAG_POSTS.find((x) => x.t === fp.dataset.fpost && x.g === pmPostG); if (!p) return; pmPostSel = p.t; $("#pmPostT").textContent = p.t; if (!pmPreview) { career.post = { g: p.g, t: p.t }; setBranch(p.b); const last = career.log[career.log.length - 1]; if (last && last.g === p.g) { last.t = p.t; last.b = BRANCHES[p.b].n; } saveCareer(); refreshMenus(); } sfx.click(); renderPostPick(pmPostG); return; }
   const go = e.target.closest("[data-pmgo]"); if (go) { pmGo(+go.dataset.pmgo); return; }
   const ps = e.target.closest("[data-post]"); if (ps) { const k = ps.dataset.post; pmPostSel = k; if (pmPreview) { $("#pmPostT").textContent = BRANCHES[k].t[pmPostG]; sfx.click(); } else if (k !== staff.branch) { setBranch(k); const g = myGrade(), last = career.log[career.log.length - 1]; if (!pmPreview && last && last.g === g) { last.t = postOf(g); last.b = BRANCHES[staff.branch].n; saveCareer(); } $("#pmPostT").textContent = postOf(g); refreshMenus(); sfx.click(); } renderPostPick(pmPostG); return; }
-  const pk = e.target.closest("[data-perk]"); if (pk) { if (pmTook) return; sfx.coin(); if (takePerk(pk.dataset.perk)) pmTook++; pmOpts = null; const P = PERKS[pk.dataset.perk]; $("#pmPk").innerHTML = `<div class="pk-done">진급 특기 부여 — <b>${P.n}</b>${career.picks > 0 ? `<br><small>남은 특기 ${career.picks}회는 '내 정보'에서 고를 수 있습니다</small>` : ""}</div>`; $("#promoOk")?.classList.remove("dim"); return; }
+  const pk = e.target.closest("[data-perk]"); if (pk) { /* every pick the promotion earned can be taken here (a multi-rank jump gives several) */
+    if (!takePerk(pk.dataset.perk)) return; sfx.coin(); pmTook++; pmOpts = null; const P = PERKS[pk.dataset.perk]; (pmTakenL ??= []).push(P.n);
+    const done = `<div class="pk-done">진급 특기 부여 — <b>${pmTakenL.join(" · ")}</b></div>`;
+    if (career.picks > 0) { renderPerkPick("#pmPk", pmAfter); $("#pmPk").insertAdjacentHTML("afterbegin", done); } else { $("#pmPk").innerHTML = done; pmTakenL = []; }
+    $("#promoOk")?.classList.remove("dim"); return; }
   if (e.target.closest("#promoOk")) { if (career.picks > 0 && !pmPreview && !pmTook) { sfx.deny(); const h = $("#pmPk .pk-h"); if (h) { h.classList.remove("nudge"); void h.offsetWidth; h.classList.add("nudge"); } return; } sfx.click(); stopFanfare(); $("#promoM").style.display = "none"; refreshMenus(); if (storyQ) { const q = storyQ; storyQ = null; setTimeout(() => storyCard(q), 300); } }
 });
 $("#hqP").addEventListener("keydown", (e) => { if (e.target.id === "hqAdmin" && e.key === "Enter") $('[data-act="hqadmin"]')?.click(); });
