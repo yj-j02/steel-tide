@@ -36,14 +36,14 @@ const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 const fmtT = (s) => `${String(Math.floor(s / 60)).padStart(2, "0")}:${String(Math.floor(s % 60)).padStart(2, "0")}`;
 
 function forces(grade) {
-  const us = [{ id: "u1", name: "제1전단", x: 112, y: 70, ships: [ship("aegis", "정조대왕함"), ship("ffg", "대구함")], mission: "strike", path: [] }];
-  if (grade >= 3) us.push({ id: "u2", name: "제2전단", x: 104, y: 80, ships: [ship("ddh", "충무공이순신함"), ship("ffg", "경기함"), ship("pkg", "윤영하함")], mission: "hold", path: [] });
-  if (grade >= 6) us.push({ id: "u3", name: "제3전단", x: 118, y: 58, ships: [ship("ddh", "왕건함"), ship("ffg", "서울함")], mission: "scout", path: [] });
+  const us = [{ id: "u1", name: "제1전단", x: 116, y: 86, ships: [ship("aegis", "정조대왕함"), ship("ffg", "대구함")], mission: "strike", path: [] }];
+  if (grade >= 3) us.push({ id: "u2", name: "제2전단", x: 106, y: 90, ships: [ship("ddh", "충무공이순신함"), ship("ffg", "경기함"), ship("pkg", "윤영하함")], mission: "hold", path: [] });
+  if (grade >= 6) us.push({ id: "u3", name: "제3전단", x: 122, y: 76, ships: [ship("ddh", "왕건함"), ship("ffg", "서울함")], mission: "scout", path: [] });
   const foe = [
     { id: "f1", name: "적 제1전단", x: 46, y: 8, ships: [ship("foeDD", "최현"), ship("foeFF", "적 호위함 1")], path: [{ x: 60, y: 30 }, { x: GOAL.x, y: GOAL.y }], seen: false },
-    { id: "f2", name: "적 제2전단", x: 96, y: 6, ships: [ship("foeFF", "적 호위함 2"), ship("foeFAC", "적 유도탄정 1"), ship("foeFAC", "적 유도탄정 2")], path: [{ x: 94, y: 24 }, { x: GOAL.x + 4, y: GOAL.y }], seen: false, delay: 240 },
+    { id: "f2", name: "적 제2전단", x: 96, y: 6, ships: [ship("foeFF", "적 호위함 2"), ship("foeFAC", "적 유도탄정 1"), ship("foeFAC", "적 유도탄정 2")], path: [{ x: 94, y: 24 }, { x: GOAL.x + 4, y: GOAL.y }], seen: false, delay: 150 },
   ];
-  if (grade >= 4) foe.push({ id: "f3", name: "적 제3전단", x: 20, y: 18, ships: [ship("foeDD", "강건"), ship("foeFF", "적 호위함 3")], path: [{ x: 40, y: 44 }, { x: 70, y: 46 }, { x: GOAL.x, y: GOAL.y }], seen: false, delay: 480 });
+  if (grade >= 4) foe.push({ id: "f3", name: "적 제3전단", x: 20, y: 18, ships: [ship("foeDD", "강건"), ship("foeFF", "적 호위함 3")], path: [{ x: 40, y: 44 }, { x: 70, y: 46 }, { x: GOAL.x, y: GOAL.y }], seen: false, delay: 300 });
   for (const g of [...us, ...foe]) { g.side = us.includes(g) ? "us" : "foe"; g.fireT = 30; g.home = { x: g.x, y: g.y }; }
   return { us, foe };
 }
@@ -54,7 +54,7 @@ export function openOpMap(ctx) {
   Object.assign(S, { on: true, ctx, us: F.us, foe: F.foe, t: 0, run: false, speed: 1, paused: false, sel: F.us[0], phase: "plan",
     pts: 6 + (ctx.ops ? 2 : 0), sup: [], place: null, msl: [], fx: [], log: [], evt: null, evtDone: {}, evade: 0, preempt: 0, decoy: { x: 58, y: 40, gone: false },
     shots: 0, hits: 0, inside: {}, result: null });
-  build(); say(`작전 개시 전입니다. 전단을 선택하고 우클릭으로 기동 경로를 지정하십시오.`);
+  build(); S.brief = true; say(`작전 개시 전입니다. 왼쪽 '작전 순서'를 따라 계획을 세우십시오.`);
   let last = performance.now();
   const loop = (now) => { if (!S.on) return; const dt = Math.min(0.1, (now - last) / 1000); last = now; if (S.phase === "run" && !S.paused && !S.evt) for (let k = 0; k < S.speed; k++) step(dt * 30); draw(); panel(); requestAnimationFrame(loop); };
   requestAnimationFrame(loop);
@@ -68,7 +68,7 @@ function say(t, cls = "") { S.log.unshift({ t, cls, at: S.t }); if (S.log.length
 function build() {
   let el = $("#opMap"); if (!el) { el = document.createElement("div"); el.id = "opMap"; document.body.append(el); }
   el.innerHTML = `<div class="om-top"><b>STEEL TIDE</b><span class="om-t">작전 지휘 · 서해 해상 차단 작전</span><span id="omClock"></span><div class="om-spd"><button data-om="pause">⏸</button><button data-om="s1" class="on">x1</button><button data-om="s2">x2</button><button data-om="s4">x4</button></div><button data-om="quit" class="om-quit">작전 중단</button></div>`
-    + `<div class="om-b"><div class="om-side" id="omSide"></div><div class="om-mapw"><canvas id="omCv"></canvas><div class="om-hint">좌클릭: 전단 선택 · 우클릭: 경로점 추가 (Shift 없이 누르면 경로 새로 그림, Shift: 이어 그림) · Space: 일시정지</div><div id="omEvt"></div><div id="omRes"></div></div></div>`;
+    + `<div class="om-b"><div class="om-side" id="omSide"></div><div class="om-mapw"><canvas id="omCv"></canvas><div class="om-hint">좌클릭: 전단 선택 · 우클릭: 경로점 추가 (Shift 없이 누르면 경로 새로 그림, Shift: 이어 그림) · Space: 일시정지</div><div id="omEvt"></div><div id="omRes"></div><div id="omBrief"></div></div></div>`;
   el.style.display = "flex";
   const cv = $("#omCv"); const fit = () => { const r = cv.parentElement.getBoundingClientRect(); cv.width = r.width * devicePixelRatio; cv.height = r.height * devicePixelRatio; cv.style.width = r.width + "px"; cv.style.height = r.height + "px"; };
   fit(); S.fit = fit; addEventListener("resize", fit);
@@ -108,13 +108,16 @@ function onClick(e) {
   else if (a === "go") { if (!S.us.some((g) => g.path.length) && !confirmNoPath()) return; S.phase = "run"; say("작전 개시! 전 전단 기동.", "hit"); }
   else if (a.startsWith("evt:")) resolveEvent(a.slice(4));
   else if (a === "done") { const r = S.result; close(); S.ctx.onDone?.(r); }
+  else if (a === "brief") S.brief = false;
+  else if (a === "rebrief") S.brief = true;
   S.dirty = true;
 }
 const confirmNoPath = () => { say("경로가 없는 전단은 제자리에서 임무를 수행합니다."); return true; };
 
 // ── simulation (game seconds) ────────────────────────────────────────────
 function moveTo(g, p, dt, v) { const dx = p.x - g.x, dy = p.y - g.y, L = Math.hypot(dx, dy); if (L < 0.3) return true; const s = Math.min(L, v * dt); const nx = g.x + (dx / L) * s, ny = g.y + (dy / L) * s; if (!inLand({ x: nx, y: ny })) { g.x = nx; g.y = ny; } else { g.x += (-dy / L) * s; g.y += (dx / L) * s; } return L < 0.6; }
-const SPD = 0.0145; /* km per game second, about 28 knots */
+const SPD = 0.035; /* km per game second on the compressed chart: an unopposed enemy reaches the goal in about 20 minutes */
+const LIMIT = 1800; /* 30:00 */
 function detR(g) { return g.side === "us" ? (g.mission === "scout" ? 52 : 36) : 30; }
 function seenFoe(f) { if (S.us.some((u) => alive(u).length && d2(u, f) < detR(u))) return true; return S.sup.some((s) => s.k === "p3c" && d2(s, f) < 30); }
 
@@ -178,14 +181,14 @@ function support(dt) {
   }
 }
 const EVENTS = [
-  { at: 480, id: "reinf", t: "적 증원 전단 접근 징후 (정보처 보고)", a: ["reserve", "예비 고속정 편대 투입", "지원 포인트 1 사용 · 고속함 2척 합류"], b: ["hold", "현 전력 유지", "포인트 보존"] },
-  { at: 1200, id: "salvo", t: "적 대함미사일 일제 사격 징후", a: ["evade", "회피 기동", "10분간 받는 피해 −30%, 속도 −30%"], b: ["preempt", "선제 타격", "다음 사격 2발 추가"] },
+  { at: 360, id: "reinf", t: "적 증원 전단 접근 징후 (정보처 보고)", a: ["reserve", "예비 고속정 편대 투입", "지원 포인트 1 사용 · 고속함 2척 합류"], b: ["hold", "현 전력 유지", "포인트 보존"] },
+  { at: 840, id: "salvo", t: "적 대함미사일 일제 사격 징후", a: ["evade", "회피 기동", "5분간 받는 피해 −30%, 속도 −30%"], b: ["preempt", "선제 타격", "다음 사격 2발 추가"] },
 ];
 function events() { for (const e of EVENTS) if (!S.evtDone[e.id] && S.t >= e.at) { S.evtDone[e.id] = true; S.evt = e; S.dirty = true; return; } }
 function resolveEvent(k) {
   const e = S.evt; if (!e) return; S.evt = null;
   if (k === "reserve") { if (S.pts >= 1) { S.pts--; const g = { id: "u9", name: "예비 고속정 편대", x: 120, y: 86, ships: [ship("pkg", "고속함 1"), ship("pkg", "고속함 2")], mission: "strike", path: [], side: "us", fireT: 30 }; g.home = { x: g.x, y: g.y }; S.us.push(g); say("예비 고속정 편대 합류.", "hit"); } else say("지원 포인트가 없어 투입하지 못했습니다.", "bad"); }
-  if (k === "evade") { S.evade = 600; say("전 전단 회피 기동.", "hit"); }
+  if (k === "evade") { S.evade = 300; say("전 전단 회피 기동.", "hit"); }
   if (k === "preempt") { S.preempt = 2; say("선제 타격 준비 — 다음 사격 증강.", "hit"); }
 }
 function judge() {
@@ -193,14 +196,14 @@ function judge() {
   for (const f of S.foe) { if (!alive(f).length || f.gone) continue; const inG = d2(f, GOAL) < GOAL.r; S.inside[f.id] = inG ? (S.inside[f.id] || 0) + 1 : 0; if (S.inside[f.id] > 4) return finish(false, `${f.name} ${GOAL.n} 돌파 — 차단 실패`); }
   if (!S.us.some((g) => alive(g).length)) return finish(false, "아군 전단 전멸");
   if (S.foe.every((f) => !alive(f).length || f.gone)) return finish(true, "적 전단 격멸·퇴각 — 해상 차단 성공");
-  if (S.t >= 2700) return finish(true, "작전 시간 종료 — 차단선 유지 성공");
+  if (S.t >= LIMIT) return finish(true, "작전 시간 종료 — 연평 해역 방어 성공");
 }
 function finish(won, why) {
   S.phase = "end"; S.paused = false;
   const all = S.us.flatMap((g) => g.ships), foes = S.foe.flatMap((f) => f.ships);
   const r = { won, why, secs: Math.max(1, Math.round(S.t)), shots: Math.min(5000, S.shots), hits: Math.min(S.hits, S.shots, 5000), hp: all.reduce((a, s) => a + s.hp, 0) / all.reduce((a, s) => a + s.max, 0), sunk: foes.filter((s) => s.hp <= 0).length, foes: foes.length, lost: all.filter((s) => s.hp <= 0).length, allies: all.length, jetsOut: S.sup.some((s) => s.k === "cap") ? 2 : 0 };
-  S.result = r;
-  $("#omRes").innerHTML = `<div class="om-res"><div class="om-rt ${won ? "w" : "l"}">${won ? "작전 성공" : "작전 실패"}</div><div class="om-rw">${why}</div><div class="om-rg"><span>작전 시간</span><b>${fmtT(r.secs)}</b><span>적함 격침</span><b>${r.sunk} / ${r.foes}척</b><span>아군 손실</span><b>${r.lost} / ${r.allies}척</b><span>미사일 발사 / 명중</span><b>${r.shots} / ${r.hits}</b><span>아군 잔존 전력</span><b>${Math.round(r.hp * 100)}%</b></div><button data-om="done">결과 보고 ›</button></div>`;
+  r.stars = won ? 1 + (r.lost === 0 ? 1 : 0) + (S.foe.every((f) => !alive(f).length || f.gone) ? 1 : 0) : 0; S.result = r;
+  $("#omRes").innerHTML = `<div class="om-res"><div class="om-rt ${won ? "w" : "l"}">${won ? "작전 성공" : "작전 실패"}</div><div class="om-st">${"★".repeat(r.stars)}${"☆".repeat(3 - r.stars)}</div><div class="om-rw">${why}</div><div class="om-sx"><span class="${won ? "ok" : ""}">★ 연평 해역 방어</span><span class="${r.lost === 0 && won ? "ok" : ""}">★ 아군 손실 0</span><span class="${won && S.foe.every((f) => !alive(f).length || f.gone) ? "ok" : ""}">★ 적 전단 전부 격퇴</span></div><div class="om-rg"><span>작전 시간</span><b>${fmtT(r.secs)}</b><span>적함 격침</span><b>${r.sunk} / ${r.foes}척</b><span>아군 손실</span><b>${r.lost} / ${r.allies}척</b><span>미사일 발사 / 명중</span><b>${r.shots} / ${r.hits}</b><span>아군 잔존 전력</span><b>${Math.round(r.hp * 100)}%</b></div><button data-om="done">결과 보고 ›</button></div>`;
 }
 
 // ── drawing ───────────────────────────────────────────────────────────────
@@ -234,6 +237,7 @@ function draw() {
     const [a, b] = P(f.x, f.y); x.fillStyle = "#ff6b5e"; x.beginPath(); x.moveTo(a, b + 9 * dpr); x.lineTo(a - 10 * dpr, b - 7 * dpr); x.lineTo(a + 10 * dpr, b - 7 * dpr); x.closePath(); x.fill();
     x.fillStyle = "#ff8a7a"; x.fillText(`${f.name} ${Math.round(strength(f) * 100)}%`, a + 12 * dpr, b);
   }
+  if (S.phase === "plan") for (const f of S.foe) { const pts = [f, ...f.path]; x.strokeStyle = "rgba(255,107,94,.55)"; x.setLineDash([3 * dpr, 6 * dpr]); x.lineWidth = 2 * dpr; x.beginPath(); pts.forEach((p, i) => (i ? x.lineTo(...P(p.x, p.y)) : x.moveTo(...P(p.x, p.y)))); x.stroke(); x.setLineDash([]); const a = pts[pts.length - 2], b2 = pts[pts.length - 1], ang = Math.atan2(b2.y - a.y, b2.x - a.x), [ex, ey] = P(b2.x, b2.y); x.fillStyle = "rgba(255,107,94,.7)"; x.beginPath(); x.moveTo(ex, ey); x.lineTo(ex - Math.cos(ang - 0.4) * 12 * dpr, ey - Math.sin(ang - 0.4) * 12 * dpr); x.lineTo(ex - Math.cos(ang + 0.4) * 12 * dpr, ey - Math.sin(ang + 0.4) * 12 * dpr); x.closePath(); x.fill(); const [sx, sy] = P(f.x, f.y); x.fillText(`${f.name} 예상 진로${f.delay ? ` (${Math.round(f.delay / 60)}분 후)` : ""}`, sx + 8 * dpr, sy - 4 * dpr); }
   for (const m of S.msl) { x.fillStyle = m.side === "us" ? "#ffe066" : "#ff5a4e"; x.beginPath(); x.arc(...P(m.x, m.y), 2.2 * dpr, 0, Math.PI * 2); x.fill(); }
   for (const f of S.fx) { const u = f.t / 25; x.strokeStyle = f.c; x.globalAlpha = 1 - u; x.lineWidth = 2 * dpr; x.beginPath(); x.arc(...P(f.x, f.y), (f.big ? 3 : 1.6) * k * (0.3 + u), 0, Math.PI * 2); x.stroke(); x.globalAlpha = 1; }
   if (S.place) { x.fillStyle = "rgba(242,202,92,.9)"; x.font = `bold ${14 * dpr}px 'Noto Sans KR', sans-serif`; x.fillText(`${SUP[S.place].n} — 지도에서 배치할 곳을 클릭 (Esc 취소)`, ox + 16 * dpr, oy + 26 * dpr); }
@@ -255,16 +259,20 @@ function staffAdvice() {
   return "작전처장: \"현 기동 유지. 적 전단이 사거리에 들어오면 즉시 타격합니다.\"";
 }
 function panel() {
-  const clock = $("#omClock"); if (clock) clock.textContent = `${S.phase === "plan" ? "계획 단계" : S.phase === "run" ? (S.paused ? "일시정지" : `진행 x${S.speed}`) : "종료"} · 작전 시간 ${fmtT(S.t)} / 45:00`;
+  const clock = $("#omClock"); if (clock) clock.textContent = `${S.phase === "plan" ? "계획 단계" : S.phase === "run" ? (S.paused ? "일시정지" : `진행 x${S.speed}`) : "종료"} · 작전 시간 ${fmtT(S.t)} / 30:00`;
   const sig = JSON.stringify([S.phase, S.sel?.id, S.us.map((g) => [g.mission, g.path.length, Math.round(strength(g) * 20), alive(g).length]), S.pts, S.sup.length, S.log.length && S.log[0].t, S.evt?.id, S.place, Math.floor(S.t / 30)]);
   if (sig === S.psig && !S.dirty) return; S.psig = sig; S.dirty = false;
   const side = $("#omSide"); if (!side) return; const g = S.sel;
-  side.innerHTML = `<div class="om-h">아군 전력</div>${S.us.map((u) => `<button class="om-g${u === g ? " on" : ""}${alive(u).length ? "" : " dead"}" data-om="sel:${u.id}"><b>${u.name}</b> · ${MISS[u.mission]}<small>${u.ships.map((s) => `${s.name}${s.hp <= 0 ? "(침몰)" : ""}`).join(", ")}</small><i><em style="width:${Math.round(strength(u) * 100)}%"></em></i></button>`).join("")}`
+  const out = S.foe.filter((f) => !alive(f).length || f.gone).length, steps = [["전단 선택 (왼쪽 목록이나 지도에서 클릭)", !!S.sel], ["우클릭으로 기동 경로 지정 (적 예상 진로를 가로막게)", S.us.some((u) => u.path.length)], ["임무 고르기 · 지원 배치 (P-3C로 적 조기 탐지)", S.sup.length > 0], ["작전 개시 → 배속 조절하며 지켜보기", S.phase !== "plan"]];
+  side.innerHTML = `<div class="om-obj"><b>목표</b> 적 전단이 <em>연평 해역(노란 원)</em>에 들어오지 못하게 막기<small>적 격퇴 ${out}/${S.foe.length} · 남은 시간 ${fmtT(Math.max(0, LIMIT - S.t))} · <a data-om="rebrief">브리핑 다시 보기</a></small></div>`
+    + (S.phase === "plan" ? `<div class="om-h">작전 순서</div><ol class="om-steps">${steps.map(([t, ok]) => `<li class="${ok ? "ok" : ""}">${ok ? "✓" : ""} ${t}</li>`).join("")}</ol>` : "")
+    + `<div class="om-h">아군 전력</div>${S.us.map((u) => `<button class="om-g${u === g ? " on" : ""}${alive(u).length ? "" : " dead"}" data-om="sel:${u.id}"><b>${u.name}</b> · ${MISS[u.mission]}<small>${u.ships.map((s) => `${s.name}${s.hp <= 0 ? "(침몰)" : ""}`).join(", ")}</small><i><em style="width:${Math.round(strength(u) * 100)}%"></em></i></button>`).join("")}`
     + (g ? `<div class="om-h">${g.name} 임무</div><div class="om-row">${Object.entries(MISS).map(([k, n]) => `<button data-om="mis:${k}" class="${g.mission === k ? "on" : ""}">${n}</button>`).join("")}<button data-om="clr">경로 지우기</button></div><div class="om-note">${{ strike: "탐지된 적 전단이 48km 안에 오면 접근해 타격", hold: "경로 끝 지점을 지키며 사거리 안의 적만 교전", scout: "탐지 반경 52km, 교전을 피하고 물러남" }[g.mission]}</div>` : "")
     + `<div class="om-h">지원 배정 · 남은 포인트 ${S.pts}</div>${Object.entries(SUP).map(([k, s]) => `<div class="om-sup"><button data-om="sup:${k}" ${S.phase !== "plan" ? "disabled" : ""}>${s.n} <b>${s.c}P</b></button><small>${s.d}</small></div>`).join("")}`
     + (S.sup.length ? `<div class="om-tags">${S.sup.map((s, i) => `<span>${SUP[s.k].n}${S.phase === "plan" ? ` <a data-om="unsup:${i}">×</a>` : ""}</span>`).join("")}</div>` : "")
     + `<div class="om-h">참모 의견</div><div class="om-adv">${staffAdvice()}</div>`
     + `<div class="om-h">상황 일지</div><div class="om-log">${S.log.map((l) => `<div class="${l.cls}"><span>${fmtT(l.at)}</span> ${l.t}</div>`).join("")}</div>`
     + (S.phase === "plan" ? `<button class="om-go" data-om="go">작전 개시 ›</button>` : "");
+  const bf = $("#omBrief"); if (bf) bf.innerHTML = S.brief ? `<div class="om-brief"><div class="om-bh">작전 브리핑 · 서해 해상 차단</div><p><b>상황</b> 적 수상전단 ${S.foe.length}개가 북쪽 경계선을 넘어 <b>연평 해역</b>으로 남하하고 있습니다. 일부는 아직 위치가 확인되지 않았습니다.</p><p><b>목표</b> 30분 동안 적이 연평 해역(노란 원)에 들어오지 못하게 막으십시오. 적 전단을 격멸하거나 퇴각시키면 바로 성공입니다.</p><p><b>실패</b> 적 전단이 연평 해역에 진입하거나, 아군 전단이 전멸하면 실패.</p><p><b>권장 계획</b> ① 제1전단을 연평 해역 서쪽(지도 가운데)으로 이동 ② P-3C를 경계선 아래에 배치해 적을 먼저 발견 ③ 해안 포대로 접근하는 적을 깎기 ④ 작전 개시 후 x2~x4로 지켜보다 상황 카드에 대응</p><p class="om-tip">빨간 점선 화살표 = 정보처가 예상한 적 진로. 아군 전단은 적이 보이면(탐지 원 안) 30km에서 미사일을 주고받습니다.</p><button data-om="brief">계획 시작 ›</button></div>` : "";
   const ev = $("#omEvt"); if (ev) ev.innerHTML = S.evt ? `<div class="om-evt"><div class="om-et">${S.evt.t}</div>${[S.evt.a, S.evt.b].map(([k, n, d]) => `<button data-om="evt:${k}"><b>${n}</b><small>${d}</small></button>`).join("")}</div>` : "";
 }
