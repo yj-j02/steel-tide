@@ -93,7 +93,7 @@ function forces(grade) {
 export function openOpMap(ctx) {
   const F = forces(ctx.grade), isAir = !!ctx.air;
   if (isAir) { /* 항공 작전: 함정은 소규모 초계전단 하나만 자동 방어 — 항공 지원 없이는 버티기 어렵다 */
-    const g = { id: "u1", name: "초계전단", x: 104, y: 66, ships: [ship("ffg", "대구함"), ship("pkg", "윤영하함")], mission: "hold", path: [{ x: 95, y: 62 }, { x: 70, y: 50 }], side: "us", fireT: 30, ...ORD0 }; g.home = { x: g.x, y: g.y }; F.us = [g]; }
+    const g = { id: "u1", name: "초계전단", x: 104, y: 66, ships: [ship("ddh", "문무대왕함"), ship("ffg", "대구함"), ship("pkg", "윤영하함")], mission: "hold", path: [{ x: 95, y: 62 }, { x: 70, y: 50 }], side: "us", fireT: 30, ...ORD0 }; g.home = { x: g.x, y: g.y }; F.us = [g]; }
   const A = isAir ? airForces(ctx.grade) : [];
   Object.assign(S, { on: true, ctx, air: A, isAir, layers: { det: false, rng: false, path: false }, hist: {}, drag: null, hover: null, raids: [], isleBat: null, airLost: 0, sorties: 0, us: F.us, foe: F.foe, t: 0, run: false, speed: 1, paused: false, sel: isAir ? A[0] : F.us[0], phase: "plan",
     pts: isAir ? 0 : 6 + (ctx.ops ? 2 : 0), sup: [], place: null, msl: [], fx: [], log: [], evt: null, evtDone: {}, evade: 0, preempt: 0, decoy: { x: 40, y: 50, gone: false },
@@ -115,7 +115,7 @@ function say(t, cls = "") { S.log.unshift({ t, cls, at: S.t }); if (S.log.length
 function build() {
   let el = $("#opMap"); if (!el) { el = document.createElement("div"); el.id = "opMap"; document.body.append(el); }
   el.innerHTML = `<div class="om-top"><b>STEEL TIDE</b><span class="om-t">${S.isAir ? "항공 작전 · 서해 항공 지원" : "작전 지휘 · 서해 해상 차단 작전"}</span><div class="om-ph" id="omPhase"></div><span id="omClock"></span><div class="om-spd"><button data-om="pause">⏸</button><button data-om="s1" class="on">x1</button><button data-om="s2">x2</button><button data-om="s4">x4</button></div><button data-om="quit" class="om-quit">작전 중단</button></div>`
-    + `<div class="om-todo" id="omTodo"></div><div class="om-b"><div class="om-side" id="omSide"></div><div class="om-mapw"><div class="om-cvw"><canvas id="omCv"></canvas><div class="om-lay"><span>지도 표시</span>${[["det", "탐지 범위"], ["rng", "사거리"], ["path", "경로"]].map(([k, n]) => `<button data-om="layer:${k}">${n}</button>`).join("")}</div><div class="om-hint">${S.isAir ? "왼쪽 편대 카드를 지도의 <b>구역</b>으로 끌어다 놓기 (또는 편대 선택 후 구역 우클릭) · 임무는 자동 결정 · Space: 일시정지" : "왼쪽 전단 카드를 지도의 <b>구역</b>으로 끌어다 놓기 (또는 우클릭으로 세부 경로) · Space: 일시정지"}</div><div id="omRep"></div><div id="omEvt"></div><div id="omRes"></div><div id="omBrief"></div></div>${S.isAir ? `<div class="om-tl" id="omTl"></div>` : ""}</div><div class="om-right" id="omRight"></div></div>`;
+    + `<div class="om-todo" id="omTodo"></div><div class="om-b"><div class="om-side" id="omSide"></div><div class="om-mapw"><div class="om-cvw"><canvas id="omCv"></canvas><div class="om-lay"><span>지도 표시</span>${[["det", "탐지 범위"], ["rng", "사거리"], ["path", "경로"]].map(([k, n]) => `<button data-om="layer:${k}">${n}</button>`).join("")}</div><div class="om-hint">${S.isAir ? "<b>구역 클릭</b>: 그 구역에 정찰·방공·급유 보내기 · <b>적 클릭</b>: 타격 편대 출격 · Space: 일시정지" : "왼쪽 전단 카드를 지도의 <b>구역</b>으로 끌어다 놓기 (또는 우클릭으로 세부 경로) · Space: 일시정지"}</div><div id="omRep"></div><div id="omPop"></div><div id="omEvt"></div><div id="omRes"></div><div id="omBrief"></div></div>${S.isAir ? `<div class="om-tl" id="omTl"></div>` : ""}</div><div class="om-right" id="omRight"></div></div>`;
   el.style.display = "flex";
   const cv = $("#omCv"); const fit = () => { const r = cv.parentElement.getBoundingClientRect(); cv.width = r.width * devicePixelRatio; cv.height = r.height * devicePixelRatio; cv.style.width = r.width + "px"; cv.style.height = r.height + "px"; };
   fit(); S.fit = fit; addEventListener("resize", fit);
@@ -125,7 +125,7 @@ function build() {
   cv.ondrop = (e) => { e.preventDefault(); S.hover = null; const id = e.dataTransfer.getData("text/plain") || S.drag; const q = secOf(toMap(e)); if (id && q) assignSector(id, q); S.drag = null; };
   el.ondragstart = (e) => { const c = e.target.closest?.("[data-drag]"); if (!c) return; S.drag = c.dataset.drag; e.dataTransfer.setData("text/plain", S.drag); e.dataTransfer.effectAllowed = "move"; };
   cv.onmousedown = (e) => { const p = toMap(e);
-    if (S.isAir) { if (e.button === 2) { const q = secOf(p); if (S.sel && q) assignSector(S.sel.id, q); return; } if (e.button !== 0) return; const u = S.air.filter((a) => a.st !== "lost").sort((a, b) => d2(a, p) - d2(b, p))[0]; if (u && d2(u, p) < 5) S.sel = u; S.dirty = true; return; }
+    if (S.isAir) { if (e.button !== 0 && e.button !== 2) return; const u = S.air.filter((a) => airborne(a)).sort((a, b) => d2(a, p) - d2(b, p))[0]; if (e.button === 0 && u && d2(u, p) < 3) { S.sel = u; S.pop = null; S.dirty = true; return; } openPop(p, e); return; }
     if (e.button === 2) { addWaypoint(p, e.shiftKey); return; } if (e.button !== 0) return; if (S.place) { placeSupport(p); return; } const g = S.us.find((u) => alive(u).length && d2(u, p) < 4.5); if (g) S.sel = g; };
   el.onclick = onClick;
   S.key = (e) => { if (!S.on) return; if (e.code === "Space") { e.preventDefault(); e.stopImmediatePropagation(); if (S.phase === "run") S.paused = !S.paused; } if (e.code === "Escape" && S.place) S.place = null; };
@@ -155,6 +155,12 @@ function onClick(e) {
   else if (a === "quit") { if (S.phase === "end") return; finish(false, "작전 중단 — 철수"); }
   else if (a.startsWith("layer:")) { const k = a.slice(6); S.layers[k] = !S.layers[k]; b.classList.toggle("on", S.layers[k]); }
   else if (a === "todo") { S.todoFn?.(); }
+  else if (a.startsWith("ppick:")) { const id = a.slice(6), P = S.pop; if (P) P.pick = P.pick.includes(id) ? P.pick.filter((x) => x !== id) : [...P.pick, id]; }
+  else if (a === "pesc") { if (S.pop) S.pop.esc = !S.pop.esc; }
+  else if (a === "pgo") { const P = S.pop; if (P) { const escC = P.esc && S.air.find((u) => u.t === "fighter" && u.st === "ready" && !P.pick.includes(u.id)); strikeMission(P.f, P.pick, escC?.id); } }
+  else if (a.startsWith("psec:")) { const P = S.pop; if (P) { assignSector(a.slice(5), P.q); S.pop = null; } }
+  else if (a === "pclose") S.pop = null;
+  else if (a === "airrec") recommendAir();
   else if (a.startsWith("act:")) { const f = S.acts?.[+a.slice(4)]; if (f) f(); }
   else if (a === "unsec") { const u = S.sel; if (u) { u.sec = null; if (u.t) { u.pt = null; u.tgt = null; } } }
   else if (a.startsWith("ord:")) { const [, k, v] = a.split(":"), g = S.sel; if (g && !g.t) { g[k] = k === "radar" ? v === "on" : k === "salvoN" ? +v : v; say(`${g.name} — ${{ roe: "교전규칙", radar: "레이더", spd: "속력", salvoN: "일제사격" }[k]} ${k === "roe" ? ROE[v][0] : k === "radar" ? (v === "on" ? "켜기 (탐지 ↑ · 노출)" : "전파 차단 (은밀 · 탐지 ↓)") : k === "spd" ? SPDS[v][0] : `${v}발`}`); } }
@@ -217,9 +223,69 @@ function secJob(u) {
   const q = secById(u.sec); if (!q) return;
   if (u.t === "transport") { u.job = "airlift"; u.pt = { ...YEONPYEONG }; return; }
   if (u.t === "tanker") { u.job = "refuel"; u.pt = { ...q.c }; return; }
-  const f = AIR_T[u.t].asm && u.asm > 0 ? foeIn(q) : null;
-  if (f && (u.t === "fighter" || u.t === "helo")) { if (u.job !== "strike" || u.tgt !== f) { u.job = "strike"; u.tgt = f; u.pt = null; } return; }
   u.tgt = null; u.job = u.t === "fighter" ? "cap" : "patrol"; u.pt = { ...q.c };
+}
+/** 타격 임무: 고른 편대가 목표로 날아가 공대함 미사일을 쏘고 귀환 (호위 1개를 붙이면 피격 위험 ↓) */
+function strikeMission(f, ids, escId) {
+  const ws = ids.map((id) => S.air.find((a) => a.id === id)).filter((u) => u && u.st === "ready" && u.asm > 0);
+  if (!ws.length || !f) return;
+  for (const u of ws) { u.sec = null; u.pt = null; u.job = "strike"; u.tgt = f; if (S.phase === "run") launch(u); }
+  const e = escId && S.air.find((a) => a.id === escId && a.st === "ready"); if (e) { e.sec = null; e.pt = null; e.job = "escort"; e.follow = ws[0]; if (S.phase === "run") launch(e); }
+  say(`타격 임무 → ${f.name}: ${ws.map((u) => short(u.name)).join(", ")}${e ? ` (호위 ${short(e.name)})` : ""}`, "hit"); S.pop = null; S.dirty = true;
+}
+function airStatus(u) {
+  const q = secById(u.sec), J = { cap: "방공(CAP)", patrol: "정찰", refuel: "급유 궤도", airlift: "연평도 공수", escort: "호위" }[u.job];
+  if (u.st === "lost") return "손실";
+  if (u.st === "rearm") return `재무장·급유 ${fmtT(u.cd)} 남음`;
+  if (u.st === "rtb") return "귀환 중";
+  if (u.job === "strike" && u.tgt) return u.st === "ready" ? `출격 대기 → ${u.tgt.name} 타격` : `${u.tgt.name} 타격 비행 · ${fmtT(d2(u, u.tgt) / AIR_T[u.t].sp)} 후 발사`;
+  if (u.job === "escort" && u.follow) return `${short(u.follow.name)} 호위 중`;
+  if (u.st === "ready") return q ? `출격 대기 → ${q.n} ${J}` : u.t === "fighter" ? "대기 — 적을 클릭해 타격 / 구역 클릭해 CAP" : "대기 — 구역을 클릭해 배치";
+  return `${q ? q.n + " " : ""}${J}${u.st === "out" ? " · 이동 중" : " 중"}`;
+}
+function strikeEst(f, ws, esc) {
+  const n = ws.reduce((a, u) => a + u.asm, 0), live = alive(f), sam = live.reduce((a, x) => a + x.sam, 0);
+  const p = clamp(clamp(0.25 + sam / (live.length * 60 || 1), 0.15, 0.78) * clamp(1.15 - 0.06 * n, 0.6, 1.1) * 0.8, 0, 0.9) * (sam > 0 ? 1 : 0);
+  const hits = n * (1 - p), hp = live.reduce((a, x) => a + x.hp, 0), risk = sam > 0 ? ws.map((u) => (u.t === "helo" ? 0.15 : 0.07) * (esc ? 0.3 : 1)) : [];
+  const eta = ws.length ? Math.max(...ws.map((u) => d2(airHome(u), f) / AIR_T[u.t].sp)) : 0;
+  return { n, hits, kill: Math.min(1, (hits * 34) / Math.max(1, hp)), risk: risk.length ? 1 - risk.reduce((a, r) => a * (1 - r), 1) : 0, eta, sam };
+}
+function openPop(p, e) {
+  if (S.phase === "end") return;
+  const f = S.foe.filter((g) => g.seen && alive(g).length && !g.gone && !(g.delay && S.t < g.delay)).sort((a, b) => d2(a, p) - d2(b, p))[0];
+  const q = secOf(p); const r = $("#omCv").getBoundingClientRect();
+  S.pop = f && d2(f, p) < 7 ? { k: "strike", f, x: e.clientX - r.left, y: e.clientY - r.top, pick: null, esc: false } : q ? { k: "sec", q, x: e.clientX - r.left, y: e.clientY - r.top } : null;
+  if (S.pop?.k === "strike") S.pop.pick = S.air.filter((u) => u.st === "ready" && u.asm > 0 && (u.t === "fighter" || u.t === "helo")).map((u) => u.id);
+  S.dirty = true;
+}
+function popHTML() {
+  const P = S.pop; if (!P) return "";
+  const pos = `left:${Math.min(P.x + 12, ($("#omCv")?.clientWidth || 900) - 330)}px;top:${Math.min(P.y + 8, ($("#omCv")?.clientHeight || 600) - 300)}px`;
+  if (P.k === "strike") {
+    const f = P.f, cand = S.air.filter((u) => (u.t === "fighter" || u.t === "helo") && u.st !== "lost"), ws = cand.filter((u) => P.pick.includes(u.id) && u.st === "ready" && u.asm > 0);
+    const escC = S.air.find((u) => u.t === "fighter" && u.st === "ready" && !P.pick.includes(u.id)), E = strikeEst(f, ws, P.esc && escC);
+    return `<div class="om-pop" style="${pos}"><div class="h">✈ 타격 임무 — ${f.name}</div><small>${alive(f).map((x) => x.n).join("·")} · 적 대공 ${E.sam > 20 ? "강" : E.sam > 0 ? "약" : "없음"}</small>
+      <div class="pk">${cand.map((u) => { const ok = u.st === "ready" && u.asm > 0; return `<label class="${ok ? "" : "dis"}"><input type="checkbox" data-om="ppick:${u.id}" ${P.pick.includes(u.id) && ok ? "checked" : ""} ${ok ? "" : "disabled"}> ${AIR_IC[u.t]} ${short(u.name)} <em>${ok ? `미사일 ${u.asm}` : u.st === "rearm" ? `재무장 ${fmtT(u.cd)}` : "임무 중"}</em></label>`; }).join("")}</div>
+      ${escC ? `<label class="esc"><input type="checkbox" data-om="pesc" ${P.esc ? "checked" : ""}> 호위 붙이기 (${short(escC.name)}) — 피격 위험 −70%</label>` : `<div class="note">호위로 보낼 대기 전투기가 없습니다</div>`}
+      ${ws.length ? "" : `<div class="note" style="color:#f2ca5c">지금 보낼 수 있는 편대가 없습니다 — 임무 중이거나 재무장 중입니다.</div>`}<div class="est"><span>발사</span><b>${E.n}발</b><span>예상 명중</span><b>${E.hits.toFixed(1)}발</b><span>격침 가능성</span><b class="${E.kill > 0.7 ? "g" : E.kill > 0.35 ? "y" : "r"}">${Math.round(E.kill * 100)}%</b><span>아군 격추 위험</span><b class="${E.risk > 0.15 ? "r" : "g"}">${Math.round(E.risk * 100)}%</b><span>도착</span><b>${fmtT(E.eta)} 후</b></div>
+      <div class="row"><button class="go" data-om="pgo" ${ws.length ? "" : "disabled"}>출격 ›</button><button data-om="pclose">취소</button></div></div>`;
+  }
+  const q = P.q, avail = (t) => S.air.filter((u) => u.t === t && u.st !== "lost"), opt = [];
+  for (const u of avail("fighter")) opt.push([u, "방공(CAP)", "이 구역 상공에서 적기를 막고 아군 함정 요격률 +25%"]);
+  for (const u of [...avail("mpa"), ...avail("helo")]) opt.push([u, "정찰", `반경 ${KMU(AIR_T[u.t].det)}km의 적을 찾아 지도에 표시`]);
+  for (const u of avail("tanker")) opt.push([u, "급유 궤도", "반경 28km 안 아군기 연료 보충"]);
+  if (q.goal && !S.isleBat) for (const u of avail("transport")) opt.push([u, "연평도 공수", "해병 지대함 유도탄 반 전개 — 섬이 직접 사격"]);
+  return `<div class="om-pop" style="${pos}"><div class="h">${q.n} 구역 — 보낼 편대</div><small>CAP·정찰·급유는 구역 상공을 돌다가 연료가 떨어지면 교대합니다</small><div class="sl">${opt.map(([u, j, d]) => `<button data-om="psec:${u.id}" class="${u.sec === q.id ? "on" : ""}"><b>${AIR_IC[u.t]} ${short(u.name)} · ${j}</b><small>${d}${u.sec && u.sec !== q.id ? ` · 지금: ${secById(u.sec).n}` : u.job === "strike" && airborne(u) ? " · 지금: 타격 중" : ""}</small></button>`).join("")}</div><div class="row"><button data-om="pclose">닫기</button></div></div>`;
+}
+/** 추천 계획: 초계기 정찰, 전투기 1개 CAP, 급유기·수송기 배치 — 나머지 전투기는 타격용 대기 */
+function recommendAir() {
+  const by = (t) => S.air.filter((u) => u.t === t && u.st !== "lost");
+  const m = by("mpa")[0]; if (m) assignSector(m.id, secById("s1"));
+  const f = by("fighter")[0]; if (f) assignSector(f.id, secById("s2"));
+  const h = by("helo")[0]; if (h) assignSector(h.id, secById("s4"));
+  const k = by("tanker")[0]; if (k) assignSector(k.id, secById("s5"));
+  const c = by("transport")[0]; if (c && !S.isleBat) assignSector(c.id, secById("s2"));
+  say("추천 계획 적용 — 나머지 전투기는 타격용으로 대기합니다. 적이 보이면 적을 클릭해 타격을 보내십시오.", "hit"); S.dirty = true;
 }
 const airHome = (u) => (u.t === "helo" && S.us[0] && alive(S.us[0]).length ? S.us[0] : AIRBASE);
 function setAirPoint(p) {
@@ -246,7 +312,7 @@ function airStep(dt) {
     if (u.t !== "tanker" && S.air.some((k) => k.t === "tanker" && k.st === "station" && d2(k, u) < 20)) u.fuel = Math.min(T.fuel, u.fuel + dt * 3);
     const home = airHome(u);
     if (u.st !== "rtb" && u.fuel < d2(u, home) / T.sp + 40) { u.st = "rtb"; say(`${u.name} 연료 부족 — 귀환.`); }
-    if (u.st === "rtb") { if (moveAir(u, home, dt)) { u.st = "rearm"; u.cd = T.re; if (u.job === "strike") { u.tgt = null; if (!u.sec) u.pt = null; } say(`${u.name} 착륙 — 재무장 ${Math.round(T.re / 60 * 10) / 10}분.`); } continue; }
+    if (u.st === "rtb") { if (moveAir(u, home, dt)) { u.st = "rearm"; u.cd = T.re; if (u.job === "strike") { u.tgt = null; if (!u.sec) u.pt = null; } if (u.job === "escort") { u.follow = null; u.job = "cap"; } say(`${u.name} 착륙 — 재무장 ${Math.round(T.re / 60 * 10) / 10}분.`); } continue; }
     if (u.job === "strike") {
       const f = u.tgt; if (!f || !alive(f).length || f.gone) { u.st = "rtb"; continue; }
       const rng = u.t === "helo" ? 10 : 15;
@@ -254,7 +320,7 @@ function airStep(dt) {
       if (u.asm > 0) {
         launch2({ x: u.x, y: u.y, name: u.name.split(" (")[0], side: "us" }, f, u.asm, "공대함", 25, 12); S.shots += u.asm; say(`${u.name} 공대함 미사일 ${u.asm}발 발사 → ${f.name}`, "hit"); u.asm = 0;
         const sam = alive(f).reduce((a, s) => a + s.sam, 0), esc = S.air.some((e) => e.job === "escort" && e.follow === u && airborne(e) && d2(e, u) < 15);
-        if (sam > 0 && Math.random() < (u.t === "helo" ? 0.2 : 0.1) * (esc ? 0.4 : 1)) { loseAir(u, "적 대공미사일에 피격 — 격추"); continue; }
+        if (sam > 0 && Math.random() < (u.t === "helo" ? 0.15 : 0.07) * (esc ? 0.3 : 1)) { loseAir(u, "적 대공미사일에 피격 — 격추"); continue; }
       }
       u.st = "rtb"; continue;
     }
@@ -276,9 +342,9 @@ function raidStep(dt) {
     const tgt = prey && d2(prey, r) < 80 ? prey : nearest(r, S.us)?.g;
     if (!tgt) { r.y -= 0.45 * dt; if (r.y < -8) r.alive = false; continue; }
     for (const f of S.air) if (f.t === "fighter" && airborne(f) && f.st !== "rtb" && !r.tried.has(f.id) && d2(f, r) < 25) {
-      r.tried.add(f.id); const p = 0.7 + (S.air.filter((o) => o.t === "fighter" && airborne(o) && d2(o, r) < 25).length > 1 ? 0.1 : 0);
+      r.tried.add(f.id); const p = 0.85 + (S.air.filter((o) => o.t === "fighter" && airborne(o) && d2(o, r) < 25).length > 1 ? 0.1 : 0);
       if (Math.random() < p) { r.alive = false; S.fx.push({ x: r.x, y: r.y, t: 0, c: "#7cc4ff", big: true }); say(`${f.name} — 적 전투기 편대 요격 성공!`, "hit"); break; }
-      if (Math.random() < 0.3) loseAir(f, "공중전에서 피격 — 격추"); else say(`${f.name} 요격 실패 — 적기 계속 남하`, "bad");
+      if (Math.random() < 0.15) loseAir(f, "공중전에서 피격 — 격추"); else say(`${f.name} 요격 실패 — 적기 계속 남하`, "bad");
     }
     if (!r.alive) continue;
     const dx = tgt.x - r.x, dy = tgt.y - r.y, L = Math.hypot(dx, dy), s = Math.min(L, 0.45 * dt); r.x += (dx / (L || 1)) * s; r.y += (dy / (L || 1)) * s;
@@ -289,7 +355,7 @@ function raidStep(dt) {
 
 function step(dt) {
   S.t += dt; S.evade = Math.max(0, S.evade - dt);
-  for (const f of S.foe) { const v = alive(f).length > 0; const was = f.seen; f.seen = v && seenFoe(f); if (f.seen) f.everSeen = true; if (f.seen && !was) say(`${f.name} 탐지 — ${alive(f).map((s) => s.n).join(", ")}`, "bad"); }
+  for (const f of S.foe) { const v = alive(f).length > 0 && !(f.delay && S.t < f.delay); const was = f.seen; /* not yet sailed: cannot be seen */ f.seen = v && seenFoe(f); if (f.seen) f.everSeen = true; if (f.seen && !was) say(`${f.name} 탐지 — ${alive(f).map((s) => s.n).join(", ")}`, "bad"); }
   if (!S.decoy.gone && S.us.some((u) => d2(u, S.decoy) < detR(u) * 0.8)) { S.decoy.gone = true; say("미확인 접촉 확인 결과 — 기만체(허위 표적)로 판명.", "hit"); }
   for (const g of S.us) { if (!alive(g).length) continue; usMove(g, dt); }
   for (const f of S.foe) { if (!alive(f).length || (f.delay && S.t < f.delay)) continue; foeMove(f, dt); }
@@ -383,7 +449,7 @@ function resolveEvent(k) {
 function judge() {
   if (S.phase !== "run") return;
   for (const f of S.foe) { if (!alive(f).length || f.gone) continue; const inG = d2(f, GOAL) < GOAL.r; S.inside[f.id] = inG ? (S.inside[f.id] || 0) + 1 : 0; if (S.inside[f.id] > 4) return finish(false, `${f.name} ${GOAL.n} 돌파 — 차단 실패`); }
-  if (!S.us.some((g) => alive(g).length)) return finish(false, "아군 전단 전멸");
+  if (!S.isAir && !S.us.some((g) => alive(g).length)) return finish(false, "아군 전단 전멸"); /* 항공 작전: 함정이 전멸해도 항공으로 막으면 계속 */
   if (S.foe.every((f) => !alive(f).length || f.gone)) return finish(true, "적 전단 격멸·퇴각 — 해상 차단 성공");
   if (S.t >= LIMIT) return finish(true, "작전 시간 종료 — 연평 해역 방어 성공");
 }
@@ -548,7 +614,7 @@ function threats() {
     if (!f.seen && S.phase !== "plan" && !f.everSeen) { unseen++; continue; }
     if (!f.seen && S.phase !== "plan") { L.push({ cd: null, t: `${f.name} — 위치 놓침`, sub: S.isAir ? "초계기·헬기를 근처 구역에 배정해 다시 찾으십시오" : "정찰 전단이나 P-3C로 다시 찾으십시오", cls: "y" }); continue; }
     const ns = nextSec(f), q = ns && ns.q, item = { cd: etaGoal(f), t: `${f.name} → ${GOAL.n}`, sub: `${alive(f).map((s) => s.n).join("·")}${q ? ` · 다음 ${q.n}` : ""}`, cls: "" };
-    if (S.isAir) { const u = free()[0], fq = secOf(f) || q; if (u && fq) item.act = [`대응: ${short(u.name)} → ${fq.n} 타격`, () => assignSector(u.id, fq)]; }
+    if (S.isAir) { const rd = S.air.filter((u) => u.t === "fighter" && u.st === "ready" && u.asm > 0 && !u.sec); if (rd.length && f.seen) item.act = [`대응: ${rd.slice(0, 2).map((u) => short(u.name)).join("+")} 타격`, () => strikeMission(f, rd.slice(0, 2).map((u) => u.id), rd[2]?.id)]; }
     else { const g = S.us.filter((u) => alive(u).length).sort((a, b) => d2(a, f) - d2(b, f))[0]; if (g && (g.mission !== "strike" || !g.path.length)) item.act = [`대응: ${g.name} 요격 기동`, () => { const p = f.path[0] || f; g.path = [{ x: (p.x + f.x) / 2, y: (p.y + f.y) / 2 + 6 }]; g.mission = "strike"; S.sel = g; say(`${g.name} — ${f.name} 요격 기동`); }]; }
     L.push(item);
   }
@@ -591,7 +657,7 @@ function phaseNow() {
 /** the single next thing to do, with a button when it can be done in one click */
 function todoNow() {
   const gs = S.us.filter((u) => alive(u).length);
-  if (S.isAir) { const [t, fn] = airAdvice(); return [S.phase === "plan" && S.air.some((u) => u.sec) ? "편대 배정이 끝났으면 작전을 개시하십시오." : t.replace(/^[^:]+: /, "").replace(/"/g, ""), S.phase === "plan" && S.air.some((u) => u.sec) && !fn ? () => onClickAct("go") : fn, S.phase === "plan" && S.air.some((u) => u.sec) && !fn ? "작전 개시" : "추천대로 실행"]; }
+  if (S.isAir) return airTodo();
   if (S.phase === "plan") {
     if (!gs.some((g) => g.path.length)) return ["제1전단을 연평 구역으로 전개하십시오 — 카드를 지도의 '연평' 구역으로 끌어다 놓거나 버튼을 누르세요.", () => assignSector(S.us[0].id, secById("s2")), "연평으로 전개"];
     if (!S.sup.some((x) => x.k === "p3c") && !gs.some((g) => g.mission === "scout")) return ["적 위치가 대부분 미상입니다. 정찰 수단을 두십시오 (P-3C 1P 또는 한 전단을 '정찰').", S.pts >= SUP.p3c.c ? () => { S.pts -= SUP.p3c.c; S.sup.push({ k: "p3c", x: 45, y: 44, used: false }); say("P-3C 초계 배치 완료 (백령·대청 남쪽)."); } : null, "P-3C 배치"];
@@ -606,6 +672,23 @@ function todoNow() {
   if (near && !gs.some((g) => secOf(g) === secById("s2") || g.sec === "s2")) { const g = gs.sort((a, b) => d2(a, GOAL) - d2(b, GOAL))[0]; if (g) return [`${near.name}이 ${GOAL.n}으로 접근 중인데 연평 구역이 비었습니다.`, () => assignSector(g.id, secById("s2")), `${g.name} 연평 투입`]; }
   if (!S.foe.some((f) => f.seen && alive(f).length && !f.gone) && gs.every((g) => g.radar === false)) return ["모든 전단이 전파 차단 중이라 적을 찾지 못합니다. 한 전단의 레이더를 켜거나 P-3C로 수색하십시오.", () => { gs[0].radar = true; say(`${gs[0].name} 레이더 켜기`); }, "레이더 켜기"];
   const [t, fn] = staffAdvice(); return [t.replace(/^[^:]+: /, "").replace(/"/g, ""), fn, "추천대로 실행"];
+}
+function airTodo() {
+  const by = (t) => S.air.filter((u) => u.t === t && u.st !== "lost"), rdy = by("fighter").filter((u) => u.st === "ready" && u.asm > 0 && !u.sec);
+  if (S.phase === "plan") return S.air.some(hasOrder) ? ["배치가 끝났습니다. 작전을 개시하면 편대가 출격합니다. 적이 보이면 적을 클릭해 타격을 보내십시오.", () => onClickAct("go"), "작전 개시"] : ["먼저 정찰과 방공을 배치하십시오 — '추천 계획'을 누르거나, 지도 구역을 클릭해 편대를 보내세요.", recommendAir, "추천 계획 적용"];
+  if (S.phase === "end") return ["작전 종료 — 결과를 확인하십시오.", null, ""];
+  const raid = S.raids.find((r) => r.alive);
+  if (raid) { const prey = S.air.filter((u) => airborne(u) && u.t !== "fighter").sort((a, b) => d2(a, raid) - d2(b, raid))[0]; const cap = by("fighter").some((u) => u.job === "cap" && airborne(u));
+    if (prey && !cap) return [`적 전투기가 ${short(prey.name)}를 노립니다. 방공(CAP)이 없습니다 — 귀환시키십시오.`, () => { prey.st = "rtb"; say(`${prey.name} 위협 회피 — 귀환`); }, `${short(prey.name)} 귀환`]; }
+  const tg = S.foe.filter((f) => f.seen && alive(f).length && !f.gone && !f.retreat && !(f.delay && S.t < f.delay)).filter((f) => !S.air.some((u) => u.job === "strike" && u.tgt === f && u.st !== "lost")).sort((a, b) => etaGoal(a) - etaGoal(b))[0];
+  if (tg && rdy.length) return [`${tg.name} 발견 (${alive(tg).map((x) => x.n).join("·")}) — 대기 전투기로 타격하십시오. 적을 직접 클릭하면 편대·호위를 고를 수 있습니다.`, () => strikeMission(tg, rdy.slice(0, 2).map((u) => u.id), rdy[2]?.id), `${rdy.slice(0, 2).map((u) => short(u.name)).join("+")} 타격`];
+  if (!by("fighter").some((u) => u.job === "cap")) { const u = rdy[0] || by("fighter").find((v) => v.st === "ready"); if (u) return ["방공(CAP)이 없어 적 전투기가 초계기·급유기를 노립니다.", () => assignSector(u.id, secById("s2")), `${short(u.name)} 연평 CAP`]; }
+  if (!by("mpa").some((u) => u.sec) && by("mpa")[0]) return ["정찰이 없어 적을 못 찾습니다.", () => assignSector(by("mpa")[0].id, secById("s1")), "초계기 백령·대청 정찰"];
+  if (!S.foe.some((f) => f.seen && alive(f).length && !f.gone)) return [S.foe.some((f) => f.delay && S.t < f.delay) && S.foe.every((f) => !alive(f).length || f.gone || (f.delay && S.t < f.delay)) ? "보이는 적을 모두 막았습니다. 정보처가 추가 출항을 예상합니다 — 정찰·CAP을 유지하고 대기하십시오." : "적을 찾는 중 — 초계기·헬기 정찰 범위(초록 원) 안에 적이 들어오면 표시됩니다.", null, ""];
+  const fly = S.air.find((u) => u.job === "strike" && u.tgt && airborne(u) && u.st !== "rtb");
+  if (fly) return [`${short(fly.name)}가 ${fly.tgt.name}으로 타격 비행 중 — ${fmtT(Math.max(0, (d2(fly, fly.tgt) - 15) / AIR_T[fly.t].sp))} 후 미사일 발사. 결과는 교전 보고로 뜹니다.`, null, ""];
+  const re = S.air.filter((u) => u.t === "fighter" && u.st === "rearm").sort((a, b) => a.cd - b.cd)[0];
+  return [re ? `전투기 재무장 중 — ${short(re.name)} ${fmtT(re.cd)} 후 다시 출격 가능. 그때 적을 클릭해 보내십시오.` : "대기 중인 전투기가 없습니다. 임무를 마친 편대가 돌아오면 다시 보내십시오.", null, ""];
 }
 function onClickAct(a) { const b = document.createElement("button"); b.dataset.om = a; $("#opMap")?.appendChild(b); b.click(); b.remove(); }
 function topBars() {
@@ -640,16 +723,17 @@ function timeline() {
 }
 function panel() {
   const clock = $("#omClock"); if (clock) clock.textContent = `${S.phase === "plan" ? "계획 단계" : S.phase === "run" ? (S.paused ? "일시정지" : `진행 x${S.speed}`) : "종료"} · 작전 시간 ${fmtT(S.t)} / 30:00`;
-  const sig = JSON.stringify([S.isAir && S.air.map((a) => [a.st, a.job, a.sec, !!a.tgt, Math.round(a.fuel / 60), a.asm, Math.ceil(a.cd / 10)]), S.phase, S.sel?.id, S.repShow?.done, Math.floor(S.t / 5), S.us.map((g) => [g.roe, g.radar, g.spd, g.salvoN, Math.round(g.fuel / 5), alive(g).reduce((a, x) => a + x.asm + x.sam, 0), g.mission, g.sec, g.path.length, Math.round(strength(g) * 20), alive(g).length]), S.foe.map((f) => [f.seen, alive(f).length, f.gone]), S.raids.map((r) => r.alive), S.pts, S.sup.length, S.log.length && S.log[0].t, S.evt?.id, S.place, Math.floor(S.t / 10)]);
+  const sig = JSON.stringify([S.pop && [S.pop.k, S.pop.pick, S.pop.esc, S.pop.x],S.isAir && S.air.map((a) => [a.st, a.job, a.sec, !!a.tgt, Math.round(a.fuel / 60), a.asm, Math.ceil(a.cd / 10)]), S.phase, S.sel?.id, S.repShow?.done, Math.floor(S.t / 5), S.us.map((g) => [g.roe, g.radar, g.spd, g.salvoN, Math.round(g.fuel / 5), alive(g).reduce((a, x) => a + x.asm + x.sam, 0), g.mission, g.sec, g.path.length, Math.round(strength(g) * 20), alive(g).length]), S.foe.map((f) => [f.seen, alive(f).length, f.gone]), S.raids.map((r) => r.alive), S.pts, S.sup.length, S.log.length && S.log[0].t, S.evt?.id, S.place, Math.floor(S.t / 10)]);
   if (sig === S.psig && !S.dirty) return; S.psig = sig; S.dirty = false;
-  rightPanel(); timeline(); briefCards(); topBars();
+  rightPanel(); timeline(); briefCards(); topBars(); { const pp = $("#omPop"); if (pp) pp.innerHTML = popHTML(); }
   const side = $("#omSide"); if (!side) return; const g = S.sel, out = S.foe.filter((f) => !alive(f).length || f.gone).length;
   const obj = `<div class="om-obj"><b>목표</b> ${S.isAir ? "항공 지원으로 " : ""}적 전단의 <em>연평 해역(노란 원)</em> 진입 저지<small>적 격퇴 ${out}/${S.foe.length} · 남은 시간 ${fmtT(Math.max(0, LIMIT - S.t))} · <a data-om="rebrief">브리핑</a></small></div>`;
   if (S.isAir) {
-    const ST = { ready: "대기", out: "이동", station: "임무 중", rtb: "귀환", rearm: "재무장", lost: "손실" };
-    side.innerHTML = obj + `<div class="om-h">항공 편대 — 카드를 지도 구역으로 끌기</div>${S.air.map((a) => { const q = secById(a.sec); return `<div class="om-card${a === g ? " on" : ""}${a.st === "lost" ? " dead" : ""}${a.st === "rearm" || a.st === "rtb" ? " wait" : ""}" draggable="${a.st !== "lost"}" data-drag="${a.id}" data-om="asel:${a.id}"><span class="ic">${AIR_IC[a.t]}</span><span class="tx"><b>${short(a.name)}</b><small>${a.name.match(/\((.*)\)/)?.[1] || a.n} · ${q ? `${q.n} · ${JOB[a.job]?.[0] || ""}` : a.st === "lost" ? "손실" : "구역 미배정"}</small></span><span class="tag">${a.st === "rearm" ? fmtT(a.cd) : ST[a.st]}</span></div>`; }).join("")}`
-      + (g && g.t ? `<div class="om-det"><div class="om-amm"><span>연료</span><i><em style="width:${Math.round((g.fuel / AIR_T[g.t].fuel) * 100)}%;background:#ffe066"></em></i><b>${Math.round((g.fuel / AIR_T[g.t].fuel) * 100)}%</b>${AIR_T[g.t].asm ? `<span>공대함</span><i><em style="width:${Math.round((g.asm / AIR_T[g.t].asm) * 100)}%;background:#ffb35c"></em></i><b>${g.asm}/${AIR_T[g.t].asm}</b>` : ""}<span>체공 가능</span><i></i><b>${fmtT(Math.max(0, g.fuel))}</b></div></div><div class="om-row" style="margin-top:6px">${airborne(g) ? `<button data-om="rtb">${short(g.name)} 귀환</button>` : ""}${g.sec ? `<button data-om="unsec">배정 해제</button>` : ""}</div>` : "")
-      + `<div class="om-note" style="margin-top:8px">구역에 놓으면 임무가 자동으로 정해집니다 — 전투기: 적이 있으면 <b style="color:#ffb35c">대함 타격</b>, 없으면 <b style="color:#4de8d4">CAP</b> · 초계기·헬기: <b style="color:#9be06a">정찰</b> · 급유기: <b style="color:#ffe066">급유 궤도</b> · 수송기: 연평 구역에만</div>`
+    const grp = [["전투기 — 방공(CAP)·타격", (u) => u.t === "fighter"], ["정찰", (u) => u.t === "mpa" || u.t === "helo"], ["지원", (u) => u.t === "tanker" || u.t === "transport"]];
+    side.innerHTML = obj + (S.phase === "plan" ? `<button class="om-rec" data-om="airrec">⚡ 추천 계획 적용 <small>초계기 정찰 · 전투기 1개 CAP · 급유·공수 — 나머지 전투기는 타격 대기</small></button>` : "")
+      + grp.map(([h, fn]) => { const L = S.air.filter(fn); return L.length ? `<div class="om-h">${h}</div>${L.map((a) => `<div class="om-card${a === g ? " on" : ""}${a.st === "lost" ? " dead" : ""}${a.st === "rearm" || a.st === "rtb" ? " wait" : ""}${a.st === "ready" && !hasOrder(a) ? " idle" : ""}" draggable="${a.st !== "lost"}" data-drag="${a.id}" data-om="asel:${a.id}"><span class="ic">${AIR_IC[a.t]}</span><span class="tx"><b>${short(a.name)}</b><small>${airStatus(a)}</small></span><span class="tag">${AIR_T[a.t].asm ? `🚀${a.asm}` : ""} ⛽${Math.round((a.fuel / AIR_T[a.t].fuel) * 100)}%</span></div>`).join("")}` : ""; }).join("")
+      + (g && g.t && g.st !== "lost" ? `<div class="om-row" style="margin-top:6px">${airborne(g) ? `<button data-om="rtb">${short(g.name)} 귀환</button>` : ""}${g.sec || g.job === "strike" ? `<button data-om="unsec">임무 취소</button>` : ""}</div>` : "")
+      + `<div class="om-help"><b>조작은 두 가지뿐</b><span>🗺 <b>구역 클릭</b> → 그 구역에 정찰·방공(CAP)·급유 보내기</span><span>▲ <b>적 전단 클릭</b> → 타격 편대 고르고 출격 (예상 명중·위험 표시)</span><span>편대는 연료가 떨어지면 스스로 귀환·재무장하고, 구역 임무는 다시 나갑니다.</span></div>`
       + `<div class="om-h">함정 전단 (자동 방어)</div>${S.us.map((x) => `<div class="om-note">${x.name} — 전력 ${Math.round(strength(x) * 100)}%</div>`).join("")}`
       + (S.phase === "plan" ? `<button class="om-go" data-om="go">작전 개시 ›</button>` : "");
     return;
@@ -665,6 +749,6 @@ function briefCards() {
   const bf = $("#omBrief"); if (!bf) return;
   if (!S.brief) { bf.innerHTML = ""; return; }
   bf.innerHTML = S.isAir
-    ? `<div class="om-brief"><div class="om-bh">항공 작전 브리핑 · 서해 항공 지원</div><p><b>상황</b> 적 수상전단 ${S.foe.length}개가 연평 해역으로 남하합니다. 아군 초계전단은 연평 구역을 자동으로 지킵니다. 귀관은 <b>항공 전력</b>을 지휘합니다.</p><p><b>목표</b> 30분 동안 적이 연평 해역(노란 원)에 들어오지 못하게 막으십시오. 적 전투기 편대가 두 차례 내려옵니다.</p><p><b>조작</b> 왼쪽 편대 카드를 지도의 <b>구역</b>에 끌어다 놓으면 끝입니다. 임무는 구역 상황에 맞게 자동으로 정해지고, 연료가 떨어지면 귀환해 재무장 후 같은 구역으로 다시 나갑니다.</p><p><b>읽는 법</b> 오른쪽 <b>다가오는 위협</b> 카드에 시간순으로 위협이 쌓이고, 버튼 한 번으로 대응할 수 있습니다. 아래 <b>시간표</b>로 언제 하늘이 비는지 확인하십시오. 원·경로선은 선택한 편대만 보이고, 위쪽 '지도 표시'로 켤 수 있습니다.</p><button data-om="brief">계획 시작 ›</button></div>`
+    ? `<div class="om-brief"><div class="om-bh">항공 작전 브리핑 · 서해 항공 지원</div><p><b>상황</b> 적 수상전단 ${S.foe.length}개가 연평 해역으로 남하합니다. 아군 초계전단은 연평 구역을 자동으로 지킵니다. 귀관은 <b>항공 전력</b>을 지휘합니다.</p><p><b>목표</b> 30분 동안 적이 연평 해역(노란 원)에 들어오지 못하게 막으십시오. 적 전투기 편대가 두 차례 내려옵니다.</p><p><b>할 일은 세 가지</b> ① <b>찾기</b> — 초계기를 구역에 보내 적을 찾는다 ② <b>막기</b> — 전투기 하나를 연평 상공 방공(CAP)에 둬 적 전투기를 막는다 ③ <b>치기</b> — 적 전단이 보이면 <b>적을 클릭</b>해 대기 전투기로 타격한다.</p><p><b>조작</b> 지도 <b>구역을 클릭</b>하면 그 구역에 보낼 편대를, <b>적을 클릭</b>하면 타격 편대와 예상 결과(명중·격추 위험)를 보여줍니다. 처음이라면 왼쪽 위 <b>추천 계획</b>을 누르세요. 위 노란 줄의 '지금 할 일'을 따라가면 됩니다.</p><p><b>읽는 법</b> 오른쪽 <b>다가오는 위협</b> 카드에 시간순으로 위협이 쌓이고, 버튼 한 번으로 대응할 수 있습니다. 아래 <b>시간표</b>로 언제 하늘이 비는지 확인하십시오. 원·경로선은 선택한 편대만 보이고, 위쪽 '지도 표시'로 켤 수 있습니다.</p><button data-om="brief">계획 시작 ›</button></div>`
     : `<div class="om-brief"><div class="om-bh">작전 브리핑 · 서해 해상 차단</div><p><b>상황</b> 적 수상전단 ${S.foe.length}개가 북쪽 경계선을 넘어 <b>연평 해역</b>으로 남하하고 있습니다. 일부는 아직 위치가 확인되지 않았습니다.</p><p><b>목표</b> 30분 동안 적이 연평 해역(노란 원)에 들어오지 못하게 막으십시오. 적 전단을 격멸하거나 퇴각시키면 바로 성공입니다.</p><p><b>조작</b> 왼쪽 전단 카드를 지도의 <b>구역</b>으로 끌어다 놓으면 그 구역으로 기동합니다. 세밀한 경로가 필요하면 우클릭으로 경로점을 찍으십시오.</p><p><b>읽는 법</b> 빨간 화살표 = 적의 <b>다음 행동</b>만 표시합니다. 오른쪽 <b>다가오는 위협</b> 카드의 버튼으로 바로 대응할 수 있고, 참모의 '추천대로 실행'도 있습니다.</p><button data-om="brief">계획 시작 ›</button></div>`;
 }
