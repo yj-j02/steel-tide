@@ -65,28 +65,56 @@ export const BRANCHES = {
 };
 export const careerTitle = (grade, br = staff.branch) => (BRANCHES[br] || BRANCHES.sea).t[Math.max(0, Math.min(10, grade))];
 export function setBranch(k) { if (BRANCHES[k]) { staff.branch = k; saveStaff(); } }
-/** Which posts you may fill grows with rank; who you may bring in is capped at four grades above you. */
-export const ROLE_UNLOCK = { ops: 0, int: 2, log: 3, air: 4, cos: 5 };
-export const canFill = (role, grade) => grade >= ROLE_UNLOCK[role];
+/** Your own staff follows the size of what you command, and is always junior to you:
+ *  위관 — a ship's department (부사관), 영관 — a ship / squadron staff (위관), 준장·소장 — a task group staff (영관),
+ *  중장 and up — the fleet headquarters (처장 대령, 참모장 소장: the historical figures above). */
+export const ECH = [
+  { u: "함정 부서", g: [0, 2], rk: "부사관", t: { cos: "부서 선임부사관", ops: "전탐 부사관", int: "통신 부사관", log: "보급 부사관", air: "항공정비 부사관" } },
+  { u: "함정·전대 참모부", g: [3, 5], rk: "위관", t: { cos: "부장", ops: "작전관", int: "정보관", log: "보급관", air: "항공관" } },
+  { u: "전투단·기동부대 참모부", g: [6, 7], rk: "영관", t: { cos: "참모장", ops: "작전참모", int: "정보참모", log: "군수참모", air: "항공참모" } },
+  { u: "함대사령부", g: [8, 10], rk: "장성·영관", t: { cos: "참모장", ops: "작전처장", int: "정보처장", log: "군수처장", air: "항공처장" } },
+];
+export const echOf = (grade) => (grade <= 2 ? 0 : grade <= 5 ? 1 : grade <= 7 ? 2 : 3);
+export const roleTitle = (k, grade) => ECH[echOf(grade)].t[k];
+/* fictional junior candidates for the three smaller echelons (names are made up) */
+const NCO = ["하사", "중사", "상사", "원사"], SUR = "김이박최정강조윤장임한오서신권황안송류홍", GIV = ["태호", "정민", "도현", "승원", "우석", "민혁", "현수", "재석", "기훈", "성택", "동욱", "세훈", "지원", "우진", "혁준", "민규", "성우", "재현", "현철", "상민"];
+const GEN = [];
+{ let n = 0; const tr = ["vet", "calm", "bold", "fast", "green"];
+  for (let e = 0; e < 3; e++) for (const R of ["cos", "ops", "int", "log", "air"]) for (let i = 0; i < 4; i++) {
+    const h = (e * 131 + R.charCodeAt(0) * 17 + R.charCodeAt(1) * 7 + i * 29) >>> 0, sk = 3 + ((h >> 2) % 6), nm = SUR[n % 20] + GIV[(3 * n + Math.floor(n / 20)) % 20]; /* unique per candidate */
+    const ri = e === 0 ? -1 : e === 1 ? 1 + (i % 2) : (R === "cos" ? 5 : 3 + (i % 3));
+    GEN.push({ id: `g${e}${R}${i}`, r: R, e, nm, nat: "kr", ri, rk: e === 0 ? NCO[1 + (i % 3)] : RANKS[ri], sk, tr: tr[(h >> 4) % 5], f: [3 + (i % 2), i % 2 ? 0 : 1, 1 + (e > 0 ? 1 : 0) + (i === 3 ? 1 : 0) > 3 ? 3 : 1 + (e > 0 ? 1 : 0), e === 2 && i === 0 ? "trim" : null, i === 2, 0.96 + (i % 3) * 0.05] }); n++;
+  } }
+export const canFill = () => true;
 export const POST_RANK = { cos: 7, ops: 5, int: 5, log: 5, air: 5 };
-export const canAppoint = (o, grade, admin) => admin || canFill(o.r, grade);
+/** Candidates for your own staff at this grade: always junior to you. */
+export const candidates = (role, grade) => { const e = echOf(grade); return e === 3 ? STAFF.filter((o) => o.r === role && o.ri < grade) : GEN.filter((o) => o.r === role && o.e === e && o.ri < grade); };
+export const canAppoint = (o, grade) => candidates(o.r, grade).includes(o); /* admin too: the rank rule is never waived */
 /** You yourself hold a department head post when your branch and rank match it. */
-export const holds = (k, grade, branch = staff.branch) => k !== "cos" && branch === k && grade === POST_RANK[k];
+export const holds = () => false; /* your own staff is always a smaller unit's juniors, so you never fill one of its seats yourself */
 
 const KEY = "steeltide:staff";
 export const staff = (() => {
   let s = null; try { s = JSON.parse(localStorage.getItem(KEY) || "null"); } catch {}
   if (!s || !s.a) s = { a: {}, x: {} };
-  for (const R of STAFF_ROLES) if (!s.a[R.k]) s.a[R.k] = STAFF.filter((o) => o.r === R.k).sort((x, y) => x.sk - y.sk)[0].id; /* start with the least able candidate */
+  s.byE ||= {};
   return s;
 })();
 export const saveStaff = () => { try { localStorage.setItem(KEY, JSON.stringify(staff)); } catch {} };
-export const officer = (id) => STAFF.find((o) => o.id === id);
+export const officer = (id) => STAFF.find((o) => o.id === id) || GEN.find((o) => o.id === id);
+/** Switch the appointment set to the echelon of this grade (each echelon keeps its own staff); empty posts get the least able candidate. */
+export function staffFor(grade) {
+  const e = echOf(grade);
+  if (staff.e !== e) { if (staff.e != null) staff.byE[staff.e] = { ...staff.a }; staff.a = { ...(staff.byE[e] || {}) }; staff.e = e; }
+  let ch = false; for (const R of STAFF_ROLES) { const ok = candidates(R.k, grade); if (!ok.length) continue; if (!ok.some((o) => o.id === staff.a[R.k])) { staff.a[R.k] = ok.slice().sort((x, y) => x.sk - y.sk)[0].id; ch = true; } }
+  if (ch || staff.byE[e] !== staff.a) saveStaff(); return staff.a;
+}
 export const skillOf = (o) => Math.min(10, o.sk + Math.floor((staff.x[o.id] || 0) / 3)); /* +1 per three battles served */
 export function appoint(role, id) { if (officer(id)?.r === role) { staff.a[role] = id; saveStaff(); } }
 
 /** What the current staff does to a modern battle. */
 export function staffMods(grade = 0, branch = staff.branch) {
+  staffFor(grade);
   const at = (k) => { if (holds(k, grade, branch)) return { o: null, s: 7, t: null }; const o = officer(staff.a[k]); return o ? { o, s: skillOf(o), t: o.tr } : null; };
   const cos = at("cos"), amp = 1 + ((cos?.s ?? 3) - 5) * 0.05 * (cos?.t === "vet" ? 1.25 : 1);
   const eff = (x) => { if (!x) return -2; const k = x.t === "vet" ? 1.25 : x.t === "green" ? 0.8 : 1; return (x.s - 5) * k * (x === cos ? 1 : amp); };

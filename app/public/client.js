@@ -15,7 +15,7 @@ import { MODERN, TRANSPORT, Ship, solve, leadPoint, brain, escort, mkBrain, upda
 import { air, dirFrom, clearAir, updateAir } from "./js/air.js";
 import { aaGun, updateAAGun, jetPit, updateJetPit } from "./js/interior.js";
 import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, updateMG } from "./js/infantry.js";
-import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, ROLE_UNLOCK, FLEET_CDR, BRANCHES, careerTitle, setBranch, POST_RANK, holds, saveStaff } from "./js/staff.js";
+import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, candidates, roleTitle, ECH, echOf, staffFor, FLEET_CDR, BRANCHES, careerTitle, setBranch, POST_RANK, holds, saveStaff } from "./js/staff.js";
 import { PERKS, career, saveCareer, careerInit, rollPerks, takePerk, logPromotion, perkMods, payStep, MEDALS, awardMedals } from "./js/career.js";
 import { openOpMap, opMapAdvance } from "./js/opmap.js";
 import { FOCUS, PASS, minBattles, scoreBattle, recordEval, evalOf, board, runBoard, setCap, deferNote } from "./js/service.js";
@@ -72,7 +72,7 @@ const escortsFor = (r) => Math.min(4, 1 + Math.floor(r / 2));
 const fightersFor = () => 9;
 /** WWII US Navy billet typical for each rank (game simplification; see report). */
 const POSTS = ["함정 갑판사관", "함정 작전관", "구축함 부장", "구축함 함장", "구축대 사령 (DesDiv)", "구축전대 사령 · 코모도어 (DesRon)", "기동소함대 사령관 (Task Flotilla)", "기동전단 사령관 (Task Group)", "기동부대 사령관 (Task Force)", "함대 사령장관 (Fleet)", "태평양 함대 총사령관 (CINCPAC)"];
-const postOf = (r) => staff.branch ? careerTitle(clamp(r, 0, 10)) : POSTS[clamp(r, 0, POSTS.length - 1)]; /* career follows the branch picked as 소위 */
+const postOf = (r) => career.minister && r === myGrade() ? "국방부장관" : staff.branch ? careerTitle(clamp(r, 0, 10)) : POSTS[clamp(r, 0, POSTS.length - 1)]; /* career follows the branch picked as 소위 */
 function rankLine() {
   const r = myGrade(), next = ECON_RANK_XP[r + 1];
   return { r, name: ECON_RANKS[r], next: next ? ECON_RANKS[r + 1] : null, need: next, pct: next ? clamp((profile.xp - ECON_RANK_XP[r]) / (next - ECON_RANK_XP[r]), 0, 1) : 1 };
@@ -350,7 +350,7 @@ function newBattle() {
   if (G.waves) log(`${G.modern ? "미사일전" : "함대 결전"} — 적 함대 ${G.waves.max}개가 차례로 막아선다. 목적지(${fmt(Math.hypot(G.goal.x, G.goal.z))} m)로 항진 — 함대를 모두 격파하면 그 자리에서 임무 완료`, "hit");
   log(`${first ? `${first.spec.name} 외 ${G.enemies.length - 1}척 접근 중. 전투 배치!` : `작전: ${MISSIONS[G.mop]?.n || ""} — ${MISSIONS[G.mop]?.d || ""}`}`);
   G.radio("battle");
-  if (G.staffK) { const k = G.staffK, o = officer(staff.a.ops), c = officer(staff.a.cos); log(`참모진 — 참모장 ${c.rk} ${c.nm} · 작전과장 ${o.rk} ${o.nm} | 화력 ${pctTxt(k.outK)} · 받는 피해 ${pctTxt(k.inK)} · 요격 ${pctTxt(k.icptK)}`); }
+  if (G.staffK) { const k = G.staffK, o = officer(staff.a.ops), c = officer(staff.a.cos), rg = hqGrade(); log(`참모진 — ${roleTitle("cos", rg)} ${c.rk} ${c.nm} · ${roleTitle("ops", rg)} ${o.rk} ${o.nm} | 화력 ${pctTxt(k.outK)} · 받는 피해 ${pctTxt(k.inK)} · 요격 ${pctTxt(k.icptK)}`); }
   if (modern) { const F = CMDR_FACES[cmdr.face] || CMDR_FACES[0]; cicStart({ md, face: face(myFace(), 110), faceSkin: F.skin?.[0], cmdrName: `${ECON_RANKS[myGrade()]} ${cmdr.name}`, nat: natUs, theater: mapId, toast, log, radio: G.radio, know, watchJet, watchMsl, isWatching: (j) => md.fly === j }); } else cicStop();
 }
 G.toast = (m, t) => toast(m, t);
@@ -540,7 +540,7 @@ let screen = "menu";
 function refreshMenus() {
   const rl = rankLine(), u = perkMods().upg;
   $("#tbMoney").textContent = profile.admin ? "∞ CR (관리자)" : `${fmt(profile.money)} CR`;
-  $("#tbRank").textContent = `${rl.name} ${payStep(profile.xp, rl.r, ECON_RANK_XP).step}호봉 · ${postOf(rl.r)}`; $("#tbIns").innerHTML = insignia(rl.r, 24);
+  $("#tbRank").textContent = career.minister ? `국방부장관 · 예비역 ${rl.name}` : `${rl.name} ${payStep(profile.xp, rl.r, ECON_RANK_XP).step}호봉 · ${postOf(rl.r)}`; $("#tbIns").innerHTML = insignia(rl.r, 24);
   $("#rankBar").style.width = rl.pct * 100 + "%";
   { const sp = MODERN[flagshipId()], v = sp.vls || {}, cells = Object.values(v).reduce((n, x) => n + (x?.[1] || 0), 0), wp = Object.values(v).map((x) => x?.[0]).filter(Boolean).join(" · ");
     $("#shipLine").innerHTML = `<div class="fh">${FLAGSVG.kr(30)}<span>FLAGSHIP · ${sp.cls}</span></div><div class="nm">${sp.name.replace(/\s*\(.*\)/, "")}</div><div class="cap">함장 ${ECON_RANKS[myGrade()]} ${cmdr.name}</div>`
@@ -607,8 +607,8 @@ function waveMastFlag() {
 }
 function buildPromo(before, after, unl = "", preview = false) {
   pmPreview = preview; pmTook = 0; pmPage = 1;
-  const newRole = STAFF_ROLES.filter((r) => ROLE_UNLOCK[r.k] > before && ROLE_UNLOCK[r.k] <= after).map((r) => (r.k === "cos" ? "참모장" : `${HQ_DEPT[r.k]} 처장`)), yr = new Date().getFullYear(), no = String(((profile.xp * 7) % 97) + 1).padStart(2, "0");
-  const opens = [newRole.length ? `사령부 ${newRole.join(" · ")} 임명` : "", `${ECON_RANKS[Math.min(10, after + 4)]}급 참모 영입`, unl ? `함선 ${unl}` : ""].filter(Boolean).join(" · ");
+  const newRole = echOf(after) !== echOf(before) ? [`${ECH[echOf(after)].u} 지휘 — ${ECH[echOf(after)].rk}급 참모진 편성 (${Object.values(ECH[echOf(after)].t).slice(0, 3).join(" · ")} 등)`] : [], yr = new Date().getFullYear(), no = String(((profile.xp * 7) % 97) + 1).padStart(2, "0");
+  const opens = [newRole.join(""), unl ? `함선 ${unl}` : ""].filter(Boolean).join(" · ");
   const handover = after >= 8 && before < 8 ? `<div class="po-cc">중장 ${FLEET_CDR.nm} 제독이 귀관에게 함대 지휘권을 이양합니다. 이제부터 귀관이 함대사령관으로서 사령부 전 참모진과 기동함대를 직접 지휘합니다.</div>` : "";
   const josa = (w) => { const j = (w.charCodeAt(w.length - 1) - 0xac00) % 28; return j === 0 || j === 8 ? "로" : "으로"; };
 $("#promoM").innerHTML = `<div class="pm-doc"><div class="pm-pg on" data-pg="1"><div class="pm-h">대한민국 해군본부</div><div class="pm-no">인사명령 제${yr}-${no}호</div>${after >= 6 ? flagHTML(after, before) : `<div class="pm-ins">${insignia(after, 120)}</div>`}<div class="pm-rank">${ECON_RANKS[after]} 진급</div><div class="pm-name">${cmdr.name}</div><div class="pm-txt">위 사람을 ${ECON_RANKS[before]}에서 ${ECON_RANKS[after]}${josa(ECON_RANKS[after])} 진급시키고<br><b id="pmPostT">${postOf(after)}</b>에 보함</div><div class="pm-u">${opens}</div>${handover}${after < 3 ? `<div class="pm-radio"><b>무전</b> ${radioAddr(after)}, 진급을 축하드립니다!</div>` : ""}${MINISTER_SIGN}<button class="pm-next" data-pmgo="2">다음 ›</button></div><div class="pm-pg" data-pg="2"><div class="pm-h2">훈장 수여</div><div id="pmMed"></div><button class="pm-next" data-pmgo="3">다음 ›</button></div><div class="pm-pg" data-pg="3"><div class="pm-h2">보직 선택</div><div id="pmPost"></div><button class="pm-next" data-pmgo="4">다음 ›</button></div><div class="pm-pg" data-pg="4"><div class="pm-h2">진급 특기 부여</div><div id="pmPk"></div><button id="promoOk">명 받았습니다</button></div><div class="pm-dots">${[1, 2, 3, 4].map((n) => `<i data-d="${n}"${n === 1 ? ' class="on"' : ""}></i>`).join("")}</div></div>`; if (preview) { pmOpts = rollPerks(after, staff.branch); $("#pmPk").innerHTML = `<div class="pk-h">진급 특기 부여 (택 1) · 미리보기</div><div class="pk-row">${pmOpts.map((k, i) => `<div class="pk${PERKS[k].tier ? " sp" : ""}">${i === 0 ? "<i>병과 추천</i>" : PERKS[k].tier ? `<i>${PERKS[k].c}</i>` : ""}<b>${PERKS[k].n}</b><small>${PERKS[k].c}</small><span>${PERKS[k].d}</span></div>`).join("")}</div>`; pmOpts = null; } else renderPerkPick("#pmPk", after);
@@ -628,7 +628,7 @@ function pmGo(n) {
 let pmPostG = 0, pmPostOpts = [], pmPostSel = null;
 function renderPostPick(g) {
   const el = $("#pmPost"); if (!el || !staff.branch) { if (el) el.innerHTML = ""; return; }
-  if (pmPostG !== g || !pmPostOpts.includes(staff.branch)) { pmPostG = g; const others = Object.keys(BRANCHES).filter((k) => k !== staff.branch).sort(() => Math.random() - 0.5).slice(0, 2); pmPostOpts = [staff.branch, ...others]; pmPostSel = staff.branch; }
+  if (pmPostG !== g || !pmPostOpts.includes(staff.branch)) { pmPostG = g; const seen = new Set([BRANCHES[staff.branch].t[g]]), others = []; for (const k of Object.keys(BRANCHES).filter((k) => k !== staff.branch).sort(() => Math.random() - 0.5)) { const t = BRANCHES[k].t[g]; if (!seen.has(t) && others.length < 2) { seen.add(t); others.push(k); } } pmPostOpts = [staff.branch, ...others]; pmPostSel = staff.branch; } /* every card a different post (e.g. 대장: 해군참모총장 / 합동참모의장) */
   el.innerHTML = `<div class="pk-h">보직 선택 · 다음 근무평정은 선택한 보직 기준</div><div class="pst-row">${pmPostOpts.map((k, i) => `<button class="pst${k === pmPostSel ? " on" : ""}" data-post="${k}"><i>${i === 0 ? "현 병과 계속" : "병과 전환"}</i><b>${BRANCHES[k].t[g]}</b><small>${BRANCHES[k].n} 병과</small><span>평정 중점: ${FOCUS[k].f}</span></button>`).join("")}</div>`;
 }
 let pmOpts = null;
@@ -691,6 +691,18 @@ function opMapDone(r) {
   if (after > before) { if (career.seen == null && staff.branch) careerInit(before, careerTitle(before), BRANCHES[staff.branch].n); career.picks += after - before; logPromotion({ g: after, t: postOf(after), b: BRANCHES[staff.branch]?.n || "", why: r.why }); pmOpts = null; buildPromo(before, after); $("#promoM").style.display = "flex"; fanfare(after, staff.branch); }
   refreshMenus();
 }
+/** 국방부장관: a 대장 (or 원수) with an excellent record can be nominated; on appointment the title becomes 국방부장관. */
+const ministerOk = (g) => { const e = evalOf(g); return profile.admin || (e.n >= 3 && e.avg >= 70); };
+function ministerHTML(rl) {
+  if (rl.r < 9) return ""; if (career.minister) return `<div class="mi-min on"><b>국방부장관 재임 중</b><small>예비역 ${rl.name} · 대통령 임명</small></div>`;
+  const e = evalOf(rl.r), ok = ministerOk(rl.r);
+  return `<div class="mi-min"><b>국방부장관 임명 제청</b><small>대장 이상 · 이 계급 근무 ${e.n}/3회 · 평정 평균 ${e.avg}점 (70점·A 이상 필요)${profile.admin ? " · 관리자" : ""}</small><button data-act="minister"${ok ? "" : " disabled"}>${ok ? "제청 수락 — 전역 후 장관 임명" : "조건 미충족"}</button></div>`;
+}
+function ministerOrder() {
+  career.minister = true; saveCareer(); logPromotion({ g: myGrade(), t: "국방부장관", b: "", why: "국방부장관 임명" });
+  $("#promoM").innerHTML = `<div class="pm-doc"><div class="pm-pg on" data-pg="1"><div class="pm-h">대한민국 정부</div><div class="pm-no">임명장</div><div class="pm-rank">국방부장관</div><div class="pm-name">${cmdr.name}</div><div class="pm-txt">위 사람을 국방부장관에 임명함<br><b>예비역 ${ECON_RANKS[myGrade()]}</b></div><div class="pm-sign"><div class="pm-date">${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월 ${new Date().getDate()}일</div><div class="pm-sg"><span>대통령</span><svg viewBox="0 0 150 54" width="150" height="54"><path d="M10 34 C22 12 34 14 30 32 C26 46 40 38 50 22 C58 12 62 30 70 28 C80 24 84 14 92 22 C100 30 110 26 122 16 M56 44 C84 40 112 40 140 36" stroke="#1d2340" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg><i>大統領印</i></div></div><button id="promoOk">명 받았습니다</button></div></div>`;
+  pmPreview = true; $("#promoM").style.display = "flex"; fanfare(10, staff.branch); refreshMenus();
+}
 /** 내 정보: current posting, this rank's evaluations and the promotion board checklist. */
 function evalHTML(rl) {
   const g = rl.r, br = staff.branch || "sea", e = evalOf(g), b = board(g, xpGrade()), L = (career.evals?.[g] || []).slice(-6);
@@ -707,14 +719,14 @@ function renderRecord() { /* 내 정보: profile card, perks, record, service re
   const perks = Object.entries(career.perks).filter(([, v]) => v > 0).map(([k, v]) => `<li><b>${PERKS[k].n}</b>${PERKS[k].max > 1 ? `<em>${v}단계</em>` : ""}<small>${PERKS[k].d}</small></li>`).join("") || `<li class="none">아직 받은 진급 특기가 없습니다</li>`;
   const tierCls = (g) => (g >= 6 ? "gen" : g >= 3 ? "fld" : "co");
   const log = career.log.slice().reverse().map((e) => `<div class="cr ${tierCls(e.g)}"><span class="d">${e.d}</span><span class="ins">${insignia(e.g, 16)}</span><div><b>${ECON_RANKS[e.g]} ${e.why === "임관" ? "임관" : e.why === "보직 변경" ? "보직 변경" : e.why === "기존 경력 승계" ? "(경력 승계)" : "진급"}</b> · ${e.t}${e.b ? ` <small>(${e.b})</small>` : ""}${e.why && !["임관", "보직 변경", "기존 경력 승계"].includes(e.why) ? `<div class="sub">공적: ${e.why}</div>` : ""}${e.perk ? `<div class="sub pkl">특기: ${e.perk}</div>` : ""}</div></div>`).join("") || `<div class="none">사령부에서 보직을 고르면 약력이 시작됩니다</div>`;
-  const of = (k) => officer(staff.a[k]);
+  staffFor(rl.r); const of = (k) => officer(staff.a[k]);
   let h = `<div class="mi"><div class="mi-l">`
     + `<div class="mi-por-w">${portraitHTML(rl.r)}</div><div class="mi-card"><div><div class="mi-rk">${insignia(rl.r, 22)}<b>${rl.name} ${ps.step}호봉</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${postOf(rl.r)}${staff.branch ? ` · ${BRANCHES[staff.branch].n} 보직` : ""}</div></div></div>`
     + `<div class="mi-bar"><span>다음 호봉</span><div class="hbar"><i style="width:${Math.max(2, stepPct).toFixed(0)}%"></i></div></div><div class="mi-bar"><span>${rl.next ? `${rl.next} 진급` : "최고 계급"}</span><div class="hbar"><i style="width:${(rl.pct * 100).toFixed(0)}%;background:var(--gold)"></i></div><small>${rl.next ? `${fmt(rl.need - profile.xp)} XP 남음` : ""}</small></div>`
-    + evalHTML(rl)
+    + evalHTML(rl) + ministerHTML(rl)
     + `<h3>진급 특기</h3>${career.picks > 0 ? `<div id="miPk"></div>` : ""}<ul class="mi-pk">${perks}</ul>`
     + `<h3>훈장 · 표창</h3><div class="mi-md">${Object.entries(MEDALS).map(([k, M]) => `<div class="md${career.medals?.[k] ? "" : " no"}" title="${M.d}"><i>${M.rb.map((col) => `<b style="background:${col}"></b>`).join("")}</i><span>${M.n}</span><small>${career.medals?.[k] ? career.medals[k] : M.d}</small></div>`).join("")}</div>`
-    + `<h3>사령부 참모</h3><div class="mi-st">${STAFF_ROLES.map((r) => `<span>${r.n}</span><b>${of(r.k).rk} ${of(r.k).nm}</b>`).join("")}</div>`
+    + `<h3>내 참모진 · ${ECH[echOf(rl.r)].u}</h3><div class="mi-st">${STAFF_ROLES.map((r) => `<span>${roleTitle(r.k, rl.r)}</span><b>${of(r.k).rk} ${of(r.k).nm}</b>`).join("")}</div>`
     + (profile.admin ? `<div class="mi-adm">관리자 · 실제 계급 변경 <select id="setRank">${ECON_RANKS.map((n, i) => `<option value="${i}"${i === rl.r ? " selected" : ""}>${n}</option>`).join("")}</select><button data-act="setrank">변경</button><small>경험치가 그 계급 기준으로 바뀌어 해금·직함·사령부·견장·특기가 모두 실제로 바뀝니다. 올리면 진급식·특기·훈장도 실제로 받습니다.</small></div><div class="mi-adm">관리자 모드 · 진급 연출 미리보기 <select id="pvRank">${ECON_RANKS.slice(1).map((n, i) => `<option value="${i + 1}"${i + 1 === 6 ? " selected" : ""}>${n}</option>`).join("")}</select><button data-act="pvpromo">보기</button><small>실제 계급·경험치·특기는 바뀌지 않습니다</small></div>` : `<div class="hq-adm in"><input id="miAdmin" type="password" maxlength="32" placeholder="관리자 코드" autocomplete="off"><button data-act="miadmin">적용</button></div>`)
     + `</div><div class="mi-r"><h3>전투 기록</h3><div class="rstats"><div><span>출격</span><b>${profile.battles}</b></div><div><span>승리</span><b>${profile.wins}</b></div><div><span>승률</span><b>${profile.battles ? Math.round((profile.wins / profile.battles) * 100) : 0}%</b></div><div><span>누적 명중률</span><b>${acc}%</b></div><div><span>최단 승리</span><b>${best}</b></div></div>`
     + `<h3>해군 장교 인사기록 · 약력</h3><div class="mi-log">${log}</div>`
@@ -747,8 +759,8 @@ const hqGrade = () => hqAdm() ? staff.adminPost.g : myGrade();
 const hqBranch = () => hqAdm() ? staff.adminPost.b : staff.branch;
 function hqNode(r, o, me, fixed) {
   const sk = o && !fixed ? skillOf(o) : 0, g = hqGrade(), lock = !me && !fixed && !profile.admin && !canFill(r.k, g);
-  const who = me ? `${ECON_RANKS[g]} ${cmdr.name}` : `${o.rk} ${o.nm}`, sub = me ? `<small>${careerTitle(g, hqBranch())} (나)</small>` : fixed ? "<small>상부 임명</small>" : `<div class="hq-skr"><div class="hq-sk"><i style="width:${sk * 10}%"></i></div><small>${sk}</small></div><em>${TRAITS[o.tr].n}</em>${lock ? `<em class="lk">${ECON_RANKS[ROLE_UNLOCK[r.k]]}부터 임명</em>` : ""}`;
-  return `<button class="hq-node${!me && !fixed && r.k === hqRole ? " on" : ""}${me ? " me" : ""}${fixed ? " fx" : ""}${lock ? " lk" : ""}" ${me || fixed ? "" : `data-role="${r.k}"`}><div class="hq-f">${me ? face(cmdr.face, 44) : staffFace(o, 44)}</div><div class="hq-i"><div class="hq-nm">${insignia(me ? g : o.ri, 13)}<b>${who}</b></div>${sub}</div></button>`;
+  const who = me ? `${ECON_RANKS[g]} ${cmdr.name}` : `${o.rk} ${o.nm}`, sub = me ? `<small>${careerTitle(g, hqBranch())} (나)</small>` : fixed ? "<small>상부 임명</small>" : `<div class="hq-skr"><div class="hq-sk"><i style="width:${sk * 10}%"></i></div><small>${sk}</small></div><em>${TRAITS[o.tr].n}</em>`;
+  return `<button class="hq-node${!me && !fixed && r.k === hqRole ? " on" : ""}${me ? " me" : ""}${fixed ? " fx" : ""}${lock ? " lk" : ""}" ${me || fixed ? "" : `data-role="${r.k}"`}><div class="hq-f">${me ? face(cmdr.face, 44) : staffFace(o, 44)}</div><div class="hq-i"><div class="hq-nm">${me || o.ri >= 0 ? insignia(me ? g : o.ri, 13) : `<i class="nco">${o.rk}</i>`}<b>${who}</b></div>${sub}</div></button>`;
 }
 function hqEff(k, m) { /* what each department contributes, shown in the grey boxes under it */
   const p = (v, inv) => pctTxt(v, inv);
@@ -758,9 +770,21 @@ function renderBranchPick() {
   const cards = Object.entries(BRANCHES).map(([k, B]) => `<div class="hq-br"><h4>${B.n}</h4><p>${B.d}</p><div class="hq-bb">보직 보너스 · ${B.bonus}</div><ol>${B.t.map((t, i) => `<li${i >= 8 ? ' class="sh"' : ""}><span>${insignia(i, 13)}${ECON_RANKS[i]}</span>${t}</li>`).join("")}</ol><button data-branch="${k}">${B.n} 보직 선택</button></div>`).join("");
   $("#hqP").innerHTML = `<div class="hq-head"><div><h3>임관 · 보직 선택</h3><p>소위로 임관했습니다. 어느 계통에서 경력을 시작할지 고르세요 — 진급하면서 받는 직함과 내 보직 보너스가 이 선택을 따라갑니다. (소위인 동안은 바꿀 수 있습니다)</p></div></div><div class="hq-brs">${cards}</div>`;
 }
+/** Every flag-officer post a naval officer can hold (public reporting; the exact list changes with reorganisations). */
+const NAVY_FLAG = [
+  [11, "장관", ["국방부장관 (예비역 장성 · 대통령 임명)"]],
+  [9, "대장", ["해군참모총장", "합동참모의장"]],
+  [8, "중장", ["해군작전사령관", "해군참모차장", "해군사관학교장", "합동참모차장", "합참 전략기획본부장", "합참 군사지원본부장", "국방정보본부장", "해병대사령관 (해병)"]],
+  [7, "소장", ["제1함대사령관", "제2함대사령관", "제3함대사령관", "잠수함사령관", "기동함대사령관", "해군교육사령관", "해군작전사령부 부사령관", "해군본부 참모부장 (기획관리·인사·군수 등)", "항공사령관"]],
+  [6, "준장", ["해상전투단장 (함대 예하 전단장)", "기동전단장", "잠수함전단장", "해군작전사령부 해양작전본부장", "해군본부 처장급 직위"]],
+];
+function flagPostsHTML(rk, br) {
+  const mine = (t) => (career.minister && t.startsWith("국방부장관")) || (!career.minister && t.startsWith(careerTitle(rk, br)));
+  return `<details class="hq-flag"${rk >= 6 ? " open" : ""}><summary>해군 장성 보직표 — 별을 달면 갈 수 있는 자리</summary><div class="hq-fl">${NAVY_FLAG.map(([g, n, L]) => `<div class="fl-r${g === rk ? " cur" : ""}"><b>${g <= 10 ? insignia(g, 14) : ""}${n}</b><div>${L.map((t) => `<span class="${mine(t) ? "me" : ""}">${t}</span>`).join("")}</div></div>`).join("")}</div><small>공개 보도 기준으로 정리한 목록이며, 부대 개편에 따라 계급·명칭이 바뀔 수 있습니다.</small></details>`;
+}
 function renderHQ() {
   if (!staff.branch) return renderBranchPick();
-  const rk = hqGrade(), br = hqBranch(), adm = !!profile.admin, m = staffMods(rk, br), R = STAFF_ROLES.find((r) => r.k === hqRole);
+  const rk = hqGrade(), br = hqBranch(), adm = !!profile.admin, m = staffMods(rk, br), R = STAFF_ROLES.find((r) => r.k === hqRole), E = echOf(rk), myUnit = E < 3; /* below 중장 your own staff is a smaller unit's; the fleet HQ posts are filled from above */
   const of = (k) => officer(staff.a[k]), me = hqNode({ n: "나" }, null, true);
   const SUR = "김이박최정강조윤장임한오서신권황안송류홍", GIV = ["민준", "서준", "도윤", "하준", "지호", "준서", "현우", "지훈", "건우", "우진", "성민", "태현", "재원", "동현", "승우", "영호", "상철", "기훈", "정우", "시우"];
   const npc = (k, g) => { let h = 7; for (const c of k + g) h = (h * 31 + c.charCodeAt(0)) >>> 0; h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0; return SUR[h % SUR.length] + GIV[(h >>> 13) % GIV.length]; };
@@ -774,34 +798,38 @@ function renderHQ() {
     const S = STAFF_ROLES.find((x) => x.k === k);
     if (k === "cmd") {
       if (g < 7) return "";
-      if (g === 7) return `${hqNode(STAFF_ROLES[0], of("cos"))}<div class="hq-eff">${hqEff("cos", m)[0]}</div>`;
-      if (rk === g) return me;
+      if (g === 7) return myUnit ? post("cmd", 7, "함대 참모장", npc("cos", "7")) : `${hqNode(STAFF_ROLES[0], of("cos"))}<div class="hq-eff">${hqEff("cos", m)[0]}</div>`;
+      if (rk === g && !(g === 9 && br === "ops")) return me;
       return g === 10 ? post("cmd", 10, "해군원수", "공석", true) : g === 9 ? post("cmd", 9, "해군참모총장", npc("cno", "9")) : post("cmd", 8, "함대사령관", FLEET_CDR.nm);
+    }
+    if (k === "ops" && g === 9) { return rk === 9 && br === "ops" ? me : post("ops", 9, "합동참모의장", npc("jcs", "9")); }
+    if (false) {
     }
     if (k === "mar" && g === 8) return post("mar", 8, MAR8, npc("mar", "8"));
     if (g > 7) return "";
     if (br === k && rk === g) return `<div class="hq-mine">${me}${S && g === 5 ? `<div class="hq-eff">${hqEff(k, m).join(" · ")} (본인 보직)</div>` : ""}</div>`;
     if (S && g >= 6) return `<div class="hq-up">${post(k, g, BRANCHES[k].t[g], npc(k, g))}<small>상급 사령부 보직</small></div>`;
-    if (S && g === 5) return `${hqNode(S, of(k))}<div class="hq-eff">${hqEff(k, m).join(" · ")}</div>`;
+    if (S && g === 5) return myUnit ? post(k, 5, `${HQ_DEPT[k]}장`, npc(k, "5")) : `${hqNode(S, of(k))}<div class="hq-eff">${hqEff(k, m).join(" · ")}</div>`;
     return post(k, g, (JOINT[k] || BRANCHES[k].t)[g], npc(k, g));
   };
-  const row = (g) => 2 + (10 - g), colOf = (k) => 2 + COLS.indexOf(k);
+  const row = (g) => 3 + (10 - g), colOf = (k) => 2 + COLS.indexOf(k);
   let grid = `<svg class="hq-lines"></svg><div class="hq-band hq-hd" style="grid-row:1;grid-column:1"></div>${COLS.map((k) => `<div class="hq-ch ${CK[k]}" style="grid-row:1;grid-column:${colOf(k)}">${CH[k]}</div>`).join("")}`
+    + `<div class="hq-band hq-min" style="grid-row:2;grid-column:1"><b>국방부</b></div><div class="hq-cell cm big" data-n="min" style="grid-row:2;grid-column:${colOf("cmd")} / ${colOf("air") + 1}"><div class="hq-post min${career.minister ? "" : " vac"}"><b>국방부장관</b><span>${career.minister ? `${cmdr.name} (예비역 ${ECON_RANKS[myGrade()]})` : "예비역 장성 중 대통령 임명 — 대장부터 제청 가능"}</span></div></div>`
     + `<div class="hq-box" style="grid-row:${row(7)} / ${row(0) + 1};grid-column:${colOf("cmd")} / ${colOf("air") + 1}"><span>함대사령부 참모부</span></div>`;
   for (let g = 10; g >= 0; g--) {
     grid += `<div class="hq-band${g % 2 ? "" : " alt"}${g === rk ? " mine" : ""}" style="grid-row:${row(g)};grid-column:1">${insignia(g, 11)}<b>${ECON_RANKS[g]}</b></div>`;
     for (const k of COLS) { const inner = cell(k, g); grid += `<div class="hq-cell ${CK[k]}${size(g)}${g % 2 ? "" : " alt"}"${inner ? ` data-n="${k}${g}"` : ""} style="grid-row:${row(g)};grid-column:${colOf(k)}">${inner}</div>`; }
   }
   const cur = staff.a[hqRole], selfHold = holds(hqRole, rk, br);
-  const cands = STAFF.filter((o) => o.r === hqRole).sort((x, y) => y.sk - x.sk).map((o) => {
+  const cands = candidates(hqRole, rk).slice().sort((x, y) => y.sk - x.sk).map((o) => {
     staff.a[hqRole] = o.id; const mm = staffMods(rk, br); staff.a[hqRole] = cur; const on = o.id === cur, ok = canAppoint(o, rk, adm) && !selfHold;
     const d = [["화력", mm.outK - m.outK, 1], ["피해", mm.inK - m.inK, -1], ["재장전", mm.reloadK - m.reloadK, -1], ["수리", mm.repairN - m.repairN, 1], ["전투기", mm.jets - m.jets, 1]].filter(([, v]) => Math.abs(v) > 0.004).map(([k, v, g]) => { const good = v * g > 0, n = k !== "수리" && k !== "전투기" ? `${Math.round(Math.abs(v) * 100)}%` : `${Math.abs(v)}`; return `<span class="${good ? "ok" : "bad"}">${k} ${v > 0 ? "▲" : "▼"}${n}</span>`; }).join("");
-    const act = selfHold ? `<span class="lock">본인 보직</span>` : on ? `<span class="cur">현재 임명</span>` : ok ? `<div class="hq-d">${d || "<span>변화 없음</span>"}</div><button data-appoint="${o.id}">임명</button>` : `<span class="lock">${ECON_RANKS[ROLE_UNLOCK[hqRole]]} 진급 시 임명권</span>`;
-    return `<div class="hq-c${on ? " on" : ""}${ok || on ? "" : " locked"}"><div class="hq-f">${staffFace(o, 64)}</div><div class="hq-ci"><div class="hq-nm">${flagOf({ nation: o.nat }, 20)}${insignia(o.ri, 15)}<b>${o.rk} ${o.nm}</b></div><div class="hq-skr"><span>${R.stat}</span><div class="hq-sk"><i style="width:${skillOf(o) * 10}%"></i></div><small>${skillOf(o)}/10</small></div><div class="hq-tr"><em>${TRAITS[o.tr].n}</em> ${TRAITS[o.tr].d} · 복무 ${staff.x[o.id] || 0}회</div></div><div class="hq-ca">${act}</div></div>`;
+    const act = selfHold ? `<span class="lock">본인 보직</span>` : on ? `<span class="cur">현재 임명</span>` : ok ? `<div class="hq-d">${d || "<span>변화 없음</span>"}</div><button data-appoint="${o.id}">임명</button>` : `<span class="lock">임명 불가</span>`;
+    return `<div class="hq-c${on ? " on" : ""}${ok || on ? "" : " locked"}"><div class="hq-f">${staffFace(o, 64)}</div><div class="hq-ci"><div class="hq-nm">${flagOf({ nation: o.nat }, 20)}${o.ri >= 0 ? insignia(o.ri, 15) : ""}<b>${o.rk} ${o.nm}</b></div><div class="hq-skr"><span>${R.stat}</span><div class="hq-sk"><i style="width:${skillOf(o) * 10}%"></i></div><small>${skillOf(o)}/10</small></div><div class="hq-tr"><em>${TRAITS[o.tr].n}</em> ${TRAITS[o.tr].d} · 복무 ${staff.x[o.id] || 0}회</div></div><div class="hq-ca">${act}</div></div>`;
   }).join("");
   const admBox = adm ? `<div class="hq-adm">관리자 모드 — 모든 자리 임명 가능 · 조직도의 아무 자리나 누르면 그 자리에서 사령부를 봅니다${staff.adminPost ? ` <button data-take="reset">내 실제 계급으로</button>` : ""}</div>` : `<div class="hq-adm in"><input id="hqAdmin" type="password" maxlength="32" placeholder="관리자 코드" autocomplete="off"><button data-act="hqadmin">적용</button></div>`;
-  $("#hqP").innerHTML = `<div class="hq-head"><div><h3>함대사령부 · 지휘 계통</h3><p>현대전 전용 — 참모진이 직접 지휘와 자동 전투 결과 모두에 반영됩니다. 처장은 대령, 참모장은 소장 자리이며 같은 계급 안에서 능력치가 다른 인물을 고릅니다.</p><div class="hq-me">내 보직 <b>${BRANCHES[br].n}</b> · ${careerTitle(rk, br)} · 보너스 ${BRANCHES[br].bonus}${myGrade() === 0 || adm ? ` <button data-rebranch="1">보직 변경</button>` : ""}</div>${admBox}</div><div class="hq-sum">${hqSummary(m)}</div></div>`
-    + `<div class="hq-grid">${grid}</div><div class="hq-legend"><span class="l cm">지휘</span><span class="l sf">참모</span><span class="l mr">작전통제 (나포·상륙)</span><span class="l jt">합동 협조 (공수 지원)</span></div><div class="hq-rh"><b>${R.n} 후보 · ${ECON_RANKS[POST_RANK[hqRole]]}</b><span>${R.d} · 능력순</span></div><div class="hq-cands">${cands}</div>`;
+  $("#hqP").innerHTML = `<div class="hq-head"><div><h3>함대사령부 · 지휘 계통</h3><p>참모진이 직접 지휘와 자동 전투 결과 모두에 반영됩니다. 참모는 지휘하는 부대 규모를 따라갑니다 — 위관: 함정 부서(부사관), 영관: 함정·전대 참모(위관), 준장·소장: 전투단 참모(영관), 중장부터 함대사령부 처장·참모장. 언제나 나보다 낮은 계급만 임명합니다.</p><div class="hq-me">내 보직 <b>${BRANCHES[br].n}</b> · ${careerTitle(rk, br)} · 보너스 ${BRANCHES[br].bonus}${myGrade() === 0 || adm ? ` <button data-rebranch="1">보직 변경</button>` : ""}</div>${admBox}</div><div class="hq-sum">${hqSummary(m)}</div></div>`
+    + `<div class="hq-grid">${grid}</div><div class="hq-legend"><span class="l cm">지휘</span><span class="l sf">참모</span><span class="l mr">작전통제 (나포·상륙)</span><span class="l jt">합동 협조 (공수 지원)</span></div>${flagPostsHTML(rk, br)}${myUnit ? `<div class="hq-rh"><b>내 참모진 · ${ECH[E].u}</b><span>나보다 낮은 ${ECH[E].rk}급에서 임명 — 전투에 반영되는 참모는 이 다섯 자리입니다</span></div><div class="hq-unit">${STAFF_ROLES.map((r) => `<div>${hqNode({ ...r, n: roleTitle(r.k, rk) }, of(r.k))}<div class="hq-eff">${(hqEff(r.k, m) || []).join(" · ")}</div></div>`).join("")}</div>` : ""}<div class="hq-rh"><b>${roleTitle(hqRole, rk)} 후보 · ${ECH[E].rk}급</b><span>${R.d} · 능력순</span></div><div class="hq-cands">${cands}</div>`;
   requestAnimationFrame(drawHQLines);
 }
 /** Org chart connectors, drawn over the grid from the laid-out boxes: [from, to, kind]. */
@@ -833,20 +861,21 @@ $("#recordP").addEventListener("click", (e) => {
   const pk = e.target.closest("[data-perk]"); if (pk) { sfx.coin(); takePerk(pk.dataset.perk); pmOpts = null; renderRecord(); return; }
   if (e.target.closest('[data-act="setrank"]') && profile.admin) {
     const g = +$("#setRank").value, before = myGrade(); if (g === before) return;
-    if (!act({ kind: "setxp", xp: ECON_RANK_XP[g] })) return; setCap(g); staff.adminPost = null; saveStaff();
+    if (!act({ kind: "setxp", xp: ECON_RANK_XP[g] })) return; setCap(g); if (g < 9 && career.minister) { career.minister = false; saveCareer(); } staff.adminPost = null; saveStaff();
     if (g > before) { if (career.seen == null && staff.branch) careerInit(before, careerTitle(before), BRANCHES[staff.branch].n); career.picks += g - before; logPromotion({ g, t: postOf(g), b: BRANCHES[staff.branch]?.n || "", why: "관리자 진급" }); pmMedals = awardMedals({ won: false, flight: false, wins: profile.wins, sunk: 0, hp: 0, grade: g }); pmOpts = null; initAudio(); buildPromo(before, g); $("#promoM").style.display = "flex"; fanfare(g, staff.branch); }
     else toast(`관리자 — 계급을 ${ECON_RANKS[g]}(으)로 조정했습니다`);
     refreshMenus(); renderRecord(); return;
   }
+  if (e.target.closest('[data-act="minister"]') && myGrade() >= 9 && ministerOk(myGrade()) && !career.minister) { ministerOrder(); return; }
   if (e.target.closest('[data-act="pvpromo"]') && profile.admin) { const g = +$("#pvRank").value; pmMedals = []; initAudio(); fanfare(g, staff.branch); buildPromo(g - 1, g, "", true); $("#promoM").style.display = "flex"; return; }
   if (e.target.closest('[data-act="miadmin"]')) { if (act({ kind: "admin", code: $("#miAdmin").value })) { sfx.coin(); toast("관리자 모드 활성화"); renderRecord(); } }
 });
 $("#shipLine").addEventListener("click", (e) => { const b = e.target.closest("[data-flag]"); if (!b) return; sfx.click(); career.ship = b.dataset.flag; saveCareer(); refreshMenus(); showcase(flagshipId()); });
 $("#promoM").addEventListener("click", (e) => {
   const go = e.target.closest("[data-pmgo]"); if (go) { pmGo(+go.dataset.pmgo); return; }
-  const ps = e.target.closest("[data-post]"); if (ps) { const k = ps.dataset.post; pmPostSel = k; if (pmPreview) { $("#pmPostT").textContent = BRANCHES[k].t[pmPostG]; sfx.click(); } else if (k !== staff.branch) { setBranch(k); const g = myGrade(), last = career.log[career.log.length - 1]; if (!pmPreview && last && last.g === g) { last.t = postOf(g); last.b = BRANCHES[staff.branch].n; saveCareer(); } $("#pmPostT").textContent = postOf(g); sfx.click(); } renderPostPick(pmPostG); return; }
+  const ps = e.target.closest("[data-post]"); if (ps) { const k = ps.dataset.post; pmPostSel = k; if (pmPreview) { $("#pmPostT").textContent = BRANCHES[k].t[pmPostG]; sfx.click(); } else if (k !== staff.branch) { setBranch(k); const g = myGrade(), last = career.log[career.log.length - 1]; if (!pmPreview && last && last.g === g) { last.t = postOf(g); last.b = BRANCHES[staff.branch].n; saveCareer(); } $("#pmPostT").textContent = postOf(g); refreshMenus(); sfx.click(); } renderPostPick(pmPostG); return; }
   const pk = e.target.closest("[data-perk]"); if (pk) { if (pmTook) return; sfx.coin(); if (takePerk(pk.dataset.perk)) pmTook++; pmOpts = null; const P = PERKS[pk.dataset.perk]; $("#pmPk").innerHTML = `<div class="pk-done">진급 특기 부여 — <b>${P.n}</b>${career.picks > 0 ? `<br><small>남은 특기 ${career.picks}회는 '내 정보'에서 고를 수 있습니다</small>` : ""}</div>`; $("#promoOk")?.classList.remove("dim"); return; }
-  if (e.target.closest("#promoOk")) { if (career.picks > 0 && !pmPreview && !pmTook) { sfx.deny(); const h = $("#pmPk .pk-h"); if (h) { h.classList.remove("nudge"); void h.offsetWidth; h.classList.add("nudge"); } return; } sfx.click(); stopFanfare(); $("#promoM").style.display = "none"; renderRecord(); }
+  if (e.target.closest("#promoOk")) { if (career.picks > 0 && !pmPreview && !pmTook) { sfx.deny(); const h = $("#pmPk .pk-h"); if (h) { h.classList.remove("nudge"); void h.offsetWidth; h.classList.add("nudge"); } return; } sfx.click(); stopFanfare(); $("#promoM").style.display = "none"; refreshMenus(); }
 });
 $("#hqP").addEventListener("keydown", (e) => { if (e.target.id === "hqAdmin" && e.key === "Enter") $('[data-act="hqadmin"]')?.click(); });
 $("#hqP").addEventListener("click", (e) => {
