@@ -48,7 +48,9 @@ export function initAudio() {
   const wind = loopNoise(A.noise, "bandpass", 1700, 1.1, 0.008); lfo(wind.gain, 0.04, 0.005);
   A.amb = { swell, crest, wind, hull: loopNoise(A.noise, "bandpass", 420, 0.8, 0), rush: loopNoise(A.noise, "bandpass", 900, 0.7, 0) };
   for (const f of FILES) fetch(`sfx/${f}.mp3`).then((r) => r.arrayBuffer()).then((x) => c.decodeAudioData(x)).then((buf) => { A.buf[f] = buf; }).catch(() => {});
-  for (const k of RADIO_KEYS) fetch(`sfx/radio/${k}.mp3`).then((r) => r.arrayBuffer()).then((x) => c.decodeAudioData(x)).then((buf) => { A.radio[k] = buf; }).catch(() => {});
+  const loadR = (k, url) => fetch(url).then((r) => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then((x) => c.decodeAudioData(x)).then((buf) => { A.radio[k] = buf; }).catch(() => {});
+  /* Korean lines (Typecast, tools/typecast_tts.py) win when present; the English set fills the rest */
+  fetch("sfx/radio_ko/index.json").then((r) => (r.ok ? r.json() : [])).catch(() => []).then((ko) => { for (const k of RADIO_KEYS) if (!ko.includes(k)) loadR(k, `sfx/radio/${k}.mp3`); for (const k of ko) loadR(k, `sfx/radio_ko/${k}.mp3`); });
   // radio voice chain: 300–3000 Hz band-pass + soft clipping
   const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 300; hp.Q.value = 0.8;
   const lp2 = c.createBiquadFilter(); lp2.type = "lowpass"; lp2.frequency.value = 3000; lp2.Q.value = 0.8;
@@ -254,7 +256,7 @@ const PROMO = (g) => g >= 10 ? "marshal" : g === 9 ? "g4" : g === 8 ? "g3" : g =
 let promoEl = null;
 export function stopFanfare() { const el = promoEl; if (!el) return; promoEl = null; const v0 = el.volume, t0 = performance.now(); const step = () => { const k = 1 - (performance.now() - t0) / 700; if (k <= 0) { el.pause(); el.onended?.(); return; } el.volume = v0 * k; requestAnimationFrame(step); }; step(); }
 export function fanfare(grade = 3, branch = "") {
-  if (!A.ctx || A.muted) return; stopFanfare(); const f = PROMO(grade); if (!f) { radioBlip(1.6); return; }
+  if (!A.ctx || A.muted) return; stopFanfare(); const f = PROMO(grade); if (!f) { if (!radio("promo")) radioBlip(1.6); return; }
   const el = new Audio(`sfx/promo/${f}.mp3`); el.volume = Math.min(1, A.vol.sfx * 1.05); promoEl = el;
   const bg = A.bgmEl, v0 = bg ? bg.volume : 0; if (bg) bg.volume = v0 * 0.15;
   el.onended = () => { if (bg && A.bgmEl === bg) bg.volume = v0; if (promoEl === el) promoEl = null; el.onended = null; };
