@@ -98,9 +98,9 @@ export function openOpMap(ctx) {
   Object.assign(S, { on: true, ctx, air: A, isAir, layers: { det: false, rng: false, path: false }, hist: {}, drag: null, hover: null, raids: [], isleBat: null, airLost: 0, sorties: 0, us: F.us, foe: F.foe, t: 0, run: false, speed: 1, paused: false, sel: isAir ? A[0] : F.us[0], phase: "plan",
     pts: isAir ? 0 : 6 + (ctx.ops ? 2 : 0), sup: [], place: null, msl: [], fx: [], log: [], evt: null, evtDone: {}, evade: 0, preempt: 0, decoy: { x: 40, y: 50, gone: false },
     shots: 0, hits: 0, inside: {}, result: null });
-  build(); S.brief = true; say(`작전 개시 전입니다. 왼쪽 '작전 순서'를 따라 계획을 세우십시오.`);
+  fmInit(); fmBuild(); S.brief = false; say(`작전 전술을 정하십시오 — 작전 개념, 역할 배치, 부대 지시. 준비되면 '작전 개시'.`);
   let last = performance.now();
-  const loop = (now) => { if (!S.on) return; const dt = Math.min(0.1, (now - last) / 1000); last = now; if (S.phase === "run" && !S.paused && !S.evt) for (let k = 0; k < S.speed; k++) step(dt * 30); draw(); panel(); requestAnimationFrame(loop); };
+  const loop = (now) => { if (!S.on) return; const dt = Math.min(0.1, (now - last) / 1000); last = now; if (S.phase === "run" && !S.paused && !S.evt && !S.fm.hl && !S.fm.half) for (let k = 0; k < (S.fm.ff ? 24 : S.speed); k++) { step(dt * 30); if (S.fm.hl || S.fm.half || S.evt || S.phase !== "run") break; } draw(); fmPanel(); requestAnimationFrame(loop); };
   requestAnimationFrame(loop);
 }
 export const opMapOn = () => S.on;
@@ -108,9 +108,9 @@ export const opMapOn = () => S.on;
 export const opMapState = () => S;
 export const opMapAir = { setAirPoint: (p) => setAirPoint(p), launch: (u) => launch(u), assign: (id, sid) => assignSector(id, secById(sid)), secOf: (p) => secOf(p) };
 /** test hook: run the operation forward by game seconds without waiting for frames */
-export function opMapAdvance(sec) { if (S.phase !== "run") return; for (let t = 0; t < sec && S.phase === "run"; t += 1) { if (S.evt) resolveEvent(S.evt.a[0]); step(1); } S.dirty = true; }
+export function opMapAdvance(sec) { if (S.phase !== "run") return; for (let t = 0; t < sec && S.phase === "run"; t += 1) { if (S.evt) resolveEvent(S.evt.a[0]); if (S.fm.hl) S.fm.hl = null; if (S.fm.half) S.fm.half = null; step(1); } S.dirty = true; }
 
-function say(t, cls = "") { S.log.unshift({ t, cls, at: S.t }); if (S.log.length > 7) S.log.pop(); S.logDirty = true; }
+function say(t, cls = "") { S.log.unshift({ t, cls, at: S.t }); if (S.log.length > 80) S.log.pop(); S.logDirty = true; }
 
 function build() {
   let el = $("#opMap"); if (!el) { el = document.createElement("div"); el.id = "opMap"; document.body.append(el); }
@@ -150,6 +150,7 @@ function placeSupport(p) {
 
 function onClick(e) {
   const b = e.target.closest("[data-om]"); if (!b) return; const a = b.dataset.om;
+  if (S.fm && fmClick(a)) return;
   if (a === "pause") S.paused = !S.paused;
   else if (a[0] === "s" && a.length === 2) { S.speed = +a[1]; for (const x of document.querySelectorAll(".om-spd button")) x.classList.toggle("on", x.dataset.om === a); }
   else if (a === "quit") { if (S.phase === "end") return; finish(false, "작전 중단 — 철수"); }
@@ -318,7 +319,7 @@ function airStep(dt) {
       const rng = u.t === "helo" ? 10 : 15;
       if (d2(u, f) > rng) { moveAir(u, f, dt); continue; }
       if (u.asm > 0) {
-        launch2({ x: u.x, y: u.y, name: u.name.split(" (")[0], side: "us" }, f, u.asm, "공대함", 25, 12); S.shots += u.asm; say(`${u.name} 공대함 미사일 ${u.asm}발 발사 → ${f.name}`, "hit"); u.asm = 0;
+        launch2({ x: u.x, y: u.y, name: u.name.split(" (")[0], side: "us", id: u.id }, f, u.asm, "공대함", 25, 12); S.shots += u.asm; say(`${u.name} 공대함 미사일 ${u.asm}발 발사 → ${f.name}`, "hit"); u.asm = 0;
         const sam = alive(f).reduce((a, s) => a + s.sam, 0), esc = S.air.some((e) => e.job === "escort" && e.follow === u && airborne(e) && d2(e, u) < 15);
         if (sam > 0 && Math.random() < (u.t === "helo" ? 0.15 : 0.07) * (esc ? 0.3 : 1)) { loseAir(u, "적 대공미사일에 피격 — 격추"); continue; }
       }
@@ -330,12 +331,12 @@ function airStep(dt) {
     if (u.job === "airlift") { u.drop += dt; if (u.drop >= 40) { S.isleBat = { x: YEONPYEONG.x, y: YEONPYEONG.y, cd: 10 }; say("연평도 해병 지대함 유도탄 반 전개 완료 — 사거리 28km.", "hit"); u.pt = null; u.sec = null; u.st = "rtb"; } continue; }
     const a = (S.t * 0.05 + u.id.charCodeAt(1)) % (Math.PI * 2); u.x = u.pt.x + Math.cos(a) * 2.5; u.y = u.pt.y + Math.sin(a) * 2.5;
   }
-  if (S.isleBat) { const b = S.isleBat; b.cd -= dt; if (b.cd <= 0) { const t = nearest(b, S.foe.filter((f) => f.seen && !f.gone)); if (t && t.d < 28) { launch2({ x: b.x, y: b.y, name: "연평도 지대함", side: "us" }, t.g, 2, "지대함", 40); S.shots += 2; b.cd = 90; say("연평도 지대함 유도탄 2발 발사.", "hit"); } else b.cd = 10; } }
+  if (S.isleBat) { const b = S.isleBat; b.cd -= dt; if (b.cd <= 0) { const t = nearest(b, S.foe.filter((f) => f.seen && !f.gone)); if (t && t.d < 28) { launch2({ x: b.x, y: b.y, name: "연평도 지대함", side: "us", id: "isle" }, t.g, 2, "지대함", 40); S.shots += 2; b.cd = 90; say("연평도 지대함 유도탄 2발 발사.", "hit"); } else b.cd = 10; } }
   raidStep(dt);
 }
 const RAIDS = [480, 1080];
 function raidStep(dt) {
-  for (const at of RAIDS) if (S.t >= at && !S.raids.some((r) => r.at === at)) { S.raids.push({ at, x: 50 + Math.random() * 50, y: -3, alive: true, tried: new Set(), n: "적 전투기 편대 (MiG-29)" }); say("적 전투기 편대 남하 — 방공 레이더 포착!", "bad"); }
+  for (const at of RAIDS) if (S.t >= at && !S.raids.some((r) => r.at === at)) { S.raids.push({ at, x: 50 + Math.random() * 50, y: -3, alive: true, tried: new Set(), n: "적 전투기 편대 (MiG-29)" }); say("적 전투기 편대 남하 — 방공 레이더 포착!", "bad"); hl("적 전투기 편대 출현", `MiG-29 편대가 남하합니다. ${S.air.some((u) => u.job === "cap" && airborne(u)) ? "CAP 편대가 요격에 나섭니다." : "<b>CAP이 없습니다</b> — 초계기·급유기가 위험합니다."}`, [["약한 기체 후퇴", () => shout("safe")], ["방공 강화", () => shout("capall")]], "y", true); }
   for (const r of S.raids) {
     if (!r.alive) continue;
     const prey = S.air.filter((u) => airborne(u) && u.t !== "fighter").sort((a, b) => d2(a, r) - d2(b, r))[0];
@@ -343,7 +344,7 @@ function raidStep(dt) {
     if (!tgt) { r.y -= 0.45 * dt; if (r.y < -8) r.alive = false; continue; }
     for (const f of S.air) if (f.t === "fighter" && airborne(f) && f.st !== "rtb" && !r.tried.has(f.id) && d2(f, r) < 25) {
       r.tried.add(f.id); const p = 0.85 + (S.air.filter((o) => o.t === "fighter" && airborne(o) && d2(o, r) < 25).length > 1 ? 0.1 : 0);
-      if (Math.random() < p) { r.alive = false; S.fx.push({ x: r.x, y: r.y, t: 0, c: "#7cc4ff", big: true }); say(`${f.name} — 적 전투기 편대 요격 성공!`, "hit"); break; }
+      if (Math.random() < p) { r.alive = false; if (S.fm) stOf(f.id).air++; S.fx.push({ x: r.x, y: r.y, t: 0, c: "#7cc4ff", big: true }); say(`${f.name} — 적 전투기 편대 요격 성공!`, "hit"); break; }
       if (Math.random() < 0.15) loseAir(f, "공중전에서 피격 — 격추"); else say(`${f.name} 요격 실패 — 적기 계속 남하`, "bad");
     }
     if (!r.alive) continue;
@@ -353,39 +354,49 @@ function raidStep(dt) {
   }
 }
 
+function fmDetected(f) {
+  if (!S.fm) return;
+  const obs = [...S.us.filter((u) => alive(u).length && d2(u, f) < detR(u)).map((u) => u.id), ...S.air.filter((u) => airborne(u) && AIR_T[u.t].det && d2(u, f) < AIR_T[u.t].det).map((u) => u.id), ...S.sup.filter((x) => x.k === "p3c" && d2(x, f) < 30).map((x) => x.id || "p3c")];
+  for (const k of obs) stOf(k).det++;
+  const who = obs[0] && (S.us.find((u) => u.id === obs[0])?.name || short(S.air.find((u) => u.id === obs[0])?.name || "") || "P-3C");
+  const acts = []; if (S.isAir) { const rd = S.air.filter((u) => u.t === "fighter" && u.st === "ready" && u.asm > 0); if (rd.length) acts.push([`대기 전투기 즉시 타격 (${rd.length})`, () => strikeMission(f, rd.map((u) => u.id))]); }
+  else { const g = S.us.find((u) => u.fmRole === "strike" && alive(u).length); if (g) acts.push([`${g.name} 요격 기동`, () => { g.mission = "strike"; g.path = route(g, f.path[0] || f); g.seek = 70; }]); }
+  hl(`${f.name} 탐지!`, `${who || "정찰 수단"}이(가) ${f.name}을(를) 찾았습니다 — <b>${alive(f).map((x) => x.n).join(" · ")}</b>. ${GOAL.n}까지 약 ${fmtT(etaGoal(f))}.`, acts, "", !S.foe.some((x) => x !== f && x.everSeen));
+}
 function step(dt) {
   S.t += dt; S.evade = Math.max(0, S.evade - dt);
-  for (const f of S.foe) { const v = alive(f).length > 0 && !(f.delay && S.t < f.delay); const was = f.seen; /* not yet sailed: cannot be seen */ f.seen = v && seenFoe(f); if (f.seen) f.everSeen = true; if (f.seen && !was) say(`${f.name} 탐지 — ${alive(f).map((s) => s.n).join(", ")}`, "bad"); }
+  for (const f of S.foe) { const v = alive(f).length > 0 && !(f.delay && S.t < f.delay); const was = f.seen; /* not yet sailed: cannot be seen */ f.seen = v && seenFoe(f); if (f.seen && !was) { say(`${f.name} 탐지 — ${alive(f).map((s) => s.n).join(", ")}`, "bad"); if (!f.everSeen) fmDetected(f); } if (f.seen) f.everSeen = true; }
   if (!S.decoy.gone && S.us.some((u) => d2(u, S.decoy) < detR(u) * 0.8)) { S.decoy.gone = true; say("미확인 접촉 확인 결과 — 기만체(허위 표적)로 판명.", "hit"); }
   for (const g of S.us) { if (!alive(g).length) continue; usMove(g, dt); }
   for (const f of S.foe) { if (!alive(f).length || (f.delay && S.t < f.delay)) continue; foeMove(f, dt); }
   if (S.isAir) airStep(dt);
+  fmStep(dt);
   combat(dt); support(dt); missiles(dt); events(); judge();
 }
 function nearest(g, list) { let b = null, d = Infinity; for (const o of list) { if (!alive(o).length) continue; const dd = d2(g, o); if (dd < d) { d = dd; b = o; } } return b ? { g: b, d } : null; }
 function usMove(g, dt) {
   const sp = SPDS[g.fuel > 0 ? g.spd || "eco" : "slow"], moving = g.path.length || g.mission !== "hold";
-  if (g.fuel != null && moving) { g.fuel = Math.max(0, g.fuel - sp[2] * dt); if (g.fuel <= 0 && !g.dry) { g.dry = true; say(`${g.name} 연료 고갈 — 저속으로만 기동`, "bad"); } }
+  if (g.fuel != null && moving) { g.fuel = Math.max(0, g.fuel - sp[2] * dt * (S.fm?.concept === "forward" ? 1.3 : 1)); if (g.fuel <= 0 && !g.dry) { g.dry = true; say(`${g.name} 연료 고갈 — 저속으로만 기동`, "bad"); } }
   const v = SPD * sp[1] * (S.evade > 0 ? 0.7 : 1), t = nearest(g, S.foe.filter((f) => f.seen && !f.gone));
   if (g.mission === "scout" && t && t.d < 26) { moveTo(g, g.home, dt, v); return; }
-  if (g.mission === "strike" && t && t.d < 48) { if (t.d > 24) moveTo(g, t.g, dt, v); return; }
+  if (g.mission === "strike" && t && t.d < (g.seek || 48)) { if (t.d > (g.close || 24)) moveTo(g, t.g, dt, v); return; }
   if (g.path.length) { if (moveTo(g, g.path[0], dt, v)) g.path.shift(); }
 }
 function foeMove(f, dt) {
   if (f.gone) return; const t = nearest(f, S.us.filter((u) => foeSees(f, u)));
-  if (strength(f) < 0.3) { if (!f.retreat) { f.retreat = true; say(`${f.name} 퇴각 개시`, "hit"); } if (moveTo(f, f.home, dt, SPD)) f.gone = true; return; }
+  if (strength(f) < 0.3) { if (!f.retreat) { f.retreat = true; say(`${f.name} 퇴각 개시`, "hit"); hl(`${f.name} 퇴각!`, `전력이 30% 아래로 떨어진 ${f.name}이(가) 북쪽으로 물러납니다. 남은 적 ${S.foe.filter((x) => alive(x).length && !x.gone && !x.retreat).length}개 전단.`, [], "g"); } if (moveTo(f, f.home, dt, SPD)) f.gone = true; return; }
   if (t && t.d < 24) return; /* hold and shoot */
   if (f.path.length) { if (moveTo(f, f.path[0], dt, SPD * 0.9)) f.path.shift(); }
 }
 /** one engagement report per salvo: launched → intercepted → hits → damage */
-function mkRep(w, fromName, side, to, n) { const r = { w, from: fromName, side, to: to.name, toG: to, n, icpt: 0, hit: 0, dmg: [], left: n, t: S.t }; (S.reps ??= []).push(r); return r; }
+function mkRep(w, fromName, side, to, n, key) { const r = { w, from: fromName, key, side, to: to.name, toG: to, n, icpt: 0, hit: 0, dmg: [], left: n, t: S.t }; (S.reps ??= []).push(r); return r; }
 function launch2(from, to, n, w, T = 40, rng = null) {
-  const r = mkRep(w, from.name, from.side, to, n), d = rng ?? d2(from, to);
+  const r = mkRep(w, from.name, from.side, to, n, from.id || from.ref?.id || from.key), d = rng ?? d2(from, to); if (S.fm) S.fm.fs[from.side].n += n;
   for (let i = 0; i < n; i++) S.msl.push({ x: from.x + (Math.random() - 0.5) * 2, y: from.y + (Math.random() - 0.5) * 2, to, from, side: from.side, t: 0, T: T + Math.random() * 15, rep: r, sz: n, rng: d });
   return r;
 }
 function salvo(from, to) {
-  const want = from.side === "us" ? from.salvoN || 4 : Math.min(alive(from).reduce((a, s) => a + (s.asm > 0 ? 1 : 0), 0) * 2, 8); let shot = 0;
+  const want = from.side === "us" ? (S.fm?.rules.sat && alive(to).reduce((a, x) => a + x.sam, 0) > 20 ? 8 : from.salvoN || 4) : Math.min(alive(from).reduce((a, s) => a + (s.asm > 0 ? 1 : 0), 0) * 2, 8); let shot = 0;
   for (let k = 0; k < 8 && shot < want; k++) for (const s of alive(from)) if (s.asm > 0 && shot < want) { s.asm--; shot++; }
   if (from.side === "us" && S.preempt > 0 && shot) { S.preempt--; shot += 2; }
   if (!shot) { if (from.side === "us" && !from.dryW) { from.dryW = true; say(`${from.name} 대함미사일 소진`, "bad"); } return; }
@@ -396,8 +407,8 @@ function combat(dt) {
   for (const a of [...S.us, ...S.foe]) {
     if (!alive(a).length || a.gone || (a.delay && S.t < a.delay)) continue;
     a.fireT -= dt; if (a.fireT > 0) continue;
-    if (a.side === "us" && a.roe === "hold") { a.fireT = 5; continue; }
-    const pool = a.side === "us" ? S.foe.filter((f) => f.seen && !f.gone) : S.us.filter((u) => foeSees(a, u)), t = nearest(a, pool), rng = a.side === "us" && a.roe === "tight" ? 18 : 30;
+    if (a.side === "us" && (a.roe === "hold" || S.fm?.shout.aaw || a.fmRes)) { a.fireT = 5; continue; }
+    const pool0 = a.side === "us" ? S.foe.filter((f) => f.seen && !f.gone) : S.us.filter((u) => foeSees(a, u)), bait = a.side === "foe" && pool0.find((u) => u.bait && alive(u).length && d2(a, u) < 30), pool = bait ? [bait] : pool0, t = nearest(a, pool), rng = a.side === "us" && a.roe === "tight" ? 18 : 30;
     if (t && t.d < rng) { salvo(a, t.g); a.fireT = 75; } else a.fireT = 5;
   }
 }
@@ -408,13 +419,15 @@ function missiles(dt) {
     const tgt = m.to, live = alive(tgt), R = m.rep; if (R) R.left--; if (!live.length) { repDone(R); continue; }
     const sam = live.reduce((a, s) => a + s.sam, 0), capOn = tgt.side === "us" && (S.sup.some((s) => s.k === "cap" && d2(s, tgt) < 15) || S.air.some((u) => u.job === "cap" && u.st === "station" && d2(u, tgt) < 20));
     let p = clamp(0.25 + sam / (live.length * 60), 0.15, 0.78) * (tgt.side === "us" ? (S.ctx.mods.icptK || 1) * (capOn ? 1.2 : 1) : 1)
-      * (m.sz ? clamp(1.15 - 0.06 * m.sz, 0.6, 1.1) : 1) /* saturation: big salvos overwhelm the defence */ * (m.rng == null ? 1 : m.rng > 22 ? 1.15 : m.rng < 18 ? 0.8 : 1); /* long shots give time to react */
+      * (m.sz ? clamp(1.15 - 0.06 * m.sz, 0.6, 1.1) : 1) /* saturation: big salvos overwhelm the defence */ * (m.rng == null ? 1 : m.rng > 22 ? 1.15 : m.rng < 18 ? 0.8 : 1) /* long shots give time to react */
+      * (S.fm ? (tgt.side === "us" ? (S.fm.concept === "deep" ? 1.15 : 1) * (S.fm.shout.aaw ? 1.2 : 1) : (S.fm.concept === "forward" ? 0.85 : 1) * (S.fm.concept === "decoy" && S.us.find((g) => g.id === R?.key)?.fmRole === "strike" ? 0.75 : 1)) : 1);
     if (sam > 0) { const sh = live.find((s) => s.sam > 0); sh.sam = Math.max(0, sh.sam - 2); } else p = 0;
-    if (Math.random() < clamp(p, 0, 0.9)) { S.fx.push({ x: tgt.x, y: tgt.y, t: 0, c: "#7cc4ff" }); if (R) { R.icpt++; repDone(R); } continue; }
+    if (Math.random() < clamp(p, 0, 0.9)) { S.fx.push({ x: tgt.x, y: tgt.y, t: 0, c: "#7cc4ff" }); if (R) { R.icpt++; repDone(R); } if (S.fm) { S.fm.fs[m.side].icpt++; if (tgt.side === "us") stOf(tgt.id).icpt++; } continue; }
     const s = live[(Math.random() * live.length) | 0], dmg = 34 * (m.side === "us" ? S.ctx.mods.outK || 1 : (S.ctx.mods.inK || 1) * (S.evade > 0 ? 0.7 : 1));
     s.hp = Math.max(0, s.hp - dmg); if (m.side === "us") S.hits++;
     S.fx.push({ x: tgt.x, y: tgt.y, t: 0, c: "#ff6b5e", big: true });
     if (s.hp <= 0) say(`${s.name}${m.side === "us" ? " 격침!" : " 피격 침몰"}`, m.side === "us" ? "hit" : "bad");
+    if (S.fm) { S.fm.fs[m.side].hit++; if (tgt.side === "us") stOf(tgt.id).dmg += dmg; if (R?.key) { stOf(R.key).hits++; if (s.hp <= 0) stOf(R.key).kills++; } if (s.hp <= 0 && m.side === "us" && S.fm.firstKill == null) S.fm.firstKill = S.t; if (s.hp <= 0 && tgt.side === "us") hl(`${s.name} 침몰`, `${tgt.name}의 ${s.name}이(가) 적 미사일에 침몰했습니다. 남은 전력 ${Math.round(strength(tgt) * 100)}%.`, [["대공 집중 (요격 +20%)", () => shout("aaw")], ["전면 후퇴", () => shout("retreat")]], "r", true); }
     if (R) { R.hit++; R.dmg.push([s.name, s.hp <= 0 ? "격침" : s.hp / s.max < 0.4 ? "대파" : "손상"]); repDone(R); }
   }
   for (let i = S.fx.length - 1; i >= 0; i--) { S.fx[i].t += dt; if (S.fx[i].t > 25) S.fx.splice(i, 1); }
@@ -423,10 +436,13 @@ function repDone(R) {
   if (!R || R.left > 0 || R.done != null) return; R.done = S.t; S.repShow = R;
   const dm = [...new Map(R.dmg.map(([n, k]) => [n, k])).entries()].map(([n, k]) => `${n} ${k}`).join(", ");
   say(`[교전] ${R.w} ${R.n}발 → 요격 ${R.icpt} · 명중 ${R.hit}${dm ? ` · ${dm}` : ""}`, R.side === "us" ? (R.hit ? "hit" : "") : R.hit ? "bad" : "hit");
+  if (S.fm && (R.side === "us" ? R.hit > 0 && R.n >= 2 : R.n >= 4)) { const big = R.dmg.some(([, k]) => k === "격침");
+    hl(R.side === "us" ? `${R.from} 일제사격${R.hit >= R.n / 2 ? " 명중!" : ""}` : `적 미사일 공격 — ${R.to}`, `<div class="fl"><span>${R.w}</span><b class="a">${R.n}</b><i>발사 →</i><span>${R.side === "us" ? "적 요격" : "아군 요격"}</span><b class="b">${R.icpt}</b><i>→</i><span>${R.side === "us" ? "명중" : "피격"}</span><b class="c">${R.hit}</b></div><div>${dm || (R.side === "us" ? "피해 없음" : "아군 방공 성공 — 피해 없음")}</div>${R.side === "us" && R.icpt / R.n > 0.5 ? `<small>참모: 적 대공이 강합니다 — 포화 사격으로 발수를 늘리십시오.</small>` : ""}`,
+      R.side === "us" && R.icpt / R.n > 0.5 ? [["포화 사격 (8발)", () => shout("sat")]] : R.side === "foe" && R.hit ? [["대공 집중", () => shout("aaw")]] : [], R.side === "us" ? "" : "r", big); }
 }
 function support(dt) {
   for (const s of S.sup) {
-    if (s.k === "battery") { s.cd -= dt; if (s.cd > 0) continue; const t = nearest(s, S.foe.filter((f) => f.seen && !f.gone)); if (t && t.d < BATTERY.range) { launch2({ x: s.x, y: s.y, name: "해안 지대함 포대", side: "us" }, t.g, 2, "지대함", 60); S.shots += 2; s.cd = 120; say("해안 포대 2발 발사.", "hit"); } else s.cd = 15; }
+    if (s.k === "battery") { s.cd -= dt; if (s.cd > 0) continue; const t = nearest(s, S.foe.filter((f) => f.seen && !f.gone)); if (t && t.d < BATTERY.range) { launch2({ x: s.x, y: s.y, name: "해안 지대함 포대", side: "us", id: s.id || "battery" }, t.g, 2, "지대함", 60); S.shots += 2; s.cd = 120; say("해안 포대 2발 발사.", "hit"); } else s.cd = 15; }
     if (s.k === "sub" && !s.used) { const t = S.foe.find((f) => alive(f).length && !(f.delay && S.t < f.delay) && d2(f, s) < 8); if (t) { s.used = true; const v = alive(t)[0]; v.hp = Math.max(0, v.hp - 60); S.hits++; S.fx.push({ x: t.x, y: t.y, t: 0, c: "#ff6b5e", big: true }); say(`잠수함 매복 성공 — ${v.name} 어뢰 명중${v.hp <= 0 ? ", 격침" : ""}`, "hit"); } }
   }
 }
@@ -459,6 +475,302 @@ function finish(won, why) {
   const r = { won, why, secs: Math.max(1, Math.round(S.t)), shots: Math.min(5000, S.shots), hits: Math.min(S.hits, S.shots, 5000), hp: all.reduce((a, s) => a + s.hp, 0) / all.reduce((a, s) => a + s.max, 0), sunk: foes.filter((s) => s.hp <= 0).length, foes: foes.length, lost: all.filter((s) => s.hp <= 0).length + (S.airLost || 0), allies: all.length + (S.air?.length || 0), jetsOut: S.isAir ? S.sorties : S.sup.some((s) => s.k === "cap") ? 2 : 0, airLost: S.airLost || 0, sorties: S.sorties || 0 };
   r.stars = won ? 1 + (r.lost === 0 ? 1 : 0) + (S.foe.every((f) => !alive(f).length || f.gone) ? 1 : 0) : 0; S.result = r;
   $("#omRes").innerHTML = `<div class="om-res"><div class="om-rt ${won ? "w" : "l"}">${won ? "작전 성공" : "작전 실패"}</div><div class="om-st">${"★".repeat(r.stars)}${"☆".repeat(3 - r.stars)}</div><div class="om-rw">${why}</div><div class="om-sx"><span class="${won ? "ok" : ""}">★ 연평 해역 방어</span><span class="${r.lost === 0 && won ? "ok" : ""}">★ 아군 손실 0</span><span class="${won && S.foe.every((f) => !alive(f).length || f.gone) ? "ok" : ""}">★ 적 전단 전부 격퇴</span></div><div class="om-rg"><span>작전 시간</span><b>${fmtT(r.secs)}</b><span>적함 격침</span><b>${r.sunk} / ${r.foes}척</b><span>아군 손실</span><b>${S.isAir ? `함정 ${r.lost - r.airLost} · 항공기 ${r.airLost}` : `${r.lost} / ${r.allies}척`}</b>${S.isAir ? `<span>출격 횟수</span><b>${r.sorties}회</b>` : ""}<span>미사일 발사 / 명중</span><b>${r.shots} / ${r.hits}</b><span>아군 잔존 전력</span><b>${Math.round(r.hp * 100)}%</b></div><button data-om="done">결과 보고 ›</button></div>`;
+}
+
+// ── FM식 작전: 작전 전술판 → 자동 진행(하이라이트·중계·지시·예비) → 결과·평점 ──
+const CONCEPTS = {
+  deep: { n: "⛨ 종심 방어", d: "연평 해역 앞에 주력을 두고 들어오는 적을 받아칩니다. 처음이라면 추천.", pro: ["안정적", "아군 요격 +15%"], con: ["적 선제 사격 허용"] },
+  forward: { n: "➤ 전진 차단", d: "경계선 가까이 나가 적이 내려오자마자 칩니다.", pro: ["선제 타격 — 적 요격 −15%"], con: ["연료 소모 ×1.3", "적과 빨리 맞닥뜨림"] },
+  decoy: { n: "◈ 기만 유인", d: "전위가 미끼로 적을 끌고, 전파를 끈 타격대가 옆에서 칩니다.", pro: ["타격대 명중 ↑ (적 요격 −25%)"], con: ["미끼(전위)가 집중 사격받음", "정찰 필수"] },
+};
+const SLOTP = {
+  deep: { front: { x: 30, y: 38 }, main: { x: 72, y: 48 }, strike: { x: 44, y: 60 }, cap: { x: 76, y: 41 }, reserve: { x: 90, y: 62 }, recon: "s1", recon2: "s4" },
+  forward: { front: { x: 20, y: 28 }, main: { x: 58, y: 44 }, strike: { x: 36, y: 44 }, cap: { x: 62, y: 39 }, reserve: { x: 80, y: 56 }, recon: "s1", recon2: "s1" },
+  decoy: { front: { x: 48, y: 46 }, main: { x: 74, y: 50 }, strike: { x: 30, y: 56 }, cap: { x: 76, y: 43 }, reserve: { x: 90, y: 62 }, recon: "s4", recon2: "s1" },
+};
+const AIRSLOT = { strike: { x: 118, y: 86 }, tanker: { x: 84, y: 64 }, airlift: { x: 86, y: 36 }, reserve: { x: 108, y: 90 } };
+const SLOTS = {
+  sea: [["front", "전위 초계", "정찰 전단 또는 P-3C — 적을 먼저 찾습니다"], ["main", "주력 방어", "연평 해역을 지킵니다"], ["strike", "타격대", "탐지된 적을 측면에서 칩니다"], ["cap", "방공(CAP)", "공군 CAP — 주력 위 적기·미사일 요격"], ["reserve", "예비", "작전 중 '예비 투입'으로 출동"]],
+  air: [["recon", "정찰", "초계기·헬기 — 적을 찾습니다"], ["cap", "방공(CAP)", "전투기 — 연평 상공에서 적기 요격"], ["strike", "타격대", "전투기·헬기 — 탐지된 적을 자동으로 타격"], ["tanker", "급유", "급유기 — 체공시간 연장"], ["airlift", "공수", "수송기 — 연평도에 지대함 유도탄 반"], ["reserve", "예비", "작전 중 '예비 투입'으로 출격"]],
+};
+const SHOUTS = {
+  sea: [["attack", "➤ 공세 전환", "모든 전단 전진 · 먼저 다가가 사격"], ["defend", "⛨ 방어 유지", "연평 해역으로 집결"], ["retreat", "↩ 전면 후퇴", "손실 최소화 · 해역 일부 포기"], ["emcon", "📡 전파 차단", "은밀 · 탐지 ↓ (다시 누르면 해제)"], ["sat", "🎯 포화 사격", "일제사격 8발 · 탄 소모 ↑"], ["aaw", "🛡 대공 집중", "요격 +20% · 대함 사격 중지 (토글)"]],
+  air: [["attack", "➤ 총공격", "대기 중인 전투기 전부 즉시 타격"], ["capall", "🛡 방공 강화", "대기 전투기 전부 연평 CAP"], ["safe", "↩ 약한 기체 후퇴", "초계기·급유기·수송기 귀환"], ["sat", "🎯 포화 사격", "함정 일제사격 8발"], ["aaw", "🛡 대공 집중", "함정 요격 +20% · 대함 사격 중지 (토글)"]],
+};
+const RESERVES = {
+  sea: [["resgrp", "예비 전단", "예비 칸의 전단이 연평으로 출동"], ["pkg", "예비 고속정 편대", "고속함 2척 합류"], ["fa50", "비상대기 FA-50", "연평 상공 CAP"], ["battery", "해안 지대함 포대", "강화도 포대 사격 개시"]],
+  air: [["resair", "예비 편대", "예비 칸의 편대가 출격"], ["fa50", "비상대기 FA-50", "연평 상공 CAP"], ["pkg", "예비 고속정 편대", "고속함 2척 합류"], ["battery", "해안 지대함 포대", "강화도 포대 사격 개시"]],
+};
+const INS = [["roe", "교전규칙", [["tight", "근접 사격"], ["free", "자유 사격"]], { tight: `${KMU(18)}km 안에서만 — 명중 ↑, 적이 먼저 쏠 수 있음`, free: `최대 ${KMU(30)}km — 먼저 쏘지만 요격당하기 쉬움` }],
+  ["radar", "레이더", [["on", "켜기"], ["off", "전파 차단"], ["strike", "타격 직전만"]], { on: "멀리 보지만 적도 아군을 멀리서 봄", off: "숨지만 근시 — 정찰 수단 필요", strike: "평소엔 끄고 적이 가까우면 켬" }],
+  ["salvo", "일제사격", [[2, "절약 2"], [4, "균형 4"], [8, "포화 8"]], { 2: "아껴 쏨 — 대부분 요격될 수 있음", 4: "균형", 8: "적 대공 포화 — 명중 ↑ · 탄 빨리 소진" }],
+  ["tempo", "템포", [["slow", "신중"], ["norm", "보통"], ["aggr", "공세"]], { slow: "타격대가 멀리서만 교전, 추격 안 함", norm: "보통", aggr: "타격대가 바짝 다가가 사격 — 피격 ↑" }],
+  ["loss", "손실 허용", [["low", "낮음"], ["norm", "보통"], ["high", "높음"]], { low: "전력 40% 아래 전단은 스스로 물러남", norm: "전력 25% 아래면 물러남", high: "끝까지 싸움" }]];
+const RULES = [["sat", "적 대공 '강' 표적이면", "포화 8발"], ["weak", "적 전투기 출현 시", "약한 기체 자동 후퇴"], ["ammo", "미사일 30% 이하", "방어로 전환"]];
+
+function fmInit() {
+  S.fm = { concept: "deep", roles: {}, ins: { roe: "free", radar: "on", salvo: 4, tempo: "norm", loss: "norm" }, rules: { sat: true, weak: true, ammo: true }, tab: "tac", pick: null, res: 3, resUsed: [], hl: null, hlQ: [], lastHl: -999, half: false, halfDone: false, ff: false, st: {}, fs: { us: { n: 0, icpt: 0, hit: 0 }, foe: { n: 0, icpt: 0, hit: 0 } }, firstKill: null, shout: {}, view: "" };
+  fmDefault();
+}
+const fmCards = () => S.isAir ? S.air.map((u) => ({ id: u.id, n: short(u.name), sub: u.name.match(/\((.*)\)/)?.[1] || u.n, ic: AIR_IC[u.t], ok: { fighter: ["cap", "strike", "reserve"], mpa: ["recon"], helo: ["recon", "strike"], tanker: ["tanker"], transport: ["airlift"] }[u.t] }))
+  : [...S.us.map((g) => ({ id: g.id, n: g.name, sub: g.ships.map((x) => x.name).join(" · "), ic: "■", ok: ["front", "main", "strike", "reserve"] })), { id: "p3c", n: "P-3C 해상초계기", sub: `정찰 ${KMU(30)}km`, ic: "◎", ok: ["front"] }, { id: "cap", n: "공군 CAP", sub: "KF-16 편대 · 요격 +20%", ic: "✈", ok: ["cap"] }];
+function fmDefault() {
+  const R = (S.fm.roles = {}), put = (slot, id) => { if (id) (R[slot] ??= []).push(id); };
+  if (S.isAir) { for (const u of S.air) put(u.t === "mpa" ? "recon" : u.t === "helo" ? "recon" : u.t === "tanker" ? "tanker" : u.t === "transport" ? "airlift" : u.id === "a1" ? "cap" : u.id === "a7" ? "reserve" : "strike", u.id); return; }
+  put("main", "u1"); if (S.us[1]) put("strike", "u2"); if (S.us[2]) put("front", "u3"); else put("front", "p3c"); if (S.us[2]) put("front", "p3c"); put("cap", "cap");
+}
+const roleOf = (id) => Object.keys(S.fm.roles).find((k) => S.fm.roles[k].includes(id));
+function fmAssign(id, slot) {
+  const c = fmCards().find((x) => x.id === id); if (!c) return;
+  if (!c.ok.includes(slot)) { say(`${c.n}은(는) '${(SLOTS[S.isAir ? "air" : "sea"].find((s) => s[0] === slot) || [])[1]}' 역할을 맡을 수 없습니다.`, "bad"); S.fm.flash = `${c.n} → 이 역할 불가`; return; }
+  for (const k of Object.keys(S.fm.roles)) S.fm.roles[k] = S.fm.roles[k].filter((x) => x !== id);
+  (S.fm.roles[slot] ??= []).push(id); S.fm.pick = null; S.fm.flash = null; S.dirty = true;
+}
+function slotPos(slot) {
+  const P = SLOTP[S.fm.concept];
+  if (!S.isAir) return P[slot];
+  if (slot === "recon") return secById(P.recon).c; if (slot === "cap") return { x: P.cap.x, y: P.cap.y }; return AIRSLOT[slot] || P[slot] || P.main;
+}
+/** 작전 개시: 역할·부대 지시를 실제 명령으로 바꾼다 */
+function fmApply() {
+  const F = S.fm, I = F.ins, R = F.roles;
+  for (const g of S.us) {
+    const role = roleOf(g.id) || "main"; g.fmRole = role; g.roe = I.roe; g.radarMode = I.radar; g.radar = I.radar === "on"; g.salvoN = I.salvo;
+    g.seek = I.tempo === "slow" ? 30 : I.tempo === "aggr" ? 60 : 48; g.close = I.tempo === "slow" ? 28 : I.tempo === "aggr" ? 15 : 24;
+    if (role === "reserve") { g.mission = "hold"; g.path = []; g.fmRes = true; continue; }
+    g.mission = role === "front" ? (F.concept === "decoy" ? "hold" : "scout") : role === "strike" ? "strike" : "hold";
+    if (role === "front" && F.concept === "decoy") { g.radar = true; g.radarMode = "on"; g.bait = true; }
+    if (role === "strike" && F.concept === "decoy") { g.radar = false; g.radarMode = "strike"; }
+    g.path = route(g, slotPos(role));
+  }
+  if (!S.isAir) {
+    if ((R.front || []).includes("p3c")) S.sup.push({ k: "p3c", x: slotPos("front").x + 6, y: slotPos("front").y - 4, used: false, id: "p3c" });
+    if ((R.cap || []).includes("cap")) S.sup.push({ k: "cap", x: slotPos("main").x, y: slotPos("main").y - 3, used: false, id: "cap" });
+  } else {
+    const P = SLOTP[F.concept]; let rc = 0;
+    for (const u of S.air) {
+      const role = roleOf(u.id); u.fmRole = role;
+      if (role === "recon") { assignSector(u.id, secById(rc++ ? P.recon2 : P.recon)); }
+      else if (role === "cap") assignSector(u.id, secById("s2"));
+      else if (role === "tanker") assignSector(u.id, secById("s5"));
+      else if (role === "airlift") assignSector(u.id, secById("s2"));
+    }
+  }
+  say(`작전 개시 — ${CONCEPTS[F.concept].n.slice(2)}. 교전규칙 ${I.roe === "free" ? "자유 사격" : "근접 사격"}, 일제사격 ${I.salvo}발.`, "hit");
+}
+function fmStep(dt) {
+  const F = S.fm; if (!F) return; const I = F.ins;
+  const thr = { low: 0.4, norm: 0.25, high: -1 }[I.loss];
+  for (const g of S.us) {
+    if (!alive(g).length) continue;
+    if (g.radarMode === "strike") { const t = nearest(g, S.foe.filter((f) => f.seen && !f.gone)); g.radar = !!(t && t.d < 34) || F.shout.emcon === false; }
+    if (F.shout.emcon) g.radar = false;
+    if (!g.fmRet && strength(g) < thr) { g.fmRet = true; g.mission = "hold"; g.path = route(g, slotPos("reserve") || { x: 90, y: 62 }); hl("손실 허용 한계 — 전단 후퇴", `${g.name} 전력 ${Math.round(strength(g) * 100)}% — 부대 지시(손실 허용 '${{ low: "낮음", norm: "보통" }[I.loss]}')에 따라 스스로 물러납니다.`, [], "y"); }
+    if (F.rules.ammo && !g.ammoRet && g.mission === "strike") { const a = alive(g).reduce((s, x) => s + x.asm, 0), m = alive(g).reduce((s, x) => s + x.asm0, 0); if (m && a / m < 0.3) { g.ammoRet = true; g.mission = "hold"; g.path = route(g, slotPos("main")); say(`${g.name} 미사일 30% 이하 — 조건부 지시로 방어 전환`); } }
+  }
+  if (S.isAir) {
+    for (const u of S.air) if (u.fmRole === "strike" && u.st === "ready" && u.asm > 0 && !u.tgt) { const f = S.foe.filter((x) => x.seen && alive(x).length && !x.gone && !x.retreat && !(x.delay && S.t < x.delay)).sort((a, b) => etaGoal(a) - etaGoal(b))[0]; if (f) strikeMission(f, [u.id]); }
+  }
+  if (F.rules.weak && S.isAir) for (const r of S.raids) if (r.alive && !r.fmWarned) { r.fmWarned = true; if (!S.air.some((u) => u.job === "cap" && airborne(u))) for (const u of S.air) if (airborne(u) && ["mpa", "tanker", "transport"].includes(u.t)) { u.st = "rtb"; say(`${short(u.name)} — 조건부 지시로 위협 회피 귀환`); } }
+  if (!F.halfDone && S.t >= 900) { F.halfDone = true; F.half = halfOpts(); }
+}
+function halfOpts() {
+  const ours = S.us.reduce((a, g) => a + strength(g), 0), theirs = S.foe.filter((f) => !f.gone).reduce((a, f) => a + strength(f), 0), ammo = S.us.reduce((a, g) => a + alive(g).reduce((s, x) => s + x.asm, 0), 0);
+  const seen = S.foe.filter((f) => f.seen && alive(f).length && !f.gone).length, hidden = S.foe.filter((f) => alive(f).length && !f.gone && !f.seen).length;
+  const L = [];
+  L.push(ours > theirs ? ["attack", "공세로 전환", "아군 전력이 앞섭니다. 남은 적을 쫓아가 끝냅니다.", "작전처장"] : ["defend", "연평 해역으로 집결", "전력이 대등하거나 불리합니다. 해역 방어에 집중합니다.", "작전처장"]);
+  L.push(hidden ? ["scout", "정찰 강화", `미탐지 적 전단 ${hidden}개 — 전위·정찰 수단을 북쪽으로 더 밀어 올립니다.`, "정보처장"] : ["sat", "포화 사격으로 마무리", "적 대공이 남아 있습니다. 일제사격을 8발로 올립니다.", "정보처장"]);
+  L.push(ammo < 16 ? ["save", "탄약 절약", `남은 대함미사일 ${ammo}발 — 일제사격을 2발로 줄여 끝까지 버팁니다.`, "군수참모"] : ["aaw", "대공 방어 강화", "적 미사일 반격에 대비해 요격을 강화합니다(대함 사격 일시 중지).", "작전참모"]);
+  return { ours: Math.round((ours / Math.max(0.01, ours + theirs)) * 100), seen, hidden, ammo, opts: L };
+}
+function shout(k) {
+  const F = S.fm, gs = S.us.filter((g) => alive(g).length && !g.fmRes);
+  if (k === "attack" && !S.isAir) { for (const g of gs) { g.mission = "strike"; g.seek = 70; g.close = 15; g.fmRet = false; } say("[지휘] 공세 전환 — 전 전단 전진", "hit"); }
+  if (k === "defend") { for (const g of gs) { g.mission = "hold"; g.path = route(g, slotPos("main")); } say("[지휘] 방어 유지 — 연평 해역으로 집결", "hit"); }
+  if (k === "retreat") { for (const g of gs) { g.mission = "hold"; g.roe = "tight"; g.path = route(g, slotPos("reserve")); } say("[지휘] 전면 후퇴 — 손실 최소화", "bad"); }
+  if (k === "emcon") { F.shout.emcon = !F.shout.emcon; for (const g of gs) g.radar = !F.shout.emcon; say(`[지휘] ${F.shout.emcon ? "전 전단 전파 차단" : "전파 차단 해제 — 레이더 켜기"}`, "hit"); }
+  if (k === "sat") { for (const g of S.us) g.salvoN = 8; F.ins.salvo = 8; say("[지휘] 포화 사격 — 일제사격 8발", "hit"); }
+  if (k === "save") { for (const g of S.us) g.salvoN = 2; F.ins.salvo = 2; say("[지휘] 탄약 절약 — 일제사격 2발"); }
+  if (k === "aaw") { F.shout.aaw = !F.shout.aaw; say(`[지휘] ${F.shout.aaw ? "대공 집중 — 대함 사격 중지" : "대공 집중 해제"}`, "hit"); }
+  if (k === "scout") { for (const g of gs) if (g.fmRole === "front") { g.mission = "scout"; g.path = route(g, { x: 34, y: 30 }); } for (const s of S.sup) if (s.k === "p3c") { s.y = Math.max(20, s.y - 8); } for (const u of S.air) if (u.t === "mpa" && u.st !== "lost") assignSector(u.id, secById("s1")); say("[지휘] 정찰 강화 — 전위·초계기 북쪽으로", "hit"); }
+  if (S.isAir && k === "attack") { const rd = S.air.filter((u) => u.t === "fighter" && u.st === "ready" && u.asm > 0), f = S.foe.filter((x) => x.seen && alive(x).length && !x.gone && !(x.delay && S.t < x.delay)).sort((a, b) => etaGoal(a) - etaGoal(b))[0]; if (f && rd.length) strikeMission(f, rd.map((u) => u.id)); else say("[지휘] 총공격 — 보낼 전투기나 탐지된 적이 없습니다", "bad"); }
+  if (k === "capall") { for (const u of S.air) if (u.t === "fighter" && u.st !== "lost" && u.job !== "strike") assignSector(u.id, secById("s2")); say("[지휘] 방공 강화 — 전투기 연평 CAP 집중", "hit"); }
+  if (k === "safe") { for (const u of S.air) if (airborne(u) && ["mpa", "tanker", "transport"].includes(u.t)) u.st = "rtb"; say("[지휘] 약한 기체 후퇴"); }
+  F.lastShout = k; S.dirty = true;
+}
+function useReserve(k) {
+  const F = S.fm; if (F.res <= 0 || F.resUsed.includes(k)) return; F.res--; F.resUsed.push(k);
+  if (k === "resgrp") { const g = S.us.find((x) => x.fmRes && alive(x).length); if (g) { g.fmRes = false; g.mission = "strike"; g.path = route(g, slotPos("main")); say(`[예비] ${g.name} 출동 — 연평으로`, "hit"); } else { F.res++; F.resUsed.pop(); say("예비 칸에 전단이 없습니다.", "bad"); } }
+  if (k === "resair") { const u = S.air.find((x) => x.fmRole === "reserve" && x.st === "ready"); if (u) { u.fmRole = "strike"; say(`[예비] ${u.name} 투입 — 타격대 합류`, "hit"); } else { F.res++; F.resUsed.pop(); say("예비 칸에 대기 편대가 없습니다.", "bad"); } }
+  if (k === "pkg") { const g = { id: "u9", name: "예비 고속정 편대", ...ORD0, x: 110, y: 72, ships: [ship("pkg", "고속함 1"), ship("pkg", "고속함 2")], mission: "strike", path: [], side: "us", fireT: 30, salvoN: F.ins.salvo, seek: 48, close: 24 }; g.home = { x: g.x, y: g.y }; g.path = route(g, slotPos("main")); S.us.push(g); say("[예비] 고속정 편대 합류 — 연평으로", "hit"); }
+  if (k === "fa50") { if (S.isAir) { const u = air("a9", "fighter", "비상대기 편대 (FA-50)"); u.asm = 2; S.air.push(u); assignSector(u.id, secById("s2")); launch(u); } else S.sup.push({ k: "cap", x: GOAL.x, y: GOAL.y - 4, used: false, id: "fa50" }); say("[예비] 비상대기 FA-50 출격 — 연평 상공 CAP", "hit"); }
+  if (k === "battery") { if (!S.sup.some((s) => s.k === "battery")) S.sup.push({ k: "battery", x: BATTERY.x, y: BATTERY.y, cd: 20, id: "battery" }); say("[예비] 해안 지대함 포대 사격 개시", "hit"); }
+  S.dirty = true;
+}
+/** highlight: pause and show a card (throttled; later ones only go to the feed) */
+function hl(title, body, acts = [], cls = "", force = false) {
+  const F = S.fm; if (!F || S.phase !== "run") return;
+  if (!force && (F.hl || S.t - F.lastHl < 45)) return;
+  F.hl = { title, body, acts, cls, at: S.t }; F.lastHl = S.t; F.ff = false; S.dirty = true;
+}
+const stOf = (k) => (S.fm.st[k] ??= { hits: 0, kills: 0, icpt: 0, dmg: 0, det: 0, air: 0, shots: 0 });
+function fmEstimate() {
+  const F = S.fm, R = F.roles, has = (s) => (R[s] || []).length > 0; let p = 40; const weak = [];
+  if (S.isAir) {
+    if (has("recon")) p += 15; else weak.push("정찰이 없어 적을 늦게 찾습니다");
+    if (has("cap")) p += 14; else weak.push("방공(CAP)이 없어 적 전투기가 정찰기·급유기를 노립니다");
+    if (has("strike")) p += 16 + 4 * (R.strike.length - 1); else weak.push("타격대가 없어 적을 칠 수 없습니다");
+    if (has("tanker")) p += 3; if (has("airlift")) p += 4; if (has("reserve")) p += 2;
+  } else {
+    if (has("front")) p += 14; else weak.push("전위 초계가 없어 적을 늦게 찾습니다");
+    if (has("main")) p += 16; else weak.push("주력 방어가 비어 연평 해역이 뚫리기 쉽습니다");
+    if (has("strike")) p += 12; else weak.push("타격대가 없어 측면 공격이 불가능합니다");
+    if (has("cap")) p += 6; if (has("reserve")) p += 3;
+    if (F.concept === "decoy" && !(R.front || []).some((id) => id !== "p3c")) { p -= 12; weak.push("기만 유인인데 미끼 전단(전위)이 없습니다"); }
+    if (F.concept === "forward" && !has("strike")) { p -= 6; weak.push("전진 차단은 타격대가 있어야 효과가 큽니다"); }
+  }
+  if (F.concept === "deep") p += 4;
+  if (F.ins.salvo === 8) { p -= 2; weak.push("포화 8발 — 탄약이 중반에 바닥날 수 있음"); }
+  if (F.ins.tempo === "aggr") p -= 3; if (F.ins.radar === "off" && !(S.isAir || (R.front || []).includes("p3c"))) { p -= 8; weak.push("전파 차단인데 P-3C 정찰이 없음"); }
+  if (S.ctx.grade >= 4 && !S.isAir) weak.push("적 제2전단(해주)이 8분 뒤 북동쪽에서 출현 — 주력이 연평에 있어야 함");
+  return { p: clamp(Math.round(p), 12, 92), weak: weak.slice(0, 3) };
+}
+
+// ── FM UI ──
+/** 지도 위 역할 칸이 서로 겹치지 않게 밀어낸다 (지도 영역 안으로 제한) */
+function fmSpread() {
+  const box = $("#fmSlots"), map = box?.parentElement; if (!box || !map) return;
+  const W = map.clientWidth, H = map.clientHeight, els = [...box.children], R = els.map((e) => ({ e, x: parseFloat(e.style.left), y: parseFloat(e.style.top), w: e.offsetWidth + 8, h: e.offsetHeight + 8 }));
+  for (let it = 0; it < 60; it++) { let moved = false;
+    for (let i = 0; i < R.length; i++) for (let j = i + 1; j < R.length; j++) { const a = R[i], b = R[j], ox = (a.w + b.w) / 2 - Math.abs(a.x - b.x), oy = (a.h + b.h) / 2 - Math.abs(a.y - b.y);
+      if (ox > 0 && oy > 0) { moved = true; if (ox < oy) { const d = (ox / 2 + 1) * (a.x <= b.x ? -1 : 1); a.x += d; b.x -= d; } else { const d = (oy / 2 + 1) * (a.y <= b.y ? -1 : 1); a.y += d; b.y -= d; } } }
+    for (const r of R) { r.x = clamp(r.x, r.w / 2, W - r.w / 2); r.y = clamp(r.y, r.h / 2 + 4, H - r.h / 2); }
+    if (!moved) break; }
+  for (const r of R) { r.e.style.left = r.x + "px"; r.e.style.top = r.y + "px"; }
+}
+function fmBuild() {
+  let el = $("#opMap"); if (!el) { el = document.createElement("div"); el.id = "opMap"; document.body.append(el); }
+  el.className = "fm"; el.dataset.ph = "plan";
+  el.innerHTML = `<div class="fm-top"><b class="brand">STEEL TIDE</b><span class="fm-title">${S.isAir ? "항공 작전 · 서해 항공 지원" : "작전 지휘 · 서해 해상 차단"}</span><div class="fm-tabs" id="fmTabs"></div><div class="fm-tr" id="fmTR"></div></div>
+    <div class="fm-body"><aside class="fm-l" id="fmL"></aside><main class="fm-c"><div class="fm-map"><canvas id="omCv"></canvas><div id="fmSlots"></div><div id="fmScore"></div><div id="omRep"></div><div id="fmHL"></div><div id="fmIntel"></div></div><div class="fm-bot" id="fmBot"></div></main><aside class="fm-r" id="fmR"></aside></div>
+    <div id="fmRes"></div><div id="omRes" hidden></div>`;
+  el.style.display = "flex";
+  const cv = $("#omCv"); const fit = () => { const r = cv.parentElement.getBoundingClientRect(); if (!r.width) return; cv.width = r.width * devicePixelRatio; cv.height = r.height * devicePixelRatio; cv.style.width = r.width + "px"; cv.style.height = r.height + "px"; S.dirty = true; };
+  S.fit = fit; addEventListener("resize", fit); requestAnimationFrame(fit);
+  cv.oncontextmenu = (e) => e.preventDefault();
+  el.ondragstart = (e) => { const c = e.target.closest?.("[data-card]"); if (!c) return; S.fm.pick = c.dataset.card; e.dataTransfer.setData("text/plain", c.dataset.card); e.dataTransfer.effectAllowed = "move"; };
+  el.ondragover = (e) => { if (e.target.closest?.("[data-slot]")) e.preventDefault(); };
+  el.ondrop = (e) => { const s = e.target.closest?.("[data-slot]"); if (!s) return; e.preventDefault(); const id = e.dataTransfer.getData("text/plain") || S.fm.pick; if (id) fmAssign(id, s.dataset.slot); };
+  el.onclick = onClick;
+  S.key = (e) => { if (!S.on) return; if (e.code === "Space") { e.preventDefault(); e.stopImmediatePropagation(); if (S.phase === "run") { if (S.fm.hl) { S.fm.hl = null; S.dirty = true; } else S.paused = !S.paused; } } };
+  addEventListener("keydown", S.key, true);
+}
+function fmClick(a) {
+  const F = S.fm;
+  if (a.startsWith("cn:")) F.concept = a.slice(3);
+  else if (a.startsWith("tab:")) F.tab = a.slice(4);
+  else if (a.startsWith("ins:")) { const [, k, v] = a.split(":"); F.ins[k] = k === "salvo" ? +v : v; }
+  else if (a.startsWith("rule:")) { const k = a.slice(5); F.rules[k] = !F.rules[k]; }
+  else if (a.startsWith("card:")) F.pick = F.pick === a.slice(5) ? null : a.slice(5);
+  else if (a.startsWith("slot:")) { if (F.pick) fmAssign(F.pick, a.slice(5)); }
+  else if (a.startsWith("unrole:")) { const id = a.slice(7); for (const k of Object.keys(F.roles)) F.roles[k] = F.roles[k].filter((x) => x !== id); }
+  else if (a === "fmdef") fmDefault();
+  else if (a === "fmgo") { fmApply(); S.phase = "run"; S.paused = false; S.speed = 2; $("#opMap").dataset.ph = "run"; requestAnimationFrame(() => S.fit()); }
+  else if (a.startsWith("sh:")) shout(a.slice(3));
+  else if (a.startsWith("rs:")) useReserve(a.slice(3));
+  else if (a.startsWith("hla:")) { const f = F.hl?.acts[+a.slice(4)]?.[1]; F.hl = null; f?.(); }
+  else if (a === "hlok") F.hl = null;
+  else if (a.startsWith("half:")) { const k = a.slice(5); F.half = null; if (k !== "none") shout(k); }
+  else if (a === "ff") F.ff = !F.ff;
+  else if (a.startsWith("sp:")) { S.speed = +a.slice(3); F.ff = false; S.paused = false; }
+  else if (a === "pz") S.paused = !S.paused;
+  else return false;
+  S.dirty = true; return true;
+}
+function fmPanel() {
+  const F = S.fm, sig = JSON.stringify([S.phase, F.tab, F.concept, F.roles, F.ins, F.rules, F.pick, F.res, F.hl && F.hl.at, !!F.half, F.ff, S.speed, S.paused, Math.floor(S.t / 2), S.log[0]?.at, S.log.length, S.evt?.id, F.flash, S.repShow?.done, $("#omCv")?.width]);
+  if (sig === S.psig && !S.dirty) return; S.psig = sig; S.dirty = false;
+  if (S.evt && !F.hl && S.phase === "run") { const e = S.evt; F.hl = { title: e.t, body: "결정이 필요합니다.", acts: [[e.a[1] + ` — ${e.a[2]}`, () => resolveEvent(e.a[0])], [e.b[1] + ` — ${e.b[2]}`, () => resolveEvent(e.b[0])]], cls: "y", at: S.t, noOk: true }; }
+  const el = $("#opMap"); if (el.dataset.ph !== S.phase) { el.dataset.ph = S.phase; requestAnimationFrame(() => S.fit()); }
+  $("#fmTabs").innerHTML = (S.phase === "plan" ? [["tac", "① 작전 전술"], ["intel", "② 적 정보"]] : S.phase === "run" ? [["run", "③ 작전 진행"]] : [["res", "④ 작전 결과"]]).map(([k, n]) => `<span class="${F.tab === k || S.phase !== "plan" ? "on" : ""}" ${S.phase === "plan" ? `data-om="tab:${k}"` : ""}>${n}</span>`).join("");
+  if (S.phase === "plan") fmPlanView(); else if (S.phase === "run") fmRunView(); else fmResultView();
+}
+const KIND = (id) => fmCards().find((c) => c.id === id);
+function fmPlanView() {
+  const F = S.fm, E = fmEstimate(), SL = SLOTS[S.isAir ? "air" : "sea"];
+  $("#fmTR").innerHTML = `<button class="fm-ghost" data-om="fmdef">추천 배치로</button><button class="fm-go" data-om="fmgo">작전 개시 ›</button>`;
+  const known = S.foe.filter((f) => !f.delay), later = S.foe.filter((f) => f.delay);
+  $("#fmL").innerHTML = `<div class="fm-h"><i>1</i>작전 개념</div>${Object.entries(CONCEPTS).map(([k, c]) => `<button class="fm-cn${F.concept === k ? " on" : ""}" data-om="cn:${k}"><b>${c.n}</b><small>${c.d}</small><span>${c.pro.map((x) => `<em class="p">${x}</em>`).join("")}${c.con.map((x) => `<em class="c">${x}</em>`).join("")}</span></button>`).join("")}
+    <div class="fm-h"><i>2</i>참모 분석</div><div class="fm-card fm-q">정보처장: "적 수상전단 <b>${S.foe.length}개</b>. ${known.map((f) => f.name).join("·")}은 이미 남하 중이고, ${later.map((f) => `${f.name}은 약 ${Math.round(f.delay / 60)}분 뒤 출항`).join(", ") || "추가 출항 징후는 없습니다"}."<br>${S.isAir ? `항공작전과장: "정찰기로 먼저 찾고, 전투기 1개는 CAP, 나머지는 <b>타격대</b>에 두십시오."` : `작전처장: "${S.us.length > 1 ? "<b>종심 방어</b>로 주력을 연평에 두고 타격대로 측면을 치는 것을 권합니다." : "전단이 하나뿐입니다. <b>종심 방어</b>로 연평을 지키고 P-3C로 먼저 찾으십시오."}"`}</div>
+    <div class="fm-h">작전 적합도</div><div class="fm-fit">${fitBars().map(([n, v, c]) => `<span>${n}</span><i><em style="width:${v}%;background:${c}"></em></i>`).join("")}</div>`;
+  $("#fmR").innerHTML = `<div class="fm-h"><i>4</i>부대 지시 <small>(전 부대 공통)</small></div><div class="fm-ins">${INS.filter(([k]) => !S.isAir || k === "salvo" || k === "loss").map(([k, n, opts, hint]) => `<span>${n}</span><div class="fm-seg">${opts.map(([v, t]) => `<button data-om="ins:${k}:${v}" class="${String(F.ins[k]) === String(v) ? "on" : ""}">${t}</button>`).join("")}</div><small>${hint[F.ins[k]]}</small>`).join("")}</div>
+    <div class="fm-h"><i>5</i>조건부 지시</div>${RULES.filter(([k]) => S.isAir || k !== "weak").map(([k, c, d]) => `<button class="fm-rule${F.rules[k] ? " on" : ""}" data-om="rule:${k}"><span>${F.rules[k] ? "☑" : "☐"} ${c}</span><b>${d}</b></button>`).join("")}
+    <div class="fm-h">예상 결과 <small>(참모 추정)</small></div><div class="fm-card fm-est"><div><span>성공 가능성</span><b class="${E.p > 65 ? "g" : E.p > 45 ? "y" : "r"}">${E.p}%</b></div>${E.weak.length ? E.weak.map((w) => `<small>⚠ ${w}</small>`).join("") : `<small class="g">✓ 큰 약점이 없습니다</small>`}</div>`;
+  // slots on the map
+  const cv = $("#omCv"), dpr = devicePixelRatio; if (cv && cv.width) {
+    const { k, ox, oy } = view(), px = (p) => [(ox + p.x * k) / dpr, (oy + p.y * k) / dpr];
+    $("#fmSlots").innerHTML = F.tab === "tac" ? SL.map(([s, n, d]) => { const p = slotPos(s); if (!p) return ""; const [x, y] = px(p), ids = F.roles[s] || []; const okP = F.pick && KIND(F.pick)?.ok.includes(s);
+      return `<div class="fm-slot ${ids.length ? "" : "empty"} ${okP ? "can" : F.pick ? "no" : ""}" style="left:${x}px;top:${y}px" data-slot="${s}" data-om="slot:${s}"><span class="rt">${n}${S.isAir ? "" : ` · ${secOf(p)?.n || ""}`}</span>${ids.length ? ids.map((id) => `<b>${KIND(id)?.ic || ""} ${KIND(id)?.n || id} <a data-om="unrole:${id}">×</a></b>`).join("") : `<b class="e">+ ${d.split(" — ")[0]}</b>`}<small>${d.split(" — ")[1] || ""}</small></div>`; }).join("") : "";  fmSpread();
+  }
+  $("#fmIntel").innerHTML = F.tab === "intel" ? `<div class="fm-intel"><div class="fm-h">② 적 정보 — 정보처 판단</div><div class="fm-ig">${S.foe.map((f) => `<div class="fm-card"><b>${f.name}</b><small>${f.delay ? `약 ${Math.round(f.delay / 60)}분 뒤 출항 예상` : "남하 중 (위치 일부 확인)"}</small><div>${f.ships.map((x) => `<span class="fm-tag">${x.n}</span>`).join("")}</div><small>대함미사일 ${f.ships.reduce((a, x) => a + x.asm, 0)}발 · 대공 ${f.ships.reduce((a, x) => a + x.sam, 0) > 20 ? "강" : "약"}</small></div>`).join("")}</div>${S.isAir ? `<div class="fm-card" style="margin-top:10px">적 전투기 편대(MiG-29) 출격이 두 차례(약 8분·18분) 예상됩니다 — CAP이 없으면 초계기·급유기가 노려집니다.</div>` : `<div class="fm-card" style="margin-top:10px">서방 미확인 접촉(?)은 기만체일 가능성이 있습니다.</div>`}</div>` : "";
+  $("#fmBot").innerHTML = `<div class="fm-h"><i>3</i>보유 전력 — 카드를 지도의 역할 칸에 끌어다 놓거나, 카드를 누른 뒤 역할 칸을 누르세요${F.flash ? ` <em class="r">· ${F.flash}</em>` : ""}</div><div class="fm-tray">${fmCards().map((c) => { const r = roleOf(c.id), rn = r && SL.find((x) => x[0] === r)?.[1]; return `<div class="fm-unit${F.pick === c.id ? " pick" : ""}${r ? "" : " free"}" draggable="true" data-card="${c.id}" data-om="card:${c.id}"><span class="ic">${c.ic}</span><span><b>${c.n}</b><small>${c.sub}</small><em>${rn ? `역할: ${rn}` : "미배치"}</em></span></div>`; }).join("")}</div>`;
+  $("#fmScore").innerHTML = ""; $("#fmHL").innerHTML = "";
+}
+function fitBars() {
+  const R = S.fm.roles, n = (s) => (R[s] || []).length;
+  return S.isAir ? [["정찰", Math.min(100, n("recon") * 50), "#9be06a"], ["방공", Math.min(100, n("cap") * 60), "#7cc4ff"], ["타격력", Math.min(100, n("strike") * 35), "#ffb35c"], ["지속력", (n("tanker") ? 60 : 20) + (n("reserve") ? 30 : 0), "#d9c7ff"]]
+    : [["정찰", Math.min(100, n("front") * 55), "#9be06a"], ["방어", Math.min(100, n("main") * 70 + n("cap") * 25), "#7cc4ff"], ["타격력", Math.min(100, n("strike") * 60 + (S.fm.ins.salvo === 8 ? 20 : 0)), "#ffb35c"], ["예비", Math.min(100, n("reserve") * 60 + 30), "#d9c7ff"]];
+}
+function fmRunView() {
+  const F = S.fm, sunk = S.foe.flatMap((f) => f.ships).filter((s) => s.hp <= 0).length, lost = S.us.flatMap((g) => g.ships).filter((s) => s.hp <= 0).length + (S.airLost || 0);
+  const our = S.us.reduce((a, g) => a + alive(g).reduce((s, x) => s + x.hp, 0), 0) + S.air.filter((u) => u.st !== "lost").length * 25, their = S.foe.filter((f) => !f.gone).reduce((a, f) => a + alive(f).reduce((s, x) => s + x.hp, 0), 0), dom = Math.round((our / Math.max(1, our + their)) * 100);
+  $("#fmTR").innerHTML = `<div class="fm-spd"><button data-om="pz" class="${S.paused ? "on" : ""}">${S.paused ? "▶" : "⏸"}</button>${[1, 2, 4].map((s) => `<button data-om="sp:${s}" class="${S.speed === s && !F.ff ? "on" : ""}">x${s}</button>`).join("")}<button data-om="ff" class="${F.ff ? "on" : ""}">하이라이트까지 ⏭</button></div><button class="fm-ghost" data-om="quit">작전 중단</button>`;
+  $("#fmSlots").innerHTML = ""; $("#fmIntel").innerHTML = ""; $("#fmL").innerHTML = "";
+  $("#fmScore").innerHTML = `<div class="fm-score"><div><b class="u">${sunk}</b><small>적 격침</small></div><div><b>${fmtT(S.t)}</b><small>/ 30:00</small></div><div><b class="f">${lost}</b><small>아군 손실</small></div><div class="dm"><b class="${dom >= 50 ? "y" : "f"}">${dom}%</b><small>작전 우세</small></div></div>`;
+  const H = F.hl, Hf = F.half;
+  $("#fmHL").innerHTML = Hf ? `<div class="fm-hl y"><span class="tag">15:00 중간 보고 · 일시정지</span><h3>전반 15분 총평 — 수정안을 고르십시오</h3><p>작전 우세 <b>${Hf.ours}%</b> · 탐지된 적 ${Hf.seen}개 · 미탐지 ${Hf.hidden}개 · 남은 대함미사일 ${Hf.ammo}발</p><div class="fm-hopts">${Hf.opts.map(([k, n, d, who]) => `<button data-om="half:${k}"><b>${n}</b><small>${who}: "${d}"</small></button>`).join("")}<button data-om="half:none"><b>현 계획 유지</b><small>지금 지시 그대로 후반을 진행합니다</small></button></div></div>`
+    : H ? `<div class="fm-hl ${H.cls || ""}"><span class="tag">하이라이트 · ${fmtT(H.at)} · 자동 일시정지</span><h3>${H.title}</h3><div class="b">${H.body}</div><div class="row">${H.noOk ? "" : `<button class="ok" data-om="hlok">계속 ›</button>`}${H.acts.map(([n], i) => `<button data-om="hla:${i}">${n}</button>`).join("")}</div></div>` : "";
+  const SH = SHOUTS[S.isAir ? "air" : "sea"], RS = RESERVES[S.isAir ? "air" : "sea"];
+  $("#fmBot").innerHTML = `<div class="fm-run"><div><div class="fm-h"><i>2</i>지휘 지시 — 누르면 즉시 전 부대에 하달</div><div class="fm-shouts">${SH.map(([k, n, d]) => `<button data-om="sh:${k}" class="${(k === "emcon" && F.shout.emcon) || (k === "aaw" && F.shout.aaw) || F.lastShout === k ? "on" : ""}"><b>${n}</b><small>${d}</small></button>`).join("")}</div></div>
+    <div class="fm-resv"><div class="fm-h"><i>3</i>예비 전력 투입 <small>남은 ${F.res}회</small></div><div class="dots">${[0, 1, 2].map((i) => `<em class="${i < 3 - F.res ? "u" : ""}"></em>`).join("")}</div><div class="rl">${RS.map(([k, n, d]) => `<button data-om="rs:${k}" ${F.res <= 0 || F.resUsed.includes(k) ? "disabled" : ""}><b>${n}</b><small>${F.resUsed.includes(k) ? "투입함" : d}</small></button>`).join("")}</div></div></div>`;
+  const fs = F.fs, pct = (a, b) => (b ? Math.round((a / b) * 100) + "%" : "—");
+  const ammo = S.us.reduce((a, g) => a + alive(g).reduce((s, x) => s + x.asm, 0), 0) + S.air.filter((u) => u.st !== "lost").reduce((a, u) => a + u.asm, 0), ammo0 = S.us.reduce((a, g) => a + g.ships.reduce((s, x) => s + x.asm0, 0), 0) + S.air.reduce((a, u) => a + AIR_T[u.t].asm, 0);
+  $("#fmR").innerHTML = `<div class="fm-feed"><div class="fm-h"><i>4</i>상황 중계</div>${S.log.map((l) => `<div class="ln ${l.cls}${/\[교전\]|격침|격추|요격 성공/.test(l.t) ? " big" : ""}"><span>${fmtT(l.at)}</span>${l.t}</div>`).join("")}</div>
+    <div class="fm-stats"><div class="fm-h"><i>5</i>작전 통계 <small>아군 · 적</small></div>${[["미사일 발사", fs.us.n, fs.foe.n], ["명중률", pct(fs.us.hit, fs.us.n), pct(fs.foe.hit, fs.foe.n)], ["상대 미사일 요격", pct(fs.foe.icpt, fs.foe.n), pct(fs.us.icpt, fs.us.n)], ["적 전단 위치 확인", `${S.foe.filter((f) => f.everSeen).length} / ${S.foe.length}`, "—"], ["남은 대함미사일", pct(ammo, ammo0), "?"]].map(([n, a, b]) => `<div class="st"><b class="u">${a}</b><span>${n}</span><b class="f">${b}</b></div>`).join("")}${F.halfDone ? "" : `<div class="fm-card fm-half"><b>15:00 중간 보고</b> 예정 — 참모가 수정안 3개를 올립니다</div>`}</div>`;
+}
+function rateAll() {
+  const F = S.fm, L = [];
+  const add = (key, name, sub, lostX) => { const s = stOf(key); let r = 6 + s.hits * 0.35 + s.kills * 0.7 + s.icpt * 0.12 + s.det * 0.5 + s.air * 0.6 - s.dmg / 45 - (lostX ? 1.2 : 0); r = clamp(Math.round(r * 10) / 10, 4.5, 10); L.push({ key, name, sub, r, s }); };
+  for (const g of S.us) { const s = stOf(g.id), lostN = g.ships.filter((x) => x.hp <= 0).length; add(g.id, g.name, `${s.kills ? `격침 ${s.kills} · ` : ""}명중 ${s.hits} · 요격 ${s.icpt}${lostN ? ` · 손실 ${lostN}척` : ""}`, lostN === g.ships.length); }
+  for (const u of S.air) { const s = stOf(u.id); add(u.id, short(u.name), `${s.air ? `적기 요격 ${s.air} · ` : ""}${s.det ? `탐지 ${s.det} · ` : ""}명중 ${s.hits}${u.st === "lost" ? " · 손실" : ""}`, u.st === "lost"); }
+  for (const sp of S.sup) if (sp.id) { const s = stOf(sp.id); add(sp.id, { p3c: "P-3C 해상초계기", cap: "공군 CAP", fa50: "비상대기 FA-50", battery: "해안 지대함 포대" }[sp.id] || sp.id, `${s.det ? `탐지 ${s.det} · ` : ""}명중 ${s.hits}`, false); }
+  if (S.isleBat) { const s = stOf("isle"); add("isle", "연평도 지대함", `명중 ${s.hits}`, false); }
+  return L.sort((a, b) => b.r - a.r);
+}
+function fmResultView() {
+  const r = S.result; if (!r) return; const F = S.fm, L = rateAll(), mvp = L[0], lostShips = S.us.flatMap((g) => g.ships).filter((s) => s.hp <= 0).length;
+  const goals = [[lostShips === 0 && !(S.airLost > 0), "아군 손실 0"], [S.shots <= 24, `미사일 24발 이내 (${S.shots}발 사용)`], [F.firstKill != null && F.firstKill < 900, `15분 안에 첫 격침${F.firstKill != null ? ` (${fmtT(F.firstKill)})` : ""}`]];
+  const score = clamp(Math.round((r.won ? 58 : 22) + r.stars * 7 + goals.filter((g) => g[0]).length * 5 + Math.min(8, r.sunk * 1.5) - lostShips * 4 - (S.airLost || 0) * 2), 0, 100); r.score = score; r.mvp = mvp?.name;
+  const q = r.won ? [[`해군작전사령관: "${CONCEPTS[F.concept].n.slice(2)} 판단이 적중했다.${S.shots > 24 ? " 다만 미사일 소모가 많았다." : ""}"`, "신뢰도 +" + Math.max(2, Math.round(score / 14)), "g"], [`국방일보: "서해 ${S.isAir ? "항공 지원" : "해상 차단"} 성공 — ${mvp ? mvp.name + " 활약 빛나" : "적 남하 저지"}"`, "", ""]]
+    : [[`해군작전사령관: "${r.why}. 작전 계획을 재검토하라."`, "신뢰도 −4", "r"], [`국방일보: "서해 ${S.isAir ? "항공 작전" : "해상 차단"} 차질 — 군 당국 경위 조사"`, "", "r"]];
+  if (S.foe.some((f) => f.everSeen && f.delay && !f.ships.some((x) => x.hp <= 0) && !f.gone)) q.push(['합참: "늦게 출항한 적 전단 대응이 늦었다. 정찰 배치를 재검토할 것."', "지적 1", "r"]);
+  $("#fmTR").innerHTML = `<button class="fm-go" data-om="done">항구로 귀환 ›</button>`;
+  $("#fmRes").innerHTML = `<div class="fm-res"><div class="col"><div class="fm-card big"><small>작전 결과</small><div class="rt ${r.won ? "w" : "l"}">${r.won ? "작전 성공" : "작전 실패"}</div><div class="stars">${"★".repeat(r.stars)}${"☆".repeat(3 - r.stars)}</div><small>${r.why}</small></div>
+      <div class="fm-card"><div class="fm-h"><i>1</i>보조 목표</div>${goals.map(([ok, n]) => `<div class="kv"><span>${ok ? "✓" : "✗"} ${n}</span><b class="${ok ? "g" : "r"}">${ok ? "+5" : "—"}</b></div>`).join("")}</div>
+      <div class="fm-card"><div class="fm-h">핵심 통계</div>${[["명중률", F.fs.us.n ? Math.round((F.fs.us.hit / F.fs.us.n) * 100) + "%" : "—"], ["적 미사일 요격률", F.fs.foe.n ? Math.round((F.fs.foe.icpt / F.fs.foe.n) * 100) + "%" : "—"], ["격침 / 적 함정", `${r.sunk} / ${r.foes}`], ["예비 투입", `${3 - F.res}회`]].map(([a, b]) => `<div class="kv"><span>${a}</span><b>${b}</b></div>`).join("")}</div></div>
+    <div class="col"><div class="fm-card"><div class="fm-h"><i>2</i>${S.isAir ? "편대·함정" : "전단·지원"} 평점</div>${L.map((x, i) => `<div class="rt"><span>${x.name}<small>${x.sub}</small></span><b class="sc ${x.r >= 7.5 ? "a" : x.r >= 6.5 ? "b" : "c"}">${x.r.toFixed(1)}</b><em>${i === 0 ? "⭐MVP" : ""}</em></div>`).join("")}</div>
+      ${mvp ? `<div class="fm-card mvp"><div class="fm-h">⭐ 최우수 — ${mvp.name}</div><small>${mvp.sub} · 평점 ${mvp.r.toFixed(1)}${mvp.r >= 8 ? " → 표창 상신" : ""}</small></div>` : ""}</div>
+    <div class="col"><div class="fm-card"><div class="fm-h"><i>3</i>상부·언론 반응</div>${q.map(([t, b, c]) => `<div class="fm-q2 ${c}">${t}${b ? ` <b class="${c}">${b}</b>` : ""}</div>`).join("")}</div>
+      <div class="fm-card"><div class="fm-h"><i>4</i>지휘관 평가</div><div class="kv"><span>작전 평가 점수</span><b class="${score >= 70 ? "g" : score >= 45 ? "y" : "r"}">${score} / 100</b></div><div class="kv"><span>진급 심사 반영</span><b>${score >= 75 ? "+1 우수" : score >= 50 ? "보통" : "−1"}</b></div><div class="kv"><span>부대 사기</span><b class="${r.won ? "g" : "r"}">${r.won ? "▲ 높음" : "▼ 낮음"}</b></div></div>
+      <div class="fm-card"><div class="fm-h">참모 총평</div><small>${fmReview(r)}</small></div></div></div>`;
+}
+function fmReview(r) {
+  const F = S.fm, t = [];
+  if (!S.foe.every((f) => f.everSeen)) t.push("정찰이 끝까지 모든 적을 찾지 못했습니다 — 전위·정찰 수단을 늘리십시오.");
+  if (F.fs.us.n && F.fs.us.icpt / F.fs.us.n > 0.5) t.push("적 대공에 절반 이상 막혔습니다 — '포화 8발' 조건부 지시나 근접 사격을 권합니다.");
+  if (S.shots > 30) t.push("미사일 소모가 컸습니다 — 일제사격 4발이 적당합니다.");
+  if (!r.won) t.push(`${CONCEPTS[F.concept].n.slice(2)} 대신 다른 작전 개념도 시험해 보십시오.`);
+  return t.length ? t.join(" ") : "계획과 지휘 모두 훌륭했습니다. 다음 작전에서도 이 편성을 유지하십시오.";
 }
 
 // ── drawing: sectors first, details only for the selected unit (or when a map layer is switched on) ──
