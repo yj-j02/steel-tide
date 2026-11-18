@@ -17,7 +17,7 @@ import { aaGun, updateAAGun, jetPit, updateJetPit } from "./js/interior.js";
 import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, updateMG } from "./js/infantry.js";
 import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, candidates, roleTitle, ECH, echOf, staffFor, FLAG_POSTS, FLEET_CDR, BRANCHES, careerTitle, setBranch, POST_RANK, holds, saveStaff } from "./js/staff.js";
 import { PERKS, career, saveCareer, careerInit, rollPerks, takePerk, logPromotion, perkMods, payStep, MEDALS, awardMedals } from "./js/career.js";
-import { openOpMap, opMapAdvance } from "./js/opmap.js";
+import { openOpMap, opMapAdvance, opMapState, opMapAir } from "./js/opmap.js";
 import { FOCUS, PASS, minBattles, scoreBattle, recordEval, evalOf, board, runBoard, setCap, deferNote } from "./js/service.js";
 import { ECON_RANKS, ECON_RANK_XP, econRank, econNewProfile, econReward, econCheck, econApply } from "./js/shop.js";
 
@@ -567,7 +567,7 @@ function refreshMenus() {
   $("#record").textContent = profile.battles ? `${profile.wins}승 / ${profile.battles}전 · 명중률 ${acc}%` : "첫 출격 대기 중";
   renderRecord();
   document.body.classList.add("modern");
-  $("#modeSel").innerHTML = `<button class="er" data-mode="camp"><b>한반도 시나리오</b><small>가상 시나리오 · 서해부터 제주 남방까지 5단계 + 보너스 · 브리핑과 별점</small></button><button class="er" data-mode="ops"><b>함정 전투</b><small>미사일 해전 · 호송 등 작전 하나를 골라 직접 지휘함을 몰고 출항</small></button><button class="er" data-mode="opmap"><b>작전 지휘 · 작전지도</b><small>서해 해상 차단 작전 — 전단 기동·지원 배정을 계획하고 실시간으로 지휘${staff.branch === "ops" ? " · 작전 병과 혜택: 지원 +2P, 참모 의견" : " (작전 병과는 지원 +2P·참모 의견 혜택)"}</small></button>`;
+  $("#modeSel").innerHTML = `<button class="er" data-mode="camp"><b>한반도 시나리오</b><small>가상 시나리오 · 서해부터 제주 남방까지 5단계 + 보너스 · 브리핑과 별점</small></button><button class="er" data-mode="ops"><b>함정 전투</b><small>미사일 해전 · 호송 등 작전 하나를 골라 직접 지휘함을 몰고 출항</small></button><button class="er" data-mode="opmap"><b>작전 지휘 · 작전지도</b><small>서해 해상 차단 작전 — 전단 기동·지원 배정을 계획하고 실시간으로 지휘${staff.branch === "ops" ? " · 작전 병과 혜택: 지원 +2P, 참모 의견" : " (작전 병과는 지원 +2P·참모 의견 혜택)"}</small></button>${staff.branch === "air" ? `<button class="er" data-mode="airmap"><b>항공 작전 · 작전지도</b><small>항공 병과 전용 — 전투기·초계기·헬기${myGrade() >= 3 ? "·급유기" : ""}${myGrade() >= 4 ? "·수송기" : ""} 편대에 임무를 주고 출격·귀환·재무장을 관리해 함대를 지원</small></button>` : ""}`;
   $("#wzSum").innerHTML = `선택: <b>${MISSIONS[mission]?.n || ""}</b>${isModernOp(mission) ? ` · <b>${NATIONS[natUs].n} vs ${NATIONS[natFoe].n}</b>` : ""} · <b>${MAPS[theater]?.n || ""}</b> · ${todSel === "night" ? "야간" : "주간"}/${wxSel === "storm" ? "폭풍" : "맑음"}<button class="go" type="button" data-wzgo="1">이대로 출항</button>`;
   if (typeof wzCrumb === "function" && document.querySelector("#opsP .wz.on")) wzCrumb();
   $("#campBox").style.display = ""; $("#campBox .ph span:last-child").textContent = "한반도 시나리오 (가상)"; $("#opsTitle").textContent = "작전 선택";
@@ -585,7 +585,7 @@ $("#nations").addEventListener("click", (e) => { const b = e.target.closest("[da
 $("#maps").addEventListener("click", (e) => { const b = e.target.closest("[data-map]"); if (!b || b.disabled) return; theater = b.dataset.map; try { localStorage.setItem("steeltide:map", theater); } catch {} sfx.click(); refreshMenus(); });
 $("#wx").addEventListener("click", (e) => { const b = e.target.closest("[data-tod],[data-wx]"); if (!b) return; if (b.dataset.tod) todSel = b.dataset.tod; else wxSel = b.dataset.wx; try { localStorage.setItem("steeltide:tod", todSel); localStorage.setItem("steeltide:wx", wxSel); } catch {} sfx.click(); refreshMenus(); });
 $("#camp").addEventListener("click", (e) => { const kb = e.target.closest("[data-kcamp]"); if (kb && !kb.disabled) openBrief(+kb.dataset.kcamp); });
-$("#modeSel").addEventListener("click", (e) => { const b = e.target.closest("[data-mode]"); if (!b) return; if (b.dataset.mode === "opmap") { startOpMap(); return; } wzMode = b.dataset.mode; showWz(wzMode === "camp" ? "camp" : "ops"); });
+$("#modeSel").addEventListener("click", (e) => { const b = e.target.closest("[data-mode]"); if (!b) return; if (b.dataset.mode === "opmap") { startOpMap(); return; } if (b.dataset.mode === "airmap") { startOpMap(true); return; } wzMode = b.dataset.mode; showWz(wzMode === "camp" ? "camp" : "ops"); });
 $("#opsP").addEventListener("click", (e) => { const back = e.target.closest(".wz-back"); if (back) { const t = WZ_BACK[wz]; if (t) showWz(typeof t === "function" ? t() : t); return; }
   const to = e.target.closest("[data-wzto]"); if (to) { showWz(to.dataset.wzto); return; }
   const go = e.target.closest("[data-wzgo]"); if (go) { campSel = null; start(false); } });
@@ -702,9 +702,9 @@ function storyCard(c) {
   pmPreview = true; $("#promoM").style.display = "flex";
 }
 /** 작전 지휘 (operation map): plan and run an operation on the chart; the result pays and is evaluated like a battle. */
-function startOpMap() {
+function startOpMap(airMode = false) {
   initAudio(); bgm("battle"); sfx.click(); const g = myGrade(), m = staffMods(hqGrade(), hqBranch()), pk = perkMods();
-  openOpMap({ grade: g, branch: staff.branch, ops: staff.branch === "ops", mods: { outK: m.outK * (pk.fleetK || 1), inK: m.inK, icptK: m.icptK * (pk.icptK || 1) }, onDone: opMapDone });
+  openOpMap({ grade: g, branch: staff.branch, ops: staff.branch === "ops", air: airMode && staff.branch === "air", mods: { outK: m.outK * (pk.fleetK || 1), inK: m.inK, icptK: m.icptK * (pk.icptK || 1) }, onDone: opMapDone });
 }
 let storyOp = null;
 function opMapDone(r) {
@@ -2372,7 +2372,7 @@ function frameOnce(dt) {
   }
 }
 
-window.__st = { opMapAdvance, cicWcs, cicSetWcs, cicFeedInfo, aa, aimAAAt: (p) => { const o = aaMount(), v = p.clone().sub(o); aa.yaw = Math.atan2(v.z, v.x); aa.pitch = Math.atan2(v.y, Math.hypot(v.x, v.z)); }, aaMslFire, KCAMP, openBrief, get kProg() { return kProg; }, opsDebug, get weapon() { return weapon; }, setJetRole, setFlyAuto, get kc() { return G.kc; }, setWx: (t, w) => { todSel = t; wxSel = w; }, conceal, get tut() { return tut; }, setKey, get keyPhys() { return keyPhys; }, flyControl, flyFlare, md, MSL2: MSL, frameOnce, takeJet, releaseFly, flyFire, flyStrike, get flyLock() { return md.flyLock; }, know, sortieJets, myAir, landAt, setSel, get sel() { return sel; }, get lock() { return lock; }, setLock: (v) => { lock = v; }, sensorStep, bestContact, SR, WPN, G, air, cam, aa, MSL, md, fireSalvo, modernKey, setNat: (a, b) => { natUs = a; natFoe = b; }, toAuto, takeOver, setTheater: (t) => { theater = t; }, get cmdr() { return cmdr; }, toggleAA, cap, startBoard, toggleCapFps, canBoard, lockShip: (s) => lockShip(s), fc, get profile() { return profile; }, start, step, frame: (dt) => { step(dt); updateCamera(dt); }, tryFire, openYard, openMenu, act, setPause, forfeit,
+window.__st = { opMapAdvance, opMapState, opMapAir, startOpMap, cicWcs, cicSetWcs, cicFeedInfo, aa, aimAAAt: (p) => { const o = aaMount(), v = p.clone().sub(o); aa.yaw = Math.atan2(v.z, v.x); aa.pitch = Math.atan2(v.y, Math.hypot(v.x, v.z)); }, aaMslFire, KCAMP, openBrief, get kProg() { return kProg; }, opsDebug, get weapon() { return weapon; }, setJetRole, setFlyAuto, get kc() { return G.kc; }, setWx: (t, w) => { todSel = t; wxSel = w; }, conceal, get tut() { return tut; }, setKey, get keyPhys() { return keyPhys; }, flyControl, flyFlare, md, MSL2: MSL, frameOnce, takeJet, releaseFly, flyFire, flyStrike, get flyLock() { return md.flyLock; }, know, sortieJets, myAir, landAt, setSel, get sel() { return sel; }, get lock() { return lock; }, setLock: (v) => { lock = v; }, sensorStep, bestContact, SR, WPN, G, air, cam, aa, MSL, md, fireSalvo, modernKey, setNat: (a, b) => { natUs = a; natFoe = b; }, toAuto, takeOver, setTheater: (t) => { theater = t; }, get cmdr() { return cmdr; }, toggleAA, cap, startBoard, toggleCapFps, canBoard, lockShip: (s) => lockShip(s), fc, get profile() { return profile; }, start, step, frame: (dt) => { step(dt); updateCamera(dt); }, tryFire, openYard, openMenu, act, setPause, forfeit,
   moveOrder, aimAtPoint, lockShip, setSpeed, cycleCam, pick, useRepair, setMission: (m) => { mission = m; }, get lock() { return lock; }, get weapon() { return weapon; }, setWeapon: (w) => { weapon = w; },
   get paused() { return paused; }, get torpThreat() { return torpThreat; }, get radioSub() { return radioSub; }, keys, fireTorps, intercept, leadPoint, myRank, setLockOn: (t) => { lockOn = t; }, get lockOn() { return lockOn; }, help: (v) => { helpOn = v; } };
 loadModels(); showcase(flagshipId()); refreshMenus(); connect(); bgm("menu"); /* the first port screen is not opened through openMenu, so ask for its music here (it starts on the first click) */
