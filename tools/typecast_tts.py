@@ -29,7 +29,7 @@ LINES = {
     "torp_launch": ("어뢰 발사 완료!", "normal"),
     "fleet": ("적 함대 전멸했습니다!", "happy"),
     "abandon": ("총원 퇴함!", "sad"),
-    "promo": ("사관님, 진급을 축하드립니다!", "happy"),
+    "promo": ("진급을 축하드립니다!", "happy"),
 }
 
 def req(method, path, key, body=None):
@@ -42,11 +42,18 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--list", action="store_true", help="list ssfm-v31 male voices")
     ap.add_argument("--voice", help="voice_id (tc_... or uc_...)")
+    ap.add_argument("--name", help="pick the voice whose name contains this (e.g. 건석)")
     ap.add_argument("--only", help="comma-separated keys to (re)generate")
     a = ap.parse_args()
     key = os.environ.get("TYPECAST_API_KEY")
     if not key: sys.exit("TYPECAST_API_KEY 환경변수를 먼저 설정하세요.")
     try:
+        if a.name and not a.voice:
+            vs = json.loads(req("GET", "/v3/voices?model=ssfm-v31", key)); vs = vs.get("voices", vs) if isinstance(vs, dict) else vs
+            hit = [v for v in vs if a.name in str(v.get("voice_name") or v.get("name") or "")]
+            for v in hit: print("찾음:", v.get("voice_id"), "|", v.get("voice_name") or v.get("name"))
+            if len(hit) != 1: sys.exit(f"'{a.name}' 이름의 음성이 {len(hit)}개입니다. Typecast 웹에서 voice_id(tc_...)를 확인해 직접 입력하세요.")
+            a.voice = hit[0].get("voice_id")
         if a.list or not a.voice:
             vs = json.loads(req("GET", "/v3/voices?model=ssfm-v31&gender=male", key))
             vs = vs.get("voices", vs) if isinstance(vs, dict) else vs
