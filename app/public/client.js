@@ -124,11 +124,15 @@ function marshalBadge(size, fill = "#d9dde0", wreath = "#d9dde0") {
   const wr = [-1, 1].map((s) => [0, 1, 2].map((i) => `<ellipse cx="${30 + s * (6 + i * 4)}" cy="${55 - i * 3.5}" rx="2.4" ry="4.2" transform="rotate(${s * (30 + i * 18)} ${30 + s * (6 + i * 4)} ${55 - i * 3.5})" fill="${wreath}"/>`).join("")).join("") + `<circle cx="30" cy="55" r="3" fill="${wreath}"/>`;
   return `<svg role="img" aria-label="원수 계급장" width="${size * 1.25}" height="${size * 1.25}" viewBox="0 0 60 62">${st}${wr}</svg>`;
 }
-function insignia(r, size = 24) { /* 소위 gold bar, 중위 silver bar, 대위 two silver bars; 소령 and up below; 원수 a ring of five */
+/* 한국군 계급 장식: 위관 다이아몬드, 영관 무궁화 (silver) */
+const krDia = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})"><path d="M0 -10 L7 0 L0 10 L-7 0Z" fill="#e4e7ea" stroke="#8a9096" stroke-width=".6"/><path d="M0 -10 L0 10 M-7 0 L7 0 M0 -10 L-3.5 0 L0 10 L3.5 0Z" stroke="#9aa1a7" stroke-width=".5" fill="none"/></g>`;
+const krMug = (x, y, s) => `<g transform="translate(${x} ${y}) scale(${s})">${[0, 72, 144, 216, 288].map((a) => `<ellipse cx="0" cy="-5.2" rx="4.1" ry="5.4" transform="rotate(${a})" fill="#e4e7ea" stroke="#8a9096" stroke-width=".6"/>`).join("")}<circle r="2.6" fill="#c9cdd1" stroke="#8a9096" stroke-width=".6"/>${[0, 72, 144, 216, 288].map((a) => `<line x1="0" y1="0" x2="0" y2="-7" transform="rotate(${a})" stroke="#9aa1a7" stroke-width=".5"/>`).join("")}</g>`;
+const krDevs = (g, cx, cy, s, gap) => { const f = g <= 2 ? krDia : krMug, n = (g % 3) + 1, d = gap * (f === krDia ? 0.88 : 1); return Array.from({ length: n }, (_, i) => f(cx + (i - (n - 1) / 2) * d, cy, s)).join(""); };
+function insignia(r, size = 24) { /* 소위~대위 다이아몬드 1~3, 소령~대령 무궁화 1~3, 장성 별, 원수 별 다섯 원형 */
   if (r >= 10) return marshalBadge(size);
-  if (r >= 3) return insigniaField(r - 3, size);
-  const bars = r === 2 ? 2 : 1, c = r === 0 ? "#d4a93a" : "#d9dde0";
-  return `<svg role="img" aria-label="${ECON_RANKS[r]} 계급장" width="${size}" height="${size}" viewBox="0 0 34 34">${Array.from({ length: bars }, (_, k) => `<rect x="${bars === 2 ? 7 + k * 12 : 13}" y="5" width="8" height="24" rx="1" fill="${c}"/>`).join("")}</svg>`;
+  if (r >= 6) return insigniaField(r - 3, size);
+  const n = (r % 3) + 1, w = 34 * n;
+  return `<svg role="img" aria-label="${ECON_RANKS[r]} 계급장" width="${Math.min(size * n * 0.8, size * 2.4)}" height="${size}" viewBox="0 0 ${w} 34">${krDevs(r, w / 2, 17, 1.45, 34)}</svg>`;
 }
 function insigniaField(r, size = 24) { // US Navy collar devices: oak leaf (gold/silver), eagle, stars
   if (r <= 1) return `<svg role="img" aria-label="${ECON_RANKS[r + 3]} 계급장" width="${size}" height="${size}" viewBox="0 0 34 34"><path d="M17 3 C10 8 7 14 9 21 C11 27 15 30 17 31 C19 30 23 27 25 21 C27 14 24 8 17 3 Z" fill="${r ? "#d9dde0" : "#d4a93a"}"/><path d="M17 6 L17 30" stroke="${r ? "#8b9399" : "#8a6a1c"}" stroke-width="1.4"/></svg>`;
@@ -269,7 +273,7 @@ function face(i, s = 64) {
   o += `<path d="M24 25 C26 11 74 11 76 25 L74 28 L26 28Z" fill="url(#${u}c)"/><rect x="${jx - 1}" y="26" width="${(jx2 - jx) + 2}" height="6" fill="#121417"/>`
     + `<path d="M${jx - 1} 32 L${jx2 + 1} 32 L${jx2 - 3} 37 Q50 39 ${jx + 3} 37Z" fill="#07090b"/><path d="M${jx + 1} 35.5 Q50 37.8 ${jx2 - 1} 35.5" stroke="#c9a23a" stroke-width="1.3" fill="none"/>`
     + `<path d="M${jx - 1} 31.5 L${jx2 + 1} 31.5" stroke="#c9a23a" stroke-width="1.1"/>`
-    + `<path d="M50 17.5 l2.2 4.2 l4.4 .4 l-3.4 2.8 l1.2 4.4 l-4.4-2.4 l-4.4 2.4 l1.2-4.4 l-3.4-2.8 l4.4-.4Z" fill="#d6b04a"/><path d="M43 26 Q50 23.5 57 26 L57 28 Q50 26 43 28Z" fill="#d6b04a" opacity=".85"/>`;
+    + `<g transform="translate(50 22.5) scale(.82)"><path d="M-7.5 -1 Q-8 6 0 7.5 Q8 6 7.5 -1" stroke="#d6b04a" stroke-width="1.1" fill="none"/>${[-1, 1].map((s) => [0, 1, 2, 3].map((i) => `<ellipse cx="${s * (7.6 - i * 0.3)}" cy="${-1 + i * 2.3}" rx=".9" ry="1.7" transform="rotate(${s * (-20 + i * 18)} ${s * (7.6 - i * 0.3)} ${-1 + i * 2.3})" fill="#d6b04a"/>`).join("")).join("")}<path d="M0 -7 L0 5.5 M-3.2 -4.6 L3.2 -4.6 M-4.6 1.8 Q-4 5.6 0 5.8 Q4 5.6 4.6 1.8" stroke="#d6b04a" stroke-width="1.3" fill="none" stroke-linecap="round"/><circle cy="-7.6" r="1.3" fill="none" stroke="#d6b04a" stroke-width=".9"/><circle cy="-1.2" r="2.3" fill="#c8313e"/><path d="M-2.3 -1.2 A2.3 2.3 0 0 0 2.3 -1.2 A1.15 1.15 0 0 1 0 -1.2 A1.15 1.15 0 0 0 -2.3 -1.2Z" fill="#1f4aa0"/></g>`; /* 해군 모표: 닻 + 태극 + 월계 잎 */
   return o + `</svg>`;
 }
 let goalMk = null; /* destination beacon (see goalBeacon) */
@@ -787,7 +791,7 @@ function shoulderBoard(g, flip) {
   if (gen) { o += `<circle cx="${w - 10}" cy="${h / 2}" r="3.2" fill="#f3d878" stroke="#7a6220" stroke-width=".6"/>`; const n = g - 5;
     if (n === 5) [0, 1, 2, 3, 4].forEach((i) => { const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5; o += `<path d="${starPath(30 + Math.cos(a) * 7, 13 + Math.sin(a) * 7, 4.2)}" fill="#e9ecef" stroke="#7d8287" stroke-width=".4"/>`; });
     else for (let i = 0; i < n; i++) o += `<path d="${starPath(10 + i * 11 + (4 - n) * 5, h / 2, 5)}" fill="#e9ecef" stroke="#7d8287" stroke-width=".4"/>`; }
-  else { const S = [[1], [1, 0.5], [1, 1], [1, 0.5, 1], [1, 1, 1], [1, 1, 1, 1]][g] || [1]; let x = 8; for (const t of S) { o += `<rect x="${x}" y="2" width="${t === 1 ? 4.4 : 2.2}" height="${h - 4}" fill="#e2bf55"/>`; x += t === 1 ? 7 : 5; } o += `<circle cx="${w - 12}" cy="${h / 2}" r="5" fill="none" stroke="#e2bf55" stroke-width="1.4"/><path d="M${w - 15} ${h / 2} L${w - 9} ${h / 2} M${w - 12} ${h / 2 - 3} L${w - 12} ${h / 2 + 3}" stroke="#e2bf55" stroke-width="1"/>`; }
+  else o += `<circle cx="${w - 10}" cy="${h / 2}" r="3.2" fill="#c9a23a" stroke="#7a6220" stroke-width=".6"/>` + krDevs(g, 30, h / 2, g <= 2 ? 1.1 : 1.05, 19);
   return o + `</g>`;
 }
 function portraitHTML(g) {
