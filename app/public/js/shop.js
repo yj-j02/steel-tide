@@ -37,7 +37,7 @@ function econReward(a) {
   const k = (0.7 + 0.15 * a.tier) * (a.won && a.mission && a.mission !== "fleet" ? 1.3 : 1), planes = a.planes || 0, caps = a.caps || 0;
   const money = ((a.won ? 2600 : 700) + a.hits * 120 + a.bombs * 400 + Math.min(a.bullets, 400) * 4 + planes * 150 + caps * 1800 + (a.won ? Math.max(0, 1500 - a.seconds * 3) : 0)) * k;
   const xp = ((a.won ? 300 : 90) + a.hits * 15 + a.bombs * 40 + planes * 25 + caps * 120) * k;
-  return { money: Math.round(money), xp: Math.round(xp) };
+  return { money: Math.round(money * (a.ngPay ? 1.5 : 1)), xp: Math.round(xp * (a.ngXp ? 1.43 : 1)) }; /* 2회차 특전 */
 }
 const econInt = (v, lo, hi) => Number.isInteger(v) && v >= lo && v <= hi;
 /** null when the action is legal for this profile, otherwise the reason. */
@@ -49,6 +49,7 @@ function econCheck(p, a) {
     if (!econInt(a.tier, 1, 5) || !econInt(a.bombs, 0, 20) || !econInt(a.bullets, 0, 20000)) return "result out of range";
     if (a.planes !== undefined && !econInt(a.planes, 0, 200)) return "result out of range";
     if (a.caps !== undefined && !econInt(a.caps, 0, 10)) return "result out of range";
+    if ((a.ngPay !== undefined && a.ngPay !== 1) || (a.ngXp !== undefined && a.ngXp !== 1)) return "result out of range";
     if (a.mission !== undefined && ECON_MISSIONS.indexOf(a.mission) < 0) return "unknown mission";
     return null;
   }
