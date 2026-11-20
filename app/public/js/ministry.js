@@ -258,7 +258,7 @@ function endWeek(m) {
 function termEnd(m) {
   const avg = Math.round(m.sup.reduce((a, b) => a + b, 0) / Math.max(1, m.sup.length)), l5 = Object.values(m.prog).filter((v) => v >= 5).length, rate = Math.round((m.wins / Math.max(1, m.fights)) * 100);
   const ok = avg >= 60 && l5 >= 2 && rate >= 80; m.retired = true; m.term = { avg, l5, rate, ok };
-  const H = hall(); H.unshift({ name: m.name, gen: (legacy()?.gen || 1), at: new Date().toISOString().slice(0, 10), avg, l5, rate, ok, doctrine: m.doctrine ? DOCTRINES[m.doctrine].n : "—", prog: { ...m.prog } }); wr(HK, H.slice(0, 20));
+  const H = hall(); H.unshift({ name: m.name, gen: (legacy()?.gen || 1), at: new Date().toISOString().slice(0, 10), avg, l5, rate, ok, doctrine: m.doctrine ? DOCTRINES[m.doctrine].n : "—", prog: { ...m.prog }, face: globalThis.__myFace?.() || null, start: m.started || null }); wr(HK, H.slice(0, 40));
 }
 
 // ── 화면 ──
@@ -325,6 +325,15 @@ function trendSVG(m) {
     <div class="lgd"><span class="s">━ 지지율 (현재 ${S[n - 1]}, 목표선 60)</span><span class="b">━ 예산 (현재 ${won(B[B.length - 1] ?? m.budget)})</span></div></div>`;
 }
 /** 임기 종료 연출 컷 */
+/** 역대 국방부장관 초상 갤러리 (게임 속 기록) */
+export function galleryHTML() {
+  const m = minState(), H = hall(), F = (h, s) => (globalThis.__faceOf ? globalThis.__faceOf(h.face, s, h.name) : "");
+  const cur = m && !m.retired ? [{ name: m.name, cur: true, face: globalThis.__myFace?.() || null, week: m.week }] : [];
+  const all = [...cur, ...H], N = H.length;
+  return `<div class="gal"><div class="gal-h"><b>역대 국방부장관</b><small>이 브라우저에서 임기를 마친 장관 ${N}명${cur.length ? " + 현직" : ""} · 게임 속 기록입니다</small><button data-min="galx">닫기 ✕</button></div>
+    <div class="gal-g">${all.map((h, i) => { const no = h.cur ? N + 1 : N - (i - cur.length); return `<div class="gal-c ${h.cur ? "cur" : h.ok ? "ok" : ""}"><div class="gal-f">${F(h, 132)}</div><em>제${no}대${h.cur ? " · 현직" : ""}</em><b>${h.name}</b>
+      <small>${h.cur ? `재임 ${h.week}주차` : `${h.gen}회차 · ${h.at} 퇴임`}</small>${h.cur ? "" : `<small>${h.ok ? "★ 명예 퇴임" : "임기 종료"} · 지지율 ${h.avg} · 방어율 ${h.rate}%</small><small>교리 ${h.doctrine}</small>`}</div>`; }).join("") || "<small>아직 기록이 없습니다.</small>"}</div></div>`;
+}
 export function retireCuts(m) {
   const T = m.term || {}, ok = T.ok, best = Object.entries(PROGS).filter(([k]) => (m.prog[k] || 0) >= 5).map(([, P]) => P.n);
   const stat = `<h4>${ok ? "명예 퇴임" : "임기 종료"}</h4><div><span>평균 국정 지지율</span><b class="${T.avg >= 60 ? "g" : "r"}">${T.avg}</b></div><div><span>LV5 방위력 개선 사업</span><b class="${T.l5 >= 2 ? "g" : "r"}">${T.l5}개</b></div><div><span>다해역 위기 방어율</span><b class="${T.rate >= 80 ? "g" : "r"}">${T.rate}%</b></div><div><span>남긴 국방 예산</span><b>${won(m.budget)}</b></div>`;
@@ -345,7 +354,7 @@ function retiredHTML(m) {
     ${T.ok ? `<div class="mn-h">계승할 사업 (LV3로 시작)</div><div class="rf">${Object.entries(PROGS).filter(([k]) => (m.prog[k] || 0) >= 5).map(([k, P]) => `<button data-min="inh:${k}" class="${m.inh === k ? "on" : ""}">${P.n}</button>`).join("")}</div>` : ""}
     <button class="mn-pres" data-pres="start"><b>다음 장 · 대통령 출마 ›</b><small>민간인이 된 당신에게 정당들이 접촉해 오기 시작했습니다.</small></button><button data-min="replay" class="mn-rp">🎬 이임식 다시 보기</button>
     <button class="mn-ng ${ngArm ? "arm" : ""}" data-min="ng">${ngArm ? "한 번 더 누르면 커리어·함정·기록이 초기화되고 소위로 다시 시작합니다" : "2회차 시작 (소위부터)"}</button><small>명예의 전당·설정·지휘관 이름은 그대로 남습니다. 이 버튼을 누르지 않으면 지금 커리어로 계속 플레이할 수 있습니다.</small></div>
-    <div class="mn-card"><div class="mn-h">역대 국방부장관 명예의 전당</div>${H.map((h) => `<div class="hl ${h.ok ? "ok" : ""}"><b>${h.ok ? "★ " : ""}${h.name}</b><span>${h.gen}회차 · ${h.at}</span><small>지지율 ${h.avg} · LV5 ${h.l5}개 · 방어율 ${h.rate}% · 교리 ${h.doctrine}</small></div>`).join("") || "<small>기록 없음</small>"}</div></div></div>`;
+    <div class="mn-card"><div class="mn-h">역대 국방부장관 명예의 전당 <button class="mn-tg on" data-min="gal">🖼 초상 갤러리</button></div>${H.map((h) => `<div class="hl ${h.ok ? "ok" : ""}"><b>${h.ok ? "★ " : ""}${h.name}</b><span>${h.gen}회차 · ${h.at}</span><small>지지율 ${h.avg} · LV5 ${h.l5}개 · 방어율 ${h.rate}% · 교리 ${h.doctrine}</small></div>`).join("") || "<small>기록 없음</small>"}</div></div></div>`;
 }
 
 /** 클릭 처리: 결과 { redraw, direct, reset } */
@@ -354,6 +363,7 @@ export function minClick(a) {
   if (a === "ng") { if (!ngArm) { ngArm = true; return { redraw: true }; } ngArm = false; const T = m.term, L = legacy();
     wr(LK, { gen: (L?.gen || 1) + 1, medal: !!T?.ok, prog: T?.ok ? m.inh || Object.keys(m.prog).find((k) => m.prog[k] >= 5) || null : null, minister: !!T?.ok }); return { reset: true }; }
   if (a.startsWith("inh:")) { m.inh = a.slice(4); save(m); return { redraw: true }; }
+  if (a === "gal") return { gallery: true };
   if (a === "replay" && m.retired) return { retire: retireCuts(m) };
   if (m.retired) return {};
   if (a.startsWith("doc:")) { const k = a.slice(4); m.doctrine = m.doctrine === k ? null : k; save(m); return { redraw: true, toast: m.doctrine ? `작전 교리 선포 — ${DOCTRINES[k].n}` : "작전 교리 해제" }; }
@@ -373,4 +383,4 @@ export function minClick(a) {
   return {};
 }
 /** 2회차 시작 시 지울 저장 키 (설정·지휘관 이름·명예의 전당·계승은 남김) */
-export const NG_RESET = ["steeltide:pres", "steeltide:profile", "steeltide:career", "steeltide:staff", "steeltide:kcamp", "steeltide:camp", "steeltide:oplog", "steeltide:c72", "steeltide:post", "steeltide:mission", MK];
+export const NG_RESET = ["steeltide:potus", "steeltide:pres", "steeltide:profile", "steeltide:career", "steeltide:staff", "steeltide:kcamp", "steeltide:camp", "steeltide:oplog", "steeltide:c72", "steeltide:post", "steeltide:mission", MK];

@@ -190,7 +190,7 @@ export function presHTML() {
     return `<div class="mn pr">${top}${body}</div>`;
   } else {
     const F = P.final; body = `<div class="mn-ret"><div class="mn-card big"><h3>${{ won: "대통령 당선", lost: "낙선", quit: "민간인" }[P.stage] || ""}</h3>${F ? `<p>최종 득표율 — ${F.names.map((n, i) => `${n} ${fmtPct(F.sh[i])}`).join(" · ")}</p>` : ""}
-      ${P.stage === "won" ? `<div class="mn-pres"><b>다음 장 · 대통령 (국군통수권자)</b><small>취임 후 국정 운영 모드는 준비 중입니다.</small></div>` : `<p>민간인으로 돌아왔습니다. 집무실 탭에서 2회차를 시작할 수 있습니다.</p>`}<button class="mn-rp" data-pres="replay">🎬 선거일 밤 다시 보기</button></div>${log}</div>`;
+      ${P.stage === "won" ? `<button class="mn-pres" data-potus="start"><b>취임 — 대통령실로 ›</b><small>국군통수권자로서 5년(20분기) 임기를 시작합니다.</small></button>` : `<p>민간인으로 돌아왔습니다. 집무실 탭에서 2회차를 시작할 수 있습니다.</p>`}<button class="mn-rp" data-pres="replay">🎬 선거일 밤 다시 보기</button></div>${log}</div>`;
   }
   return `<div class="mn pr">${top}<div class="mn-body">${body}</div></div>`;
 }

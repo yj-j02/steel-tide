@@ -19,7 +19,9 @@ import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods
 import { PERKS, career, saveCareer, careerInit, rollPerks, takePerk, logPromotion, perkMods, payStep, MEDALS, awardMedals } from "./js/career.js";
 import { openOpMap, opMapAdvance, opMapState, opMapAir } from "./js/opmap.js";
 import { openScene, playCuts } from "./js/scene.js";
+import { potusState, potusStart, potusHTML, potusClick, potusTitle } from "./js/potus.js";
 import { presState, presStart, presHTML, presClick, PARTIES } from "./js/president.js";
+import { galleryHTML } from "./js/ministry.js";
 import { minFx, minHTML, minClick, minStart, minOpResult, minState, legacy, NG_RESET } from "./js/ministry.js";
 /** 국방부장관 교리·사업·2회차 특전을 전투 보정치에 곱한다 */
 const withMin = (m) => { const F = minFx(); return { ...m, outK: m.outK * F.outK, inK: m.inK * F.inK, icptK: m.icptK * F.icptK, reloadK: (m.reloadK || 1) * F.reloadK }; };
@@ -84,7 +86,7 @@ const escortsFor = (r) => Math.min(4, 1 + Math.floor(r / 2));
 const fightersFor = () => 9;
 /** WWII US Navy billet typical for each rank (game simplification; see report). */
 const POSTS = ["함정 갑판사관", "함정 작전관", "구축함 부장", "구축함 함장", "구축대 사령 (DesDiv)", "구축전대 사령 · 코모도어 (DesRon)", "기동소함대 사령관 (Task Flotilla)", "기동전단 사령관 (Task Group)", "기동부대 사령관 (Task Force)", "함대 사령장관 (Fleet)", "태평양 함대 총사령관 (CINCPAC)"];
-const presTitle = () => { const P = presState(); if (!P) return "민간인 · 전 국방부장관"; const pn = PARTIES[P.party]?.n; return { pri: `${pn} 경선 후보`, camp: `${pn} 대통령 후보`, night: "선거일", won: "대통령 당선인" }[P.stage] || "민간인 · 전 국방부장관"; };
+const presTitle = () => { const T = potusTitle(); if (T) return T; const P = presState(); if (!P) return "민간인 · 전 국방부장관"; const pn = PARTIES[P.party]?.n; return { pri: `${pn} 경선 후보`, camp: `${pn} 대통령 후보`, night: "선거일", won: "대통령 당선인" }[P.stage] || "민간인 · 전 국방부장관"; };
 const civil = () => !!(career.minister && minState()?.retired); /* 임기를 마친 장관 → 민간인 */
 const postOf = (r) => career.minister && r === myGrade() ? (civil() ? "전 국방부장관" : "국방부장관") : career.post && career.post.g === r ? career.post.t : staff.branch ? careerTitle(clamp(r, 0, 10)) : POSTS[clamp(r, 0, POSTS.length - 1)]; /* career follows the branch picked as 소위 */
 function rankLine() {
@@ -763,7 +765,7 @@ function renderRecord() { /* 내 정보: profile card, perks, record, service re
   const log = career.log.slice().reverse().map((e) => `<div class="cr ${tierCls(e.g)}"><span class="d">${e.d}</span><span class="ins">${insignia(e.g, 16)}</span><div><b>${ECON_RANKS[e.g]} ${e.why === "임관" ? "임관" : e.why === "보직 변경" ? "보직 변경" : e.why === "기존 경력 승계" ? "(경력 승계)" : "진급"}</b> · ${e.t}${e.b ? ` <small>(${e.b})</small>` : ""}${e.why && !["임관", "보직 변경", "기존 경력 승계"].includes(e.why) ? `<div class="sub">공적: ${e.why}</div>` : ""}${e.perk ? `<div class="sub pkl">특기: ${e.perk}</div>` : ""}</div></div>`).join("") || `<div class="none">사령부에서 보직을 고르면 약력이 시작됩니다</div>`;
   staffFor(rl.r); const of = (k) => officer(staff.a[k]);
   let h = `<div class="mi"><div class="mi-l">`
-    + `<div class="mi-por-w">${portraitHTML(rl.r)}</div><div class="mi-card"><div><div class="mi-rk">${insignia(rl.r, 22)}<b>${civil() ? "민간인" : career.minister ? `예비역 ${rl.name}` : `${rl.name} ${ps.step}호봉`}</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${career.minister ? (civil() ? `전 국방부장관 · 예비역 ${rl.name}` : "국방부장관") : `${postOf(rl.r)}${staff.branch ? ` · ${BRANCHES[staff.branch].n} 보직` : ""}`}</div></div></div>`
+    + `<div class="mi-por-w">${portraitHTML(rl.r)}</div><div class="mi-card"><div><div class="mi-rk">${insignia(rl.r, 22)}<b>${civil() ? (potusState() && !potusState().done ? "대통령" : "민간인") : career.minister ? `예비역 ${rl.name}` : `${rl.name} ${ps.step}호봉`}</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${career.minister ? (civil() ? `전 국방부장관 · 예비역 ${rl.name}` : "국방부장관") : `${postOf(rl.r)}${staff.branch ? ` · ${BRANCHES[staff.branch].n} 보직` : ""}`}</div></div></div>`
     + (career.minister ? `<div class="mi-bar"><span>${civil() ? "국방부장관 임기를 마치고 민간인이 되었습니다" : "전역 후 국방부장관으로 임명되어 호봉·진급이 없습니다"}</span></div>` : `<div class="mi-bar"><span>다음 호봉</span><div class="hbar"><i style="width:${Math.max(2, stepPct).toFixed(0)}%"></i></div></div><div class="mi-bar"><span>${rl.next ? `${rl.next} 진급` : "최고 계급"}</span><div class="hbar"><i style="width:${(rl.pct * 100).toFixed(0)}%;background:var(--gold)"></i></div><small>${rl.next ? `${fmt(rl.need - profile.xp)} XP 남음` : ""}</small></div>`)
     + evalHTML(rl) + ministerHTML(rl)
     + `<h3>진급 특기</h3>${career.picks > 0 ? `<div id="miPk"></div>` : ""}<ul class="mi-pk">${perks}</ul>`
@@ -789,6 +791,9 @@ function hqSummary(m) {
 const SKINS = [["#f6d7c6", "#d9a48c", "#a46c58"], ["#efc4a8", "#c98f72", "#8f5a43"], ["#fbe3d4", "#e0b29e", "#a97a66"], ["#ecc59c", "#c18c5e", "#865733"], ["#d7a676", "#a5704a", "#6b4429"]];
 const HAIRS = ["#211a16", "#4a3626", "#6e5038", "#a8865a", "#8e8a84", "#d8d6d0"];
 const FACE_BG = ["#2b3446", "#2f3a33", "#3a3430", "#34303c", "#2c3a3e", "#3b3326"];
+/** 내 지휘관 초상 데이터 (명예의 전당 저장용) */
+globalThis.__myFace = () => { try { return agedFace(cmdr.face, myGrade()); } catch { return null; } };
+globalThis.__faceOf = (f, s = 96, seed = "") => (f && typeof f === "object" ? face({ ...f, n: f.n || seed }, s) : globalThis.__face(seed || "장관", s, { age: 3 }));
 /** 가상 인물 초상 (모듈에서 사용): seed 문자열로 얼굴을 고정 */
 globalThis.__face = (seed, s = 48, { fem = false, glass = null, age = null } = {}) => { const n = [...String(seed)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7), ag = age ?? 1 + (n % 3);
   return face({ n: String(seed), skin: SKINS[n % 5], hair: HAIRS[ag >= 3 ? 4 + (n % 2) : n % 3], brow: HAIRS[ag >= 3 ? 4 : n % 3], age: ag, must: !fem && n % 7 === 0 ? "trim" : null, glass: glass ?? n % 3 === 0, fem, jaw: 0.94 + (n % 5) * 0.04, eye: 0.72, zoom: true, bg: FACE_BG[n % FACE_BG.length] }, s); };
@@ -815,8 +820,15 @@ function renderBranchPick() {
   const cards = Object.entries(BRANCHES).map(([k, B]) => `<div class="hq-br"><h4>${B.n}</h4><p>${B.d}</p><div class="hq-bb">보직 보너스 · ${B.bonus}</div><ol>${B.t.map((t, i) => `<li${i >= 8 ? ' class="sh"' : ""}><span>${insignia(i, 13)}${ECON_RANKS[i]}</span>${t}</li>`).join("")}</ol><button data-branch="${k}">${B.n} 보직 선택</button></div>`).join("");
   $("#hqP").innerHTML = `<div class="hq-head"><div><h3>임관 · 보직 선택</h3><p>소위로 임관했습니다. 어느 계통에서 경력을 시작할지 고르세요 — 진급하면서 받는 직함과 내 보직 보너스가 이 선택을 따라갑니다. (소위인 동안은 바꿀 수 있습니다)</p></div></div><div class="hq-brs">${cards}</div>`;
 }
-function renderMin() { if (!minState()) minStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="org">‹ 지휘 계통도</button><b>국방부 집무실</b><small>${cmdr.name} ${civil() ? "전 장관" : "장관"}</small>${presState() ? `<button data-hqv="pres" class="hq-tg2">대선 캠프 ›</button>` : ""}</div>${minHTML()}`; }
-function renderPres() { if (!presState()) presStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="min">‹ 국방부 기록</button><b>대통령 선거</b><small>${cmdr.name}</small></div>${presHTML()}`; }
+function renderMin() { if (!minState()) minStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="org">‹ 지휘 계통도</button><b>국방부 집무실</b><small>${cmdr.name} ${civil() ? "전 장관" : "장관"}</small><button data-min="gal" class="hq-tg2">🖼 역대 장관</button>${presState() ? `<button data-hqv="pres">대선 캠프 ›</button>` : ""}</div>${minHTML()}`; }
+function renderPotus() { if (!potusState()) potusStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="pres">‹ 대선 기록</button><b>대통령실</b><small>${cmdr.name} 대통령</small></div>${potusHTML()}`; }
+function potusResult(r) {
+  if (r.toast) toast(r.toast, 3);
+  if (r.scene) { const sc = r.scene; openScene({ kind: sc.kind, title: sc.title, place: sc.place, speaker: sc.speaker, questions: sc.questions, onPick: (qi, ai) => { const x = sc.pick?.(qi, ai); if (x?.toast) toast(x.toast, 3); }, onClose: () => { renderPotus(); refreshMenus(); } }); return; }
+  if (r.cuts) { renderPotus(); playCuts({ title: "대통령 퇴임", place: "대통령실", cuts: r.cuts, onClose: () => { renderPotus(); refreshMenus(); } }); return; }
+  if (r.redraw) { renderPotus(); refreshMenus(); }
+}
+function renderPres() { if (!presState()) presStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="min">‹ 국방부 기록</button><b>대통령 선거</b><small>${cmdr.name}</small>${potusState() ? `<button data-hqv="potus" class="hq-tg2">대통령실 ›</button>` : ""}</div>${presHTML()}`; }
 /** 대선 화면 클릭 결과 처리 (장면·컷·다시 그리기) */
 function presResult(r) {
   if (r.toast) toast(r.toast, 3);
@@ -826,6 +838,7 @@ function presResult(r) {
 }
 function renderHQ() {
   if (!staff.branch) return renderBranchPick();
+  if (hqView === "potus" && civil() && potusState()) return renderPotus();
   if (hqView === "pres" && civil()) return renderPres();
   if (hqView === "min" && career.minister) return renderMin();
   const rk = hqGrade(), br = hqBranch(), adm = !!profile.admin, m = staffMods(rk, br), R = STAFF_ROLES.find((r) => r.k === hqRole), E = echOf(rk), myUnit = E < 3; /* below 중장 your own staff is a smaller unit's; the fleet HQ posts are filled from above */
@@ -919,6 +932,7 @@ $("#promoM").addEventListener("click", (e) => {
 });
 $("#hqP").addEventListener("keydown", (e) => { if (e.target.id === "hqAdmin" && e.key === "Enter") $('[data-act="hqadmin"]')?.click(); });
 $("#hqP").addEventListener("click", (e) => {
+  const pu = e.target.closest("[data-potus]"); if (pu) { if (pu.disabled) return; sfx.click(); if (pu.dataset.potus === "start") { if (!potusState()) potusStart(cmdr.name); hqView = "potus"; renderPotus(); refreshMenus(); return; } potusResult(potusClick(pu.dataset.potus)); return; }
   const pz = e.target.closest("[data-pres]"); if (pz) { if (pz.disabled) return; sfx.click(); if (pz.dataset.pres === "start") { if (!presState()) presStart(cmdr.name); hqView = "pres"; renderPres(); refreshMenus(); return; } presResult(presClick(pz.dataset.pres)); return; }
   const hv = e.target.closest("[data-hqv]"); if (hv) { sfx.click(); hqView = hv.dataset.hqv; renderHQ(); return; }
   const mn = e.target.closest("[data-min]"); if (mn) { if (mn.disabled) return; sfx.click();
@@ -926,6 +940,7 @@ $("#hqP").addEventListener("click", (e) => {
     const r = minClick(mn.dataset.min); if (r.toast) toast(r.toast, 3);
     if (r.reset) { for (const k of NG_RESET) localStorage.removeItem(k); location.reload(); return; }
     if (r.scene) { const sc = r.scene; openScene({ kind: sc.kind, title: sc.title, questions: sc.questions, onPick: (qi, ai) => { const x = minClick(`dk:${sc.id}:${ai}`); if (x.toast) toast(x.toast, 3); }, onClose: () => renderMin() }); return; }
+    if (r.gallery) { const g = document.createElement("div"); g.id = "galM"; g.innerHTML = galleryHTML(); g.addEventListener("click", (ev) => { if (ev.target === g || ev.target.closest("[data-min=galx]")) g.remove(); }); document.body.appendChild(g); return; }
     if (r.retire) { renderMin(); playCuts({ title: "국방부장관 이임", place: "국방부 · 임기 종료", cuts: r.retire, onClose: () => { renderMin(); refreshMenus(); } }); return; }
     if (r.nsc) { renderMin(); openScene({ kind: "nsc", title: r.nsc.title, questions: r.nsc.questions, onPick: (qi, ai) => minClick(`nsc:${ai}`), onClose: () => renderMin() }); return; }
     if (r.direct) { minDirect = true; startOpMap(false); return; } if (r.redraw) renderMin(); return; }
