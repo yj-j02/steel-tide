@@ -264,9 +264,10 @@ function termEnd(m) {
 // ── 화면 ──
 /** 결재 서류 한 장 (sc가 있으면 국회·기자회견 장면으로 결정) */
 const DRAFTER = { gmsa: "국방정책실장", speaker: "국방정책실장", opcon: "국방정책실장", gsomia: "국제정책관", trilat: "국제정책관", neutral: "국방정책실장", sma: "국제정책관", kf21: "전력정책관", lhd: "전력정책관", lsam: "전력정책관", ssn: "전력정책관", cyber: "전력정책관", drone: "전력정책관", dronewar: "전력정책관", uav: "전력정책관", manpower: "인사복지실장", nco: "인사복지실장", rank: "인사복지실장", phone: "인사복지실장", meal: "인사복지실장", medic: "보건복지관", airbase: "군사시설기획관", zone: "군사시설기획관" };
+const SCK = "steeltide:scenes", scenesOn = () => { try { return localStorage.getItem(SCK) !== "off"; } catch { return true; } };
 const face = (seed, s, o) => (globalThis.__face ? globalThis.__face(seed, s, o) : "");
 function docHTML(m, id, t, d, opts, meta) {
-  const sc = meta.sc, who = DRAFTER[id] || "기획조정실장", no = `국방정책-${String(2026 * 7 + m.week * 13 + id.length * 97).slice(-4)}`;
+  const sc = scenesOn() && meta.sc, who = DRAFTER[id] || "기획조정실장", no = `국방정책-${String(2026 * 7 + m.week * 13 + id.length * 97).slice(-4)}`;
   return `<div class="mn-card mn-dk mn-doc" data-dk="${id}"><div class="dh"><div class="dt"><small>국 방 부</small><b>${t}</b><span>문서번호 ${no} · ${m.week}주차 · 보고 ${who}</span></div>
     <table class="kj"><tr><th>기안</th><th>검토</th><th>결재</th></tr><tr><td>${face(who + id, 30, { age: 2 })}<i>${who.replace(/(실장|관)$/, "")}</i></td><td><em class="ok">차관</em></td><td class="me"><em>장관</em></td></tr></table></div>
     ${meta.mo ? `<span class="mo">실제 사례 모티브 · ${meta.mo}</span>` : ""}<p>${d}</p>${sc ? `<button class="mn-sc" data-min="scene:${id}"><b>${sc === "press" ? "🎤 기자회견장으로 ›" : "🏛 국회 국방위원회 출석 ›"}</b><small>${opts.length}개 답변 중 하나를 고르면 결재됩니다</small></button>` : opts.map(([n, e], i) => `<button data-min="dk:${id}:${i}"><b>${n}</b><small>${e}</small></button>`).join("")}</div>`;
@@ -277,7 +278,8 @@ export function minHTML() {
   const m = minState(); if (!m) return "";
   if (m.retired) return retiredHTML(m);
   const F = minFx(), dk = m.docket.map(DK).filter(Boolean), pend = dk.length;
-  const left = `<div class="mn-col"><div class="mn-h">국방부 결재판 <small>${pend ? `${pend}건 대기` : "처리 완료"}</small></div>${dk.length ? dk.map(([id, t, d, opts, meta]) => docHTML(m, id, t, d, opts, meta || {})).join("") : `<div class="mn-card"><small>이번 주 결재 안건을 모두 처리했습니다.</small></div>`}
+  const nscC = m.nsc && m.war.areas[m.nsc] ? `<div class="mn-card mn-dk mn-nsc"><b>긴급 NSC — ${AREAS[m.nsc].n} 위협 '높음'</b><p>적 함정·항공기 활동이 급증했습니다. 이번 주 대응 방침을 정하십시오.</p>${scenesOn() ? `<button class="mn-sc" data-min="nscview"><b>🎬 회의 장면으로 ›</b><small>장면을 건너뛰었다면 여기서 다시 열 수 있습니다</small></button>` : ""}${NSC_OPT.map(([n, e], i) => `<button data-min="nsc:${i}"><b>${n}</b><small>${e}</small></button>`).join("")}</div>` : "";
+  const left = `<div class="mn-col"><div class="mn-h">국방부 결재판 <small>${pend ? `${pend}건 대기` : "처리 완료"}</small><button class="mn-tg ${scenesOn() ? "on" : ""}" data-min="scenes">🎬 결재 연출 ${scenesOn() ? "ON" : "OFF"}</button></div>${nscC}${dk.length ? dk.map(([id, t, d, opts, meta]) => docHTML(m, id, t, d, opts, meta || {})).join("") : `<div class="mn-card"><small>이번 주 결재 안건을 모두 처리했습니다.</small></div>`}
     <div class="mn-h">작전 교리 <small>출격 전 언제든 변경</small></div>${Object.entries(DOCTRINES).map(([k, d]) => `<button class="mn-doc ${m.doctrine === k ? "on" : ""}" data-min="doc:${k}"><b>${d.n}</b><small>${d.d}</small><span>${d.up.map((x) => `<em class="g">${x}</em>`).join("")}${d.dn.map((x) => `<em class="r">${x}</em>`).join("")}</span></button>`).join("")}</div>`;
   const A = m.war.areas, mapSv = warMap(m), used = Object.values(A).map((w) => w.reinf).filter(Boolean);
   const mid = `<div class="mn-col mn-war"><div class="mn-h">합동 워룸 <small>${m.week}주차 위기 — 서해만 직접 지휘 가능, 나머지는 사령관 위임</small></div>${mapSv}<div class="mn-map">${Object.entries(AREAS).map(([k, a]) => { const W = A[k], p = areaP(m, k), c = m.cmdr[a.fleet], o = W.res;
@@ -349,7 +351,9 @@ export function minClick(a) {
   if (a === "direct") { if (m.war.areas.west.res) return {}; m.war.direct = "west"; save(m); return { direct: true }; }
   if (a === "next") { if (m.docket.length) return { toast: "결재 안건을 먼저 처리하십시오" }; endWeek(m); m.support = clamp(m.support, 0, 100);
     const hot = !m.retired && Object.keys(AREAS).find((k) => m.war.areas[k].lvl === 2); m.nsc = hot || null; save(m);
-    return { redraw: true, toast: m.retired ? "임기 종료" : `${m.week}주차 — 새 위기와 결재 안건`, nsc: hot ? { kind: "nsc", title: `${AREAS[hot].n} 위협 '높음'`, id: hot, questions: [{ who: "국가안보실장", q: `${AREAS[hot].n}에서 적 함정·항공기 활동이 급증했습니다. 이번 주 위기 대응 방침을 정해 주십시오.`, opts: NSC_OPT.map(([n, e, l]) => [n, e, l]) }] } : null }; }
+    return { redraw: true, toast: m.retired ? "임기 종료" : `${m.week}주차 — 새 위기와 결재 안건`, nsc: hot && scenesOn() ? { kind: "nsc", title: `${AREAS[hot].n} 위협 '높음'`, id: hot, questions: [{ who: "국가안보실장", q: `${AREAS[hot].n}에서 적 함정·항공기 활동이 급증했습니다. 이번 주 위기 대응 방침을 정해 주십시오.`, opts: NSC_OPT.map(([n, e, l]) => [n, e, l]) }] } : null }; }
+  if (a === "scenes") { const on = !scenesOn(); try { localStorage.setItem(SCK, on ? "on" : "off"); } catch { /* 저장 불가 */ } return { redraw: true, toast: on ? "결재 연출 켜짐 — 기자회견·국회·NSC 장면이 나옵니다" : "결재 연출 꺼짐 — 결재판에서 바로 고릅니다" }; }
+  if (a === "nscview") { const k = m.nsc; if (!k) return {}; return { nsc: { kind: "nsc", title: `${AREAS[k].n} 위협 '높음'`, id: k, questions: [{ who: "국가안보실장", q: `${AREAS[k].n}에서 적 함정·항공기 활동이 급증했습니다. 이번 주 위기 대응 방침을 정해 주십시오.`, opts: NSC_OPT.map(([n, e, l]) => [n, e, l]) }] } }; }
   if (a.startsWith("nsc:")) { const k = m.nsc, W = k && m.war.areas[k], i = +a.slice(4); if (!W) return {}; NSC_OPT[i]?.[3](m, W); m.nsc = null; m.support = clamp(m.support, 0, 100); note(m, `NSC — ${AREAS[k].n}: ${NSC_OPT[i][0]}`); save(m); return { redraw: true }; }
   return {};
 }
