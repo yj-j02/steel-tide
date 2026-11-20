@@ -1,20 +1,28 @@
 // 실사 이미지 연출 장면: 국방부 브리핑룸 기자회견 · 국회 국방위원회 · 긴급 NSC.
 // 정지 이미지 위에 카메라 패닝·줌(컷 전환), 플래시, 자막, 답변 선택지를 얹는다. 이미지 속 인물은 모두 AI로 만든 가상 인물이다.
-const IMG = (n) => `img/bg/${n}.jpg`;
+/* 정당 색 테마 (blue = 민주함께당, red = 한누리당, null = 무소속/공통) */
+let THEME = null; const THEMED = ["declaration", "primary_hall", "rally", "election_night", "victory"];
+export const setTheme = (t) => { THEME = t || null; };
+const IMG = (n) => `img/bg/${THEMED.includes(n) && THEME ? `${n}_${THEME}` : n}.jpg`;
 /* 아직 없는 배경은 비슷한 기존 사진으로 대신한다 */
-const FB = { debate: "press_minister", primary_hall: "press_minister", poll_booth: "office", camp_room: "war_room", election_night: "nsc", victory: "press_minister", inauguration: "ceremony", study: "office", rally: "ceremony", summit: "nsc", president_office: "office", address: "press_minister" };
-const load = (img, n, go) => { img.onload = go; img.onerror = () => { if (FB[n] && !img.dataset.fb) { img.dataset.fb = 1; img.src = IMG(FB[n]); } else go(); }; img.src = IMG(n); };
+const FB = { declaration: "press_minister", election_night: "nsc", victory: "press_minister", rally: "ceremony", primary_hall: "press_minister", debate: "press_minister", primary_hall: "press_minister", poll_booth: "office", camp_room: "war_room", election_night: "nsc", victory: "press_minister", inauguration: "ceremony", study: "office", rally: "ceremony", summit: "nsc", president_office: "office", address: "press_minister" };
+/* 정당별 배경 (민주함께당 dm · 한누리당 hn) — 무소속이면 공통 사진 */
+const PV = new Set(["declaration", "primary_hall", "rally", "election_night", "victory"]);
+const party = () => { try { return JSON.parse(localStorage.getItem("steeltide:pres"))?.party; } catch { return null; } };
+const load = (img, n, go) => { const p = party(), tries = [PV.has(n) && (p === "dm" || p === "hn") ? `${n}_${p}` : null, n, FB[n]].filter(Boolean); let i = 0;
+  img.onload = go; img.onerror = () => { i++; if (i < tries.length) img.src = IMG(tries[i]); else go(); }; img.src = IMG(tries[0]); };
 /* 컷: [이미지, 초점 x, 초점 y (0~1), 확대 배율] */
 const SHOTS = {
   press: { wide: ["press_minister", 0.5, 0.42, 1.06], ask: ["press_journalist", 0.56, 0.42, 1.18], askAlt: ["press_minister", 0.27, 0.6, 1.9], ans: ["press_minister", 0.53, 0.36, 1.8], end: ["press_spokesperson", 0.55, 0.45, 1.1] },
   assembly: { wide: ["assembly", 0.5, 0.45, 1.06], ask: ["assembly", 0.25, 0.62, 1.85], askAlt: ["assembly", 0.42, 0.36, 2.0], ans: ["assembly", 0.66, 0.55, 1.9], end: ["assembly", 0.42, 0.34, 1.8] },
-  debate: { wide: ["debate", 0.5, 0.45, 1.06], ask: ["debate", 0.28, 0.5, 1.6], askAlt: ["debate", 0.72, 0.5, 1.6], ans: ["debate", 0.5, 0.42, 1.7], end: ["debate", 0.5, 0.45, 1.1] },
-  primary: { wide: ["primary_hall", 0.5, 0.45, 1.06], ask: ["primary_hall", 0.3, 0.55, 1.5], askAlt: ["primary_hall", 0.7, 0.55, 1.5], ans: ["primary_hall", 0.5, 0.4, 1.7], end: ["primary_hall", 0.5, 0.45, 1.1] },
-  summit: { wide: ["summit", 0.5, 0.5, 1.06], ask: ["summit", 0.7, 0.5, 1.6], askAlt: ["summit", 0.7, 0.5, 1.6], ans: ["summit", 0.35, 0.5, 1.6], end: ["summit", 0.5, 0.5, 1.1] },
+  debate: { wide: ["debate", 0.45, 0.45, 1.06], ask: ["debate", 0.26, 0.5, 1.9], askAlt: ["debate", 0.48, 0.5, 1.9], ans: ["debate", 0.37, 0.48, 1.9], end: ["debate", 0.45, 0.45, 1.1] },
+  declare: { wide: ["declaration", 0.5, 0.5, 1.06], ask: ["declaration", 0.4, 0.75, 1.5], askAlt: ["declaration", 0.3, 0.7, 1.5], ans: ["declaration", 0.66, 0.42, 1.6], end: ["declaration", 0.5, 0.5, 1.1] },
+  primary: { wide: ["primary_hall", 0.5, 0.45, 1.06], ask: ["primary_hall", 0.3, 0.72, 1.5], askAlt: ["primary_hall", 0.72, 0.72, 1.5], ans: ["primary_hall", 0.5, 0.42, 1.8], end: ["primary_hall", 0.5, 0.45, 1.1] },
+  summit: { wide: ["summit", 0.5, 0.5, 1.06], ask: ["summit", 0.75, 0.55, 1.6], askAlt: ["summit", 0.7, 0.5, 1.6], ans: ["summit", 0.3, 0.55, 1.6], end: ["summit", 0.5, 0.5, 1.1] },
   nsc: { wide: ["nsc", 0.5, 0.5, 1.06], ask: ["nsc", 0.8, 0.5, 1.75], askAlt: ["nsc", 0.62, 0.7, 1.7], ans: ["nsc", 0.42, 0.6, 1.7], end: ["nsc", 0.62, 0.32, 1.5] },
 };
-const PLACE = { summit: "정상회담", debate: "TV 토론", primary: "당내 경선", press: "국방부 브리핑룸 · 정례 기자회견", assembly: "국회 국방위원회 · 현안 질의", nsc: "국가안전보장회의 · 긴급 소집" };
-const END = { summit: ["의전비서관", "회담을 마치고 공동 기자회견을 시작하겠습니다."], debate: ["사회자", "이상으로 오늘 토론을 마치겠습니다."], primary: ["사회자", "합동 토론회를 마칩니다."], press: ["대변인", "이상으로 오늘 브리핑을 마치겠습니다."], assembly: ["위원장", "답변 잘 들었습니다. 다음 안건으로 넘어가겠습니다."], nsc: ["안보실장", "결정 사항을 각 군에 하달하겠습니다."] };
+const PLACE = { declare: "출마 선언 기자회견", declare: "출마 선언 기자회견", summit: "정상회담", debate: "TV 토론", primary: "당내 경선", press: "국방부 브리핑룸 · 정례 기자회견", assembly: "국회 국방위원회 · 현안 질의", nsc: "국가안전보장회의 · 긴급 소집" };
+const END = { declare: ["사회자", "이상으로 출마 선언 기자회견을 마치겠습니다."], declare: ["사회자", "출마 선언 기자회견을 마치겠습니다."], summit: ["의전비서관", "회담을 마치고 공동 기자회견을 시작하겠습니다."], debate: ["사회자", "이상으로 오늘 토론을 마치겠습니다."], primary: ["사회자", "합동 토론회를 마칩니다."], press: ["대변인", "이상으로 오늘 브리핑을 마치겠습니다."], assembly: ["위원장", "답변 잘 들었습니다. 다음 안건으로 넘어가겠습니다."], nsc: ["안보실장", "결정 사항을 각 군에 하달하겠습니다."] };
 let R = null;
 
 /** 나레이션 장면: cuts = [{ img, f: [x, y, 배율], who, text, card?, flash? }] 순서대로 재생 후 닫힘 */

@@ -80,7 +80,7 @@ function apply(P, e) {
   if (e.tour) { const k = Object.keys(P.r).sort((a, b) => P.r[a] - P.r[b])[0]; P.r[k] = clamp(P.r[k] + 6, 0, 100); }
   if (e.opp) for (const o of P.opp || []) o.m += e.opp;
   if (e.unify) P.flags.unify = 1;
-  P.fame = clamp(P.fame, 0, 100); P.trust = clamp(P.trust, 0, 100); P.org = clamp(P.org, 0, 100); P.hp = clamp(P.hp, 0, 100);
+  P.money = Math.max(0, P.money); P.fame = clamp(P.fame, 0, 100); P.trust = clamp(P.trust, 0, 100); P.org = clamp(P.org, 0, 100); P.hp = clamp(P.hp, 0, 100);
 }
 /** 후보 경쟁력 점수 */
 function myScore(P) {
@@ -155,6 +155,10 @@ function pollSVG(P) {
 }
 const bar = (v, c = "") => `<div class="mn-bar ${c}"><em style="width:${clamp(v, 0, 100)}%"></em></div>`;
 
+export const presTheme = (P = presState()) => ({ dm: "blue", hn: "red" })[P?.party] || null;
+/** 단계별 배경 사진 */
+function prBg(P) { const t = presTheme(P), n = P.stage === "pro" || P.stage === "party" || P.stage === "quit" ? "study" : P.stage === "pri" ? (t ? `primary_hall_${t}` : "camp_room") : P.stage === "camp" ? (t ? `rally_${t}` : "camp_room") : P.stage === "won" ? (t ? `victory_${t}` : "inauguration") : "study";
+  return `background:linear-gradient(rgba(8,12,16,.84),rgba(8,12,16,.93)),url(img/bg/${n}.jpg) center/cover`; }
 export function presHTML() {
   const P = presState(); if (!P) return "";
   const party = P.party ? PARTIES[P.party] : null;
@@ -165,12 +169,12 @@ export function presHTML() {
   const groups = `<div class="mn-card"><div class="mn-h">유권자 집단 호감</div>${Object.entries(GROUPS).map(([k, [n]]) => `<div class="pr-g"><span>${n}</span>${bar(P.g[k], P.g[k] >= 55 ? "g" : P.g[k] < 45 ? "r" : "y")}<b>${Math.round(P.g[k])}</b></div>`).join("")}</div>`;
   const log = `<div class="mn-card mn-log"><div class="mn-h">기록</div>${P.log.slice(0, 8).map((t) => `<small>${t}</small>`).join("")}</div>`;
   if (P.stage === "pro") {
-    body = `<div class="mn-col"><div class="mn-h">민간인 · ${P.turn + 1} / 4 <small>회고록, 강연, 지역 순회로 출마 기반을 다집니다</small></div>${PROLOGUE.map(([k, n, e]) => `<button class="mn-doc" data-pres="pro:${k}"><b>${n}</b><small>${e}</small></button>`).join("")}</div><div class="mn-col">${mapSVG({ ...P, act: null })}${groups}</div><div class="mn-col">${log}</div>`;
+    body = `<div class="mn-col"><div class="pr-ban" style="--bg:url(img/bg/study.jpg)"><b>민간인</b><small>퇴임 후 개인 사무실</small></div><div class="mn-h">민간인 · ${P.turn + 1} / 4 <small>회고록, 강연, 지역 순회로 출마 기반을 다집니다</small></div>${PROLOGUE.map(([k, n, e]) => `<button class="mn-doc" data-pres="pro:${k}"><b>${n}</b><small>${e}</small></button>`).join("")}</div><div class="mn-col">${mapSVG({ ...P, act: null })}${groups}</div><div class="mn-col">${log}</div>`;
   } else if (P.stage === "party") {
     body = `<div class="mn-col"><div class="mn-h">출마할 길을 고르십시오</div>${["dm", "hn"].map((k) => `<button class="mn-doc pr-pt" data-pres="party:${k}" style="--pc:${PARTIES[k].c}"><b>${PARTIES[k].n} 입당</b><small>조직·자금이 큽니다. 당내 경선 4회를 이겨야 후보가 됩니다. 경쟁자: ${PRIMARY[k].map(([n, t]) => `${n}(${t})`).join(", ")}</small></button>`).join("")}<button class="mn-doc pr-pt" data-pres="party:ind" style="--pc:#9aa5b1"><b>무소속 출마</b><small>경선 없이 바로 본선. 중도층 +8이지만 조직·자금이 매우 적고, 두 정당 후보와 싸웁니다.</small></button><button class="mn-doc" data-pres="quit"><b>불출마 — 민간인으로 남기</b><small>여기서 이야기를 마칩니다</small></button></div><div class="mn-col">${groups}</div><div class="mn-col">${log}</div>`;
   } else if (P.stage === "pri") {
     const R = P.pri, done = R.round >= 4, tot = R.res.length ? priTotal(P) : null;
-    body = `<div class="mn-col"><div class="mn-h">${party.n} 대통령 후보 경선 <small>권역 순회 ${Math.min(R.round + 1, 4)} / 4</small></div>
+    body = `<div class="mn-col"><div class="pr-ban" style="--bg:url(img/bg/primary_hall_${P.party}.jpg)"><b>${party.n} 경선</b><small>권역 순회 합동 연설회</small></div><div class="mn-h">${party.n} 대통령 후보 경선 <small>권역 순회 ${Math.min(R.round + 1, 4)} / 4</small></div>
       ${done ? `<div class="mn-card"><b>${tot[0] >= Math.max(tot[1], tot[2]) ? "경선 승리!" : "경선 패배"}</b><p>누적 득표 ${P.name} ${fmtPct(tot[0])} · ${R.riv[0].n} ${fmtPct(tot[1])} · ${R.riv[1].n} ${fmtPct(tot[2])}</p>${tot[0] >= Math.max(tot[1], tot[2]) ? `<button class="mn-go" data-pres="nominee">후보 수락 연설 — 본선으로 ›</button>` : `<button class="mn-doc" data-pres="concede"><b>결과 승복</b><small>민간인으로 돌아갑니다</small></button><button class="mn-doc" data-pres="bolt"><b>탈당 후 무소속 출마</b><small>조직 −15 · 인지도 +5 · 신뢰 −8</small></button>`}</div>`
         : `<div class="mn-card"><b>${PRI_ROUND[R.round][0]} 경선</b><p>이 지역 당원들이 가장 관심 있는 분야에 맞춰 연설 주제를 고르십시오. 고른 뒤 경선 토론회 질문이 하나 나옵니다.</p><small class="pr-hint">현장 보고: "${AREA[priHint(P)]} 이야기를 듣고 싶어 하는 분위기입니다" (보고가 틀릴 때도 있습니다)</small>${Object.entries(AREA).map(([k, n]) => `<button data-pres="pri:${k}" class="pr-btn"><b>${n}</b> 연설</button>`).join("")}<button class="pr-btn" data-pres="orgbuy" ${P.money < 30 ? "disabled" : ""}>조직 동원 (자금 −30억 · 조직 +8)</button></div>`}
       </div><div class="mn-col"><div class="mn-card"><div class="mn-h">회차별 결과</div>${R.res.map((r, i) => `<div class="pr-g"><span>${PRI_ROUND[i][0]}</span><b>${fmtPct(r[0])}</b><small>${R.riv[0].n} ${fmtPct(r[1])} · ${R.riv[1].n} ${fmtPct(r[2])}</small></div>`).join("") || "<small>아직 없음</small>"}</div>${groups}</div><div class="mn-col">${log}</div>`;
@@ -185,29 +189,30 @@ export function presHTML() {
       <button class="mn-next" data-pres="next" ${dk.length || deb ? "disabled" : ""}>${dk.length ? `결재 ${dk.length}건 남음` : deb ? "TV 토론을 먼저 마치십시오" : P.turn >= 6 ? "선거일 ›" : "다음 3일 ›"}</button></div>`;
     const right = `<div class="mn-col"><div class="mn-h">공약 <small>턴마다 1개 발표 · 단계별 비용</small></div>${Object.entries(AREA).map(([k, n]) => { const L = P.pl[k], c = 30 + L * 20, boost = k === "sec" && (P.term.l5 || 0) >= 1;
         return `<div class="mn-card mn-pg"><div class="ph"><b>${n}</b><span>${L}/3</span></div><div class="lvs">${PLEDGE_LV[k].map((d, i) => `<div class="${i < L ? "done" : i === L ? "next" : ""}"><i>${i + 1}</i>${d}</div>`).join("")}</div>${L < 3 ? `<button data-pres="pl:${k}" ${P.act.pledge || P.money < c ? "disabled" : ""}>발표 — ${won(c)}${boost ? " · 장관 실적 보너스" : ""}</button>` : `<em class="g">완성</em>`}</div>`; }).join("")}</div>`;
-    body = `${left}<div class="mn-col">${mapSVG(P)}${pollBox}${groups}</div>${right}`;
+    body = `${left}<div class="mn-col"><div class="pr-ban" style="--bg:url(img/bg/${P.party === "ind" ? "camp_room" : `rally_${P.party}`}.jpg)"><b>D-${dday(P)}</b><small>${P.party === "ind" ? "무소속 캠프 상황실" : `${party.n} 거리 유세`}</small></div>${mapSVG(P)}${pollBox}${groups}</div>${right}`;
     body = `<div class="mn-body">${body}</div><div class="mn-foot">${log.replace("mn-card mn-log", "mn-card mn-log pr-log")}</div>`;
-    return `<div class="mn pr">${top}${body}</div>`;
+    return `<div class="mn pr" style="${prBg(P)}">${top}${body}</div>`;
   } else {
     const F = P.final; body = `<div class="mn-ret"><div class="mn-card big"><h3>${{ won: "대통령 당선", lost: "낙선", quit: "민간인" }[P.stage] || ""}</h3>${F ? `<p>최종 득표율 — ${F.names.map((n, i) => `${n} ${fmtPct(F.sh[i])}`).join(" · ")}</p>` : ""}
       ${P.stage === "won" ? `<button class="mn-pres" data-potus="start"><b>취임 — 대통령실로 ›</b><small>국군통수권자로서 5년(20분기) 임기를 시작합니다.</small></button>` : `<p>민간인으로 돌아왔습니다. 집무실 탭에서 2회차를 시작할 수 있습니다.</p>`}<button class="mn-rp" data-pres="replay">🎬 선거일 밤 다시 보기</button></div>${log}</div>`;
   }
-  return `<div class="mn pr">${top}<div class="mn-body">${body}</div></div>`;
+  return `<div class="mn pr" style="${prBg(P)}">${top}<div class="mn-body">${body}</div></div>`;
 }
 
 /** 클릭 처리 → { redraw, toast, scene, cuts } */
+const declScene = (P) => ({ kind: "declare", title: "대통령 선거 출마 선언", place: `${PARTIES[P.party]?.n || "무소속"} · 출마 선언 기자회견`, speaker: P.name, questions: [{ who: "기자", q: "국방부장관 출신으로 대선에 출마하시는 이유는 무엇입니까?", opts: [["안보와 민생을 함께 지키겠습니다", "중도층 +3"], ["경험으로 증명하겠습니다", "인지도 +4"], ["새로운 정치를 하겠습니다", "청년층 +3"]] }], pick: (qi, ai) => presClick(`decl:${ai}`) });
 export function presClick(a) {
   const P = presState(); if (!P) return {};
   const done = (t) => { save(P); return { redraw: true, toast: t }; };
   if (a.startsWith("pro:") && P.stage === "pro") { const o = PROLOGUE.find((x) => x[0] === a.slice(4)); apply(P, o[3]); note(P, `민간인 ${P.turn + 1}/4 — ${o[1].slice(2)}`); P.turn++;
-    if (P.turn >= 4) { P.stage = "party"; save(P); return { redraw: true, scene: { kind: "press", title: "대통령 선거 출마 선언", place: "출마 선언 기자회견", speaker: P.name, questions: [{ who: "기자", q: "국방부장관 출신으로 대선에 출마하시는 이유는 무엇입니까?", opts: [["안보와 민생을 함께 지키겠습니다", "중도층 +3"], ["경험으로 증명하겠습니다", "인지도 +4"], ["새로운 정치를 하겠습니다", "청년층 +3"]] }], pick: (qi, ai) => presClick(`decl:${ai}`) } }; }
+    if (P.turn >= 4) { P.stage = "party"; save(P); return { redraw: true, toast: "출마를 결심했습니다 — 출마할 길을 고르십시오" }; }
     return done(o[1]); }
   if (a.startsWith("decl:")) { apply(P, [{ g: { mid: 3 } }, { fame: 4 }, { g: { youth: 3 } }][+a.slice(5)]); note(P, "대통령 선거 출마를 선언했습니다."); return done(); }
   if (a === "quit") { P.stage = "quit"; note(P, "불출마를 선택하고 민간인으로 남았습니다."); return done(); }
   if (a.startsWith("party:") && P.stage === "party") { const k = a.slice(6); P.party = k; note(P, `${PARTIES[k].n}${k === "ind" ? "로 출마" : "에 입당"}`);
-    if (k === "ind") { apply(P, { g: { mid: 8 } }); setupRace(P); return done("무소속 후보 등록 — 본선 시작"); }
+    if (k === "ind") { apply(P, { g: { mid: 8 } }); setupRace(P); return { ...done("무소속 후보 등록 — 본선 시작"), scene: declScene(P) }; }
     const order = [0, 1, 2, 3].sort(() => Math.random() - 0.5); P.pri = { round: 0, res: [], pref: [0, 1, 2, 3].map(() => pick(Object.keys(AREA))), hint: [], riv: PRIMARY[k].map(([n, t], i) => ({ n, t, base: 1.05 + i * 0.05, home: order[i] })) };
-    P.stage = "pri"; P.org += 20; P.money += 60; return done(`${PARTIES[k].n} 경선 시작`); }
+    P.stage = "pri"; P.org += 20; P.money += 60; return { ...done(`${PARTIES[k].n} 경선 시작`), scene: declScene(P) }; }
   if (a === "orgbuy" && P.stage === "pri" && P.money >= 30) { P.money -= 30; P.org += 8; return done("조직 동원 +8"); }
   if (a.startsWith("pri:") && P.stage === "pri" && P.pri.round < 4) { const topic = a.slice(4); P.pending = topic; save(P);
     return { scene: { kind: "primary", title: `${PRI_ROUND[P.pri.round][0]} 경선 합동 토론회`, place: `${PARTIES[P.party].n} 대통령 후보 경선`, speaker: P.name, questions: [{ who: `${P.pri.riv[P.pri.round % 2].n} 후보`, q: pick(["본선에서 이길 수 있다는 근거가 무엇입니까?", "당에 들어온 지 얼마 안 된 분이 당을 대표할 수 있습니까?", "장관 시절 정책 중 가장 아쉬운 것은 무엇입니까?"]), opts: [["실적과 숫자로 답한다", "신뢰 기반 · 안정적"], ["당원들과 함께 가겠다고 호소", "조직 기반"], ["상대 약점을 찌른다", "모 아니면 도"]] }], pick: (qi, ai) => presClick(`prid:${ai}`) } }; }
@@ -242,8 +247,8 @@ export function nightCuts(P) {
   return [
     { img: "poll_booth", fb: "office", f: [0.5, 0.5, 1.08], who: "", text: "선거일 아침. 전국 투표소에 유권자들이 줄을 섰습니다." },
     { img: "camp_room", fb: "war_room", f: [0.5, 0.45, 1.1], who: "선대위원장", text: "오후 8시, 투표가 끝났습니다. 곧 방송 3사 출구조사가 발표됩니다." },
-    { img: "election_night", fb: "nsc", f: [0.5, 0.45, 1.1], who: "앵커", text: "개표가 진행 중입니다. 권역별 득표 흐름을 보시겠습니다.", card: `<h4>개표 현황</h4>${bars}` },
-    win ? { img: "victory", fb: "press_minister", f: [0.5, 0.42, 1.3], flash: 5, who: P.name, text: "국민 여러분의 선택에 감사드립니다. 모든 국민의 대통령이 되겠습니다.", card: `<h4>당선 확정</h4>${bars}` }
+    { img: "election_night", f: [0.5, 0.45, 1.1], who: "앵커", text: "개표가 진행 중입니다. 권역별 득표 흐름을 보시겠습니다.", card: `<h4>개표 현황</h4>${bars}` },
+    win ? { img: "victory", f: [0.5, 0.45, 1.15], flash: 5, who: P.name, text: "국민 여러분의 선택에 감사드립니다. 모든 국민의 대통령이 되겠습니다.", card: `<h4>당선 확정</h4>${bars}` }
       : { img: "camp_room", fb: "office", f: [0.4, 0.5, 1.4], who: P.name, text: "국민의 선택을 겸허히 받아들입니다. 당선인께 축하를 드립니다.", card: `<h4>낙선</h4>${bars}` },
     win ? { img: "inauguration", fb: "ceremony", f: [0.5, 0.5, 1.05], who: "", text: "그리고 취임식 날. 당신은 대한민국의 국군통수권자가 됩니다." } : { img: "office", f: [0.3, 0.45, 1.2], who: "", text: "다시 민간인입니다. 그래도 당신이 남긴 기록은 지워지지 않습니다." },
   ];

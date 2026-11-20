@@ -18,9 +18,9 @@ import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, update
 import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, candidates, roleTitle, ECH, echOf, staffFor, FLAG_POSTS, FLEET_CDR, BRANCHES, careerTitle, setBranch, POST_RANK, holds, saveStaff } from "./js/staff.js";
 import { PERKS, career, saveCareer, careerInit, rollPerks, takePerk, logPromotion, perkMods, payStep, MEDALS, awardMedals } from "./js/career.js";
 import { openOpMap, opMapAdvance, opMapState, opMapAir } from "./js/opmap.js";
-import { openScene, playCuts } from "./js/scene.js";
+import { openScene, playCuts, setTheme } from "./js/scene.js";
 import { potusState, potusStart, potusHTML, potusClick, potusTitle, potusAdmin } from "./js/potus.js";
-import { presState, presStart, presHTML, presClick, presAdmin, PARTIES } from "./js/president.js";
+import { presState, presStart, presHTML, presClick, presAdmin, presTheme, PARTIES } from "./js/president.js";
 import { galleryHTML, minAdminEnd } from "./js/ministry.js";
 import { minFx, minHTML, minClick, minStart, minOpResult, minState, legacy, NG_RESET } from "./js/ministry.js";
 /** 국방부장관 교리·사업·2회차 특전을 전투 보정치에 곱한다 */
@@ -831,6 +831,7 @@ const ADM = { min: [["minok", "장관 명예 퇴임 즉시"], ["minbad", "장관
   potus: [["uap", "지지율 +15"], ["uapd", "지지율 −15"], ["ubud", "예산 +30조"], ["useats", "여당 의석 뒤집기"], ["ucrisis", "위기 발생"], ["usummit", "정상회담 추가"], ["uskip4", "4분기 건너뛰기"], ["uend", "임기 종료 엔딩"], ["uimp", "탄핵 엔딩"], ["ureset", "대통령 기록 초기화"]] };
 const admBar = (k) => (profile.admin ? `<div class="adm-bar"><b>관리자 시험</b>${ADM[k].map(([a, n]) => `<button data-adm="${a}">${n}</button>`).join("")}</div>` : "");
 function admRun(a) {
+  setTheme(presTheme());
   if (a === "minok" || a === "minbad") { if (!minState()) minStart(cmdr.name); if (!minAdminEnd(a === "minok")) return toast("이미 임기를 마쳤습니다", 2); hqView = "min"; renderMin(); const r = minClick("next"); if (r.retire) playCuts({ title: "국방부장관 이임", place: "국방부 · 임기 종료", cuts: r.retire, onClose: () => { renderMin(); refreshMenus(); } }); refreshMenus(); return; }
   if (a === "topres" || a === "topotus") { if (!minState()) minStart(cmdr.name); if (!minState().retired) { minAdminEnd(true); minClick("next"); }
     if (!presState()) presStart(cmdr.name);
@@ -841,6 +842,7 @@ function admRun(a) {
 }
 function renderPotus() { if (!potusState()) potusStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="pres">‹ 대선 기록</button><b>대통령실</b><small>${cmdr.name} 대통령</small></div>${admBar("potus")}${potusHTML()}`; }
 function potusResult(r) {
+  setTheme(presTheme());
   if (r.toast) toast(r.toast, 3);
   if (r.scene) { const sc = r.scene; openScene({ kind: sc.kind, title: sc.title, place: sc.place, speaker: sc.speaker, questions: sc.questions, onPick: (qi, ai) => { const x = sc.pick?.(qi, ai); if (x?.toast) toast(x.toast, 3); }, onClose: () => { renderPotus(); refreshMenus(); } }); return; }
   if (r.cuts) { renderPotus(); playCuts({ title: "대통령 퇴임", place: "대통령실", cuts: r.cuts, onClose: () => { renderPotus(); refreshMenus(); } }); return; }
@@ -849,6 +851,7 @@ function potusResult(r) {
 function renderPres() { if (!presState()) presStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="min">‹ 국방부 기록</button><b>대통령 선거</b><small>${cmdr.name}</small>${potusState() ? `<button data-hqv="potus" class="hq-tg2">대통령실 ›</button>` : ""}</div>${admBar("pres")}${presHTML()}`; }
 /** 대선 화면 클릭 결과 처리 (장면·컷·다시 그리기) */
 function presResult(r) {
+  setTheme(presTheme());
   if (r.toast) toast(r.toast, 3);
   if (r.scene) { const sc = r.scene; openScene({ kind: sc.kind, title: sc.title, place: sc.place, speaker: sc.speaker, questions: sc.questions, onPick: (qi, ai) => { const x = sc.pick?.(qi, ai); if (x?.toast) toast(x.toast, 3); }, onClose: (qi) => { if (qi >= sc.questions.length) sc.close?.(); renderPres(); refreshMenus(); } }); return; }
   if (r.cuts) { renderPres(); playCuts({ title: "대통령 선거", place: "선거일", cuts: r.cuts, onClose: () => { renderPres(); refreshMenus(); } }); return; }
