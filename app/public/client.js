@@ -528,6 +528,7 @@ function finish() {
     html += `<span>보상</span><span style="color:var(--warn)">+${fmt(r.money)} 크레딧 · +${fmt(r.xp)} 경험치</span>`;
     const P1 = G.player, al = G.allies.filter((a) => a.spec && !a.isCarrier), ev = scoreBattle({ won, hp: P1 && P1.alive ? P1.hp / P1.maxHp : 0, sunk: G.enemies.filter((e) => !e.alive).length, foes: G.enemies.length, lost: al.filter((a) => !a.alive).length, allies: al.length, secs, jetsOut: G.jetsOut || 0 }, staff.branch || "sea");
     if (r.press) ev.s = Math.max(0, Math.min(100, ev.s + r.press)); /* 작전 후 기자회견 */
+  if (r.c72bonus) { ev.s = Math.max(0, Math.min(100, ev.s + r.c72bonus)); toast(`캠페인 「서해 72시간」 종료 — 근무평정 +${r.c72bonus}`); }
   recordEval(before, ev.s); const bd = runBoard(before, xpGrade()), eo = evalOf(before);
     html += `<span>근무평정</span><span>${ev.s}점 · ${FOCUS[staff.branch || "sea"].n} 병과 기준 (이번 계급 평균 ${eo.avg}점 ${eo.l} · ${eo.n}회)</span>`;
     if (bd.xp && !bd.promoted) { const why = [!bd.cnt ? `이 계급 근무 ${bd.e.n}/${bd.need}회` : "", !bd.score ? `평정 평균 ${bd.e.avg}점 (기준 ${PASS}점)` : ""].filter(Boolean).join(" · "); html += `<span>진급 심사</span><span style="color:#ff9b8a">보류 — ${why}${deferNote() ? `<br>${deferNote()}` : ""}</span>`; }
@@ -568,7 +569,7 @@ function refreshMenus() {
   $("#record").textContent = profile.battles ? `${profile.wins}승 / ${profile.battles}전 · 명중률 ${acc}%` : "첫 출격 대기 중";
   renderRecord();
   document.body.classList.add("modern");
-  $("#modeSel").innerHTML = `<button class="er" data-mode="camp"><b>한반도 시나리오</b><small>가상 시나리오 · 서해부터 제주 남방까지 5단계 + 보너스 · 브리핑과 별점</small></button><button class="er" data-mode="ops"><b>함정 전투</b><small>미사일 해전 · 호송 등 작전 하나를 골라 직접 지휘함을 몰고 출항</small></button><button class="er" data-mode="opmap"><b>작전 지휘 · 작전지도</b><small>서해 해상 차단 작전 — 전단 기동·지원 배정을 계획하고 실시간으로 지휘${staff.branch === "ops" ? " · 작전 병과 혜택: 지원 +2P, 참모 의견" : " (작전 병과는 지원 +2P·참모 의견 혜택)"}</small></button>${staff.branch === "air" ? `<button class="er" data-mode="airmap"><b>항공 작전 · 작전지도</b><small>항공 병과 전용 — 전투기·초계기·헬기${myGrade() >= 3 ? "·급유기" : ""}${myGrade() >= 4 ? "·수송기" : ""} 편대에 임무를 주고 출격·귀환·재무장을 관리해 함대를 지원</small></button>` : ""}`;
+  $("#modeSel").innerHTML = `<button class="er" data-mode="camp"><b>한반도 시나리오</b><small>가상 시나리오 · 서해부터 제주 남방까지 5단계 + 보너스 · 브리핑과 별점</small></button><button class="er" data-mode="ops"><b>함정 전투</b><small>미사일 해전 · 호송 등 작전 하나를 골라 직접 지휘함을 몰고 출항</small></button><button class="er" data-mode="opmap"><b>작전 지휘 · 작전지도</b><small>서해 해상 차단 작전 — 전단 기동·지원 배정을 계획하고 실시간으로 지휘${staff.branch === "ops" ? " · 작전 병과 혜택: 지원 +2P, 참모 의견" : " (작전 병과는 지원 +2P·참모 의견 혜택)"}</small></button><button class="er" data-mode="c72"><b>캠페인 · 서해 72시간</b><small>해상·항공 합동 4연속 작전 — 결과에 따라 다음 작전이 갈리고, 신뢰도·함정 수리·조종사 피로가 이어짐 (병과 무관)</small></button>${staff.branch === "air" ? `<button class="er" data-mode="airmap"><b>항공 작전 · 작전지도</b><small>항공 병과 전용 — 전투기·초계기·헬기${myGrade() >= 3 ? "·급유기" : ""}${myGrade() >= 4 ? "·수송기" : ""} 편대에 임무를 주고 출격·귀환·재무장을 관리해 함대를 지원</small></button>` : ""}`;
   $("#wzSum").innerHTML = `선택: <b>${MISSIONS[mission]?.n || ""}</b>${isModernOp(mission) ? ` · <b>${NATIONS[natUs].n} vs ${NATIONS[natFoe].n}</b>` : ""} · <b>${MAPS[theater]?.n || ""}</b> · ${todSel === "night" ? "야간" : "주간"}/${wxSel === "storm" ? "폭풍" : "맑음"}<button class="go" type="button" data-wzgo="1">이대로 출항</button>`;
   if (typeof wzCrumb === "function" && document.querySelector("#opsP .wz.on")) wzCrumb();
   $("#campBox").style.display = ""; $("#campBox .ph span:last-child").textContent = "한반도 시나리오 (가상)"; $("#opsTitle").textContent = "작전 선택";
@@ -586,7 +587,7 @@ $("#nations").addEventListener("click", (e) => { const b = e.target.closest("[da
 $("#maps").addEventListener("click", (e) => { const b = e.target.closest("[data-map]"); if (!b || b.disabled) return; theater = b.dataset.map; try { localStorage.setItem("steeltide:map", theater); } catch {} sfx.click(); refreshMenus(); });
 $("#wx").addEventListener("click", (e) => { const b = e.target.closest("[data-tod],[data-wx]"); if (!b) return; if (b.dataset.tod) todSel = b.dataset.tod; else wxSel = b.dataset.wx; try { localStorage.setItem("steeltide:tod", todSel); localStorage.setItem("steeltide:wx", wxSel); } catch {} sfx.click(); refreshMenus(); });
 $("#camp").addEventListener("click", (e) => { const kb = e.target.closest("[data-kcamp]"); if (kb && !kb.disabled) openBrief(+kb.dataset.kcamp); });
-$("#modeSel").addEventListener("click", (e) => { const b = e.target.closest("[data-mode]"); if (!b) return; if (b.dataset.mode === "opmap") { startOpMap(); return; } if (b.dataset.mode === "airmap") { startOpMap(true); return; } wzMode = b.dataset.mode; showWz(wzMode === "camp" ? "camp" : "ops"); });
+$("#modeSel").addEventListener("click", (e) => { const b = e.target.closest("[data-mode]"); if (!b) return; if (b.dataset.mode === "opmap") { startOpMap(); return; } if (b.dataset.mode === "airmap") { startOpMap(true); return; } if (b.dataset.mode === "c72") { startOpMap(false, true); return; } wzMode = b.dataset.mode; showWz(wzMode === "camp" ? "camp" : "ops"); });
 $("#opsP").addEventListener("click", (e) => { const back = e.target.closest(".wz-back"); if (back) { const t = WZ_BACK[wz]; if (t) showWz(typeof t === "function" ? t() : t); return; }
   const to = e.target.closest("[data-wzto]"); if (to) { showWz(to.dataset.wzto); return; }
   const go = e.target.closest("[data-wzgo]"); if (go) { campSel = null; start(false); } });
@@ -703,9 +704,9 @@ function storyCard(c) {
   pmPreview = true; $("#promoM").style.display = "flex";
 }
 /** 작전 지휘 (operation map): plan and run an operation on the chart; the result pays and is evaluated like a battle. */
-function startOpMap(airMode = false) {
+function startOpMap(airMode = false, c72 = false) {
   initAudio(); bgm("battle"); sfx.click(); const g = myGrade(), m = staffMods(hqGrade(), hqBranch()), pk = perkMods();
-  openOpMap({ grade: g, branch: staff.branch, ops: staff.branch === "ops", air: airMode && staff.branch === "air", scen: storyOp != null ? "intercept" : undefined, onLeave: () => { bgm("menu"); refreshMenus(); }, mods: { outK: m.outK * (pk.fleetK || 1), inK: m.inK, icptK: m.icptK * (pk.icptK || 1) }, onDone: opMapDone });
+  openOpMap({ grade: g, branch: staff.branch, ops: staff.branch === "ops", air: airMode && staff.branch === "air", c72, scen: storyOp != null ? "intercept" : undefined, onLeave: () => { bgm("menu"); refreshMenus(); }, mods: { outK: m.outK * (pk.fleetK || 1), inK: m.inK, icptK: m.icptK * (pk.icptK || 1) }, onDone: opMapDone });
 }
 let storyOp = null;
 function opMapDone(r) {
