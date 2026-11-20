@@ -249,7 +249,7 @@ function endWeek(m) {
     log.push(`${AREAS[k].n} ${o[0]}${o[4] ? "(직접 지휘)" : ""} 지지율 ${sup > 0 ? "+" : ""}${sup}`); }
   if (fxv(m, "misfire", 0) > 0 && Math.random() < 0.1) { m.support -= 20; log.push("선제 타격 수칙 — 오발 사고 발생, 지지율 −20"); }
   const inc = income(m), up = upkeep(m); m.budget += inc - up; log.push(`정기 예산 +${won(inc)} · 유지비 −${won(up)}`);
-  m.support = clamp(Math.round(m.support + (m.support > 75 ? -4 : m.support > 60 ? -2 : m.support < 45 ? 1 : 0)), 0, 100); m.sup.push(m.support); (m.bud ??= []).push(m.budget);
+  m.support = clamp(Math.round(m.support + (m.support > 75 ? -3 : m.support > 65 ? -1 : m.support < 50 ? 2 : 0)), 0, 100); m.sup.push(m.support); (m.bud ??= []).push(m.budget);
   note(m, log.join(" · ")); m.last = log;
   m.fx = m.fx.filter((e) => e.until > m.week); m.week++;
   if (m.week > TERM) return termEnd(m);
