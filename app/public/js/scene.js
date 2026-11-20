@@ -1,0 +1,57 @@
+// 실사 이미지 연출 장면: 국방부 브리핑룸 기자회견 · 국회 국방위원회 · 긴급 NSC.
+// 정지 이미지 위에 카메라 패닝·줌(컷 전환), 플래시, 자막, 답변 선택지를 얹는다. 이미지 속 인물은 모두 AI로 만든 가상 인물이다.
+const IMG = (n) => `img/bg/${n}.jpg`;
+/* 컷: [이미지, 초점 x, 초점 y (0~1), 확대 배율] */
+const SHOTS = {
+  press: { wide: ["press_minister", 0.5, 0.42, 1.06], ask: ["press_journalist", 0.56, 0.42, 1.18], askAlt: ["press_minister", 0.27, 0.6, 1.9], ans: ["press_minister", 0.53, 0.36, 1.8], end: ["press_spokesperson", 0.55, 0.45, 1.1] },
+  assembly: { wide: ["assembly", 0.5, 0.45, 1.06], ask: ["assembly", 0.25, 0.62, 1.85], askAlt: ["assembly", 0.42, 0.36, 2.0], ans: ["assembly", 0.66, 0.55, 1.9], end: ["assembly", 0.42, 0.34, 1.8] },
+  nsc: { wide: ["nsc", 0.5, 0.5, 1.06], ask: ["nsc", 0.8, 0.5, 1.75], askAlt: ["nsc", 0.62, 0.7, 1.7], ans: ["nsc", 0.42, 0.6, 1.7], end: ["nsc", 0.62, 0.32, 1.5] },
+};
+const PLACE = { press: "국방부 브리핑룸 · 정례 기자회견", assembly: "국회 국방위원회 · 현안 질의", nsc: "국가안전보장회의 · 긴급 소집" };
+const END = { press: ["대변인", "이상으로 오늘 브리핑을 마치겠습니다."], assembly: ["위원장", "답변 잘 들었습니다. 다음 안건으로 넘어가겠습니다."], nsc: ["안보실장", "결정 사항을 각 군에 하달하겠습니다."] };
+let R = null;
+
+/** 장면 열기: questions = [{ who, q, opts: [[답변, 효과 설명, 대사?]] }], onPick(qi, ai), onClose(qi, skipped) */
+export function openScene({ kind = "press", title = "", questions = [], onPick, onClose, speaker = "장관", place = null }) {
+  closeScene();
+  const K = SHOTS[kind] ? kind : "press", Sh = SHOTS[K];
+  const el = document.createElement("div"); el.id = "scene2d"; el.className = K;
+  el.innerHTML = `<div class="sv"><div class="ly"></div><div class="ly"></div></div><div class="fl"></div><div class="vg"></div><div class="s3-bar t"></div><div class="s3-bar b"></div>
+    <div class="s3-title"><span>${place || PLACE[K]}</span><b>${title}</b></div><div class="s3-sub"></div><div class="s3-opts"></div><button class="s3-skip">건너뛰기 ✕</button>`;
+  document.body.appendChild(el);
+  const S = (R = { el, onClose, qi: 0, timers: [], cur: 0, typer: 0, skipped: false });
+  const L = [...el.querySelectorAll(".ly")], sub = el.querySelector(".s3-sub"), box = el.querySelector(".s3-opts"), fl = el.querySelector(".fl");
+  const later = (f, ms) => S.timers.push(setTimeout(f, ms));
+  for (const n of new Set(Object.values(Sh).map((s) => s[0]))) new Image().src = IMG(n);
+  /* 화면을 꽉 채우도록 배율·위치를 계산해 (fx, fy)가 화면 중앙에 오게 한다 */
+  const frame = (img, fx, fy, z) => { const W = el.clientWidth, H = el.clientHeight, iw = img.naturalWidth || 1376, ih = img.naturalHeight || 768, s = Math.max(W / iw, H / ih) * z, w = iw * s, h = ih * s;
+    const x = Math.min(0, Math.max(W - w, W / 2 - fx * w)), y = Math.min(0, Math.max(H - h, H / 2 - fy * h)); return `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${s.toFixed(4)})`; };
+  const shot = ([n, fx, fy, z], cut = true) => {
+    const nx = L[S.cur ^ 1], old = L[S.cur], img = new Image(); img.src = IMG(n);
+    const go = () => { nx.innerHTML = ""; nx.appendChild(img); img.style.transition = "none"; img.style.transform = frame(img, fx, fy, z);
+      nx.style.transition = cut ? "opacity .35s" : "opacity 1.1s"; nx.style.opacity = 1; old.style.opacity = 0; S.cur ^= 1;
+      /* 천천히 밀고 들어가는 카메라 (Ken Burns) */
+      requestAnimationFrame(() => requestAnimationFrame(() => { img.style.transition = "transform 9s cubic-bezier(.25,.1,.25,1)"; img.style.transform = frame(img, fx + (Math.random() - 0.5) * 0.04, fy, z * 1.07); })); };
+    if (img.complete && img.naturalWidth) go(); else { img.onload = go; img.onerror = go; }
+  };
+  const flash = (n = 3) => { for (let i = 0; i < n; i++) later(() => { fl.classList.remove("on"); void fl.offsetWidth; fl.classList.add("on"); }, i * (120 + Math.random() * 260)); };
+  const say = (who, text, cls, done) => { sub.className = `s3-sub on ${cls}`; sub.innerHTML = `<i>${who}</i><span></span>`; const sp = sub.querySelector("span"), t0 = performance.now(); clearInterval(S.typer);
+    S.typer = setInterval(() => { const n = Math.ceil((performance.now() - t0) / 33); sp.textContent = text.slice(0, n); if (n >= text.length) { clearInterval(S.typer); done?.(); } }, 30); };
+  const ask = () => { const Q = questions[S.qi]; if (!Q) return finish(); box.className = "s3-opts"; box.innerHTML = "";
+    shot(S.qi % 2 ? Sh.askAlt : Sh.ask); if (K === "press") flash(2);
+    later(() => say(Q.who || (K === "press" ? "기자" : K === "assembly" ? "국방위원" : "참석자"), Q.q, "q", () => later(() => { box.innerHTML = Q.opts.map(([n, e], i) => `<button data-a="${i}"><b>${n}</b>${e ? `<small>${e}</small>` : ""}</button>`).join(""); box.className = "s3-opts on"; }, 250)), 600); };
+  const answer = (ai) => { const o = questions[S.qi].opts[ai]; box.className = "s3-opts"; box.innerHTML = ""; shot(Sh.ans); if (K === "press") flash(4);
+    onPick?.(S.qi, ai);
+    later(() => say(speaker, o[2] || `${o[0]}. 정부는 이 방침에 따라 책임 있게 대응하겠습니다.`, "a", () => later(() => { S.qi++; if (S.qi < questions.length) { shot(Sh.wide, false); later(ask, 1300); } else finish(); }, 1700)), 500); };
+  const finish = () => { shot(Sh.end, false); const [w, t] = END[K]; later(() => say(w, t, "", () => later(() => closeScene(true), 1300)), 700); };
+  box.addEventListener("click", (e) => { const b = e.target.closest("[data-a]"); if (b && box.classList.contains("on")) answer(+b.dataset.a); });
+  el.querySelector(".s3-skip").addEventListener("click", () => { if (S.qi < questions.length) S.skipped = true; closeScene(true); });
+  S.resize = () => { const img = L[S.cur].querySelector("img"); if (img) img.style.transition = "none"; };
+  addEventListener("resize", S.resize);
+  shot(Sh.wide, false); later(ask, 1800);
+}
+export function closeScene(fire = false) {
+  if (!R) return; const S = R; R = null; S.timers.forEach(clearTimeout); clearInterval(S.typer); removeEventListener("resize", S.resize); S.el.remove();
+  if (fire) S.onClose?.(S.qi, S.skipped);
+}
+export const sceneOn = () => !!R;

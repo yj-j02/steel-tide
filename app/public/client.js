@@ -18,6 +18,7 @@ import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, update
 import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, candidates, roleTitle, ECH, echOf, staffFor, FLAG_POSTS, FLEET_CDR, BRANCHES, careerTitle, setBranch, POST_RANK, holds, saveStaff } from "./js/staff.js";
 import { PERKS, career, saveCareer, careerInit, rollPerks, takePerk, logPromotion, perkMods, payStep, MEDALS, awardMedals } from "./js/career.js";
 import { openOpMap, opMapAdvance, opMapState, opMapAir } from "./js/opmap.js";
+import { openScene } from "./js/scene.js";
 import { minFx, minHTML, minClick, minStart, minOpResult, minState, legacy, NG_RESET } from "./js/ministry.js";
 /** 국방부장관 교리·사업·2회차 특전을 전투 보정치에 곱한다 */
 const withMin = (m) => { const F = minFx(); return { ...m, outK: m.outK * F.outK, inK: m.inK * F.inK, icptK: m.icptK * F.icptK, reloadK: (m.reloadK || 1) * F.reloadK }; };
@@ -785,6 +786,9 @@ function hqSummary(m) {
 const SKINS = [["#f6d7c6", "#d9a48c", "#a46c58"], ["#efc4a8", "#c98f72", "#8f5a43"], ["#fbe3d4", "#e0b29e", "#a97a66"], ["#ecc59c", "#c18c5e", "#865733"], ["#d7a676", "#a5704a", "#6b4429"]];
 const HAIRS = ["#211a16", "#4a3626", "#6e5038", "#a8865a", "#8e8a84", "#d8d6d0"];
 const FACE_BG = ["#2b3446", "#2f3a33", "#3a3430", "#34303c", "#2c3a3e", "#3b3326"];
+/** 가상 인물 초상 (모듈에서 사용): seed 문자열로 얼굴을 고정 */
+globalThis.__face = (seed, s = 48, { fem = false, glass = null, age = null } = {}) => { const n = [...String(seed)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7), ag = age ?? 1 + (n % 3);
+  return face({ n: String(seed), skin: SKINS[n % 5], hair: HAIRS[ag >= 3 ? 4 + (n % 2) : n % 3], brow: HAIRS[ag >= 3 ? 4 : n % 3], age: ag, must: !fem && n % 7 === 0 ? "trim" : null, glass: glass ?? n % 3 === 0, fem, jaw: 0.94 + (n % 5) * 0.04, eye: 0.72, zoom: true, bg: FACE_BG[n % FACE_BG.length] }, s); };
 function staffFace(o, s) { const [sk, h, age, must, glass, jaw, fem, beard] = o.f, n = [...o.id].reduce((a, c) => a + c.charCodeAt(0), 0); return face({ n: o.nm, skin: SKINS[sk], hair: HAIRS[h], brow: HAIRS[Math.min(h, 4)], age, must, glass, fem: !!fem, jaw, beard, eye: o.nat === "kr" ? 0.72 : 1, zoom: true, bg: FACE_BG[n % FACE_BG.length] }, s); }
 /* support arms on the chart: marines run the boarding raids, the air force flies the C-130H strikes (titles 소위 → 소장) */
 const JOINT = {
@@ -904,8 +908,12 @@ $("#promoM").addEventListener("click", (e) => {
 $("#hqP").addEventListener("keydown", (e) => { if (e.target.id === "hqAdmin" && e.key === "Enter") $('[data-act="hqadmin"]')?.click(); });
 $("#hqP").addEventListener("click", (e) => {
   const hv = e.target.closest("[data-hqv]"); if (hv) { sfx.click(); hqView = hv.dataset.hqv; renderHQ(); return; }
-  const mn = e.target.closest("[data-min]"); if (mn) { if (mn.disabled) return; sfx.click(); const r = minClick(mn.dataset.min); if (r.toast) toast(r.toast, 3);
+  const mn = e.target.closest("[data-min]"); if (mn) { if (mn.disabled) return; sfx.click();
+    const doc = mn.dataset.min.startsWith("dk:") && mn.closest(".mn-doc"); if (doc && !doc.classList.contains("stamped")) { doc.classList.add("stamped"); mn.classList.add("pick"); doc.querySelector(".kj .me")?.insertAdjacentHTML("beforeend", `<span class="seal">결재</span>`); setTimeout(() => mn.click(), 750); return; }
+    const r = minClick(mn.dataset.min); if (r.toast) toast(r.toast, 3);
     if (r.reset) { for (const k of NG_RESET) localStorage.removeItem(k); location.reload(); return; }
+    if (r.scene) { const sc = r.scene; openScene({ kind: sc.kind, title: sc.title, questions: sc.questions, onPick: (qi, ai) => { const x = minClick(`dk:${sc.id}:${ai}`); if (x.toast) toast(x.toast, 3); }, onClose: () => renderMin() }); return; }
+    if (r.nsc) { renderMin(); openScene({ kind: "nsc", title: r.nsc.title, questions: r.nsc.questions, onPick: (qi, ai) => minClick(`nsc:${ai}`), onClose: () => renderMin() }); return; }
     if (r.direct) { minDirect = true; startOpMap(false); return; } if (r.redraw) renderMin(); return; }
   if (e.target.closest('[data-act="hqadmin"]')) { if (act({ kind: "admin", code: $("#hqAdmin").value })) { sfx.coin(); toast("관리자 모드 — 사령부 모든 자리 선택 가능"); refreshMenus(); renderHQ(); } return; }
   const tk = e.target.closest("[data-take]");
