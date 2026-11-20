@@ -301,18 +301,18 @@ const ZONE = { west: [125.1, 37.65, "서해 NLL"], east: [129.6, 38.25, "동해 
 function warMap(m) {
   const A = m.war.areas, P = (lo, la) => kxy(lo, la).map((v) => v.toFixed(1)).join(","), C = ["#5fd17a", "#f2ca5c", "#ff6b5e"];
   const mdl = [[126.1, 37.75], [126.7, 37.95], [127.1, 38.25], [127.8, 38.3], [128.3, 38.6]].map(([a, b]) => P(a, b)).join(" "), nll = [[124.6, 37.95], [124.9, 37.68], [125.7, 37.6], [126.1, 37.72]].map(([a, b]) => P(a, b)).join(" ");
-  const city = ([lo, la, n, cap]) => { const [x, y] = kxy(lo, la); return `<circle cx="${x}" cy="${y}" r="${cap ? 3.2 : 2.2}" fill="${cap ? "#fff" : "#cfe"}"/><text x="${x + 5}" y="${y + 4}" class="ct">${n}</text>`; };
+  const city = ([lo, la, n, cap, left]) => { const [x, y] = kxy(lo, la); return `<circle cx="${x}" cy="${y}" r="${cap ? 3.2 : 2.2}" fill="${cap ? "#fff" : "#cfe"}"/><text x="${left ? x - 5 : x + 5}" y="${y + 4}" class="ct"${left ? ' text-anchor="end"' : ""}>${n}</text>`; };
   const zones = Object.entries(ZONE).map(([k, [lo, la, n]]) => { const W = A[k], [x, y] = kxy(lo, la), c = C[W.lvl], r = 18 + W.lvl * 6, o = W.res;
     return `<g class="zn l${W.lvl}"><circle cx="${x}" cy="${y}" r="${r}" fill="${c}" opacity=".16"/><circle class="pu" cx="${x}" cy="${y}" r="${r}" fill="none" stroke="${c}" stroke-width="2" style="--d:${2.4 - W.lvl * 0.7}s"/><circle cx="${x}" cy="${y}" r="4" fill="${c}"/>
       <text x="${x}" y="${y - r - 6}" class="zl" text-anchor="middle">${n} · ${LVK[W.lvl]}</text>${W.reinf ? `<text x="${x + r - 2}" y="${y + r}" class="ri">${RIC[W.reinf]}</text><text x="${x + r + 12}" y="${y + r}" class="rn">${REINF[W.reinf][0].replace("사령부", "")}</text>` : ""}
       ${o ? `<g transform="translate(${x - 26} ${y - 9}) rotate(-12 26 9)"><rect width="52" height="18" rx="2" fill="none" stroke="${o[1] === "g" ? "#5fd17a" : o[1] === "r" ? "#ff6b5e" : "#f2ca5c"}" stroke-width="2"/><text x="26" y="13" text-anchor="middle" class="st" fill="${o[1] === "g" ? "#5fd17a" : o[1] === "r" ? "#ff6b5e" : "#f2ca5c"}">${o[0]}</text></g>` : ""}</g>`; }).join("");
-  return `<div class="mn-kmap"><svg viewBox="0 0 400 405" role="img" aria-label="한반도 상황도"><rect width="400" height="405" fill="#0b1a26"/>
-    <g class="grid">${[34, 35, 36, 37, 38, 39].map((la) => { const y = kxy(124, la)[1]; return `<line x1="0" x2="400" y1="${y}" y2="${y}"/><text x="3" y="${y - 2}">${la}°N</text>`; }).join("")}${[124, 126, 128, 130].map((lo) => { const x = kxy(lo, 36)[0]; return `<line y1="0" y2="405" x1="${x}" x2="${x}"/><text x="${x + 2}" y="400">${lo}°E</text>`; }).join("")}</g>
+  return `<div class="mn-kmap"><svg viewBox="0 0 410 405" role="img" aria-label="한반도 상황도"><rect width="410" height="405" fill="#0b1a26"/>
+    <g class="grid">${[34, 35, 36, 37, 38, 39].map((la) => { const y = kxy(124, la)[1]; return `<line x1="0" x2="410" y1="${y}" y2="${y}"/><text x="3" y="${y - 2}">${la}°N</text>`; }).join("")}${[124, 126, 128, 130].map((lo) => { const x = kxy(lo, 36)[0]; return `<line y1="0" y2="405" x1="${x}" x2="${x}"/><text x="${x + 2}" y="400">${lo}°E</text>`; }).join("")}</g>
     <path d="${KOREA.cn}" fill="#2a2e33"/><path d="${KOREA.jp}" fill="#2a2e33"/><path d="${KOREA.nk}" fill="#3a2a2c" stroke="#5a3a3c" stroke-width=".6"/><path d="${KOREA.kr}" fill="#24384a" stroke="#4d7590" stroke-width=".7"/>
     <polyline points="${mdl}" fill="none" stroke="#ff6b5e" stroke-width="1.4" stroke-dasharray="4 3"/><polyline points="${nll}" fill="none" stroke="#ffcf8a" stroke-width="1.2" stroke-dasharray="2 3"/>
     <text x="${kxy(124.5, 37.48)[0]}" y="${kxy(124.5, 37.48)[1]}" class="ln">NLL</text><text x="${kxy(127.2, 38.55)[0]}" y="${kxy(127.2, 38.55)[1]}" class="ln r">MDL</text>
-    ${[[126.98, 37.56, "서울", 1], [125.75, 39.03, "평양", 1], [129.07, 35.18, "부산"], [126.63, 37.46, "인천"], [128.6, 35.87, "대구"], [124.7, 37.97, "백령도"], [130.9, 37.5, "울릉도"], [126.5, 33.38, "제주"]].map(city).join("")}
-    ${zones}<text x="396" y="14" text-anchor="end" class="lg">● 낮음 <tspan fill="#f2ca5c">● 보통</tspan> <tspan fill="#ff6b5e">● 높음</tspan></text></svg></div>`;
+    ${[[126.98, 37.56, "서울", 1], [125.75, 39.03, "평양", 1], [129.07, 35.18, "부산"], [126.63, 37.46, "인천"], [128.6, 35.87, "대구"], [124.7, 37.97, "백령도"], [130.9, 37.5, "울릉도"], [131.87, 37.24, "독도", 0, 1], [126.5, 33.38, "제주"]].map(city).join("")}
+    ${zones}<text x="406" y="14" text-anchor="end" class="lg">● 낮음 <tspan fill="#f2ca5c">● 보통</tspan> <tspan fill="#ff6b5e">● 높음</tspan></text></svg></div>`;
 }
 /** 지지율·예산 추이 */
 function trendSVG(m) {
