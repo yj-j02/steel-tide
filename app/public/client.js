@@ -87,6 +87,9 @@ const fightersFor = () => 9;
 /** WWII US Navy billet typical for each rank (game simplification; see report). */
 const POSTS = ["함정 갑판사관", "함정 작전관", "구축함 부장", "구축함 함장", "구축대 사령 (DesDiv)", "구축전대 사령 · 코모도어 (DesRon)", "기동소함대 사령관 (Task Flotilla)", "기동전단 사령관 (Task Group)", "기동부대 사령관 (Task Force)", "함대 사령장관 (Fleet)", "태평양 함대 총사령관 (CINCPAC)"];
 const presTitle = () => { const T = potusTitle(); if (T) return T; const P = presState(); if (!P) return "민간인 · 전 국방부장관"; const pn = PARTIES[P.party]?.n; return { pri: `${pn} 경선 후보`, camp: `${pn} 대통령 후보`, night: "선거일", won: "대통령 당선인" }[P.stage] || "민간인 · 전 국방부장관"; };
+/** 대통령(전·현) 표시 — 계급장 대신 봉황 표장 */
+const isPotus = () => !!(civil() && potusState()), potusOn = () => isPotus() && !potusState().done;
+const badge = (r, s) => (isPotus() ? `<img src="img/potus_mark.png" alt="대통령 표장" class="pmark" style="height:${s}px">` : insignia(r, s));
 const civil = () => !!(career.minister && minState()?.retired); /* 임기를 마친 장관 → 민간인 */
 const postOf = (r) => career.minister && r === myGrade() ? (civil() ? "전 국방부장관" : "국방부장관") : career.post && career.post.g === r ? career.post.t : staff.branch ? careerTitle(clamp(r, 0, 10)) : POSTS[clamp(r, 0, POSTS.length - 1)]; /* career follows the branch picked as 소위 */
 function rankLine() {
@@ -257,8 +260,8 @@ function face(i, s = 64) {
   if (!f.bare) o += `<path d="M6 100 C8 82 20 75 34 72 L50 80 L66 72 C80 75 92 82 94 100Z" fill="url(#${u}u)"/>`
     + `<path d="M40 70 L50 86 L60 70 L56 68 L50 76 L44 68Z" fill="#f1f1ee"/><path d="M48 76 L50 74 L52 76 L51.5 92 L50 95 L48.5 92Z" fill="#111"/>`
     + `<path d="M34 72 L46 90 L44 100 M66 72 L54 90 L56 100" stroke="#05080d" stroke-width="1.2" fill="none"/>`
-    + `<g transform="translate(60 84)"><rect width="5" height="2.6" fill="#b03a2e"/><rect x="5" width="5" height="2.6" fill="#2a5aa0"/><rect x="10" width="5" height="2.6" fill="#d8b23a"/><rect y="2.8" width="5" height="2.6" fill="#3b7a3e"/><rect x="5" y="2.8" width="5" height="2.6" fill="#c9c9c9"/><rect x="10" y="2.8" width="5" height="2.6" fill="#8a1f1f"/></g>`
-    + `<rect x="10" y="88" width="18" height="2.2" fill="#c9a23a"/><rect x="10" y="91.5" width="18" height="2.2" fill="#c9a23a"/>`;
+    + (f.civ ? "" : `<g transform="translate(60 84)"><rect width="5" height="2.6" fill="#b03a2e"/><rect x="5" width="5" height="2.6" fill="#2a5aa0"/><rect x="10" width="5" height="2.6" fill="#d8b23a"/><rect y="2.8" width="5" height="2.6" fill="#3b7a3e"/><rect x="5" y="2.8" width="5" height="2.6" fill="#c9c9c9"/><rect x="10" y="2.8" width="5" height="2.6" fill="#8a1f1f"/></g>`
+    + `<rect x="10" y="88" width="18" height="2.2" fill="#c9a23a"/><rect x="10" y="91.5" width="18" height="2.2" fill="#c9a23a"/>`);
   // long hair behind (female)
   if (f.fem) o += `<path d="M29 34 C25 48 27 62 32 68 L40 66 C35 58 34 46 35 36Z M71 34 C75 48 73 62 68 68 L60 66 C65 58 66 46 65 36Z" fill="${f.hair}"/>`;
   // neck + ears + head
@@ -288,7 +291,8 @@ function face(i, s = 64) {
   if (f.beard) o += `<path d="M${jx + 1.5} 47 C${jx + 2} 60 43 68.5 50 68.5 C57 68.5 ${jx2 - 2} 60 ${jx2 - 1.5} 47 L${jx2 - 4} 50 C${jx2 - 6} 59 56 ${my + 4} 50 ${my + 4} C44 ${my + 4} ${jx + 6} 59 ${jx + 4} 50Z" fill="${f.hair}" opacity=".92"/>`;
   if (f.glass) o += `<rect x="37" y="${ey - 3.6}" width="11" height="7.2" rx="2.4" fill="#ffffff" fill-opacity=".06" stroke="#20201e" stroke-width="1.1"/><rect x="52" y="${ey - 3.6}" width="11" height="7.2" rx="2.4" fill="#ffffff" fill-opacity=".06" stroke="#20201e" stroke-width="1.1"/><path d="M48 ${ey - 1} L52 ${ey - 1} M37 ${ey - 1} L${jx} ${ey - 2} M63 ${ey - 1} L${jx2} ${ey - 2}" stroke="#20201e" stroke-width="1"/>`;
   // combination cap: white crown, black band, gold chin strap, visor with gold oak leaves, badge
-  o += `<path d="M24 25 C26 11 74 11 76 25 L74 28 L26 28Z" fill="url(#${u}c)"/><rect x="${jx - 1}" y="26" width="${(jx2 - jx) + 2}" height="6" fill="#121417"/>`
+  if (f.civ) o += `<path d="M${jx - 1.5} 36 C${jx - 3} 17 38 11.5 50 11.5 C63 11.5 ${jx2 + 3} 17 ${jx2 + 1.5} 36 L${jx2 - 1} 31 C${jx2 - 3} 23 60 20.5 50 21.5 C44 21 ${jx + 6} 22 ${jx + 1} 31Z" fill="${f.hair}"/><path d="M42 14.5 Q47 19 60 19.5" stroke="#00000033" stroke-width="1" fill="none"/>`;
+  else o += `<path d="M24 25 C26 11 74 11 76 25 L74 28 L26 28Z" fill="url(#${u}c)"/><rect x="${jx - 1}" y="26" width="${(jx2 - jx) + 2}" height="6" fill="#121417"/>`
     + `<path d="M${jx - 1} 32 L${jx2 + 1} 32 L${jx2 - 3} 37 Q50 39 ${jx + 3} 37Z" fill="#07090b"/><path d="M${jx + 1} 35.5 Q50 37.8 ${jx2 - 1} 35.5" stroke="#c9a23a" stroke-width="1.3" fill="none"/>`
     + `<path d="M${jx - 1} 31.5 L${jx2 + 1} 31.5" stroke="#c9a23a" stroke-width="1.1"/>`
     + `<g transform="translate(50 22.5) scale(.82)"><path d="M-7.5 -1 Q-8 6 0 7.5 Q8 6 7.5 -1" stroke="#d6b04a" stroke-width="1.1" fill="none"/>${[-1, 1].map((s) => [0, 1, 2, 3].map((i) => `<ellipse cx="${s * (7.6 - i * 0.3)}" cy="${-1 + i * 2.3}" rx=".9" ry="1.7" transform="rotate(${s * (-20 + i * 18)} ${s * (7.6 - i * 0.3)} ${-1 + i * 2.3})" fill="#d6b04a"/>`).join("")).join("")}<path d="M0 -7 L0 5.5 M-3.2 -4.6 L3.2 -4.6 M-4.6 1.8 Q-4 5.6 0 5.8 Q4 5.6 4.6 1.8" stroke="#d6b04a" stroke-width="1.3" fill="none" stroke-linecap="round"/><circle cy="-7.6" r="1.3" fill="none" stroke="#d6b04a" stroke-width=".9"/><circle cy="-1.2" r="2.3" fill="#c8313e"/><path d="M-2.3 -1.2 A2.3 2.3 0 0 0 2.3 -1.2 A1.15 1.15 0 0 1 0 -1.2 A1.15 1.15 0 0 0 -2.3 -1.2Z" fill="#1f4aa0"/></g>`; /* 해군 모표: 닻 + 태극 + 월계 잎 */
@@ -568,7 +572,7 @@ let screen = "menu";
 function refreshMenus() {
   const rl = rankLine(), u = perkMods().upg;
   $("#tbMoney").textContent = profile.admin ? "∞ CR (관리자)" : `${fmt(profile.money)} CR`;
-  $("#tbRank").textContent = civil() ? presTitle() : career.minister ? `국방부장관 · 예비역 ${rl.name}` : `${rl.name} ${payStep(profile.xp, rl.r, ECON_RANK_XP).step}호봉 · ${postOf(rl.r)}`; $("#tbIns").innerHTML = insignia(rl.r, 24);
+  $("#tbRank").textContent = civil() ? presTitle() : career.minister ? `국방부장관 · 예비역 ${rl.name}` : `${rl.name} ${payStep(profile.xp, rl.r, ECON_RANK_XP).step}호봉 · ${postOf(rl.r)}`; $("#tbIns").innerHTML = badge(rl.r, 24);
   $("#rankBar").style.width = rl.pct * 100 + "%";
   { const sp = MODERN[flagshipId()], v = sp.vls || {}, cells = Object.values(v).reduce((n, x) => n + (x?.[1] || 0), 0), wp = Object.values(v).map((x) => x?.[0]).filter(Boolean).join(" · ");
     const hist = career.shipLog || {}, open = shipsOpen(), pick = open.length > 1 ? `<div class="shp">${open.map((o) => { const m = MODERN[o.id], h = hist[o.id]; return `<button data-flag="${o.id}" class="${o.id === sp.id ? "on" : ""}" title="${m.cls}"><b>${m.short}</b><i>${m.cls.replace(/ \(.*\)/, "")}</i><i>${h ? `출전 ${h.b} · 격침 ${h.k}` : "출전 기록 없음"}</i></button>`; }).join("")}</div>` : "";
@@ -738,7 +742,7 @@ function opMapDone(r) {
 /** 국방부장관: a 대장 (or 원수) with an excellent record can be nominated; on appointment the title becomes 국방부장관. */
 const ministerOk = (g) => { const e = evalOf(g); return profile.admin || (e.n >= 3 && e.avg >= 70); };
 function ministerHTML(rl) {
-  if (rl.r < 9) return ""; if (career.minister) return civil() ? `<div class="mi-min on"><b>국방부장관 임기 종료 · 민간인</b><small>예비역 ${rl.name} · 다음 장: 대통령 출마 (준비 중)</small></div>` : `<div class="mi-min on"><b>국방부장관 재임 중</b><small>예비역 ${rl.name} · 대통령 임명 · 사령부 탭 → 국방부 집무실</small></div>`;
+  if (rl.r < 9) return ""; if (isPotus()) return `<div class="mi-min on"><b>${potusOn() ? "대통령 재임 중" : "대통령 퇴임"}</b><small>${potusTitle()}</small></div>`; if (career.minister) return civil() ? `<div class="mi-min on"><b>국방부장관 임기 종료 · 민간인</b><small>예비역 ${rl.name} · 다음 장: 대통령 출마 (준비 중)</small></div>` : `<div class="mi-min on"><b>국방부장관 재임 중</b><small>예비역 ${rl.name} · 대통령 임명 · 사령부 탭 → 국방부 집무실</small></div>`;
   const e = evalOf(rl.r), ok = ministerOk(rl.r);
   return `<div class="mi-min"><b>국방부장관 임명 제청</b><small>대장 이상 · 이 계급 근무 ${e.n}/3회 · 평정 평균 ${e.avg}점 (70점·A 이상 필요)${profile.admin ? " · 관리자" : ""}</small><button data-act="minister"${ok ? "" : " disabled"}>${ok ? "제청 수락 — 전역 후 장관 임명" : "조건 미충족"}</button></div>`;
 }
@@ -765,9 +769,9 @@ function renderRecord() { /* 내 정보: profile card, perks, record, service re
   const log = career.log.slice().reverse().map((e) => `<div class="cr ${tierCls(e.g)}"><span class="d">${e.d}</span><span class="ins">${insignia(e.g, 16)}</span><div><b>${ECON_RANKS[e.g]} ${e.why === "임관" ? "임관" : e.why === "보직 변경" ? "보직 변경" : e.why === "기존 경력 승계" ? "(경력 승계)" : "진급"}</b> · ${e.t}${e.b ? ` <small>(${e.b})</small>` : ""}${e.why && !["임관", "보직 변경", "기존 경력 승계"].includes(e.why) ? `<div class="sub">공적: ${e.why}</div>` : ""}${e.perk ? `<div class="sub pkl">특기: ${e.perk}</div>` : ""}</div></div>`).join("") || `<div class="none">사령부에서 보직을 고르면 약력이 시작됩니다</div>`;
   staffFor(rl.r); const of = (k) => officer(staff.a[k]);
   let h = `<div class="mi"><div class="mi-l">`
-    + `<div class="mi-por-w">${portraitHTML(rl.r)}</div><div class="mi-card"><div><div class="mi-rk">${insignia(rl.r, 22)}<b>${civil() ? (potusState() && !potusState().done ? "대통령" : "민간인") : career.minister ? `예비역 ${rl.name}` : `${rl.name} ${ps.step}호봉`}</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${career.minister ? (civil() ? `전 국방부장관 · 예비역 ${rl.name}` : "국방부장관") : `${postOf(rl.r)}${staff.branch ? ` · ${BRANCHES[staff.branch].n} 보직` : ""}`}</div></div></div>`
-    + (career.minister ? `<div class="mi-bar"><span>${civil() ? "국방부장관 임기를 마치고 민간인이 되었습니다" : "전역 후 국방부장관으로 임명되어 호봉·진급이 없습니다"}</span></div>` : `<div class="mi-bar"><span>다음 호봉</span><div class="hbar"><i style="width:${Math.max(2, stepPct).toFixed(0)}%"></i></div></div><div class="mi-bar"><span>${rl.next ? `${rl.next} 진급` : "최고 계급"}</span><div class="hbar"><i style="width:${(rl.pct * 100).toFixed(0)}%;background:var(--gold)"></i></div><small>${rl.next ? `${fmt(rl.need - profile.xp)} XP 남음` : ""}</small></div>`)
-    + evalHTML(rl) + ministerHTML(rl)
+    + `<div class="mi-por-w">${civil() ? `<div class="mi-por civp">${face({ ...agedFace(cmdr.face, myGrade()), civ: true, bg: isPotus() ? "#1d3b6e" : "#2b3446" }, 280)}${isPotus() ? `<img src="img/potus_mark.png" alt="" class="pmark-b">` : ""}</div>` : portraitHTML(rl.r)}</div><div class="mi-card"><div><div class="mi-rk">${badge(rl.r, 22)}<b>${civil() ? (potusOn() ? "대한민국 대통령" : isPotus() ? "전 대통령" : "민간인") : career.minister ? `예비역 ${rl.name}` : `${rl.name} ${ps.step}호봉`}</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${career.minister ? (potusOn() ? `국군통수권자 · ${potusTitle().replace("대통령 · ", "")} · 전 국방부장관` : isPotus() ? `${potusTitle()} · 예비역 ${rl.name}` : civil() ? `전 국방부장관 · 예비역 ${rl.name}` : "국방부장관") : `${postOf(rl.r)}${staff.branch ? ` · ${BRANCHES[staff.branch].n} 보직` : ""}`}</div></div></div>`
+    + (career.minister ? `<p class="mi-note">${potusOn() ? "소위 임관에서 대통령까지 — 사령부 탭 → 대통령실에서 국정을 운영합니다" : isPotus() ? "대통령 임기를 마쳤습니다" : civil() ? "국방부장관 임기를 마치고 민간인이 되었습니다" : "전역 후 국방부장관으로 임명되어 호봉·진급이 없습니다"}</p>` : `<div class="mi-bar"><span>다음 호봉</span><div class="hbar"><i style="width:${Math.max(2, stepPct).toFixed(0)}%"></i></div></div><div class="mi-bar"><span>${rl.next ? `${rl.next} 진급` : "최고 계급"}</span><div class="hbar"><i style="width:${(rl.pct * 100).toFixed(0)}%;background:var(--gold)"></i></div><small>${rl.next ? `${fmt(rl.need - profile.xp)} XP 남음` : ""}</small></div>`)
+    + (career.minister ? "" : evalHTML(rl)) + ministerHTML(rl)
     + `<h3>진급 특기</h3>${career.picks > 0 ? `<div id="miPk"></div>` : ""}<ul class="mi-pk">${perks}</ul>`
     + `<h3>훈장 · 표창</h3><div class="mi-md">${Object.entries(MEDALS).map(([k, M]) => `<div class="md${career.medals?.[k] ? "" : " no"}" title="${M.d}"><i>${M.rb.map((col) => `<b style="background:${col}"></b>`).join("")}</i><span>${M.n}</span><small>${career.medals?.[k] ? career.medals[k] : M.d}</small></div>`).join("")}</div>`
     + `<h3>내 참모진 · ${ECH[echOf(rl.r)].u}</h3><div class="mi-st">${STAFF_ROLES.map((r) => `<span>${roleTitle(r.k, rl.r)}</span><b>${of(r.k).rk} ${of(r.k).nm}</b>`).join("")}</div>`
@@ -793,7 +797,7 @@ const HAIRS = ["#211a16", "#4a3626", "#6e5038", "#a8865a", "#8e8a84", "#d8d6d0"]
 const FACE_BG = ["#2b3446", "#2f3a33", "#3a3430", "#34303c", "#2c3a3e", "#3b3326"];
 /** 내 지휘관 초상 데이터 (명예의 전당 저장용) */
 globalThis.__myFace = () => { try { return agedFace(cmdr.face, myGrade()); } catch { return null; } };
-globalThis.__faceOf = (f, s = 96, seed = "") => (f && typeof f === "object" ? face({ ...f, n: f.n || seed }, s) : globalThis.__face(seed || "장관", s, { age: 3 }));
+globalThis.__faceOf = (f, s = 96, seed = "") => (f && typeof f === "object" ? face({ ...f, n: f.n || seed, civ: true }, s) : globalThis.__face(seed || "장관", s, { age: 3 }));
 /** 가상 인물 초상 (모듈에서 사용): seed 문자열로 얼굴을 고정 */
 globalThis.__face = (seed, s = 48, { fem = false, glass = null, age = null } = {}) => { const n = [...String(seed)].reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 7), ag = age ?? 1 + (n % 3);
   return face({ n: String(seed), skin: SKINS[n % 5], hair: HAIRS[ag >= 3 ? 4 + (n % 2) : n % 3], brow: HAIRS[ag >= 3 ? 4 : n % 3], age: ag, must: !fem && n % 7 === 0 ? "trim" : null, glass: glass ?? n % 3 === 0, fem, jaw: 0.94 + (n % 5) * 0.04, eye: 0.72, zoom: true, bg: FACE_BG[n % FACE_BG.length] }, s); };
