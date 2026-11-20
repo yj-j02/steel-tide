@@ -268,7 +268,7 @@ const SCK = "steeltide:scenes", scenesOn = () => { try { return localStorage.get
 const face = (seed, s, o) => (globalThis.__face ? globalThis.__face(seed, s, o) : "");
 function docHTML(m, id, t, d, opts, meta) {
   const sc = scenesOn() && meta.sc, who = DRAFTER[id] || "기획조정실장", no = `국방정책-${String(2026 * 7 + m.week * 13 + id.length * 97).slice(-4)}`;
-  return `<div class="mn-card mn-dk mn-doc" data-dk="${id}"><div class="dh"><div class="dt"><small>국 방 부</small><b>${t}</b><span>문서번호 ${no} · ${m.week}주차 · 보고 ${who}</span></div>
+  return `<div class="mn-card mn-dk mn-paper" data-dk="${id}"><div class="dh"><div class="dt"><small>국 방 부</small><b>${t}</b><span>문서번호 ${no} · ${m.week}주차 · 보고 ${who}</span></div>
     <table class="kj"><tr><th>기안</th><th>검토</th><th>결재</th></tr><tr><td>${face(who + id, 30, { age: 2 })}<i>${who.replace(/(실장|관)$/, "")}</i></td><td><em class="ok">차관</em></td><td class="me"><em>장관</em></td></tr></table></div>
     ${meta.mo ? `<span class="mo">실제 사례 모티브 · ${meta.mo}</span>` : ""}<p>${d}</p>${sc ? `<button class="mn-sc" data-min="scene:${id}"><b>${sc === "press" ? "🎤 기자회견장으로 ›" : "🏛 국회 국방위원회 출석 ›"}</b><small>${opts.length}개 답변 중 하나를 고르면 결재됩니다</small></button>` : opts.map(([n, e], i) => `<button data-min="dk:${id}:${i}"><b>${n}</b><small>${e}</small></button>`).join("")}</div>`;
 }
@@ -343,7 +343,7 @@ function retiredHTML(m) {
     <div class="kv"><span>평균 국정 지지율</span><b class="${T.avg >= 60 ? "g" : "r"}">${T.avg} / 60</b></div><div class="kv"><span>LV5 방위력 개선 사업</span><b class="${T.l5 >= 2 ? "g" : "r"}">${T.l5} / 2</b></div><div class="kv"><span>다해역 위기 방어율</span><b class="${T.rate >= 80 ? "g" : "r"}">${T.rate}% / 80%</b></div>
     <p>${T.ok ? "임기 목표를 모두 달성했습니다. 2회차를 시작하면 특전이 주어집니다: 명예 약장(화력 +10%·초반 봉급 +50%), 완성 사업 1개 LV3 계승, 원수 승진 30% 단축." : "임기 목표를 다 이루지 못했습니다. 2회차를 시작할 수 있지만 특전은 없습니다."}</p>
     ${T.ok ? `<div class="mn-h">계승할 사업 (LV3로 시작)</div><div class="rf">${Object.entries(PROGS).filter(([k]) => (m.prog[k] || 0) >= 5).map(([k, P]) => `<button data-min="inh:${k}" class="${m.inh === k ? "on" : ""}">${P.n}</button>`).join("")}</div>` : ""}
-    <div class="mn-pres"><b>다음 장 · 대통령 출마</b><small>민간인이 된 당신에게 정당들이 접촉해 오기 시작했습니다. (준비 중)</small></div><button data-min="replay" class="mn-rp">🎬 이임식 다시 보기</button>
+    <button class="mn-pres" data-pres="start"><b>다음 장 · 대통령 출마 ›</b><small>민간인이 된 당신에게 정당들이 접촉해 오기 시작했습니다.</small></button><button data-min="replay" class="mn-rp">🎬 이임식 다시 보기</button>
     <button class="mn-ng ${ngArm ? "arm" : ""}" data-min="ng">${ngArm ? "한 번 더 누르면 커리어·함정·기록이 초기화되고 소위로 다시 시작합니다" : "2회차 시작 (소위부터)"}</button><small>명예의 전당·설정·지휘관 이름은 그대로 남습니다. 이 버튼을 누르지 않으면 지금 커리어로 계속 플레이할 수 있습니다.</small></div>
     <div class="mn-card"><div class="mn-h">역대 국방부장관 명예의 전당</div>${H.map((h) => `<div class="hl ${h.ok ? "ok" : ""}"><b>${h.ok ? "★ " : ""}${h.name}</b><span>${h.gen}회차 · ${h.at}</span><small>지지율 ${h.avg} · LV5 ${h.l5}개 · 방어율 ${h.rate}% · 교리 ${h.doctrine}</small></div>`).join("") || "<small>기록 없음</small>"}</div></div></div>`;
 }
@@ -360,7 +360,7 @@ export function minClick(a) {
   if (a.startsWith("scene:")) { const id = a.slice(6), d = DK(id); if (!d || !m.docket.includes(id)) return {}; const meta = d[4] || {}, press = meta.sc === "press";
     const Q = { who: press ? `${["한빛", "동해", "서울", "새벽", "중앙"][m.week % 5]}일보 기자` : `국방위원 (${["여당", "야당"][m.week % 2]})`, q: d[2], opts: d[3].map(([n, e]) => [n, e, `${n} — 이것이 국방부의 입장입니다.`]) };
     return { scene: { kind: press ? "press" : "assembly", title: d[1], id, questions: [Q] } }; }
-  if (a.startsWith("dk:")) { const [, id, i] = a.split(":"), d = DK(id), o = d?.[3][+i]; if (!o || !m.docket.includes(id)) return {}; o[2](m); m.support = clamp(m.support, 0, 100); m.docket = m.docket.filter((x) => x !== id); note(m, `결재 「${d[1]}」 — ${o[0]}`); save(m); return { redraw: true, toast: `결재 — ${o[0]}` }; }
+  if (a.startsWith("dk:")) { const [, id, i] = a.split(":"), d = DK(id), o = d?.[3][+i]; if (!o || !m.docket.includes(id)) return {}; o[2](m); (m.picks ??= {})[id] = +i; m.support = clamp(m.support, 0, 100); m.docket = m.docket.filter((x) => x !== id); note(m, `결재 「${d[1]}」 — ${o[0]}`); save(m); return { redraw: true, toast: `결재 — ${o[0]}` }; }
   if (a.startsWith("pg:")) { const k = a.slice(3), L = m.prog[k] || 0; if (L >= 5) return {}; const c = progCost(m, k, L); if (m.budget < c) return { toast: "예산이 부족합니다" }; m.budget -= c; m.prog[k] = L + 1; note(m, `${PROGS[k].n} LV${L + 1} 완료 (−${won(c)})`); save(m); return { redraw: true, toast: `${PROGS[k].n} LV${L + 1} — ${PROGS[k].lv[L][1]}` }; }
   if (a.startsWith("rf:")) { const [, k, r] = a.split(":"), W = m.war.areas[k]; W.reinf = W.reinf === r ? null : r; save(m); return { redraw: true }; }
   if (a === "direct") { if (m.war.areas.west.res) return {}; m.war.direct = "west"; save(m); return { direct: true }; }
@@ -373,4 +373,4 @@ export function minClick(a) {
   return {};
 }
 /** 2회차 시작 시 지울 저장 키 (설정·지휘관 이름·명예의 전당·계승은 남김) */
-export const NG_RESET = ["steeltide:profile", "steeltide:career", "steeltide:staff", "steeltide:kcamp", "steeltide:camp", "steeltide:oplog", "steeltide:c72", "steeltide:post", "steeltide:mission", MK];
+export const NG_RESET = ["steeltide:pres", "steeltide:profile", "steeltide:career", "steeltide:staff", "steeltide:kcamp", "steeltide:camp", "steeltide:oplog", "steeltide:c72", "steeltide:post", "steeltide:mission", MK];

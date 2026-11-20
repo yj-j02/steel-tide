@@ -1,14 +1,19 @@
 // 실사 이미지 연출 장면: 국방부 브리핑룸 기자회견 · 국회 국방위원회 · 긴급 NSC.
 // 정지 이미지 위에 카메라 패닝·줌(컷 전환), 플래시, 자막, 답변 선택지를 얹는다. 이미지 속 인물은 모두 AI로 만든 가상 인물이다.
 const IMG = (n) => `img/bg/${n}.jpg`;
+/* 아직 없는 배경은 비슷한 기존 사진으로 대신한다 */
+const FB = { debate: "press_minister", primary_hall: "press_minister", poll_booth: "office", camp_room: "war_room", election_night: "nsc", victory: "press_minister", inauguration: "ceremony", study: "office", rally: "ceremony" };
+const load = (img, n, go) => { img.onload = go; img.onerror = () => { if (FB[n] && !img.dataset.fb) { img.dataset.fb = 1; img.src = IMG(FB[n]); } else go(); }; img.src = IMG(n); };
 /* 컷: [이미지, 초점 x, 초점 y (0~1), 확대 배율] */
 const SHOTS = {
   press: { wide: ["press_minister", 0.5, 0.42, 1.06], ask: ["press_journalist", 0.56, 0.42, 1.18], askAlt: ["press_minister", 0.27, 0.6, 1.9], ans: ["press_minister", 0.53, 0.36, 1.8], end: ["press_spokesperson", 0.55, 0.45, 1.1] },
   assembly: { wide: ["assembly", 0.5, 0.45, 1.06], ask: ["assembly", 0.25, 0.62, 1.85], askAlt: ["assembly", 0.42, 0.36, 2.0], ans: ["assembly", 0.66, 0.55, 1.9], end: ["assembly", 0.42, 0.34, 1.8] },
+  debate: { wide: ["debate", 0.5, 0.45, 1.06], ask: ["debate", 0.28, 0.5, 1.6], askAlt: ["debate", 0.72, 0.5, 1.6], ans: ["debate", 0.5, 0.42, 1.7], end: ["debate", 0.5, 0.45, 1.1] },
+  primary: { wide: ["primary_hall", 0.5, 0.45, 1.06], ask: ["primary_hall", 0.3, 0.55, 1.5], askAlt: ["primary_hall", 0.7, 0.55, 1.5], ans: ["primary_hall", 0.5, 0.4, 1.7], end: ["primary_hall", 0.5, 0.45, 1.1] },
   nsc: { wide: ["nsc", 0.5, 0.5, 1.06], ask: ["nsc", 0.8, 0.5, 1.75], askAlt: ["nsc", 0.62, 0.7, 1.7], ans: ["nsc", 0.42, 0.6, 1.7], end: ["nsc", 0.62, 0.32, 1.5] },
 };
-const PLACE = { press: "국방부 브리핑룸 · 정례 기자회견", assembly: "국회 국방위원회 · 현안 질의", nsc: "국가안전보장회의 · 긴급 소집" };
-const END = { press: ["대변인", "이상으로 오늘 브리핑을 마치겠습니다."], assembly: ["위원장", "답변 잘 들었습니다. 다음 안건으로 넘어가겠습니다."], nsc: ["안보실장", "결정 사항을 각 군에 하달하겠습니다."] };
+const PLACE = { debate: "TV 토론", primary: "당내 경선", press: "국방부 브리핑룸 · 정례 기자회견", assembly: "국회 국방위원회 · 현안 질의", nsc: "국가안전보장회의 · 긴급 소집" };
+const END = { debate: ["사회자", "이상으로 오늘 토론을 마치겠습니다."], primary: ["사회자", "합동 토론회를 마칩니다."], press: ["대변인", "이상으로 오늘 브리핑을 마치겠습니다."], assembly: ["위원장", "답변 잘 들었습니다. 다음 안건으로 넘어가겠습니다."], nsc: ["안보실장", "결정 사항을 각 군에 하달하겠습니다."] };
 let R = null;
 
 /** 나레이션 장면: cuts = [{ img, f: [x, y, 배율], who, text, card?, flash? }] 순서대로 재생 후 닫힘 */
@@ -20,12 +25,12 @@ export function playCuts({ title = "", place = "", cuts = [], onClose }) {
   document.body.appendChild(el);
   const S = (R = { el, onClose, qi: 0, timers: [], cur: 0, typer: 0, skipped: false });
   const L = [...el.querySelectorAll(".ly")], sub = el.querySelector(".s3-sub"), card = el.querySelector(".s3-card"), fl = el.querySelector(".fl"), nb = el.querySelector(".s3-next");
-  for (const c of cuts) new Image().src = IMG(c.img);
+  for (const c of cuts) load(new Image(), c.img, () => {});
   let i = -1, ready = false;
-  const show = (c) => { const img = new Image(); img.src = IMG(c.img); const nx = L[S.cur ^ 1], old = L[S.cur], [fx, fy, z] = c.f || [0.5, 0.5, 1.06];
+  const show = (c) => { const img = new Image(); const nx = L[S.cur ^ 1], old = L[S.cur], [fx, fy, z] = c.f || [0.5, 0.5, 1.06];
     const go = () => { nx.innerHTML = ""; nx.appendChild(img); img.style.transition = "none"; img.style.transform = fit(el, img, fx, fy, z); nx.style.transition = "opacity 1.2s"; nx.style.opacity = 1; old.style.opacity = 0; S.cur ^= 1;
       requestAnimationFrame(() => requestAnimationFrame(() => { img.style.transition = "transform 10s cubic-bezier(.25,.1,.25,1)"; img.style.transform = fit(el, img, c.to?.[0] ?? fx, c.to?.[1] ?? fy, c.to?.[2] ?? z * 1.08); })); };
-    if (img.complete && img.naturalWidth) go(); else { img.onload = go; img.onerror = go; } };
+    load(img, c.img, go); };
   const next = () => { if (!ready && i >= 0) return; i++; if (i >= cuts.length) return closeScene(true); const c = cuts[i]; ready = false; nb.classList.remove("on");
     if (c.img !== cuts[i - 1]?.img || c.f) show(c); if (c.flash) for (let k = 0; k < c.flash; k++) S.timers.push(setTimeout(() => { fl.classList.remove("on"); void fl.offsetWidth; fl.classList.add("on"); }, 300 + k * 260));
     card.className = c.card ? "s3-card on" : "s3-card"; card.innerHTML = c.card || "";
@@ -49,17 +54,17 @@ export function openScene({ kind = "press", title = "", questions = [], onPick, 
   const S = (R = { el, onClose, qi: 0, timers: [], cur: 0, typer: 0, skipped: false });
   const L = [...el.querySelectorAll(".ly")], sub = el.querySelector(".s3-sub"), box = el.querySelector(".s3-opts"), fl = el.querySelector(".fl");
   const later = (f, ms) => S.timers.push(setTimeout(f, ms));
-  for (const n of new Set(Object.values(Sh).map((s) => s[0]))) new Image().src = IMG(n);
+  for (const n of new Set(Object.values(Sh).map((s) => s[0]))) load(new Image(), n, () => {});
   /* 화면을 꽉 채우도록 배율·위치를 계산해 (fx, fy)가 화면 중앙에 오게 한다 */
   const frame = (img, fx, fy, z) => { const W = el.clientWidth, H = el.clientHeight, iw = img.naturalWidth || 1376, ih = img.naturalHeight || 768, s = Math.max(W / iw, H / ih) * z, w = iw * s, h = ih * s;
     const x = Math.min(0, Math.max(W - w, W / 2 - fx * w)), y = Math.min(0, Math.max(H - h, H / 2 - fy * h)); return `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${s.toFixed(4)})`; };
   const shot = ([n, fx, fy, z], cut = true) => {
-    const nx = L[S.cur ^ 1], old = L[S.cur], img = new Image(); img.src = IMG(n);
+    const nx = L[S.cur ^ 1], old = L[S.cur], img = new Image();
     const go = () => { nx.innerHTML = ""; nx.appendChild(img); img.style.transition = "none"; img.style.transform = frame(img, fx, fy, z);
       nx.style.transition = cut ? "opacity .35s" : "opacity 1.1s"; nx.style.opacity = 1; old.style.opacity = 0; S.cur ^= 1;
       /* 천천히 밀고 들어가는 카메라 (Ken Burns) */
       requestAnimationFrame(() => requestAnimationFrame(() => { img.style.transition = "transform 9s cubic-bezier(.25,.1,.25,1)"; img.style.transform = frame(img, fx + (Math.random() - 0.5) * 0.04, fy, z * 1.07); })); };
-    if (img.complete && img.naturalWidth) go(); else { img.onload = go; img.onerror = go; }
+    load(img, n, go);
   };
   const flash = (n = 3) => { for (let i = 0; i < n; i++) later(() => { fl.classList.remove("on"); void fl.offsetWidth; fl.classList.add("on"); }, i * (120 + Math.random() * 260)); };
   const say = (who, text, cls, done) => { sub.className = `s3-sub on ${cls}`; sub.innerHTML = `<i>${who}</i><span></span>`; const sp = sub.querySelector("span"), t0 = performance.now(); clearInterval(S.typer);
