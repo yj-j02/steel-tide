@@ -568,10 +568,10 @@ function refreshMenus() {
   { const sp = MODERN[flagshipId()], v = sp.vls || {}, cells = Object.values(v).reduce((n, x) => n + (x?.[1] || 0), 0), wp = Object.values(v).map((x) => x?.[0]).filter(Boolean).join(" · ");
     const hist = career.shipLog || {}, open = shipsOpen(), pick = open.length > 1 ? `<div class="shp">${open.map((o) => { const m = MODERN[o.id], h = hist[o.id]; return `<button data-flag="${o.id}" class="${o.id === sp.id ? "on" : ""}" title="${m.cls}"><b>${m.short}</b><i>${m.cls.replace(/ \(.*\)/, "")}</i><i>${h ? `출전 ${h.b} · 격침 ${h.k}` : "출전 기록 없음"}</i></button>`; }).join("")}</div>` : "";
     const nxt = KR_LADDER.find((o) => o.g > myGrade()), hs = hist[sp.id];
-    $("#shipLine").innerHTML = `<div class="fh">${FLAGSVG.kr(30)}<span>FLAGSHIP · ${sp.cls}</span></div><div class="nm">${sp.name.replace(/\s*\(.*\)/, "")}</div><div class="cap">함장 ${ECON_RANKS[myGrade()]} ${cmdr.name}</div>`
+    $("#shipLine").innerHTML = `<div class="fh">${FLAGSVG.kr(30)}<span>FLAGSHIP · ${sp.cls}</span></div><div class="nm">${sp.name.replace(/\s*\(.*\)/, "")}</div><div class="cap">${career.minister ? `국방부장관 ${cmdr.name} (예비역 ${ECON_RANKS[myGrade()]})` : `함장 ${ECON_RANKS[myGrade()]} ${cmdr.name}`}</div>`
       + `<div class="grid"><span>${v.S || v.M || v.L ? `VLS·미사일 ${cells}발` : `함대함 미사일 ${cells}발`}</span><span>${(sp.vmax * (1 + 0.05 * (u.engine || 0))).toFixed(1)} kn</span><span>${wp}</span><span>근접방어 ${sp.pd?.[0] || "—"}</span><span>호위 ${myRank() >= 3 ? 2 : 1}척</span><span>${ladderOf(sp.id).t >= 3 && NATIONS.kr.cv ? `항공 ${MODERN[NATIONS.kr.cv].short}` : "항공 지원 없음"}</span></div>`
       + `<div class="shh">함정 이력 — ${hs ? `출전 ${hs.b}회 · 승리 ${hs.w} · 격침 ${hs.k}척` : "아직 출전 기록이 없습니다"}${nxt ? ` · 다음 함정 ${MODERN[nxt.id].short} (${ECON_RANKS[nxt.g]})` : ""}</div>` + pick; }
-  $("#rankTxt").textContent = rl.next ? `${rl.name} → ${rl.next} · ${fmt(profile.xp)} / ${fmt(rl.need)} XP` : `${rl.name} · 최고 계급`;
+  $("#rankTxt").textContent = career.minister ? `예비역 ${rl.name} · 국방부장관 재임 중` : rl.next ? `${rl.name} → ${rl.next} · ${fmt(profile.xp)} / ${fmt(rl.need)} XP` : `${rl.name} · 최고 계급`;
   const acc = profile.shots ? ((profile.hits / profile.shots) * 100).toFixed(1) : "0.0";
   $("#record").textContent = profile.battles ? `${profile.wins}승 / ${profile.battles}전 · 명중률 ${acc}%` : "첫 출격 대기 중";
   renderRecord();
@@ -588,7 +588,7 @@ function refreshMenus() {
     .map(([g, k, n, d]) => `<button class="mp${(g === "tod" ? todSel : wxSel) === k ? " on" : ""}" data-${g}="${k}"><b>${n}</b><small>${d}</small></button>`).join("") + `<div class="mpn">현대전에서는 화면만 바뀌고 레이더 탐지는 그대로</div>`;
   $("#camp").innerHTML = kcampHTML();
   $("#maps").innerHTML = Object.entries(MAPS).filter(([k]) => k !== "uswest").map(([k, m]) => `<button class="mp${theater === k ? " on" : ""}" data-map="${k}"><b>${m.n}</b><small>${m.d}</small></button>`).join("");
-  $("#cmdrFace").innerHTML = face(myFace(), 46); $("#cmdrName").textContent = `${ECON_RANKS[rl.r]} ${cmdr.name}`;
+  $("#cmdrFace").innerHTML = face(myFace(), 46); $("#cmdrName").textContent = career.minister ? `장관 ${cmdr.name}` : `${ECON_RANKS[rl.r]} ${cmdr.name}`;
 }
 $("#nations").addEventListener("click", (e) => { const b = e.target.closest("[data-nu],[data-nf]"); if (!b || b.disabled) return; if (b.dataset.nu) natUs = b.dataset.nu; else natFoe = b.dataset.nf; try { localStorage.setItem("steeltide:natUs", natUs); localStorage.setItem("steeltide:natFoe", natFoe); } catch {} sfx.click(); refreshMenus(); });
 $("#maps").addEventListener("click", (e) => { const b = e.target.closest("[data-map]"); if (!b || b.disabled) return; theater = b.dataset.map; try { localStorage.setItem("steeltide:map", theater); } catch {} sfx.click(); refreshMenus(); });
@@ -760,8 +760,8 @@ function renderRecord() { /* 내 정보: profile card, perks, record, service re
   const log = career.log.slice().reverse().map((e) => `<div class="cr ${tierCls(e.g)}"><span class="d">${e.d}</span><span class="ins">${insignia(e.g, 16)}</span><div><b>${ECON_RANKS[e.g]} ${e.why === "임관" ? "임관" : e.why === "보직 변경" ? "보직 변경" : e.why === "기존 경력 승계" ? "(경력 승계)" : "진급"}</b> · ${e.t}${e.b ? ` <small>(${e.b})</small>` : ""}${e.why && !["임관", "보직 변경", "기존 경력 승계"].includes(e.why) ? `<div class="sub">공적: ${e.why}</div>` : ""}${e.perk ? `<div class="sub pkl">특기: ${e.perk}</div>` : ""}</div></div>`).join("") || `<div class="none">사령부에서 보직을 고르면 약력이 시작됩니다</div>`;
   staffFor(rl.r); const of = (k) => officer(staff.a[k]);
   let h = `<div class="mi"><div class="mi-l">`
-    + `<div class="mi-por-w">${portraitHTML(rl.r)}</div><div class="mi-card"><div><div class="mi-rk">${insignia(rl.r, 22)}<b>${rl.name} ${ps.step}호봉</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${postOf(rl.r)}${staff.branch ? ` · ${BRANCHES[staff.branch].n} 보직` : ""}</div></div></div>`
-    + `<div class="mi-bar"><span>다음 호봉</span><div class="hbar"><i style="width:${Math.max(2, stepPct).toFixed(0)}%"></i></div></div><div class="mi-bar"><span>${rl.next ? `${rl.next} 진급` : "최고 계급"}</span><div class="hbar"><i style="width:${(rl.pct * 100).toFixed(0)}%;background:var(--gold)"></i></div><small>${rl.next ? `${fmt(rl.need - profile.xp)} XP 남음` : ""}</small></div>`
+    + `<div class="mi-por-w">${portraitHTML(rl.r)}</div><div class="mi-card"><div><div class="mi-rk">${insignia(rl.r, 22)}<b>${career.minister ? `예비역 ${rl.name}` : `${rl.name} ${ps.step}호봉`}</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${career.minister ? "국방부장관" : `${postOf(rl.r)}${staff.branch ? ` · ${BRANCHES[staff.branch].n} 보직` : ""}`}</div></div></div>`
+    + (career.minister ? `<div class="mi-bar"><span>전역 후 국방부장관으로 임명되어 호봉·진급이 없습니다</span></div>` : `<div class="mi-bar"><span>다음 호봉</span><div class="hbar"><i style="width:${Math.max(2, stepPct).toFixed(0)}%"></i></div></div><div class="mi-bar"><span>${rl.next ? `${rl.next} 진급` : "최고 계급"}</span><div class="hbar"><i style="width:${(rl.pct * 100).toFixed(0)}%;background:var(--gold)"></i></div><small>${rl.next ? `${fmt(rl.need - profile.xp)} XP 남음` : ""}</small></div>`)
     + evalHTML(rl) + ministerHTML(rl)
     + `<h3>진급 특기</h3>${career.picks > 0 ? `<div id="miPk"></div>` : ""}<ul class="mi-pk">${perks}</ul>`
     + `<h3>훈장 · 표창</h3><div class="mi-md">${Object.entries(MEDALS).map(([k, M]) => `<div class="md${career.medals?.[k] ? "" : " no"}" title="${M.d}"><i>${M.rb.map((col) => `<b style="background:${col}"></b>`).join("")}</i><span>${M.n}</span><small>${career.medals?.[k] ? career.medals[k] : M.d}</small></div>`).join("")}</div>`
