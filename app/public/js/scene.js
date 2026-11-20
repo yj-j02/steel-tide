@@ -11,6 +11,33 @@ const PLACE = { press: "국방부 브리핑룸 · 정례 기자회견", assembly
 const END = { press: ["대변인", "이상으로 오늘 브리핑을 마치겠습니다."], assembly: ["위원장", "답변 잘 들었습니다. 다음 안건으로 넘어가겠습니다."], nsc: ["안보실장", "결정 사항을 각 군에 하달하겠습니다."] };
 let R = null;
 
+/** 나레이션 장면: cuts = [{ img, f: [x, y, 배율], who, text, card?, flash? }] 순서대로 재생 후 닫힘 */
+export function playCuts({ title = "", place = "", cuts = [], onClose }) {
+  closeScene();
+  const el = document.createElement("div"); el.id = "scene2d"; el.className = "cuts";
+  el.innerHTML = `<div class="sv"><div class="ly"></div><div class="ly"></div></div><div class="fl"></div><div class="vg"></div><div class="s3-bar t"></div><div class="s3-bar b"></div>
+    <div class="s3-title"><span>${place}</span><b>${title}</b></div><div class="s3-card"></div><div class="s3-sub"></div><button class="s3-skip">건너뛰기 ✕</button><button class="s3-next">다음 ›</button>`;
+  document.body.appendChild(el);
+  const S = (R = { el, onClose, qi: 0, timers: [], cur: 0, typer: 0, skipped: false });
+  const L = [...el.querySelectorAll(".ly")], sub = el.querySelector(".s3-sub"), card = el.querySelector(".s3-card"), fl = el.querySelector(".fl"), nb = el.querySelector(".s3-next");
+  for (const c of cuts) new Image().src = IMG(c.img);
+  let i = -1, ready = false;
+  const show = (c) => { const img = new Image(); img.src = IMG(c.img); const nx = L[S.cur ^ 1], old = L[S.cur], [fx, fy, z] = c.f || [0.5, 0.5, 1.06];
+    const go = () => { nx.innerHTML = ""; nx.appendChild(img); img.style.transition = "none"; img.style.transform = fit(el, img, fx, fy, z); nx.style.transition = "opacity 1.2s"; nx.style.opacity = 1; old.style.opacity = 0; S.cur ^= 1;
+      requestAnimationFrame(() => requestAnimationFrame(() => { img.style.transition = "transform 10s cubic-bezier(.25,.1,.25,1)"; img.style.transform = fit(el, img, c.to?.[0] ?? fx, c.to?.[1] ?? fy, c.to?.[2] ?? z * 1.08); })); };
+    if (img.complete && img.naturalWidth) go(); else { img.onload = go; img.onerror = go; } };
+  const next = () => { if (!ready && i >= 0) return; i++; if (i >= cuts.length) return closeScene(true); const c = cuts[i]; ready = false; nb.classList.remove("on");
+    if (c.img !== cuts[i - 1]?.img || c.f) show(c); if (c.flash) for (let k = 0; k < c.flash; k++) S.timers.push(setTimeout(() => { fl.classList.remove("on"); void fl.offsetWidth; fl.classList.add("on"); }, 300 + k * 260));
+    card.className = c.card ? "s3-card on" : "s3-card"; card.innerHTML = c.card || "";
+    const done = () => { ready = true; nb.classList.add("on"); if (c.auto) S.timers.push(setTimeout(next, c.auto)); };
+    S.timers.push(setTimeout(() => { sub.className = `s3-sub on ${c.cls || ""}`; sub.innerHTML = `<i>${c.who || ""}</i><span></span>`; const sp = sub.querySelector("span"), t0 = performance.now(); clearInterval(S.typer);
+      S.typer = setInterval(() => { const n = Math.ceil((performance.now() - t0) / 38); sp.textContent = c.text.slice(0, n); if (n >= c.text.length) { clearInterval(S.typer); done(); } }, 30); }, 700)); };
+  nb.addEventListener("click", next); el.querySelector(".s3-skip").addEventListener("click", () => { S.skipped = true; closeScene(true); });
+  S.resize = () => {}; next();
+}
+function fit(el, img, fx, fy, z) { const W = el.clientWidth, H = el.clientHeight, iw = img.naturalWidth || 1376, ih = img.naturalHeight || 768, s = Math.max(W / iw, H / ih) * z, w = iw * s, h = ih * s;
+  const x = Math.min(0, Math.max(W - w, W / 2 - fx * w)), y = Math.min(0, Math.max(H - h, H / 2 - fy * h)); return `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${s.toFixed(4)})`; }
+
 /** 장면 열기: questions = [{ who, q, opts: [[답변, 효과 설명, 대사?]] }], onPick(qi, ai), onClose(qi, skipped) */
 export function openScene({ kind = "press", title = "", questions = [], onPick, onClose, speaker = "장관", place = null }) {
   closeScene();

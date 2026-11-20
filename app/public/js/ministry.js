@@ -324,12 +324,26 @@ function trendSVG(m) {
     ${B.length > 1 ? `<path d="${line(B, Yb)}" class="bd"/>` : ""}<path d="${line(S, Ys)}" class="sp"/><circle cx="${X(n - 1)}" cy="${Ys(S[n - 1])}" r="3" class="spd"/></svg>
     <div class="lgd"><span class="s">━ 지지율 (현재 ${S[n - 1]}, 목표선 60)</span><span class="b">━ 예산 (현재 ${won(B[B.length - 1] ?? m.budget)})</span></div></div>`;
 }
+/** 임기 종료 연출 컷 */
+export function retireCuts(m) {
+  const T = m.term || {}, ok = T.ok, best = Object.entries(PROGS).filter(([k]) => (m.prog[k] || 0) >= 5).map(([, P]) => P.n);
+  const stat = `<h4>${ok ? "명예 퇴임" : "임기 종료"}</h4><div><span>평균 국정 지지율</span><b class="${T.avg >= 60 ? "g" : "r"}">${T.avg}</b></div><div><span>LV5 방위력 개선 사업</span><b class="${T.l5 >= 2 ? "g" : "r"}">${T.l5}개</b></div><div><span>다해역 위기 방어율</span><b class="${T.rate >= 80 ? "g" : "r"}">${T.rate}%</b></div><div><span>남긴 국방 예산</span><b>${won(m.budget)}</b></div>`;
+  return [
+    { img: "office", f: [0.55, 0.62, 1.1], to: [0.5, 0.5, 1.02], who: "", text: `${TERM}주의 임기가 끝났습니다. 결재판에는 더 이상 올라올 서류가 없습니다.` },
+    { img: "war_room", f: [0.5, 0.42, 1.12], who: "합참의장", text: `장관님, 마지막 상황 보고입니다. 임기 중 다해역 위기 방어율은 ${T.rate}%였습니다.` },
+    { img: "press_minister", f: [0.53, 0.36, 1.7], flash: 4, who: `장관 ${m.name}`, text: ok ? "국민 여러분이 보내 주신 신뢰 덕분에 맡은 임무를 마칠 수 있었습니다. 장병들에게 감사드립니다." : "부족한 점이 많았습니다. 남은 과제는 후임 장관이 잘 이어 갈 것이라 믿습니다." },
+    { img: "ceremony", f: [0.36, 0.68, 1.6], to: [0.5, 0.55, 1.05], who: "사회자", text: `지금부터 ${m.name} 국방부장관 이임식 및 함대 사열을 거행하겠습니다.${best.length ? ` 재임 중 ${best.join("·")} 사업을 완성했습니다.` : ""}`, card: stat },
+    { img: "ceremony", f: [0.62, 0.62, 1.15], to: [0.5, 0.45, 1.02], flash: 2, who: "", text: ok ? "예포가 울리고, 도열한 장병들이 마지막 경례를 올립니다. 당신의 이름이 명예의 전당에 올랐습니다." : "도열한 장병들이 마지막 경례를 올립니다. 당신의 이름이 역대 장관 기록에 남았습니다." },
+    { img: "office", f: [0.3, 0.45, 1.2], to: [0.5, 0.5, 1.02], who: "", text: "제복도, 직함도 내려놓았습니다. 이제 당신은 민간인입니다.", cls: "a" },
+  ];
+}
 function retiredHTML(m) {
   const T = m.term, H = hall();
   return `<div class="mn"><div class="mn-ret"><div class="mn-card big"><h3>${T.ok ? "명예 퇴임" : "임기 종료"}</h3><p>${m.name} 장관 · ${TERM}주 임기</p>
     <div class="kv"><span>평균 국정 지지율</span><b class="${T.avg >= 60 ? "g" : "r"}">${T.avg} / 60</b></div><div class="kv"><span>LV5 방위력 개선 사업</span><b class="${T.l5 >= 2 ? "g" : "r"}">${T.l5} / 2</b></div><div class="kv"><span>다해역 위기 방어율</span><b class="${T.rate >= 80 ? "g" : "r"}">${T.rate}% / 80%</b></div>
     <p>${T.ok ? "임기 목표를 모두 달성했습니다. 2회차를 시작하면 특전이 주어집니다: 명예 약장(화력 +10%·초반 봉급 +50%), 완성 사업 1개 LV3 계승, 원수 승진 30% 단축." : "임기 목표를 다 이루지 못했습니다. 2회차를 시작할 수 있지만 특전은 없습니다."}</p>
     ${T.ok ? `<div class="mn-h">계승할 사업 (LV3로 시작)</div><div class="rf">${Object.entries(PROGS).filter(([k]) => (m.prog[k] || 0) >= 5).map(([k, P]) => `<button data-min="inh:${k}" class="${m.inh === k ? "on" : ""}">${P.n}</button>`).join("")}</div>` : ""}
+    <div class="mn-pres"><b>다음 장 · 대통령 출마</b><small>민간인이 된 당신에게 정당들이 접촉해 오기 시작했습니다. (준비 중)</small></div><button data-min="replay" class="mn-rp">🎬 이임식 다시 보기</button>
     <button class="mn-ng ${ngArm ? "arm" : ""}" data-min="ng">${ngArm ? "한 번 더 누르면 커리어·함정·기록이 초기화되고 소위로 다시 시작합니다" : "2회차 시작 (소위부터)"}</button><small>명예의 전당·설정·지휘관 이름은 그대로 남습니다. 이 버튼을 누르지 않으면 지금 커리어로 계속 플레이할 수 있습니다.</small></div>
     <div class="mn-card"><div class="mn-h">역대 국방부장관 명예의 전당</div>${H.map((h) => `<div class="hl ${h.ok ? "ok" : ""}"><b>${h.ok ? "★ " : ""}${h.name}</b><span>${h.gen}회차 · ${h.at}</span><small>지지율 ${h.avg} · LV5 ${h.l5}개 · 방어율 ${h.rate}% · 교리 ${h.doctrine}</small></div>`).join("") || "<small>기록 없음</small>"}</div></div></div>`;
 }
@@ -340,6 +354,7 @@ export function minClick(a) {
   if (a === "ng") { if (!ngArm) { ngArm = true; return { redraw: true }; } ngArm = false; const T = m.term, L = legacy();
     wr(LK, { gen: (L?.gen || 1) + 1, medal: !!T?.ok, prog: T?.ok ? m.inh || Object.keys(m.prog).find((k) => m.prog[k] >= 5) || null : null, minister: !!T?.ok }); return { reset: true }; }
   if (a.startsWith("inh:")) { m.inh = a.slice(4); save(m); return { redraw: true }; }
+  if (a === "replay" && m.retired) return { retire: retireCuts(m) };
   if (m.retired) return {};
   if (a.startsWith("doc:")) { const k = a.slice(4); m.doctrine = m.doctrine === k ? null : k; save(m); return { redraw: true, toast: m.doctrine ? `작전 교리 선포 — ${DOCTRINES[k].n}` : "작전 교리 해제" }; }
   if (a.startsWith("scene:")) { const id = a.slice(6), d = DK(id); if (!d || !m.docket.includes(id)) return {}; const meta = d[4] || {}, press = meta.sc === "press";
@@ -351,7 +366,7 @@ export function minClick(a) {
   if (a === "direct") { if (m.war.areas.west.res) return {}; m.war.direct = "west"; save(m); return { direct: true }; }
   if (a === "next") { if (m.docket.length) return { toast: "결재 안건을 먼저 처리하십시오" }; endWeek(m); m.support = clamp(m.support, 0, 100);
     const hot = !m.retired && Object.keys(AREAS).find((k) => m.war.areas[k].lvl === 2); m.nsc = hot || null; save(m);
-    return { redraw: true, toast: m.retired ? "임기 종료" : `${m.week}주차 — 새 위기와 결재 안건`, nsc: hot && scenesOn() ? { kind: "nsc", title: `${AREAS[hot].n} 위협 '높음'`, id: hot, questions: [{ who: "국가안보실장", q: `${AREAS[hot].n}에서 적 함정·항공기 활동이 급증했습니다. 이번 주 위기 대응 방침을 정해 주십시오.`, opts: NSC_OPT.map(([n, e, l]) => [n, e, l]) }] } : null }; }
+    return { redraw: true, retire: m.retired ? retireCuts(m) : null, toast: m.retired ? "" : `${m.week}주차 — 새 위기와 결재 안건`, nsc: hot && scenesOn() ? { kind: "nsc", title: `${AREAS[hot].n} 위협 '높음'`, id: hot, questions: [{ who: "국가안보실장", q: `${AREAS[hot].n}에서 적 함정·항공기 활동이 급증했습니다. 이번 주 위기 대응 방침을 정해 주십시오.`, opts: NSC_OPT.map(([n, e, l]) => [n, e, l]) }] } : null }; }
   if (a === "scenes") { const on = !scenesOn(); try { localStorage.setItem(SCK, on ? "on" : "off"); } catch { /* 저장 불가 */ } return { redraw: true, toast: on ? "결재 연출 켜짐 — 기자회견·국회·NSC 장면이 나옵니다" : "결재 연출 꺼짐 — 결재판에서 바로 고릅니다" }; }
   if (a === "nscview") { const k = m.nsc; if (!k) return {}; return { nsc: { kind: "nsc", title: `${AREAS[k].n} 위협 '높음'`, id: k, questions: [{ who: "국가안보실장", q: `${AREAS[k].n}에서 적 함정·항공기 활동이 급증했습니다. 이번 주 위기 대응 방침을 정해 주십시오.`, opts: NSC_OPT.map(([n, e, l]) => [n, e, l]) }] } }; }
   if (a.startsWith("nsc:")) { const k = m.nsc, W = k && m.war.areas[k], i = +a.slice(4); if (!W) return {}; NSC_OPT[i]?.[3](m, W); m.nsc = null; m.support = clamp(m.support, 0, 100); note(m, `NSC — ${AREAS[k].n}: ${NSC_OPT[i][0]}`); save(m); return { redraw: true }; }
