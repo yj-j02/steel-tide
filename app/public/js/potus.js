@@ -170,3 +170,18 @@ export function endCuts(Q) {
   ];
 }
 export const potusTitle = () => { const Q = potusState(); return Q ? (Q.done ? `전 대통령 · ${ENDS[Q.end]?.[0] || ""}` : `대통령 · ${yq(Q.q)}`) : null; };
+
+/** 관리자 시험 기능 */
+export function potusAdmin(k) {
+  const Q = potusState(); if (!Q) return {}; const done = (t) => { save(Q); return { redraw: true, toast: `관리자 · ${t}` }; };
+  if (k === "ap") { Q.ap = clamp(Q.ap + 15, 3, 90); return done("지지율 +15"); }
+  if (k === "apd") { Q.ap = clamp(Q.ap - 15, 3, 90); return done("지지율 −15"); }
+  if (k === "bud") { Q.bud += 30; return done("재량 예산 +30조"); }
+  if (k === "seats") { Q.seats = Q.seats >= 151 ? 120 : 180; return done(`여당 ${Q.seats}석으로 변경`); }
+  if (k === "crisis") { Q.crisis = { id: pick(CRISES)[0], res: null }; return done("NSC 위기 발생"); }
+  if (k === "summit") { Q.summit = pick(Object.keys(SUMMIT)); Q.act.dip = false; return done("정상회담 일정 추가"); }
+  if (k === "skip4") { if (!Q.min) Q.min = MINS[0][0]; for (let i = 0; i < 4 && Q.q < TERM; i++) { Q.sup.push(Q.ap); Q.q++; } if (Q.q > GE_Q && !Q.flags.ge) Q.flags.ge = [Q.seats, Q.seats]; newQuarter(Q); return done(`4분기 건너뜀 → ${yq(Q.q)}`); }
+  if (k === "end" || k === "imp") { if (k === "imp") { Q.end = "imp"; } else { if (!Q.sup.length) Q.sup.push(Q.ap); Q.end = grade(Q); hallAdd(Q); } Q.done = true; save(Q); return { redraw: true, cuts: endCuts(Q) }; }
+  if (k === "reset") { localStorage.removeItem(QK); return { redraw: true, toast: "관리자 · 대통령 기록 초기화" }; }
+  return {};
+}

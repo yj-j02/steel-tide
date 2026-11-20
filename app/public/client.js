@@ -19,9 +19,9 @@ import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods
 import { PERKS, career, saveCareer, careerInit, rollPerks, takePerk, logPromotion, perkMods, payStep, MEDALS, awardMedals } from "./js/career.js";
 import { openOpMap, opMapAdvance, opMapState, opMapAir } from "./js/opmap.js";
 import { openScene, playCuts } from "./js/scene.js";
-import { potusState, potusStart, potusHTML, potusClick, potusTitle } from "./js/potus.js";
-import { presState, presStart, presHTML, presClick, PARTIES } from "./js/president.js";
-import { galleryHTML } from "./js/ministry.js";
+import { potusState, potusStart, potusHTML, potusClick, potusTitle, potusAdmin } from "./js/potus.js";
+import { presState, presStart, presHTML, presClick, presAdmin, PARTIES } from "./js/president.js";
+import { galleryHTML, minAdminEnd } from "./js/ministry.js";
 import { minFx, minHTML, minClick, minStart, minOpResult, minState, legacy, NG_RESET } from "./js/ministry.js";
 /** 국방부장관 교리·사업·2회차 특전을 전투 보정치에 곱한다 */
 const withMin = (m) => { const F = minFx(); return { ...m, outK: m.outK * F.outK, inK: m.inK * F.inK, icptK: m.icptK * F.icptK, reloadK: (m.reloadK || 1) * F.reloadK }; };
@@ -820,15 +820,29 @@ function renderBranchPick() {
   const cards = Object.entries(BRANCHES).map(([k, B]) => `<div class="hq-br"><h4>${B.n}</h4><p>${B.d}</p><div class="hq-bb">보직 보너스 · ${B.bonus}</div><ol>${B.t.map((t, i) => `<li${i >= 8 ? ' class="sh"' : ""}><span>${insignia(i, 13)}${ECON_RANKS[i]}</span>${t}</li>`).join("")}</ol><button data-branch="${k}">${B.n} 보직 선택</button></div>`).join("");
   $("#hqP").innerHTML = `<div class="hq-head"><div><h3>임관 · 보직 선택</h3><p>소위로 임관했습니다. 어느 계통에서 경력을 시작할지 고르세요 — 진급하면서 받는 직함과 내 보직 보너스가 이 선택을 따라갑니다. (소위인 동안은 바꿀 수 있습니다)</p></div></div><div class="hq-brs">${cards}</div>`;
 }
-function renderMin() { if (!minState()) minStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="org">‹ 지휘 계통도</button><b>국방부 집무실</b><small>${cmdr.name} ${civil() ? "전 장관" : "장관"}</small><button data-min="gal" class="hq-tg2">🖼 역대 장관</button>${presState() ? `<button data-hqv="pres">대선 캠프 ›</button>` : ""}</div>${minHTML()}`; }
-function renderPotus() { if (!potusState()) potusStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="pres">‹ 대선 기록</button><b>대통령실</b><small>${cmdr.name} 대통령</small></div>${potusHTML()}`; }
+function renderMin() { if (!minState()) minStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="org">‹ 지휘 계통도</button><b>국방부 집무실</b><small>${cmdr.name} ${civil() ? "전 장관" : "장관"}</small><button data-min="gal" class="hq-tg2">🖼 역대 장관</button>${presState() ? `<button data-hqv="pres">대선 캠프 ›</button>` : ""}</div>${admBar("min")}${minHTML()}`; }
+/** 관리자 시험 바 (국방부·대선·대통령실 공통) */
+const ADM = { min: [["minok", "장관 명예 퇴임 즉시"], ["minbad", "장관 임기 종료(목표 미달)"], ["topres", "→ 대선 바로 시작"], ["topotus", "→ 대통령 바로 취임"]],
+  pres: [["pboost", "능력치 +15"], ["pskip", "프롤로그 건너뛰기"], ["ppri", "경선 승리"], ["pdday", "D-3으로"], ["pwin", "당선 처리"], ["plose", "낙선 처리"], ["topotus", "→ 대통령 취임"]],
+  potus: [["uap", "지지율 +15"], ["uapd", "지지율 −15"], ["ubud", "예산 +30조"], ["useats", "여당 의석 뒤집기"], ["ucrisis", "위기 발생"], ["usummit", "정상회담 추가"], ["uskip4", "4분기 건너뛰기"], ["uend", "임기 종료 엔딩"], ["uimp", "탄핵 엔딩"], ["ureset", "대통령 기록 초기화"]] };
+const admBar = (k) => (profile.admin ? `<div class="adm-bar"><b>관리자 시험</b>${ADM[k].map(([a, n]) => `<button data-adm="${a}">${n}</button>`).join("")}</div>` : "");
+function admRun(a) {
+  if (a === "minok" || a === "minbad") { if (!minState()) minStart(cmdr.name); if (!minAdminEnd(a === "minok")) return toast("이미 임기를 마쳤습니다", 2); hqView = "min"; renderMin(); const r = minClick("next"); if (r.retire) playCuts({ title: "국방부장관 이임", place: "국방부 · 임기 종료", cuts: r.retire, onClose: () => { renderMin(); refreshMenus(); } }); refreshMenus(); return; }
+  if (a === "topres" || a === "topotus") { if (!minState()) minStart(cmdr.name); if (!minState().retired) { minAdminEnd(true); minClick("next"); }
+    if (!presState()) presStart(cmdr.name);
+    if (a === "topotus") { if (presState().stage !== "won") presAdmin("win"); if (!potusState()) potusStart(cmdr.name); hqView = "potus"; renderPotus(); } else { hqView = "pres"; renderPres(); }
+    refreshMenus(); toast(a === "topotus" ? "관리자 · 대통령 취임" : "관리자 · 대선 시작", 3); return; }
+  const P = { pboost: "boost", pskip: "skip", ppri: "pri", pdday: "dday", pwin: "win", plose: "lose" }[a]; if (P) return presResult(presAdmin(P));
+  const U = { uap: "ap", uapd: "apd", ubud: "bud", useats: "seats", ucrisis: "crisis", usummit: "summit", uskip4: "skip4", uend: "end", uimp: "imp", ureset: "reset" }[a]; if (U) { const r = potusAdmin(U); if (U === "reset") { hqView = "pres"; renderPres(); refreshMenus(); return toast(r.toast, 3); } return potusResult(r); }
+}
+function renderPotus() { if (!potusState()) potusStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="pres">‹ 대선 기록</button><b>대통령실</b><small>${cmdr.name} 대통령</small></div>${admBar("potus")}${potusHTML()}`; }
 function potusResult(r) {
   if (r.toast) toast(r.toast, 3);
   if (r.scene) { const sc = r.scene; openScene({ kind: sc.kind, title: sc.title, place: sc.place, speaker: sc.speaker, questions: sc.questions, onPick: (qi, ai) => { const x = sc.pick?.(qi, ai); if (x?.toast) toast(x.toast, 3); }, onClose: () => { renderPotus(); refreshMenus(); } }); return; }
   if (r.cuts) { renderPotus(); playCuts({ title: "대통령 퇴임", place: "대통령실", cuts: r.cuts, onClose: () => { renderPotus(); refreshMenus(); } }); return; }
   if (r.redraw) { renderPotus(); refreshMenus(); }
 }
-function renderPres() { if (!presState()) presStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="min">‹ 국방부 기록</button><b>대통령 선거</b><small>${cmdr.name}</small>${potusState() ? `<button data-hqv="potus" class="hq-tg2">대통령실 ›</button>` : ""}</div>${presHTML()}`; }
+function renderPres() { if (!presState()) presStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="min">‹ 국방부 기록</button><b>대통령 선거</b><small>${cmdr.name}</small>${potusState() ? `<button data-hqv="potus" class="hq-tg2">대통령실 ›</button>` : ""}</div>${admBar("pres")}${presHTML()}`; }
 /** 대선 화면 클릭 결과 처리 (장면·컷·다시 그리기) */
 function presResult(r) {
   if (r.toast) toast(r.toast, 3);
@@ -932,6 +946,7 @@ $("#promoM").addEventListener("click", (e) => {
 });
 $("#hqP").addEventListener("keydown", (e) => { if (e.target.id === "hqAdmin" && e.key === "Enter") $('[data-act="hqadmin"]')?.click(); });
 $("#hqP").addEventListener("click", (e) => {
+  const ad = e.target.closest("[data-adm]"); if (ad && profile.admin) { sfx.click(); admRun(ad.dataset.adm); return; }
   const pu = e.target.closest("[data-potus]"); if (pu) { if (pu.disabled) return; sfx.click(); if (pu.dataset.potus === "start") { if (!potusState()) potusStart(cmdr.name); hqView = "potus"; renderPotus(); refreshMenus(); return; } potusResult(potusClick(pu.dataset.potus)); return; }
   const pz = e.target.closest("[data-pres]"); if (pz) { if (pz.disabled) return; sfx.click(); if (pz.dataset.pres === "start") { if (!presState()) presStart(cmdr.name); hqView = "pres"; renderPres(); refreshMenus(); return; } presResult(presClick(pz.dataset.pres)); return; }
   const hv = e.target.closest("[data-hqv]"); if (hv) { sfx.click(); hqView = hv.dataset.hqv; renderHQ(); return; }

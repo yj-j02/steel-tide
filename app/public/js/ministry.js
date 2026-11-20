@@ -325,6 +325,11 @@ function trendSVG(m) {
     <div class="lgd"><span class="s">━ 지지율 (현재 ${S[n - 1]}, 목표선 60)</span><span class="b">━ 예산 (현재 ${won(B[B.length - 1] ?? m.budget)})</span></div></div>`;
 }
 /** 임기 종료 연출 컷 */
+/** 관리자: 임기 끝 직전으로 만들기 (good = 명예 퇴임 조건 충족) */
+export function minAdminEnd(good = true) {
+  const m = minState(); if (!m || m.retired) return false;
+  m.week = TERM; m.docket = []; m.sup = Array(TERM - 1).fill(good ? 70 : 45); m.support = good ? 70 : 45; m.prog = good ? { ship: 5, air: 5, kamd: 3, log: 2 } : { ship: 1, air: 1, kamd: 0, log: 0 }; m.wins = good ? 140 : 60; m.fights = 150; m.nsc = null; save(m); return true;
+}
 /** 역대 국방부장관 초상 갤러리 (게임 속 기록) */
 export function galleryHTML() {
   const m = minState(), H = hall(), F = (h, s) => (globalThis.__faceOf ? globalThis.__faceOf(h.face, s, h.name) : "");

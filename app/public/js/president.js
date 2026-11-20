@@ -248,3 +248,15 @@ export function nightCuts(P) {
     win ? { img: "inauguration", fb: "ceremony", f: [0.5, 0.5, 1.05], who: "", text: "그리고 취임식 날. 당신은 대한민국의 국군통수권자가 됩니다." } : { img: "office", f: [0.3, 0.45, 1.2], who: "", text: "다시 민간인입니다. 그래도 당신이 남긴 기록은 지워지지 않습니다." },
   ];
 }
+
+/** 관리자 시험 기능 */
+export function presAdmin(k) {
+  let P = presState(); if (!P) return {}; const done = (t) => { save(P); return { redraw: true, toast: `관리자 · ${t}` }; };
+  if (k === "boost") { P.fame += 15; P.trust += 15; P.org += 15; P.money += 200; P.hp = 100; for (const g in P.g) P.g[g] = clamp(P.g[g] + 12, 0, 100); for (const r in P.r) P.r[r] = clamp(P.r[r] + 10, 0, 100); apply(P, {}); return done("능력치 +15 · 자금 +200억"); }
+  if (k === "skip" && P.stage === "pro") { P.turn = 4; P.stage = "party"; return done("프롤로그 건너뜀"); }
+  if (k === "pri" && P.stage === "pri") { while (P.pri.round < 4) { P.pri.res.push([0.5, 0.27, 0.23]); P.pri.round++; } return done("경선 승리 처리"); }
+  if (k === "dday" && P.stage === "camp") { P.turn = 6; P.docket = []; P.debates = [1, 3, 5]; P.act = { tours: [], pledge: false, ad: false }; return done("D-3으로 이동"); }
+  if (k === "win" || k === "lose") { if (!P.party) P.party = "dm"; if (!P.opp) setupRace(P); P = { ...P }; const w = k === "win", sh = w ? [0.48, 0.42, 0.1] : [0.4, 0.5, 0.1];
+    P.final = { sh, names: [P.name, ...P.opp.map((o) => o.n)], win: w }; P.stage = w ? "won" : "lost"; note(P, `관리자 · ${w ? "당선" : "낙선"} 처리`); save(P); return { redraw: true, cuts: nightCuts(P) }; }
+  return {};
+}
