@@ -1,3 +1,4 @@
+import { careerStorage } from "./characters.js";
 // 작전 지휘 (operation map): plan on a 2D chart of the West Sea, then run the operation in
 // real time (pause, x1/x2/x4). Groups move along the paths you draw; when a group detects an
 // enemy group within missile range the exchange is resolved on the chart (salvos, interceptions,
@@ -913,10 +914,10 @@ function fmEstimate() {
 
 // ── 작전 기록 · 기자회견 ──
 const LOGK = "steeltide:oplog", CAMPK = "steeltide:camp";
-function camp() { let c = null; try { c = JSON.parse(localStorage.getItem(CAMPK)); } catch { c = null; } return { trust: 60, ships: {}, pilots: {}, ...(c || {}) }; }
-const saveCamp = (c) => { try { localStorage.setItem(CAMPK, JSON.stringify(c)); } catch { /* storage full or blocked */ } };
-const opLog = () => { try { return JSON.parse(localStorage.getItem(LOGK)) || []; } catch { return []; } };
-const saveLog = (L) => { try { localStorage.setItem(LOGK, JSON.stringify(L.slice(0, 30))); } catch { /* storage full or blocked */ } };
+function camp() { let c = null; try { c = JSON.parse(careerStorage.getItem(CAMPK)); } catch { c = null; } return { trust: 60, ships: {}, pilots: {}, ...(c || {}) }; }
+const saveCamp = (c) => { try { careerStorage.setItem(CAMPK, JSON.stringify(c)); } catch { /* storage full or blocked */ } };
+const opLog = () => { try { return JSON.parse(careerStorage.getItem(LOGK)) || []; } catch { return []; } };
+const saveLog = (L) => { try { careerStorage.setItem(LOGK, JSON.stringify(L.slice(0, 30))); } catch { /* storage full or blocked */ } };
 const moraleNow = () => opLog().slice(0, 3).reduce((a, e) => a + (e.morale || 0) + (e.won ? 1 : -1), 0);
 /** 사기 5단계: 충천(+2) 양호(+1) 보통(0) 동요(−1) 위축(−2) */
 const moraleLv = () => { const m = moraleNow() + (minFx().moraleAdd || 0); return m >= 7 ? 2 : m >= 3 ? 1 : m >= -2 ? 0 : m >= -6 ? -1 : -2; };
@@ -960,8 +961,8 @@ function campBar() {
 }
 // ── 캠페인 「서해 72시간」 ──
 const C72K = "steeltide:c72";
-const c72 = () => { try { return JSON.parse(localStorage.getItem(C72K)) || { step: 0, res: [] }; } catch { return { step: 0, res: [] }; } };
-const saveC72 = (c) => { try { localStorage.setItem(C72K, JSON.stringify(c)); } catch { /* storage blocked */ } };
+const c72 = () => { try { return JSON.parse(careerStorage.getItem(C72K)) || { step: 0, res: [] }; } catch { return { step: 0, res: [] }; } };
+const saveC72 = (c) => { try { careerStorage.setItem(C72K, JSON.stringify(c)); } catch { /* storage blocked */ } };
 const C72_DAY = ["1일차 야간", "2일차 오전", "2일차 오후", "3일차 결전"];
 /** 다음 작전 후보: [시나리오, 항공 여부] (분기 포함) */
 function c72Next(c) {
@@ -1054,7 +1055,7 @@ function fmClick(a) {
   S.dirty = true; return true;
 }
 function fmPanel() {
-  const F = S.fm, sig = JSON.stringify([S.phase, S.scenK, S.ctx.c72 && localStorage.getItem(C72K), F.press, F.arm, F.tab, F.concept, F.roles, F.ins, F.rules, F.pick, F.res, F.hl && F.hl.at, !!F.half, F.ff, S.speed, S.paused, Math.floor(S.t / 2), S.log[0]?.at, S.log.length, S.evt?.id, F.flash, S.repShow?.done, $("#omCv")?.width]);
+  const F = S.fm, sig = JSON.stringify([S.phase, S.scenK, S.ctx.c72 && careerStorage.getItem(C72K), F.press, F.arm, F.tab, F.concept, F.roles, F.ins, F.rules, F.pick, F.res, F.hl && F.hl.at, !!F.half, F.ff, S.speed, S.paused, Math.floor(S.t / 2), S.log[0]?.at, S.log.length, S.evt?.id, F.flash, S.repShow?.done, $("#omCv")?.width]);
   if (sig === S.psig && !S.dirty) return; S.psig = sig; S.dirty = false;
   if (S.evt && !F.hl && S.phase === "run") { const e = S.evt; F.hl = { title: e.t, body: "결정이 필요합니다.", acts: [[e.a[1] + ` — ${e.a[2]}`, () => resolveEvent(e.a[0])], [e.b[1] + ` — ${e.b[2]}`, () => resolveEvent(e.b[0])]], cls: "y", at: S.t, noOk: true }; }
   const el = $("#opMap"); if (el.dataset.ph !== S.phase) { el.dataset.ph = S.phase; requestAnimationFrame(() => S.fit()); }

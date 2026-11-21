@@ -1,15 +1,16 @@
+import { careerStorage } from "./characters.js";
 // 근무평정 (service evaluation) and 보직 (posting) rotation. Each battle is scored 0–100 with the
 // weights of the branch you currently serve in; reaching the XP for the next rank makes you eligible,
 // and the promotion board (진급 심사) then needs enough battles at this rank and a passing average.
-// Kept in the career store (localStorage) — the economy server still owns XP and money.
+// Kept in the career store (careerStorage) — the economy server still owns XP and money.
 import { career, saveCareer } from "./career.js";
-import { postTier } from "./staff.js";
 
 /** What each branch's evaluation weighs most (shown on the posting cards and in 내 정보). */
 export const FOCUS = {
   inf: { n: "보병·특수전", f: "위기 방어 · 부대 생존", k: { win: 1.2, hp: 1.3, loss: 1.2, eff: 0.9 } },
   arm: { n: "기갑·기동", f: "기동 돌파 · 격멸 전과", k: { win: 1.25, hp: 0.95, loss: 1, eff: 1.3 }, fast: true },
   art: { n: "포병·방공", f: "화력 투사 · 즉각 응징", k: { win: 1.1, hp: 1, loss: 1, eff: 1.4 } },
+  eng: { n: "공병", f: "시설 복구 · 자재 및 일정 관리", k: { win: 1, hp: 1, loss: 1, eff: 1 } },
   sea: { n: "수상함", f: "격침 전과 · 함 생존", k: { win: 1, hp: 1.2, loss: 1, eff: 1.35 } },
   sub: { n: "잠수함", f: "은밀 기습 · 피해 최소화", k: { win: 1.1, hp: 1.45, loss: 1.1, eff: 1.05 } },
   mar: { n: "해상항공·해병", f: "항공 정찰 · 도서 방어", k: { win: 1.05, hp: 0.95, loss: 1, eff: 1.15 }, jets: true },
@@ -20,7 +21,7 @@ export const FOCUS = {
   pol: { n: "정보·외교·정책", f: "임무 완수 · 전략적 안정", k: { win: 1.3, hp: 1.2, loss: 1.2, eff: 0.85 } },
 };
 export const PASS = 55; /* B or better */
-export const minWeeks = (g) => (g <= 2 ? 10 : g <= 5 ? 12 : 14); /* 한 계급당 최소 10~14주 복무 */
+export const minWeeks = () => 10;
 export const minBattles = (g) => (g <= 2 ? 10 : g <= 5 ? 12 : 14);
 export const letter = (s) => (s >= 85 ? "S" : s >= 70 ? "A" : s >= PASS ? "B" : s >= 40 ? "C" : "D");
 
@@ -59,34 +60,7 @@ export function marshalQuest(profile, grade, rep = 0) {
   const c1 = grade >= 9 && e9.n >= 5 && e9.avg >= 85, c2 = wins >= 3, c3 = rep >= 85 && w9 >= 10;
   return { ok: c1 && c2 && c3, c1, c2, c3, e9, wins, rep, w9 };
 }
-/** Run the board after a battle/duty: 위관(소위~대위) guaranteed on pass; 소령+(3~8) uses hidden 요직/한직 odds and discharges after 3 consecutive pass-overs. */
-export function runBoard(g, xpGrade, postTitle = "") {
-  if (g >= 9) return { ...board(g, xpGrade), promoted: false };
-  const b = board(g, xpGrade), c = st();
-  if (!b.xp || !b.wk) return { ...b, promoted: false };
-  if (g <= 2) {
-    if (b.ok) { c.cap = g + 1; c.defer = 0; saveCareer(); return { ...b, promoted: true }; }
-    c.defer++; saveCareer(); return { ...b, promoted: false };
-  }
-  if (!b.cnt) return { ...b, promoted: false };
-  const tier = postTier(postTitle);
-  const tierMod = tier === "key" ? 28 : tier === "back" ? -30 : 0;
-  const histMod = Math.min(12, (c.keyPosts || 0) * 4);
-  const starPen = g >= 5 ? -8 : 0;
-  const scoreMod = b.score ? (b.e.avg - 65) * 1.4 : -35;
-  const prob = Math.max(8, Math.min(97, Math.round(52 + scoreMod + tierMod + histMod + starPen)));
-  if (b.score && Math.random() * 100 < prob) {
-    c.cap = Math.min(9, g + 1); c.defer = 0;
-    if (tier === "key") c.keyPosts = (c.keyPosts || 0) + 1;
-    saveCareer(); return { ...b, promoted: true };
-  }
-  c.defer = (c.defer || 0) + 1;
-  if (c.defer >= 3) {
-    c.discharged = { g, title: postTitle || "", avg: b.e.avg, at: new Date().toISOString().slice(0, 10) };
-    saveCareer(); return { ...b, promoted: false, discharged: true };
-  }
-  saveCareer(); return { ...b, promoted: false, passedOver: true };
-}
+
 export function setCap(g) { st().cap = g; career.defer = 0; career.discharged = null; saveCareer(); }
 /** 7: a light warning when the board keeps passing you over (never reveals hidden posting tier). */
 export const deferNote = () => (st().defer >= 2 ? `진급 심사 ${career.defer}회 연속 누락 — 다음 심사에서도 누락되면 계급정년으로 전역하게 됩니다` : st().defer === 1 ? "진급 심사 1회 누락 — 보직 경력과 근무평정을 끌어올려야 합니다" : "");

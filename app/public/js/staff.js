@@ -1,3 +1,4 @@
+import { careerStorage } from "./characters.js";
 // Fleet headquarters staff (modern era). Appointments shape every modern battle, auto battles included,
 // through a handful of multipliers the battle code already exposes: hull damage in/out, gun reload, repair crews, jets.
 import { US_SERVICES, US_BRANCHES, US_FLAG_POSTS, usNpcName, koreanUsRanks, usRankName } from "./us-ranks.js";
@@ -70,6 +71,7 @@ export const BRANCHES = {
   inf: { svc: "army", n: "보병·특수전", d: "GP/GOP 경계, 야전 복무 및 특수전 작전 지휘", bonus: "접경·도서 위기 방어↑ · 전군 사기 관리 수월 · 받는 피해 −", t: ["GOP 소대장", "수색중대장", "특전여단 중대장", "보병대대 작전과장", "보병대대장", "특전여단장", "보병사단 부사단장", "보병사단장", "군단장", "육군참모총장", "육군원수"] },
   arm: { svc: "army", n: "기갑·기동", d: "K2 흑표 전차·장갑차 기반 기동전 및 돌파 작전", bonus: "화력 + · 재장전 − · 기동 위기 대응력 강화", t: ["전차소대장", "기갑수색소대장", "전차중대장", "기계화대대 작전과장", "K2 전차대대장", "기갑여단장", "기갑여단장(준장)", "기동군단 참모장", "지상작전사령관", "육군참모총장", "육군원수"] },
   art: { svc: "army", n: "포병·방공", d: "K9 자주포 화력 지원, 대화력전 및 야전 방공", bonus: "화력 + · 요격률 + · 화력 도발 즉각 응징력 상향", t: ["포반장", "화력관측장교", "포대장", "포병대대 작전과장", "K9 포병대대장", "포병여단장", "화력여단장", "수도방위사령관", "지상작전사령관", "육군참모총장", "육군원수"] },
+  eng: { svc: "army", n: "공병", d: "시설 점검, 재난 복구와 공사 일정 관리", bonus: "첫 10주 시설 복구 연속 사건", t: ["공병소대장", "시설복구장교", "공병중대장", "공병대대 계획장교", "공병대대장", "공병단장", "공병여단 부여단장", "육군 시설관리단장", "육군 공병참모", "육군참모총장", "육군원수"] },
   // 해군 (ROKN)
   sea: { svc: "navy", n: "수상함", d: "구축함·호위함 기반 함대 지휘 및 해상 기동전", bonus: "수리반 +1 (대위부터) · 함대함/함대공 효율 +", t: ["고속정 부장", "고속정 정장", "구축함 전투정보관", "호위함 작전관", "구축함 함장", "구축함전대장", "해상전투단장", "제2함대사령관", "해군작전사령관", "해군참모총장", "해군원수"] },
   sub: { svc: "navy", n: "잠수함", d: "214급·안창호급 수중 은밀 작전 및 뇌격 임무", bonus: "은밀 정찰↑ · 받는 피해 − · 미사일·뇌격 돌파율 +", t: ["잠수함 항해관", "잠수함 무장관", "잠수함 작전관", "잠수함 부장", "214급 잠수함장", "안창호급 잠수함장", "잠수함전단장", "잠수함사령관", "해군작전사령관", "해군참모총장", "해군원수"] },
@@ -95,7 +97,7 @@ const KEY_POSTS = new Set(["보병대대장", "K2 전차대대장", "K9 포병�
   "Commander, F-35A Fighter Sq", "Commander, 1st Fighter Wing", "Commander, 7th Air Force", "Commander, 11th Air Force", "Deputy CSAF (Operations)", "Commander, Pacific Air Forces", "Commander, Air Combat Command", "Vice Chairman, Joint Chiefs (VCJCS)", "NSC Military Advisor"]);
 const BACK_POSTS = new Set(["육군교육사령관", "해군사관학교장", "공군교육사령관", "방공관제사 부사령관", "군수사 부사령관", "주외무관", "항공정보단 작전과장", "기계화대대 작전과장", "해상항공전대장", "잠수함 부장", "방공유도탄대대 작전과장", "보병사단 부사단장", "기동군단 참모장",
   "Commandant, Armor School", "Deputy Commanding General", "U.S. Defense Attaché", "Executive Officer (SSN)", "VFA Squadron XO", "Commander, 9th Recon Wing", "Deputy Director, DLA"]);
-export const postTier = (title) => (KEY_POSTS.has(title) ? "key" : BACK_POSTS.has(title) ? "back" : "std");
+export const postTier = (title) => (KEY_POSTS.has(title) || /Commander|Commanding Officer|^CG,|Chief of Staff|Joint Staff|Platoon Leader/i.test(title) ? "key" : BACK_POSTS.has(title) || /School|Instructor|Academy/i.test(title) ? "back" : "std");
 export const isUS = () => staff.nation === "us";
 export const curServices = () => (isUS() ? US_SERVICES : SERVICES);
 export const curBranches = () => (isUS() ? US_BRANCHES : BRANCHES);
@@ -140,12 +142,12 @@ export const holds = () => false; /* your own staff is always a smaller unit's j
 
 const KEY = "steeltide:staff";
 export const staff = (() => {
-  let s = null; try { s = JSON.parse(localStorage.getItem(KEY) || "null"); } catch {}
+  let s = null; try { s = JSON.parse(careerStorage.getItem(KEY) || "null"); } catch {}
   if (!s || !s.a) s = { a: {}, x: {} };
   s.byE ||= {};
   return s;
 })();
-export const saveStaff = () => { try { localStorage.setItem(KEY, JSON.stringify(staff)); } catch {} };
+export const saveStaff = () => { try { careerStorage.setItem(KEY, JSON.stringify(staff)); } catch {} };
 export const officer = (id) => STAFF.find((o) => o.id === id) || GEN.find((o) => o.id === id) || GEN_US.find((o) => o.id === id);
 /** Switch the appointment set to the echelon of this grade (each echelon keeps its own staff); empty posts get the least able candidate. */
 export function staffFor(grade) {

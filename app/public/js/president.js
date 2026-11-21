@@ -1,3 +1,4 @@
+import { careerStorage } from "./characters.js";
 // 대통령 선거 (국방부장관 임기를 마친 민간인): 프롤로그 → 출마 선언 → 정당 선택 → 당내 경선 → 본선 7턴 → TV 토론 3회 → 선거일 밤.
 // 정당·후보·인물은 모두 가상이다. 수치는 게임용 값이며 실제 여론·득표와 무관하다.
 // 제도 모티브: 법정 TV 토론 3회(경제·사회·정치), 선거일 6일 전부터 여론조사 공표 금지, 사전투표.
@@ -6,8 +7,8 @@ import { KOREA, kxy } from "./korea.js";
 import { minState } from "./ministry.js";
 
 const PK = "steeltide:pres";
-const rd = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
-const wr = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* 저장 불가 */ } };
+const rd = (k, d) => { try { return JSON.parse(careerStorage.getItem(k)) ?? d; } catch { return d; } };
+const wr = (k, v) => { try { careerStorage.setItem(k, JSON.stringify(v)); } catch { /* 저장 불가 */ } };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v)), rnd = (a, b) => a + Math.random() * (b - a), pick = (a) => a[(Math.random() * a.length) | 0];
 const won = (n) => `${Math.round(n).toLocaleString("ko-KR")}억`;
 

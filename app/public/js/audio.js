@@ -1,3 +1,4 @@
+import { careerStorage } from "./characters.js";
 /**
  * Steel Tide — sound. Gunfire, explosions, the .50 cal, the aero engine and
  * shell splashes are real recordings (see /sfx/CREDITS.txt). The open-sea
@@ -9,7 +10,7 @@ import { G, clamp } from "./core.js";
 const FILES = ["gun_near", "gun_far", "hit", "explode", "flak", "mg1", "mg2", "engine", "splash"];
 export const A = { ctx: null, master: null, buf: {}, muted: false, noise: null, brown: null, hum: null, eng: null, later: [], amb: {}, radio: {}, radioEn: {}, rBusy: 0, bgmOn: true, bgmWant: null, bgmEl: null };
 A.vol = { sfx: 0.85, music: 0.5 };
-try { A.bgmOn = localStorage.getItem("steeltide:bgm") !== "0"; const v = JSON.parse(localStorage.getItem("steeltide:vol")); if (v && v.sfx >= 0 && v.music >= 0) A.vol = { sfx: +v.sfx, music: +v.music }; } catch {}
+try { A.bgmOn = careerStorage.getItem("steeltide:bgm") !== "0"; const v = JSON.parse(careerStorage.getItem("steeltide:vol")); if (v && v.sfx >= 0 && v.music >= 0) A.vol = { sfx: +v.sfx, music: +v.music }; } catch {}
 export const RADIO_KEYS = ["battle", "sunk", "torp_warn", "ally_sunk", "launch", "return", "fire", "flood", "hull", "torp_launch", "fleet", "abandon"];
 
 function loopNoise(buf, type, freq, q, gain) {
@@ -62,7 +63,7 @@ export function initAudio() {
 }
 export function setMuted(m) { A.muted = m; if (A.master) { A.master.gain.value = m ? 0 : A.vol.sfx; A.music.gain.value = m ? 0 : A.vol.music; } }
 /** Effects / music volume (0–1), remembered per browser. */
-export function setVolume(kind, v) { A.vol[kind] = v; try { localStorage.setItem("steeltide:vol", JSON.stringify(A.vol)); } catch {} setMuted(A.muted); }
+export function setVolume(kind, v) { A.vol[kind] = v; try { careerStorage.setItem("steeltide:vol", JSON.stringify(A.vol)); } catch {} setMuted(A.muted); }
 
 export function play(name, o = {}) {
   const c = A.ctx, b = A.buf[name]; if (!c || !b) return null;
@@ -532,7 +533,7 @@ export function radio(key) {
 }
 /** Background music: "menu" | "battle" | null. Routed through the master gain, so M mutes it too. */
 export function bgm(which) { A.bgmWant = which; syncBgm(); }
-export function setBgmOn(on) { A.bgmOn = on; try { localStorage.setItem("steeltide:bgm", on ? "1" : "0"); } catch {} syncBgm(); }
+export function setBgmOn(on) { A.bgmOn = on; try { careerStorage.setItem("steeltide:bgm", on ? "1" : "0"); } catch {} syncBgm(); }
 function syncBgm() {
   if (!A.ctx || !A.bgmGain) return;
   const want = A.bgmOn ? A.bgmWant : null;

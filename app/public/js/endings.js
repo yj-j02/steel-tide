@@ -1,3 +1,4 @@
+import { careerStorage } from "./characters.js";
 // 엔딩 컬렉션 도감 (한국·미국 12종 영구 수집, 2회차 초기화에도 보존)
 const EK = "steeltide:endings";
 
@@ -17,7 +18,7 @@ export const ENDINGS = [
 ];
 
 export function unlockedEndings() {
-  try { return JSON.parse(localStorage.getItem(EK) || "{}"); } catch { return {}; }
+  try { return JSON.parse(careerStorage.getItem(EK) || "{}"); } catch { return {}; }
 }
 
 export function unlockEnding(id) {
@@ -25,7 +26,7 @@ export function unlockEnding(id) {
   const map = unlockedEndings();
   if (map[id]) return false;
   map[id] = new Date().toISOString().slice(0, 10);
-  try { localStorage.setItem(EK, JSON.stringify(map)); } catch {}
+  try { careerStorage.setItem(EK, JSON.stringify(map)); } catch {}
   return true;
 }
 

@@ -1,3 +1,4 @@
+import { careerStorage } from "./characters.js";
 import { docketPaper, adminBar } from "./career-rules.js";
 import { econIsAdminCode } from "./shop.js";
 import { stripes, stations, parties, tiles, electors } from "./content/us.js";
@@ -156,7 +157,7 @@ function admin(s, id) {
 function startCareer(panel) {
   let s;
   try {
-    s = JSON.parse(localStorage.getItem(KEY));
+    s = JSON.parse(careerStorage.getItem(KEY));
   } catch {
     /* Storage unavailable. */
   }
@@ -166,7 +167,7 @@ function startCareer(panel) {
   let tallyTimer;
   const save = () => {
     try {
-      localStorage.setItem(KEY, JSON.stringify(s));
+      careerStorage.setItem(KEY, JSON.stringify(s));
     } catch {
       warning = "Local saving is unavailable.";
     }

@@ -1,3 +1,4 @@
+import { careerStorage } from "./characters.js";
 /**
  * Steel Tide — post-processing: HDR render target with 4x MSAA, gentle bloom (muzzle flashes, fires, sun glint),
  * ACES filmic tone mapping and a light grade + vignette. Toggle in settings; off = the old direct render.
@@ -25,7 +26,7 @@ const grade = new ShaderPass({
 });
 composer.addPass(main); composer.addPass(over); composer.addPass(bloom); composer.addPass(new OutputPass()); composer.addPass(grade);
 export const post = { on: true };
-try { post.on = localStorage.getItem("steeltide:post") !== "0"; } catch {}
+try { post.on = careerStorage.getItem("steeltide:post") !== "0"; } catch {}
 let mode = null;
 // Neutral tone mapping keeps the hand-tuned sky and sea colours.
 function setMode(on) { if (mode === on) return; mode = on; renderer.toneMapping = on ? THREE.NeutralToneMapping : THREE.NoToneMapping; renderer.toneMappingExposure = 1.0; U.uLin.value = on ? 1 : 0; }

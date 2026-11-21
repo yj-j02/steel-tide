@@ -954,9 +954,18 @@ body.modern #wpnBar .slot.main { min-width:210px; }
 .dm-tab.on { background:rgba(24,58,70,.92); border-color:#4de8d4; border-left:3px solid #4de8d4; color:#fff; }
 .dm-tab em { font-style:normal; font-size:10.5px; padding:1px 6px; border-radius:9px; background:#f2ca5c; color:#111; font-weight:700; }
 .dm-tab em.r { background:#ff6b5e; color:#fff; }
-.dm-goals { margin-top:8px; padding:10px; background:rgba(10,16,22,.78); border:1px solid rgba(170,200,210,.18); display:flex; flex-direction:column; gap:4px; font-size:11px; color:#a8becb; }
-.dm-goals b { color:#ffd166; font-size:11.5px; margin-bottom:2px; }
-.dm-goals .g { color:#8ef07a; }
+.mn-body.us-campaign-grid { grid-template-columns:minmax(245px, 1fr) minmax(0, 1.8fr) minmax(205px, .8fr); }
+.us-election-steps { display:flex; gap:6px; margin:0; padding:0; list-style:none; }
+.us-election-steps li { flex:1; padding:8px; text-align:center; border:1px solid #395568; border-radius:5px; color:#b6ccdc; background:#152633; }
+.us-election-steps li[aria-current="step"] { color:#fff0c2; border-color:#b89658; background:#393529; }
+.us-president-mark { width:auto; height:38px; float:left; margin-right:8px; border-radius:4px; }
+.duty-overview { display:grid; grid-template-columns: 2fr 1fr; gap:10px; }
+.duty-overview h3 { color:#eaf2f7; font-size:14px; margin:0 0 7px; }
+.duty-overview p { margin:4px 0; }
+.duty-overview ul { display:flex; flex-wrap:wrap; gap:6px 16px; padding:0; margin:0; list-style:none; }
+.duty-overview a { color:#b4dcff; text-decoration:underline; text-underline-offset:3px; }
+.dm-main [id^="duty-"] { scroll-margin-top:72px; }
+.dm-main [id^="duty-"]:target { outline:2px solid #83c1f4; outline-offset:2px; }
 .dm-main { display:flex; flex-direction:column; gap:10px; min-width:0; }
 .dm-side { display:flex; flex-direction:column; gap:10px; position:sticky; top:6px; }
 .dm-docs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
@@ -1006,6 +1015,15 @@ body.us-nat .th-kicker { color:#7ec2f8; }
 .th-nat button { border:0; background:transparent; color:#9db8c7; padding:8px 18px; border-radius:6px; font:700 13px "Noto Sans KR",sans-serif; cursor:pointer; transition:all .15s; }
 .th-nat button.on { background:rgba(242,202,92,.22); color:#fff4d0; box-shadow:inset 0 0 0 1px rgba(242,202,92,.6); }
 body.us-nat .th-nat button.on { background:rgba(93,168,232,.25); color:#e8f5ff; box-shadow:inset 0 0 0 1px rgba(93,168,232,.7); }
+.th-roster { max-height: calc(100vh - 56px); overflow:auto; }
+.th-roster-heading { display:flex; justify-content:space-between; align-items:center; }
+.th-roster-heading h2 { font-size:18px; margin:0; }
+.th-slot { display:grid; grid-template-columns:minmax(0, 1fr) auto auto; gap:8px; align-items:center; text-align:left; padding:10px; border:1px solid #345161; border-radius:8px; }
+.th-slot span, .th-slot small { color:#b3c7d5; font-size:12px; }
+.th-slot details[open] { grid-column:1 / -1; }
+.th-archive { text-align:left; }
+.th-archive summary, .th-slot summary { cursor:pointer; }
+.th-archive .th-slot { margin-top:8px; }
 .th-prof { display:flex; align-items:center; gap:14px; text-align:left; padding:14px 16px; border-radius:10px; background:rgba(255,255,255,.05); border:1px solid rgba(242,202,92,.28); margin-bottom:16px; }
 body.us-nat .th-prof { border-color:rgba(93,168,232,.35); }
 .th-prof .th-pi { flex:1; min-width:0; }
@@ -1052,7 +1070,7 @@ body.us-nat .rec-tab.on { background:rgba(93,168,232,.22); border-color:#6cb6f5;
 .us-st:disabled { cursor:default; opacity:.9; }
 @media (max-width:1240px) { .dm-grid { grid-template-columns:148px minmax(0,1fr) 204px; } .dm-wargrid { grid-template-columns:1fr; } }
 </style>
-  </head>
+  <style>.bd-modal{background:#132c3b;color:#eef4f5;border:1px solid #ac9260;border-radius:8px;padding:24px;width:min(460px,94vw);box-sizing:border-box;max-height:85vh}.bd-modal::backdrop{background:#06101bcc}.bd-modal p:nth-of-type(-n+4){animation:boardReveal .25s both}.bd-modal p:nth-of-type(2){animation-delay:.1s}.bd-modal p:nth-of-type(3){animation-delay:.2s}.bd-modal p:nth-of-type(4){animation-delay:.3s}@keyframes boardReveal{from{opacity:0}to{opacity:1}}@media(prefers-reduced-motion:reduce){.bd-modal p{animation:none!important}}.bd-modal p b{float:right}.bd-modal button,.bd-modal select{padding:8px;margin:4px}</style></head>
   <body>
     <canvas id="gl"></canvas>
     <div id="svcBg"></div>
@@ -1076,6 +1094,7 @@ body.us-nat .rec-tab.on { background:rgba(93,168,232,.22); border-color:#6cb6f5;
     <header id="topbar" class="g">
       <div class="logo" id="logoHome" title="타이틀 화면으로">THE GENERAL</div>
       <nav aria-label="메뉴">
+        <button id="tabCharacters" class="tab" type="button">캐릭터</button>
         <button id="tabHQ" class="tab on">집무실</button>
         <button id="tabOrg" class="tab">지휘 계통</button>
         <button id="tabRecord" class="tab">인사기록</button>
@@ -1086,7 +1105,7 @@ body.us-nat .rec-tab.on { background:rgba(93,168,232,.22); border-color:#6cb6f5;
       <div id="natSw" class="nat-sw" role="group" aria-label="국가 선택">
         <button data-nat="kr" class="on">🇰🇷 한국군</button>
         <button data-nat="us">🇺🇸 미군</button>
-        <button id="rankLang" type="button" hidden aria-label="미군 계급 한글 표기" aria-pressed="false">계급 EN</button>
+        <button id="rankLang" type="button" hidden aria-label="미군 계급·보직 한글 표기" aria-pressed="false">계급·보직 EN</button>
       </div>
       <div class="tb-right">
         <span id="tbMoney" style="display:none"></span>

@@ -1,8 +1,9 @@
+import { careerStorage } from "./characters.js";
 // Officer career: pay steps (호봉) within a rank, service record (약력), medals and flagship assignment.
 
 const KEY = "steeltide:career";
-export const career = (() => { let c = null; try { c = JSON.parse(localStorage.getItem(KEY) || "null"); } catch {} return c && c.log ? c : null; })() || { log: [], ship: null, seen: null };
-export const saveCareer = () => { try { localStorage.setItem(KEY, JSON.stringify(career)); } catch {} };
+export const career = (() => { let c = null; try { c = JSON.parse(careerStorage.getItem(KEY) || "null"); } catch {} return c && c.log ? c : null; })() || { log: [], ship: null, seen: null };
+export const saveCareer = () => { try { careerStorage.setItem(KEY, JSON.stringify(career)); } catch {} };
 
 /** First visit: record a single enlistment line. */
 export function careerInit(grade, title, branchName) {

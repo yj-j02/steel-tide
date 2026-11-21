@@ -1,3 +1,4 @@
+import { careerStorage } from "./characters.js";
 // 대통령 (국군통수권자): 5년 임기 20분기. 국무회의 결재·국회 법안 표결·국정 과제·외교 정상회담·NSC 위기 대응·총선·임기 평가 엔딩.
 // 인물·정당은 가상이고 수치는 모두 게임용 값이다. 작전지도는 직접 지휘할 수 없고 상황도로 보고만 받는다.
 import { chamberVote } from "./career-rules.js";
@@ -5,8 +6,8 @@ import { KOREA, kxy } from "./korea.js";
 import { presState, PARTIES } from "./president.js";
 
 const QK = "steeltide:potus", HK = "steeltide:potus_hall";
-const rd = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
-const wr = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* 저장 불가 */ } };
+const rd = (k, d) => { try { return JSON.parse(careerStorage.getItem(k)) ?? d; } catch { return d; } };
+const wr = (k, v) => { try { careerStorage.setItem(k, JSON.stringify(v)); } catch { /* 저장 불가 */ } };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v)), rnd = (a, b) => a + Math.random() * (b - a), pick = (a) => a[(Math.random() * a.length) | 0];
 const won = (n) => `${Math.round(n).toLocaleString("ko-KR")}조`;
 const TERM = 20, GE_Q = 12; /* 임기 중 총선 (3년차) */
@@ -155,6 +156,6 @@ export function potusAdmin(k) {
   if (k === "summit") { Q.summit = pick(Object.keys(SUMMIT)); Q.act.dip = false; return done("정상회담 일정 추가"); }
   if (k === "skip4") { if (!Q.min) Q.min = MINS[0][0]; for (let i = 0; i < 4 && Q.q < TERM; i++) { Q.sup.push(Q.ap); Q.q++; } if (Q.q > GE_Q && !Q.flags.ge) Q.flags.ge = [Q.seats, Q.seats]; newQuarter(Q); return done(`4분기 건너뜀 → ${yq(Q.q)}`); }
   if (k === "end" || k === "imp") { if (k === "imp") { Q.end = "imp"; } else { if (!Q.sup.length) Q.sup.push(Q.ap); Q.end = grade(Q); hallAdd(Q); } Q.done = true; save(Q); return { redraw: true, cuts: endCuts(Q) }; }
-  if (k === "reset") { localStorage.removeItem(QK); return { redraw: true, toast: "관리자 · 대통령 기록 초기화" }; }
+  if (k === "reset") { careerStorage.removeItem(QK); return { redraw: true, toast: "관리자 · 대통령 기록 초기화" }; }
   return {};
 }
