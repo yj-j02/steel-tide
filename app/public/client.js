@@ -1147,26 +1147,32 @@ function openPromotionBoard(g, br, svk, automatic = false) {
 }
 function renderDutyDesk() {
   const g = myGrade(), br = normBranch(staff.branch), BR = curBranches(), SV = curServices(), B = BR[br], svk = serviceOf(br), sv = SV[svk] || SV.navy;
-  const d = ensureDuty(svk, g, postOf(g)), rl = rankLine(), ev = evalOf(g), bd = board(g, xpGrade());
+  const d = ensureDuty(svk, g, postOf(g));
+  const reviewCard = boardCard(g, xpGrade(), postOf(g), br, svk, d, profile.xp);
+  const rl = rankLine(), ev = evalOf(g), bd = board(g, xpGrade());
   const bar = (v, c = "") => `<i class="mn-bar"><em class="${c}" style="width:${clamp(v, 0, 100)}%"></em></i>`;
-  const repCard = d.report ? `<div class="mn-card mn-dk mn-paper" style="border-color:#f2ca5c"><div class="dh"><div class="dt"><small>📝 상부 보고서 작성</small><b>${d.report.title}</b><span>보고 방식에 따라 단기 평정·군내 평판·감찰 리스크가 갈립니다</span></div></div><p>${d.report.desc}</p>
+  const items = d.pending || [];
+  const routineWaiting = items.length > 0 || !!d.crisis;
+  const repCard = d.report?.routine ? `<div id="duty-report" class="mn-card mn-dk mn-paper"><div class="dh"><div class="dt"><b>주간 정례 보고</b></div></div>
+    <p>${d.report.items.join(" · ")}</p><button data-duty="rep:0" ${routineWaiting ? "disabled" : ""}><b>${routineWaiting ? "남은 안건을 처리하면 제출할 수 있습니다" : "정례 보고 한 번에 제출"}</b><small>평정 72점 · 군내 평판 +6 · 부대 사기 +3</small></button></div>` :
+    d.report ? `<div id="duty-report" class="mn-card mn-dk mn-paper" style="border-color:#f2ca5c"><div class="dh"><div class="dt"><small>📝 상부 보고서 작성</small><b>${d.report.title}</b><span>보고 방식에 따라 단기 평정·군내 평판·감찰 리스크가 갈립니다</span></div></div><p>${d.report.desc}</p>${d.report.items?.length ? `<p>함께 보고할 정례 안건 · ${d.report.items.join(" · ")}</p>` : ""}
     <button data-duty="rep:0"><b>① 사실대로 솔직 보고</b><small>군내 신뢰·부대 사기 확보 · 단기 평정은 보수적</small></button>
     <button data-duty="rep:1"><b>② 성과 강조 · 미흡점 축소 보고</b><small>단기 고평가 기대 · 상급부대 감찰 적발 시 치명적 감점</small></button>
     <button data-duty="rep:2"><b>③ 현장 실무자 책임으로 선 긋기</b><small>단기 평정 방어 · 부하 신뢰 및 부대 사기 하락</small></button></div>` : "";
-  const evCards = (d.pending || []).map((id) => {
+  const evCards = items.map((id) => {
     const event = openingEvent(id);
     if (event) {
       const previous = openingCarryover(d, event);
-      return `<div class="mn-card mn-dk mn-paper"><div class="dh"><div class="dt"><small>${B.n} · 첫 10주 · ${event.week}/10</small><b>${event.title}</b></div></div>
+      return `<div id="duty-${id}" class="mn-card mn-dk mn-paper"><div class="dh"><div class="dt"><small>${B.n} · 첫 10주 · ${event.week}/10</small><b>${event.title}</b></div></div>
         <p>${event.description}</p>${previous ? `<p><b>지난주 결정</b> · ${previous.text} ${previous.followup} <strong>이번 주 평정 ${previous.points > 0 ? "+" : ""}${previous.points}점</strong></p>` : ""}
         ${event.options.map((option, index) => `<button data-duty="ev:${id}:${index}"><b>${option}</b></button>`).join("")}</div>`;
     }
     const E = dutyEventById(id); if (!E) return "";
     const order = d.optOrder?.[id] || [0, 1, 2];
-    return `<div class="mn-card mn-dk mn-paper"><div class="dh"><div class="dt"><small>${sv.icon} ${sv.n} ${B.n} · ${d.week}주차 직무</small><b>${E[4]}</b><span>부대 사기·긴장도에 따라 결과와 평정이 달라집니다 (선택 후 결과 공개)</span></div></div><p>${E[5]}</p>${order.map((origIdx) => { const opt = E[6][origIdx]; return opt ? `<button data-duty="ev:${id}:${origIdx}"><b>${opt[0]}</b><small>${dutyOptionHint(origIdx)}</small></button>` : ""; }).join("")}</div>`;
+    return `<div id="duty-${id}" class="mn-card mn-dk mn-paper"><div class="dh"><div class="dt"><small>${sv.icon} ${sv.n} ${B.n} · ${d.week}주차 직무</small><b>${E[4]}</b><span>부대 사기·긴장도에 따라 결과와 평정이 달라집니다 (선택 후 결과 공개)</span></div></div><p>${E[5]}</p>${order.map((origIdx) => { const opt = E[6][origIdx]; return opt ? `<button data-duty="ev:${id}:${origIdx}"><b>${opt[0]}</b><small>${dutyOptionHint(origIdx)}</small></button>` : ""; }).join("")}</div>`;
   }).join("");
   const cr = d.crisis ? dutyCrisisById(d.crisis) : null;
-  const crCard = cr ? `<div class="mn-card mn-dk mn-nsc"><b>🚨 ${cr.tag} — ${cr.title}</b><p>${cr.desc}</p><div class="dm-ops"><button class="dm-op" data-duty="del">① 자동 위임</button><button class="dm-op fm" data-duty="fm">② FM 작전 지휘</button><button class="dm-op d3" data-duty="3d">③ 3D 직접 개입</button></div></div>` : "";
+  const crCard = cr ? `<div id="duty-crisis" class="mn-card mn-dk mn-nsc"><b>🚨 ${cr.tag} — ${cr.title}</b><p>${cr.desc}</p><div class="dm-ops"><button class="dm-op" data-duty="del">① 자동 위임</button><button class="dm-op fm" data-duty="fm">② FM 작전 지휘</button><button class="dm-op d3" data-duty="3d">③ 3D 직접 개입</button></div></div>` : "";
   const minBtn = g >= 9 && (ministerOk(g) || profile.admin) ? `<div class="mn-card" style="border-color:#ffd166"><b>🏛️ ${isUS() ? "미 국방장관 (SecDef) 지명 가능" : "국방부장관 임명 가능"}</b><p>대장 계급과 우수 평정을 달성했습니다. ${isUS() ? "펜타곤 국방장관으로 취임해 36주 3군 국방 경영을 시작하십시오." : "국방부장관으로 취임해 36주 3군 국방 경영을 시작하십시오."}</p><button class="mn-go" data-duty="tomin">${isUS() ? "미 국방장관 취임 ›" : "국방부장관 취임 ›"}</button></div>` : "";
   const admDuty = profile.admin ? `<div class="adm-bar"><b>관리자 시험</b><button data-duty="admrank">+1계급 진급</button><button data-duty="tomin">→ ${isUS() ? "미 국방장관 취임" : "국방부장관 취임"}</button>${isUS() ? `<button data-uspres="start">→ 미국 대선 시작 (538)</button>` : `<button data-adm="topres">→ 대선 시작</button><button data-adm="topotus">→ 대통령 취임</button>`}<button data-adm="reset0">↺ 소위부터 다시 시작</button></div>` : "";
   const rivalsHTML = d.rivals?.length ? `<div class="mn-card dm-news"><div class="mn-h">👥 ${isUS() ? "사관학교 동기 동향" : "임관 동기 동향"}</div>${d.rivals.map((r, ri) => {
@@ -1174,7 +1180,19 @@ function renderDutyDesk() {
     const rNm = isUS() ? usNpcName(r.name + ri) : r.name;
     return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:3px 0;border-bottom:1px dashed rgba(170,200,210,.14)"><span>${insignia(r.g, 12)} <b>${rankLabel(r.g, svk)} ${rNm}</b><br><small style="color:#8fb0c2;border:0;padding:0">${r.post || careerTitle(r.g, r.br)}</small></span>${diff}</div>`;
   }).join("")}</div>` : "";
-  const nextDisabled = (d.pending?.length || 0) > 0 || !!cr || !!d.report;
+  const agenda = items.map(id => [`duty-${id}`, openingEvent(id)?.title ?? dutyEventById(id)?.[4]]).filter(([, title]) => title);
+  if (cr) agenda.unshift(["duty-crisis", cr.title]);
+  if (d.report) agenda.push(["duty-report", d.report.title]);
+  const nextDisabled = items.length > 0 || !!cr || !!d.report;
+  const review = boardPreview(g, xpGrade(), postOf(g), br, svk, d);
+  const needs = [
+    !bd.wk && `복무 ${bd.needWk - bd.weeks}주`,
+    !bd.xp && `경험치 ${fmt(ECON_RANK_XP[g+1] - profile.xp)} XP`,
+    !bd.cnt && `근무평정 ${bd.need - ev.n}회`,
+    bd.wk && review.waitWeeks > 0 && `재심사까지 ${review.waitWeeks}주`,
+  ].filter(Boolean);
+  const promotionSummary = g === 9 ? "원수 특별진급 조건 보기" : g > 9 ? "최고 계급 도달" :
+    needs.length ? `남은 조건 · ${needs.join(" · ")}` : review.seats ? "심사 신청 조건 충족" : "상위 보직 공석 대기";
   $("#hqP").innerHTML = `<div class="hq-tog"><b>${sv.icon} ${sv.n} 장교 커리어 · ${rankLabel(g, svk)} ${cmdr.name}</b><small>${B.n} · ${postOf(g)}</small><button data-hqv="org" class="hq-tg2">지휘 계통도 · 참모 ›</button>${career.minister ? `<button data-hqv="min" class="hq-tg2">국방부 집무실 ›</button>` : ""}</div>${admDuty}
     <div class="mn dm-shell">
       <div class="mn-top dm-top">
@@ -1185,15 +1203,23 @@ function renderDutyDesk() {
         <div class="mt"><span>안보 긴장도</span><b class="${d.tension >= 65 ? "r" : "y"}">${d.tension}</b>${bar(d.tension, d.tension >= 65 ? "r" : "y")}</div>
         <button class="mn-next" data-duty="next" ${nextDisabled ? "disabled" : ""}>${nextDisabled ? "직무·보고 처리 필요" : `${d.week + 1}주차 진행 ▶`}</button>
       </div>
+      <div class="duty-overview">
+        <section class="mn-card"><h3>${d.week}주차 안건${agenda.length ? ` · ${agenda.length}건` : ""}</h3>
+          ${agenda.length ? `<ul>${agenda.map(([id, title]) => `<li><a href="#${id}">${title}</a></li>`).join("")}</ul>` : "<p>이번 주 안건을 모두 처리했습니다.</p>"}
+        </section>
+        <section class="mn-card"><h3>다음 진급</h3><p>${promotionSummary}</p>
+          ${g < 9 ? `<p>예상 심사 ${review.score} / ${review.cutoff}점</p>` : ""}
+          ${g < 10 ? `<a href="#duty-promotion">진급심사 상세 보기</a>` : ""}
+        </section>
+      </div>
       <div class="dm-grid">
         <nav class="dm-nav">
-          <button class="dm-tab on" data-hqv="duty"><span>📋 주간 직무·위기</span>${(d.pending?.length || 0) + (d.report ? 1 : 0) ? `<em>${(d.pending?.length || 0) + (d.report ? 1 : 0)}</em>` : ""}</button>
+          <button class="dm-tab on" data-hqv="duty"><span>📋 주간 직무·위기</span>${agenda.length ? `<em>${agenda.length}</em>` : ""}</button>
           <button class="dm-tab" data-hqv="org"><span>👥 참모·조직도</span></button>
           <button class="dm-tab" data-hqv="track"><span>🎖️ 계급장 로드맵</span></button>
-          <div class="dm-goals"><b>${g >= 9 ? "원수 특별진급" : "다음 진급 조건"}</b>${g >= 9 ? `<small>특별진급 퀘스트 3종 달성 필요</small>` : `<small class="${bd.wk ? "g" : ""}">복무 기간 ${bd.weeks}/${bd.needWk}주</small><small class="${bd.xp ? "g" : ""}">경험치 ${bd.xp ? "충족" : rl.next ? `${fmt(Math.max(0, rl.need - profile.xp))} 남음` : "완료"}</small><small class="${bd.cnt ? "g" : ""}">근무 평가 ${ev.n}/${bd.need}회</small><small class="${bd.score ? "g" : ""}">평균 평정 ${ev.avg}/55점</small>`}</div>
           <button class="dm-tab" data-duty="retire_now" style="margin-top:6px;border-color:rgba(255,140,120,.35);color:#f2b8b0"><span>${retireArm ? "⚠ 한 번 더 클릭: 전역" : "🚪 명예 전역 신청"}</span></button>
         </nav>
-        <div class="dm-main">${boardCard(g,xpGrade(),postOf(g),br,svk,d,profile.xp)}${tierAuthHTML(g)}${marshalCardHTML(g)}${minBtn}${repCard}${crCard}${evCards || (!repCard && !crCard ? `<div class="mn-card"><small>이번 주 직무와 보고를 모두 마쳤습니다. 우측 상단의 '${d.week + 1}주차 진행 ▶'을 눌러 다음 주로 넘어가십시오.</small></div>` : "")}${d.last ? `<div class="mn-card"><small>최근 결과: ${d.last}</small></div>` : ""}</div>
+        <div class="dm-main">${crCard}${evCards}${repCard}<div id="duty-promotion">${g < 9 ? reviewCard : marshalCardHTML(g)}</div>${g >= 9 ? reviewCard : ""}${minBtn}${tierAuthHTML(g)}${d.last ? `<div class="mn-card"><small>최근 결과: ${d.last}</small></div>` : ""}</div>
         <aside class="dm-side">${globalThis.__careerProfileHTML()}${rivalsHTML}<div class="mn-card dm-news"><div class="mn-h">📰 군 내부 · 언론 헤드라인</div>${(d.headlines || []).slice(0, 7).map((h) => `<small>• ${h}</small>`).join("")}</div></aside>
       </div>
     </div>`;

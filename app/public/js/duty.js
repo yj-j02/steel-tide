@@ -441,8 +441,11 @@ export function resolveDuty(id, optIdx, grade) {
   d.headlines.unshift(`${d.week}주차 · ${headline}`);
   d.headlines = d.headlines.slice(0, 12);
   d.last = `${ev[4]} → ${label}${backfired ? " [차질 발생!]" : ""} (평정 ${letter(sc)} · ${sc}점 · +${xpGain} XP)`;
-  if (!d.report && (backfired || sc < 80 || d.week % 3 === 0)) {
-    d.report = { title: `${ev[4]} — 상부 결과 보고서 작성`, desc: backfired ? "강경 대응 과정에서 발생한 차질과 장비 손실을 상급부대에 어떻게 보고하시겠습니까?" : "수행 과정에서 일부 미흡점과 장비 소모가 보고됐습니다. 상급부대에 어떻게 보고하시겠습니까?" };
+  if ((!d.report || d.report.routine) && (backfired || sc < 80)) {
+    d.report = { title: `${ev[4]} — 상부 결과 보고`, items: d.report?.items ?? [], desc: backfired ? "업무 차질과 손실을 상급부대에 어떻게 보고하시겠습니까?" : "수행 중 확인된 미흡점과 장비 소모를 어떻게 보고하시겠습니까?" };
+  } else if (sc >= 80 && d.week % 3 === 0 && d.reportFiledWeek !== d.week) {
+    d.report ??= {title: "주간 정례 보고", routine: true, items: []};
+    (d.report.items ??= []).push(ev[4]);
   }
   if (!d.pending.length && !d.crisis && !d.report) d.doneWeek = true;
   recordEval(grade, sc);
@@ -454,12 +457,17 @@ export function resolveDuty(id, optIdx, grade) {
 
 /** Resolve after-action report dilemma: 0 = honest, 1 = embellish (18% audit risk), 2 = blame subordinate */
 export function resolveReport(choiceIdx, grade) {
-  const d = dutyState(); if (!d.report) return null;
-  const title = d.report.title; d.report = null;
+  const d = dutyState();
+  if (!d.report || ![0, 1, 2].includes(choiceIdx)) return null;
+  const { title, routine } = d.report;
+  if (routine && (choiceIdx !== 0 || d.pending.length || d.crisis)) return null;
+  d.report = null;
+  d.reportFiledWeek = d.week;
   let sc = 75, dm = 0, dr = 0, msg = "";
   if (choiceIdx === 0) {
     sc = 72; dm = 3; dr = 6; msg = "사실대로 솔직 보고 — 군내 평판 +6 · 부대 사기 +3 (신뢰 확보)";
-    d.headlines.unshift(`${d.week}주차 · [군내 평판] 투명한 지휘 보고로 상급부대·부하 신뢰 확보`);
+    if (routine) msg = "정례 보고 제출 · 평정 72점 · 군내 평판 +6 · 부대 사기 +3";
+    d.headlines.unshift(`${d.week}주차 · ${routine ? "주간 정례 보고 제출" : "[군내 평판] 투명한 지휘 보고로 상급부대·부하 신뢰 확보"}`);
   } else if (choiceIdx === 1) {
     const caught = Math.random() < 0.18;
     if (caught) {
