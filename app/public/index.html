@@ -932,6 +932,60 @@ body.modern #wpnBar .slot.main { min-width:210px; }
 .pmark{display:inline-block;vertical-align:middle;border-radius:2px;box-shadow:0 0 0 1px #c9a23a66}
 .mi-note{margin:8px 0;color:#9fb6c4;font-size:13px;line-height:1.5}.civp{position:relative;display:inline-block;line-height:0}.civp .pmark-b{position:absolute;left:10px;top:10px;height:38px;border-radius:2px;box-shadow:0 0 0 1px #c9a23a99}
 .pr-ban{height:92px;border-radius:7px;background:linear-gradient(90deg,rgba(6,10,14,.9),rgba(6,10,14,.25)),var(--bg) center 40%/cover;display:flex;flex-direction:column;justify-content:flex-end;padding:10px 12px;border:1px solid #2c4252;margin-bottom:6px}.pr-ban b{font-size:1.25em;color:#fff;text-shadow:0 1px 3px #000}.pr-ban small{color:#cfe}
+/* 3군 커리어 & 국방 경영 3열 6탭 레이아웃 */
+#modeSel .er.hero { grid-column:1 / -1; background:linear-gradient(135deg, rgba(24,52,66,.92), rgba(14,24,34,.95)); border:1px solid rgba(90,220,190,.65); border-left:4px solid #4de8d4; padding:16px 18px; }
+#modeSel .er.hero b { font-size:17px; color:#eafffb; }
+#modeSel .er.hero small { font-size:12.5px; color:#b8dde0; margin-top:4px; }
+#modeSel .mode-sep { grid-column:1 / -1; font:700 11px "Noto Sans KR",sans-serif; letter-spacing:.08em; color:#8fb5c9; margin:8px 0 2px; text-transform:uppercase; }
+.svc-grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-bottom:14px; }
+#hqP .hq-brs { grid-template-columns:repeat(3,minmax(0,1fr)); }
+.svc-card { text-align:left; background:rgba(12,18,24,.82); border:1px solid rgba(170,200,210,.25); padding:14px; cursor:pointer; color:#e6eef4; transition:border-color .15s,background .15s; font-family:inherit; }
+.svc-card:hover { border-color:rgba(90,220,190,.65); }
+.svc-card.on { border-color:#4de8d4; border-left:4px solid #4de8d4; background:rgba(20,42,54,.92); }
+.svc-card .sv-h { display:flex; align-items:center; justify-content:space-between; font-size:16px; font-weight:700; margin-bottom:6px; }
+.svc-card .sv-m { font-size:12px; color:#7de2d1; margin-bottom:4px; }
+.svc-card p { font-size:11.5px; color:#b5c7d3; margin:0; line-height:1.45; }
+.dm-shell { display:flex; flex-direction:column; gap:10px; }
+.dm-top { display:grid !important; grid-template-columns:repeat(5,minmax(0,1fr)) auto; gap:8px; align-items:center; }
+.dm-grid { display:grid; grid-template-columns:168px minmax(0,1fr) 232px; gap:12px; align-items:start; }
+.dm-nav { display:flex; flex-direction:column; gap:5px; position:sticky; top:6px; }
+.dm-tab { display:flex; align-items:center; justify-content:space-between; width:100%; padding:10px 11px; background:rgba(12,18,24,.78); border:1px solid rgba(170,200,210,.2); color:#cfe0eb; font:600 12.5px "Noto Sans KR",sans-serif; cursor:pointer; text-align:left; }
+.dm-tab:hover { border-color:rgba(90,220,190,.55); color:#fff; }
+.dm-tab.on { background:rgba(24,58,70,.92); border-color:#4de8d4; border-left:3px solid #4de8d4; color:#fff; }
+.dm-tab em { font-style:normal; font-size:10.5px; padding:1px 6px; border-radius:9px; background:#f2ca5c; color:#111; font-weight:700; }
+.dm-tab em.r { background:#ff6b5e; color:#fff; }
+.dm-goals { margin-top:8px; padding:10px; background:rgba(10,16,22,.78); border:1px solid rgba(170,200,210,.18); display:flex; flex-direction:column; gap:4px; font-size:11px; color:#a8becb; }
+.dm-goals b { color:#ffd166; font-size:11.5px; margin-bottom:2px; }
+.dm-goals .g { color:#8ef07a; }
+.dm-main { display:flex; flex-direction:column; gap:10px; min-width:0; }
+.dm-side { display:flex; flex-direction:column; gap:10px; position:sticky; top:6px; }
+.dm-docs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+.dm-wargrid { display:grid; grid-template-columns:300px minmax(0,1fr); gap:10px; align-items:start; }
+.dm-ops { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:5px; margin-top:7px; }
+.dm-op { padding:6px 5px; font:700 11px "Noto Sans KR",sans-serif; background:rgba(18,28,36,.9); border:1px solid rgba(170,200,210,.3); color:#dcebf4; cursor:pointer; }
+.dm-op:hover { border-color:#4de8d4; color:#fff; }
+.dm-op.fm { border-color:rgba(242,202,92,.55); color:#ffe699; }
+.dm-op.d3 { border-color:rgba(255,107,94,.65); color:#ffb3aa; background:rgba(66,22,22,.75); }
+.dm-pgrid, .dm-sgrid { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+.dm-scard { display:flex; flex-direction:column; gap:8px; }
+.dm-sf { display:flex; align-items:center; gap:10px; }
+.dm-sf b { display:block; font-size:12.5px; color:#fff; }
+.dm-sf small { color:#9fb8c7; font-size:11px; }
+.dm-prof { display:flex; flex-direction:column; gap:8px; padding:10px; }
+.dm-prof-top { display:flex; align-items:center; gap:10px; }
+.dm-prof-top b { display:block; font-size:13.5px; color:#fff; }
+.dm-prof-top small { display:block; font-size:11px; color:#9ec2d4; }
+.dm-rkrow { display:flex; align-items:center; justify-content:space-between; gap:6px; padding:7px 9px; background:rgba(8,14,20,.75); border:1px solid rgba(170,200,210,.2); }
+.dm-rkrow span { font-size:11px; color:#b5ccd9; }
+.dm-news { display:flex; flex-direction:column; gap:5px; }
+.dm-news small { display:block; font-size:11px; color:#c8d8e2; line-height:1.4; border-bottom:1px dashed rgba(170,200,210,.14); padding-bottom:4px; }
+.rk-ladder { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:7px; }
+.rk-step { padding:8px; background:rgba(10,16,22,.72); border:1px solid rgba(170,200,210,.16); display:flex; flex-direction:column; align-items:center; gap:4px; text-align:center; opacity:.55; }
+.rk-step.done { opacity:.9; border-color:rgba(142,240,122,.35); }
+.rk-step.cur { opacity:1; border-color:#4de8d4; background:rgba(20,52,64,.9); box-shadow:0 0 12px rgba(77,232,212,.22); }
+.rk-step b { font-size:12px; color:#fff; }
+.rk-step small { font-size:10.5px; color:#9db8c7; }
+@media (max-width:1240px) { .dm-grid { grid-template-columns:148px minmax(0,1fr) 204px; } .dm-wargrid { grid-template-columns:1fr; } }
 </style>
   </head>
   <body>
@@ -970,7 +1024,7 @@ body.modern #wpnBar .slot.main { min-width:210px; }
 
     <div id="start">
       <section id="opsP" class="g"><div class="wz-nav"><button class="wz-back" type="button">‹ 이전</button><div class="wz-crumb"></div></div>
-        <div class="wz" data-step="era"><div class="ph"><span>STEP 1</span><span>시대 선택</span></div><div id="era"></div><a href="?" style="color:var(--gold)">국가 선택</a></div>
+        <div class="wz" data-step="era"><div class="ph"><span>STEP 1</span><span>시대 선택</span></div><div id="era"></div></div>
         <div class="wz" data-step="mode"><div class="ph"><span>STEP 1</span><span>진행 방식</span></div><div id="modeSel"></div></div>
         <div class="wz" data-step="camp"><div id="campBox"><div class="ph"><span>STEP 2</span><span>한반도 시나리오</span></div><div id="camp"></div></div></div>
         <div class="wz" data-step="ops"><div class="ph"><span>STEP 2</span><span id="opsTitle">작전 선택</span></div><div id="missions"></div></div>
@@ -1077,12 +1131,6 @@ body.modern #wpnBar .slot.main { min-width:210px; }
       <div id="endPromo" class="g"></div>
     </div>
     <script type="importmap">{ "imports": { "three": "./vendor/three.module.min.js" } }</script>
-    <link rel="stylesheet" href="./css/edition.css">
-    <section id="edition" aria-label="Career edition">
-      <div class="pick"><p class="kicker">Steel Tide</p><h1>커리어 선택</h1><p>Select a career edition</p>
-      <a class="region-link" data-region="kr" href="?region=kr">대한민국</a>
-      <a class="region-link" data-region="us" href="?region=us">United States</a></div>
-    </section>
-    <script type="module" src="./js/edition.js"></script>
+    <script type="module" src="./client.js"></script>
   </body>
 </html>

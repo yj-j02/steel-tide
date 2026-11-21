@@ -6,11 +6,17 @@ import { career, saveCareer } from "./career.js";
 
 /** What each branch's evaluation weighs most (shown on the posting cards and in 내 정보). */
 export const FOCUS = {
-  sea: { n: "함정", f: "격침 전과 · 함 생존", k: { win: 1, hp: 1.2, loss: 1, eff: 1.35 } },
-  ops: { n: "작전", f: "임무 완수 · 신속한 작전", k: { win: 1.3, hp: 0.9, loss: 1, eff: 1 }, fast: true },
-  int: { n: "정보", f: "피해 최소화 · 조기 탐지", k: { win: 1, hp: 1.5, loss: 1.1, eff: 0.85 } },
-  log: { n: "군수", f: "아군 손실 최소화 · 지속 전투력", k: { win: 1, hp: 1.1, loss: 1.6, eff: 0.8 } },
-  air: { n: "항공", f: "항공 전력 운용 · 타격", k: { win: 1, hp: 0.9, loss: 1, eff: 1.15 }, jets: true },
+  inf: { n: "보병·특수전", f: "위기 방어 · 부대 생존", k: { win: 1.2, hp: 1.3, loss: 1.2, eff: 0.9 } },
+  arm: { n: "기갑·기동", f: "기동 돌파 · 격멸 전과", k: { win: 1.25, hp: 0.95, loss: 1, eff: 1.3 }, fast: true },
+  art: { n: "포병·방공", f: "화력 투사 · 즉각 응징", k: { win: 1.1, hp: 1, loss: 1, eff: 1.4 } },
+  sea: { n: "수상함", f: "격침 전과 · 함 생존", k: { win: 1, hp: 1.2, loss: 1, eff: 1.35 } },
+  sub: { n: "잠수함", f: "은밀 기습 · 피해 최소화", k: { win: 1.1, hp: 1.45, loss: 1.1, eff: 1.05 } },
+  mar: { n: "해상항공·해병", f: "항공 정찰 · 도서 방어", k: { win: 1.05, hp: 0.95, loss: 1, eff: 1.15 }, jets: true },
+  plt: { n: "전투조종", f: "제공권 장악 · 정밀 타격", k: { win: 1.1, hp: 0.9, loss: 1, eff: 1.2 }, jets: true },
+  sam: { n: "방공유도탄", f: "완벽 요격 · 피해 차단", k: { win: 1, hp: 1.5, loss: 1.2, eff: 0.85 } },
+  tac: { n: "전술통제·정보", f: "조기 탐지 · 합동 조율", k: { win: 1.2, hp: 1.2, loss: 1.15, eff: 0.95 }, fast: true },
+  acq: { n: "방산·전력획득", f: "손실 최소화 · 지속 전투력", k: { win: 1, hp: 1.1, loss: 1.6, eff: 0.85 } },
+  pol: { n: "정보·외교·정책", f: "임무 완수 · 전략적 안정", k: { win: 1.3, hp: 1.2, loss: 1.2, eff: 0.85 } },
 };
 export const PASS = 55; /* B or better */
 export const minBattles = (g) => (g <= 2 ? 1 : g <= 5 ? 2 : 3);

@@ -15,7 +15,8 @@ import { MODERN, TRANSPORT, Ship, solve, leadPoint, brain, escort, mkBrain, upda
 import { air, dirFrom, clearAir, updateAir } from "./js/air.js";
 import { aaGun, updateAAGun, jetPit, updateJetPit } from "./js/interior.js";
 import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, updateMG } from "./js/infantry.js";
-import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, candidates, roleTitle, ECH, echOf, staffFor, FLAG_POSTS, FLEET_CDR, BRANCHES, careerTitle, setBranch, POST_RANK, holds, saveStaff } from "./js/staff.js";
+import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, candidates, roleTitle, ECH, echOf, staffFor, FLAG_POSTS, FLEET_CDR, SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, setService, setBranch, POST_RANK, holds, saveStaff } from "./js/staff.js";
+import { dutyState, ensureDuty, dutyEventById, dutyCrisisById, resolveDuty, resolveCrisisDelegate, resolveCrisisDirect, nextDutyWeek } from "./js/duty.js";
 import { PERKS, career, saveCareer, careerInit, rollPerks, takePerk, logPromotion, perkMods, payStep, MEDALS, awardMedals } from "./js/career.js";
 import { openOpMap, opMapAdvance, opMapState, opMapAir } from "./js/opmap.js";
 import { openScene, playCuts, setTheme } from "./js/scene.js";
@@ -28,7 +29,7 @@ import { minFx, minHTML, minClick, minStart, minOpResult, minState, legacy, NG_R
 const withMin = (m) => { const F = minFx(); return { ...m, outK: m.outK * F.outK, inK: m.inK * F.inK, icptK: m.icptK * F.icptK, reloadK: (m.reloadK || 1) * F.reloadK }; };
 /** 2회차 특전: 초반(소위~대위) 봉급 +50%, 중장부터 원수 승진 경험치 ×1.43 */
 const ngFlags = () => { const L = legacy(); if (!L?.medal) return {}; const g = myGrade(); return { ...(g <= 2 ? { ngPay: 1 } : {}), ...(L.minister && g >= 8 ? { ngXp: 1 } : {}) }; };
-let hqView = "org", minDirect = false;
+let hqView = "duty", minDirect = false, minDirect3d = false, dutyDirect = false, svcDraft = null;
 import { FOCUS, PASS, minBattles, scoreBattle, recordEval, evalOf, board, runBoard, setCap, deferNote } from "./js/service.js";
 import { ECON_RANKS, ECON_RANK_XP, econRank, econNewProfile, econReward, econCheck, econApply } from "./js/shop.js";
 
@@ -608,11 +609,13 @@ function finish() {
     const a = { kind: "result", won, shots: Math.min(s.shots, 5000), hits: Math.min(s.hits, s.shots, 5000), seconds: Math.min(secs, 36000), tier: econTier(), bombs: Math.min(s.bombs, 20), bullets: Math.min(s.bullets, 20000), planes: Math.min(s.planes || 0, 200), caps: Math.min(s.caps || 0, 10), mission: G.mission, ...ngFlags() };
     const r = econReward(a); act(a); sfx.coin();
     html += `<span>보상</span><span style="color:var(--warn)">+${fmt(r.money)} 크레딧 · +${fmt(r.xp)} 경험치</span>`;
-    const P1 = G.player, al = G.allies.filter((a) => a.spec && !a.isCarrier), ev = scoreBattle({ won, hp: P1 && P1.alive ? P1.hp / P1.maxHp : 0, sunk: G.enemies.filter((e) => !e.alive).length, foes: G.enemies.length, lost: al.filter((a) => !a.alive).length, allies: al.length, secs, jetsOut: G.jetsOut || 0 }, staff.branch || "sea");
+    if (minDirect3d) { minDirect3d = false; minOpResult(won, "3D 직접 개입"); html += `<span>합동 워룸</span><span style="color:var(--gold)">3D 직접 개입 ${won ? "대승" : "패배"} 반영</span>`; }
+    if (dutyDirect) { dutyDirect = false; const dr = resolveCrisisDirect(won, before, "3D 직접 개입"); if (dr) { profile.xp += dr.xpGain; saveProfile(); html += `<span>위기 개입</span><span style="color:var(--gold)">${won ? "격퇴 성공" : "고전"} · +${fmt(dr.xpGain)} XP</span>`; } }
+    const P1 = G.player, al = G.allies.filter((a) => a.spec && !a.isCarrier), ev = scoreBattle({ won, hp: P1 && P1.alive ? P1.hp / P1.maxHp : 0, sunk: G.enemies.filter((e) => !e.alive).length, foes: G.enemies.length, lost: al.filter((a) => !a.alive).length, allies: al.length, secs, jetsOut: G.jetsOut || 0 }, normBranch(staff.branch));
     if (r.press) ev.s = Math.max(0, Math.min(100, ev.s + r.press)); /* 작전 후 기자회견 */
   if (r.c72bonus) { ev.s = Math.max(0, Math.min(100, ev.s + r.c72bonus)); toast(`캠페인 「서해 72시간」 종료 — 근무평정 +${r.c72bonus}`); }
   recordEval(before, ev.s); const bd = runBoard(before, xpGrade()), eo = evalOf(before);
-    html += `<span>근무평정</span><span>${ev.s}점 · ${FOCUS[staff.branch || "sea"].n} 병과 기준 (이번 계급 평균 ${eo.avg}점 ${eo.l} · ${eo.n}회)</span>`;
+    html += `<span>근무평정</span><span>${ev.s}점 · ${FOCUS[normBranch(staff.branch)].n} 병과 기준 (이번 계급 평균 ${eo.avg}점 ${eo.l} · ${eo.n}회)</span>`;
     if (bd.xp && !bd.promoted) { const why = [!bd.cnt ? `이 계급 근무 ${bd.e.n}/${bd.need}회` : "", !bd.score ? `평정 평균 ${bd.e.avg}점 (기준 ${PASS}점)` : ""].filter(Boolean).join(" · "); html += `<span>진급 심사</span><span style="color:#ff9b8a">보류 — ${why}${deferNote() ? `<br>${deferNote()}` : ""}</span>`; }
     const after = myGrade(), rl = rankLine();
     html += `<span>계급</span><span>${rl.name}${rl.next ? ` — ${rl.next}까지 ${fmt(rl.need - profile.xp)} 경험치` : " (최고 계급)"}</span>`;
@@ -651,7 +654,14 @@ function refreshMenus() {
   $("#record").textContent = profile.battles ? `${profile.wins}승 / ${profile.battles}전 · 명중률 ${acc}%` : "첫 출격 대기 중";
   renderRecord();
   document.body.classList.add("modern");
-  $("#modeSel").innerHTML = `<button class="er" data-mode="camp"><b>한반도 시나리오</b><small>가상 시나리오 · 서해부터 제주 남방까지 5단계 + 보너스 · 브리핑과 별점</small></button><button class="er" data-mode="ops"><b>함정 전투</b><small>미사일 해전 · 호송 등 작전 하나를 골라 직접 지휘함을 몰고 출항</small></button><button class="er" data-mode="opmap"><b>작전 지휘 · 작전지도</b><small>서해 해상 차단 작전 — 전단 기동·지원 배정을 계획하고 실시간으로 지휘${staff.branch === "ops" ? " · 작전 병과 혜택: 지원 +2P, 참모 의견" : " (작전 병과는 지원 +2P·참모 의견 혜택)"}</small></button><button class="er" data-mode="c72"><b>캠페인 · 서해 72시간</b><small>해상·항공 합동 4연속 작전 — 결과에 따라 다음 작전이 갈리고, 신뢰도·함정 수리·조종사 피로가 이어짐 (병과 무관)</small></button>${staff.branch === "air" ? `<button class="er" data-mode="airmap"><b>항공 작전 · 작전지도</b><small>항공 병과 전용 — 전투기·초계기·헬기${myGrade() >= 3 ? "·급유기" : ""}${myGrade() >= 4 ? "·수송기" : ""} 편대에 임무를 주고 출격·귀환·재무장을 관리해 함대를 지원</small></button>` : ""}`;
+  const brk = normBranch(staff.branch), svcK = serviceOf(brk), svc = SERVICES[svcK] || SERVICES.navy;
+  $("#modeSel").innerHTML = `<button class="er hero" data-mode="career"><b>🎖️ 국방 경영 &amp; 3군 장교 커리어 (${staff.branch ? `${svc.icon} ${svc.n} ${ECON_RANKS[myGrade()]}` : "소위 임관 시작"})</b><small>육·해·공 소위 임관 → 주간 직무·위기 결재·계급장 성장 → 장성·국방부장관(36주) → 대선 → 대통령</small></button>`
+    + `<div class="mode-sep">전술 시나리오 (3D 전투 · 2D FM 작전)</div>`
+    + `<button class="er" data-mode="camp"><b>한반도 시나리오 (3D)</b><small>서해부터 제주 남방까지 5단계 + 보너스 · 브리핑과 별점</small></button>`
+    + `<button class="er" data-mode="ops"><b>함정 전투 (3D)</b><small>미사일 해전 · 호송 등 작전을 골라 직접 지휘함·전투기를 조종</small></button>`
+    + `<button class="er" data-mode="opmap"><b>FM 작전 지휘 · 작전지도</b><small>서해 해상 차단 작전 — 전단 기동·지원 배정을 계획하고 실시간으로 지휘</small></button>`
+    + `<button class="er" data-mode="c72"><b>캠페인 · 서해 72시간</b><small>해상·항공 합동 4연속 작전 — 결과에 따라 다음 작전이 갈리고 신뢰도·피로가 이어짐</small></button>`
+    + (brk === "mar" || brk === "plt" || brk === "tac" ? `<button class="er" data-mode="airmap"><b>항공 작전 · 작전지도</b><small>항공·조종 특화 — 전투기·초계기·헬기 편대에 임무를 주고 출격·귀환·재무장을 지휘</small></button>` : "");
   $("#wzSum").innerHTML = `선택: <b>${MISSIONS[mission]?.n || ""}</b>${isModernOp(mission) ? ` · <b>${NATIONS[natUs].n} vs ${NATIONS[natFoe].n}</b>` : ""} · <b>${MAPS[theater]?.n || ""}</b> · ${todSel === "night" ? "야간" : "주간"}/${wxSel === "storm" ? "폭풍" : "맑음"}<button class="go" type="button" data-wzgo="1">이대로 출항</button>`;
   if (typeof wzCrumb === "function" && document.querySelector("#opsP .wz.on")) wzCrumb();
   $("#campBox").style.display = ""; $("#campBox .ph span:last-child").textContent = "한반도 시나리오 (가상)"; $("#opsTitle").textContent = "작전 선택";
@@ -669,7 +679,7 @@ $("#nations").addEventListener("click", (e) => { const b = e.target.closest("[da
 $("#maps").addEventListener("click", (e) => { const b = e.target.closest("[data-map]"); if (!b || b.disabled) return; theater = b.dataset.map; try { localStorage.setItem("steeltide:map", theater); } catch {} sfx.click(); refreshMenus(); });
 $("#wx").addEventListener("click", (e) => { const b = e.target.closest("[data-tod],[data-wx]"); if (!b) return; if (b.dataset.tod) todSel = b.dataset.tod; else wxSel = b.dataset.wx; try { localStorage.setItem("steeltide:tod", todSel); localStorage.setItem("steeltide:wx", wxSel); } catch {} sfx.click(); refreshMenus(); });
 $("#camp").addEventListener("click", (e) => { const kb = e.target.closest("[data-kcamp]"); if (kb && !kb.disabled) openBrief(+kb.dataset.kcamp); });
-$("#modeSel").addEventListener("click", (e) => { const b = e.target.closest("[data-mode]"); if (!b) return; if (b.dataset.mode === "opmap") { startOpMap(); return; } if (b.dataset.mode === "airmap") { startOpMap(true); return; } if (b.dataset.mode === "c72") { startOpMap(false, true); return; } wzMode = b.dataset.mode; showWz(wzMode === "camp" ? "camp" : "ops"); });
+$("#modeSel").addEventListener("click", (e) => { const b = e.target.closest("[data-mode]"); if (!b) return; if (b.dataset.mode === "career") { openHQ(); return; } if (b.dataset.mode === "opmap") { startOpMap(); return; } if (b.dataset.mode === "airmap") { startOpMap(true); return; } if (b.dataset.mode === "c72") { startOpMap(false, true); return; } wzMode = b.dataset.mode; showWz(wzMode === "camp" ? "camp" : "ops"); });
 $("#opsP").addEventListener("click", (e) => { const back = e.target.closest(".wz-back"); if (back) { const t = WZ_BACK[wz]; if (t) showWz(typeof t === "function" ? t() : t); return; }
   const to = e.target.closest("[data-wzto]"); if (to) { showWz(to.dataset.wzto); return; }
   const go = e.target.closest("[data-wzgo]"); if (go) { campSel = null; start(false); } });
@@ -787,16 +797,24 @@ function storyCard(c) {
 }
 /** 작전 지휘 (operation map): plan and run an operation on the chart; the result pays and is evaluated like a battle. */
 function startOpMap(airMode = false, c72 = false) {
-  initAudio(); bgm("battle"); sfx.click(); const g = myGrade(), m = withMin(staffMods(hqGrade(), hqBranch())), pk = perkMods();
-  openOpMap({ grade: g, branch: staff.branch, ops: staff.branch === "ops", air: airMode && staff.branch === "air", c72, scen: storyOp != null ? "intercept" : undefined, onLeave: () => { minDirect = false; bgm("menu"); refreshMenus(); }, mods: { outK: m.outK * (pk.fleetK || 1), inK: m.inK, icptK: m.icptK * (pk.icptK || 1) }, onDone: opMapDone });
+  initAudio(); bgm("battle"); sfx.click(); const g = myGrade(), br = normBranch(staff.branch), m = withMin(staffMods(hqGrade(), hqBranch())), pk = perkMods();
+  openOpMap({ grade: g, branch: br, ops: br === "sea" || br === "arm", air: airMode, c72, scen: storyOp != null ? "intercept" : undefined, onLeave: () => { minDirect = false; dutyDirect = false; bgm("menu"); refreshMenus(); }, mods: { outK: m.outK * (pk.fleetK || 1), inK: m.inK, icptK: m.icptK * (pk.icptK || 1) }, onDone: opMapDone });
+}
+function launchDirect3d(domain, fromDuty = false) {
+  minDirect3d = !fromDuty; dutyDirect = fromDuty;
+  campSel = null; natUs = "kr"; natFoe = "nk";
+  if (domain === "air") { mission = "modern"; theater = "east"; start(false); setTimeout(() => { if (G.state === "playing") { modernKey("KeyF"); toast("영공 위기 3D 개입 — 전투기 긴급 발진! I 키로 직접 조종하십시오", 5); } }, 1200); }
+  else if (domain === "army") { mission = "modern:shore"; theater = "west"; start(false); toast("접경 위기 3D 합동 화력 개입 — 해안포·적 화력 진지를 제압하십시오", 5); }
+  else { mission = "modern"; theater = "west"; start(false); toast("해상 위기 3D 직접 개입 — 적 수상전단을 격멸하십시오", 5); }
 }
 let storyOp = null;
 function opMapDone(r) {
-  if (minDirect) { minDirect = false; minOpResult(r.won); setTimeout(() => toast(`합동 워룸 — 서해 직접 지휘 ${r.won ? "대승" : "패배"} (다음 주에 반영)`, 3), 400); }
+  if (minDirect) { minDirect = false; minOpResult(r.won, "FM 작전 지휘"); setTimeout(() => toast(`합동 워룸 — FM 작전 지휘 ${r.won ? "대승" : "패배"} 반영`, 3), 400); }
+  if (dutyDirect) { dutyDirect = false; const dr = resolveCrisisDirect(r.won, myGrade(), "FM 작전 지휘"); if (dr) { profile.xp += dr.xpGain; saveProfile(); } }
   if (storyOp != null) { const i = storyOp, c = KCAMP[i]; storyOp = null; const stars = r.won ? r.stars || 1 : 0; if (r.won) { kStars[i] = Math.max(kStars[i] || 0, stars); kFail[i] = false; } else kFail[i] = true; if (i === kProg) kProg = Math.min(K_LAST, i + 1); saveK(); if (r.won && c.epi) setTimeout(() => storyCard(c), 600); }
   bgm("menu"); const before = myGrade(), a = { kind: "result", won: r.won, shots: r.shots, hits: r.hits, seconds: r.secs, tier: econTier(), bombs: 0, bullets: 0, mission: "modern", ...ngFlags() };
   const rw = econReward(a); act(a);
-  const ev = scoreBattle({ won: r.won, hp: r.hp, sunk: r.sunk, foes: r.foes, lost: r.lost, allies: r.allies, secs: r.secs, jetsOut: r.jetsOut }, staff.branch || "sea");
+  const ev = scoreBattle({ won: r.won, hp: r.hp, sunk: r.sunk, foes: r.foes, lost: r.lost, allies: r.allies, secs: r.secs, jetsOut: r.jetsOut }, normBranch(staff.branch));
   if (r.press) ev.s = Math.max(0, Math.min(100, ev.s + r.press)); /* 작전 후 기자회견 */
   recordEval(before, ev.s); const bd = runBoard(before, xpGrade()), after = myGrade();
   const blocked = bd.xp && !bd.promoted ? ` · 진급 심사 보류 (${[!bd.cnt ? `근무 ${bd.e.n}/${bd.need}회` : "", !bd.score ? `평정 ${bd.e.avg}점` : ""].filter(Boolean).join(", ")})` : "";
@@ -886,9 +904,65 @@ function hqEff(k, m) { /* what each department contributes, shown in the grey bo
   const p = (v, inv) => pctTxt(v, inv);
   return { cos: [`참모 효과 증폭`], ops: [`화력 ${p(m.outK)}`, `적 요격 ${p(m.penK)}`], int: [`요격 성공 ${p(m.icptK)}`, `받는 피해 ${p(m.inK)}`], log: [`재장전 ${p(m.reloadK)}`, `수리반 ${m.repairN}회`], air: [`전투기 ${m.jets ? `${m.jets > 0 ? "+" : "−"}${Math.abs(m.jets)}기` : "±0"}`] }[k];
 }
+globalThis.__careerProfileHTML = () => {
+  const g = myGrade(), br = normBranch(staff.branch), B = BRANCHES[br], sv = SERVICES[serviceOf(br)] || SERVICES.navy, rl = rankLine(), ev = evalOf(g);
+  const ps = payStep(profile.xp, g, ECON_RANK_XP), nextG = Math.min(10, g + 1);
+  return `<div class="mn-card dm-prof"><div class="dm-prof-top">${face(myFace(), 56)}<div><b>${cmdr.name}</b><small>${sv.icon} ${sv.n} · ${B.n}</small><small>${postOf(g)}</small></div></div>
+    <div class="dm-rkrow"><span>${insignia(g, 20)} <b>${ECON_RANKS[g]}</b> ${ps.step}호봉</span>${g < 10 ? `<span>› ${insignia(nextG, 18)} ${ECON_RANKS[nextG]}</span>` : `<span>★ 최고 계급</span>`}</div>
+    <small style="color:#9ec2d4;font-size:11px">근무평정 <b>${ev.n ? `${ev.avg}점 (${ev.l})` : "평가 전"}</b> · ${rl.next ? `${rl.next}까지 ${fmt(Math.max(0, rl.need - profile.xp))} XP` : "최고 계급 도달"}</small>
+    <small style="color:#7de2d1;font-size:10.5px">병과 특화: ${B.bonus}</small></div>`;
+};
+globalThis.__careerTrackHTML = () => {
+  const g = myGrade(), br = normBranch(staff.branch), B = BRANCHES[br], sv = SERVICES[serviceOf(br)] || SERVICES.navy;
+  const steps = B.t.map((t, i) => `<div class="rk-step${i < g ? " done" : i === g ? " cur" : ""}">${insignia(i, 24)}<b>${ECON_RANKS[i]}</b><small>${t}</small></div>`).join("");
+  const joint = g >= 3 && B.svc !== "joint" ? `<div class="mn-card"><div class="mn-h">🛠️ 공통 융합 트랙 전과 가능 (영관급 이상)</div><div class="dm-docs">${["acq", "pol"].map((k) => `<button class="mn-doc" data-branch="${k}"><b>${BRANCHES[k].n}으로 전과</b><small>${BRANCHES[k].d}</small><span class="g">${BRANCHES[k].bonus}</span></button>`).join("")}</div></div>` : "";
+  return `<div class="mn-h">🎖️ ${sv.icon} ${sv.n} · ${B.n} 계급 성장 로드맵 <small>계급 상승에 따라 계급장·보직·초상 노화가 변화합니다</small></div><div class="rk-ladder">${steps}</div>${joint}`;
+};
 function renderBranchPick() {
-  const cards = Object.entries(BRANCHES).map(([k, B]) => `<div class="hq-br"><h4>${B.n}</h4><p>${B.d}</p><div class="hq-bb">보직 보너스 · ${B.bonus}</div><ol>${B.t.map((t, i) => `<li${i >= 8 ? ' class="sh"' : ""}><span>${insignia(i, 13)}${ECON_RANKS[i]}</span>${t}</li>`).join("")}</ol><button data-branch="${k}">${B.n} 보직 선택</button></div>`).join("");
-  $("#hqP").innerHTML = `<div class="hq-head"><div><h3>임관 · 보직 선택</h3><p>소위로 임관했습니다. 어느 계통에서 경력을 시작할지 고르세요 — 진급하면서 받는 직함과 내 보직 보너스가 이 선택을 따라갑니다. (소위인 동안은 바꿀 수 있습니다)</p></div></div><div class="hq-brs">${cards}</div>`;
+  const svk = svcDraft || staff.service || "navy";
+  const svcs = Object.entries(SERVICES).map(([k, S]) => `<button class="svc-card${k === svk ? " on" : ""}" data-svc="${k}"><div class="sv-h"><span>${S.icon} ${S.n}</span><small>${S.en}</small></div><div class="sv-m">${S.motto}</div><p>${S.d}</p></button>`).join("");
+  const brs = Object.entries(BRANCHES).filter(([, B]) => B.svc === svk);
+  const cards = brs.map(([k, B]) => `<div class="hq-br"><h4>${SERVICES[svk].icon} ${B.n}</h4><p>${B.d}</p><div class="hq-bb">특화 버프 · ${B.bonus}</div><ol>${B.t.map((t, i) => `<li${i >= 8 ? ' class="sh"' : ""}><span>${insignia(i, 13)}${ECON_RANKS[i]}</span>${t}</li>`).join("")}</ol><button data-branch="${k}">${SERVICES[svk].n} ${B.n} 임관</button></div>`).join("");
+  $("#hqP").innerHTML = `<div class="hq-head"><div><h3>STEP 1 · 3군(육·해·공) 군종 및 병과 선택</h3><p>소위로 임관했습니다. 먼저 군종(육군·해군·공군)을 고른 뒤 세부 병과를 선택하세요. 영관급(소령) 이상이 되면 방산·전력획득 또는 정보·외교·정책 트랙으로 전과할 수 있습니다.</p></div></div><div class="svc-grid">${svcs}</div><div class="hq-brs">${cards}</div>`;
+}
+function renderDutyDesk() {
+  const g = myGrade(), br = normBranch(staff.branch), B = BRANCHES[br], svk = serviceOf(br), sv = SERVICES[svk] || SERVICES.navy;
+  const d = ensureDuty(svk, g), rl = rankLine(), ev = evalOf(g), bd = board(g, xpGrade());
+  const bar = (v, c = "") => `<i class="mn-bar"><em class="${c}" style="width:${clamp(v, 0, 100)}%"></em></i>`;
+  const evCards = (d.pending || []).map((id) => {
+    const E = dutyEventById(id); if (!E) return "";
+    return `<div class="mn-card mn-dk mn-paper"><div class="dh"><div class="dt"><small>${sv.icon} ${sv.n} ${B.n} · ${d.week}주차 직무</small><b>${E[4]}</b><span>선택에 따라 근무평정·경험치·언론 평가가 달라집니다</span></div></div><p>${E[5]}</p>${E[6].map(([n, eff], i) => `<button data-duty="ev:${id}:${i}"><b>${n}</b><small>${eff}</small></button>`).join("")}</div>`;
+  }).join("");
+  const cr = d.crisis ? dutyCrisisById(d.crisis) : null;
+  const crCard = cr ? `<div class="mn-card mn-dk mn-nsc"><b>🚨 ${cr.tag} — ${cr.title}</b><p>${cr.desc}</p><div class="dm-ops"><button class="dm-op" data-duty="del">① 자동 위임</button><button class="dm-op fm" data-duty="fm">② FM 작전 지휘</button><button class="dm-op d3" data-duty="3d">③ 3D 직접 개입</button></div></div>` : "";
+  const minBtn = g >= 9 && (ministerOk(g) || profile.admin) ? `<div class="mn-card" style="border-color:#ffd166"><b>🏛️ 국방부장관 임명 가능</b><p>대장 계급과 우수 평정을 달성했습니다. 국방부장관으로 취임해 36주 3군 국방 경영을 시작하십시오.</p><button class="mn-go" data-duty="tomin">국방부장관 취임 ›</button></div>` : "";
+  const admDuty = profile.admin ? `<div class="adm-bar"><b>관리자 시험</b><button data-duty="admrank">+1계급 진급</button><button data-duty="tomin">→ 국방부장관 바로 취임</button><button data-adm="topres">→ 대선 바로 시작</button><button data-adm="topotus">→ 대통령 바로 취임</button></div>` : "";
+  const nextDisabled = (d.pending?.length || 0) > 0 || !!cr;
+  $("#hqP").innerHTML = `<div class="hq-tog"><b>${sv.icon} ${sv.n} 장교 커리어 · ${ECON_RANKS[g]} ${cmdr.name}</b><small>${B.n} · ${postOf(g)}</small><button data-hqv="org" class="hq-tg2">지휘 계통도 · 참모 ›</button>${career.minister ? `<button data-hqv="min" class="hq-tg2">국방부 집무실 ›</button>` : ""}</div>${admDuty}
+    <div class="mn dm-shell">
+      <div class="mn-top dm-top">
+        <div class="mt"><span>계급 성장</span><b>${insignia(g, 18)} ${ECON_RANKS[g]}${g < 10 ? ` → ${ECON_RANKS[g + 1]}` : ""}</b>${bar(rl.pct * 100, "g")}</div>
+        <div class="mt"><span>근무평정</span><b class="${ev.avg >= 70 ? "g" : ev.avg >= 55 ? "y" : "r"}">${ev.n ? `${ev.avg}점 (${ev.l})` : "대기"}</b><small>진급 요건 ${ev.n}/${bd.need}회</small></div>
+        <div class="mt"><span>부대 사기</span><b class="${d.morale >= 65 ? "g" : "y"}">${d.morale}</b>${bar(d.morale, d.morale >= 65 ? "g" : "y")}</div>
+        <div class="mt"><span>군내 평판</span><b>${d.rep}</b>${bar(d.rep)}</div>
+        <div class="mt"><span>안보 긴장도</span><b class="${d.tension >= 65 ? "r" : "y"}">${d.tension}</b>${bar(d.tension, d.tension >= 65 ? "r" : "y")}</div>
+        <button class="mn-next" data-duty="next" ${nextDisabled ? "disabled" : ""}>${nextDisabled ? "직무·위기 처리 필요" : `${d.week + 1}주차 진행 ▶`}</button>
+      </div>
+      <div class="dm-grid">
+        <nav class="dm-nav">
+          <button class="dm-tab on" data-hqv="duty"><span>📋 주간 직무·위기</span>${d.pending?.length ? `<em>${d.pending.length}</em>` : ""}</button>
+          <button class="dm-tab" data-hqv="org"><span>👥 참모·조직도</span></button>
+          <button class="dm-tab" data-hqv="track"><span>🎖️ 계급장 로드맵</span></button>
+          <div class="dm-goals"><b>다음 진급 조건</b><small class="${bd.xp ? "g" : ""}">경험치 ${bd.xp ? "충족" : rl.next ? `${fmt(Math.max(0, rl.need - profile.xp))} 남음` : "완료"}</small><small class="${bd.cnt ? "g" : ""}">근무 평가 ${ev.n}/${bd.need}회</small><small class="${bd.score ? "g" : ""}">평균 평정 ${ev.avg}/55점</small></div>
+        </nav>
+        <div class="dm-main">${minBtn}${crCard}${evCards || `<div class="mn-card"><small>이번 주 직무와 위기를 모두 처리했습니다. 우측 상단의 '${d.week + 1}주차 진행 ▶'을 눌러 다음 주로 넘어가십시오.</small></div>`}${d.last ? `<div class="mn-card"><small>최근 결과: ${d.last}</small></div>` : ""}</div>
+        <aside class="dm-side">${globalThis.__careerProfileHTML()}<div class="mn-card dm-news"><div class="mn-h">📰 군 내부 · 언론 헤드라인</div>${(d.headlines || []).slice(0, 7).map((h) => `<small>• ${h}</small>`).join("")}</div></aside>
+      </div>
+    </div>`;
+}
+function renderTrackView() {
+  const g = myGrade(), br = normBranch(staff.branch), sv = SERVICES[serviceOf(br)] || SERVICES.navy;
+  $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="duty">‹ 주간 직무</button><b>계급 성장 로드맵</b><small>${sv.icon} ${sv.n} · ${BRANCHES[br].n}</small></div><div class="mn dm-shell">${globalThis.__careerTrackHTML()}</div>`;
 }
 function renderMin() { if (!minState()) minStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="org">‹ 지휘 계통도</button><b>국방부 집무실</b><small>${cmdr.name} ${civil() ? "전 장관" : "장관"}</small><button data-min="gal" class="hq-tg2">🖼 역대 장관</button>${presState() ? `<button data-hqv="pres">대선 캠프 ›</button>` : ""}</div>${admBar("min")}${minHTML()}`; }
 /** 관리자 시험 바 (국방부·대선·대통령실 공통) */
@@ -928,6 +1002,9 @@ function renderHQ() {
   if (hqView === "potus" && civil() && potusState()) return renderPotus();
   if (hqView === "pres" && civil()) return renderPres();
   if (hqView === "min" && career.minister) return renderMin();
+  if (hqView === "track") return renderTrackView();
+  if (hqView === "duty" && !career.minister) return renderDutyDesk();
+  if (hqView === "duty" && career.minister) return renderMin();
   const rk = hqGrade(), br = hqBranch(), adm = !!profile.admin, m = staffMods(rk, br), R = STAFF_ROLES.find((r) => r.k === hqRole), E = echOf(rk), myUnit = E < 3; /* below 중장 your own staff is a smaller unit's; the fleet HQ posts are filled from above */
   const of = (k) => officer(staff.a[k]), me = hqNode({ n: "나" }, null, true);
   const SUR = "김이박최정강조윤장임한오서신권황안송류홍", GIV = ["민준", "서준", "도윤", "하준", "지호", "준서", "현우", "지훈", "건우", "우진", "성민", "태현", "재원", "동현", "승우", "영호", "상철", "기훈", "정우", "시우"];
@@ -945,9 +1022,9 @@ function renderHQ() {
     if (g === 10) return k === "cmd" ? (rk === 10 ? me : post("cmd", 10, "해군원수", "공석", true)) : "";
     if (g >= 6) { let h = flagCell(k, g); if (k === "cmd" && g === 7) h = (myUnit ? post("cmd", 7, "해작사 참모장", npc("cos", "7")) : `${hqNode(STAFF_ROLES[0], of("cos"))}<div class="hq-eff">${hqEff("cos", m)[0]}</div>`) + h; return h; }
     if (k === "cmd" || k === "jcs") return "";
-    if (br === k && rk === g) return `<div class="hq-mine">${me}${S && g === 5 && !myUnit ? `<div class="hq-eff">${hqEff(k, m).join(" · ")}</div>` : ""}</div>`;
+    if (normBranch(br) === normBranch(k) && rk === g) return `<div class="hq-mine">${me}${S && g === 5 && !myUnit ? `<div class="hq-eff">${hqEff(k, m).join(" · ")}</div>` : ""}</div>`;
     if (S && g === 5) return myUnit ? post(k, 5, `해작사 ${HQ_DEPT[k]}장`, npc(k, "5")) : `${hqNode(S, of(k))}<div class="hq-eff">${hqEff(k, m).join(" · ")}</div>`;
-    return post(k, g, BRANCHES[k].t[g], npc(k, g));
+    return post(k, g, (BRANCHES[normBranch(k)] || BRANCHES.sea).t[g], npc(k, g));
   };
   const row = (g) => 3 + (10 - g), colOf = (k) => 2 + COLS.indexOf(k);
   let grid = `<svg class="hq-lines"></svg><div class="hq-band hq-hd" style="grid-row:1;grid-column:1"></div>${COLS.map((k) => `<div class="hq-ch ${CK[k]}" style="grid-row:1;grid-column:${colOf(k)}">${CH[k]}</div>`).join("")}`
@@ -965,7 +1042,8 @@ function renderHQ() {
     return `<div class="hq-c${on ? " on" : ""}${ok || on ? "" : " locked"}"><div class="hq-f">${staffFace(o, 64)}</div><div class="hq-ci"><div class="hq-nm">${flagOf({ nation: o.nat }, 20)}${o.ri >= 0 ? insignia(o.ri, 15) : ""}<b>${o.rk} ${o.nm}</b></div><div class="hq-skr"><span>${R.stat}</span><div class="hq-sk"><i style="width:${skillOf(o) * 10}%"></i></div><small>${skillOf(o)}/10</small></div><div class="hq-tr"><em>${TRAITS[o.tr].n}</em> ${TRAITS[o.tr].d} · 복무 ${staff.x[o.id] || 0}회</div></div><div class="hq-ca">${act}</div></div>`;
   }).join("");
   const admBox = adm ? `<div class="hq-adm">관리자 모드 — 모든 자리 임명 가능 · 조직도의 아무 자리나 누르면 그 자리에서 사령부를 봅니다${staff.adminPost ? ` <button data-take="reset">내 실제 계급으로</button>` : ""}</div>` : `<div class="hq-adm in"><input id="hqAdmin" type="password" maxlength="32" placeholder="관리자 코드" autocomplete="off"><button data-act="hqadmin">적용</button></div>`;
-  $("#hqP").innerHTML = `<div class="hq-head"><div><h3>해군 지휘 계통 · 사령부</h3><p>참모진이 직접 지휘와 자동 전투 결과 모두에 반영됩니다. 참모는 지휘하는 부대 규모를 따라갑니다 — 위관: 함정 부서(부사관), 영관: 함정·전대 참모(위관), 준장·소장: 전투단 참모(영관), 중장부터 함대사령부 처장·참모장. 언제나 나보다 낮은 계급만 임명합니다.</p>${career.minister ? `<div class="hq-tog"><b>지휘 계통도</b><button data-hqv="min" class="go">국방부 집무실 ›</button></div>` : ""}<div class="hq-me">내 보직 <b>${BRANCHES[br].n}</b> · ${careerTitle(rk, br)} · 보너스 ${BRANCHES[br].bonus}${myGrade() === 0 || adm ? ` <button data-rebranch="1">보직 변경</button>` : ""}</div>${admBox}</div><div class="hq-sum">${hqSummary(m)}</div></div>`
+  const brObj = BRANCHES[normBranch(br)] || BRANCHES.sea, svObj = SERVICES[serviceOf(br)] || SERVICES.navy;
+  $("#hqP").innerHTML = `<div class="hq-head"><div><h3>${svObj.icon} ${svObj.n} 지휘 계통 · 사령부</h3><p>참모진이 직접 지휘와 자동 전투 결과 모두에 반영됩니다. 언제나 나보다 낮은 계급만 임명합니다.</p><div class="hq-tog"><button data-hqv="duty">‹ 장교 복무 데스크</button><b>지휘 계통도</b>${career.minister ? `<button data-hqv="min" class="go">국방부 집무실 ›</button>` : ""}</div><div class="hq-me">내 보직 <b>${svObj.n} · ${brObj.n}</b> · ${careerTitle(rk, br)} · 보너스 ${brObj.bonus}${myGrade() === 0 || adm ? ` <button data-rebranch="1">군종·병과 변경</button>` : ""}</div>${admBox}</div><div class="hq-sum">${hqSummary(m)}</div></div>`
     + `<div class="hq-grid">${grid}</div><div class="hq-legend"><span class="l cm">지휘</span><span class="l sf">참모</span><span class="l jt">국방부·합참 계선</span></div>${myUnit ? `<div class="hq-rh"><b>내 참모진 · ${ECH[E].u}</b><span>나보다 낮은 ${ECH[E].rk}급에서 임명 — 전투에 반영되는 참모는 이 다섯 자리입니다</span></div><div class="hq-unit">${STAFF_ROLES.map((r) => `<div>${hqNode({ ...r, n: roleTitle(r.k, rk) }, of(r.k))}<div class="hq-eff">${(hqEff(r.k, m) || []).join(" · ")}</div></div>`).join("")}</div>` : ""}<div class="hq-rh"><b>${roleTitle(hqRole, rk)} 후보 · ${ECH[E].rk}급</b><span>${R.d} · 능력순</span></div><div class="hq-cands">${cands}</div>`;
   requestAnimationFrame(drawHQLines);
 }
@@ -1031,7 +1109,18 @@ $("#hqP").addEventListener("click", (e) => {
     if (r.gallery) { const g = document.createElement("div"); g.id = "galM"; g.innerHTML = galleryHTML(); g.addEventListener("click", (ev) => { if (ev.target === g || ev.target.closest("[data-min=galx]")) g.remove(); }); document.body.appendChild(g); return; }
     if (r.retire) { renderMin(); playCuts({ title: "국방부장관 이임", place: "국방부 · 임기 종료", cuts: r.retire, onClose: () => { renderMin(); refreshMenus(); } }); return; }
     if (r.nsc) { renderMin(); openScene({ kind: "nsc", title: r.nsc.title, questions: r.nsc.questions, onPick: (qi, ai) => minClick(`nsc:${ai}`), onClose: () => renderMin() }); return; }
-    if (r.direct) { minDirect = true; startOpMap(false); return; } if (r.redraw) renderMin(); return; }
+    if (r.direct) { minDirect = true; startOpMap(!!r.directAir); return; }
+    if (r.direct3d) { launchDirect3d(r.direct3d.domain, false); return; }
+    if (r.redraw) renderMin(); return; }
+  const svb = e.target.closest("[data-svc]"); if (svb) { sfx.click(); svcDraft = svb.dataset.svc; setService(svcDraft); renderBranchPick(); return; }
+  const dy = e.target.closest("[data-duty]"); if (dy) { if (dy.disabled) return; sfx.click(); const a = dy.dataset.duty, g = myGrade(), br = normBranch(staff.branch), svk = serviceOf(br);
+    if (a.startsWith("ev:")) { const [, id, idx] = a.split(":"), res = resolveDuty(id, +idx, g); if (res) { profile.xp += res.xpGain; saveProfile(); const bd = runBoard(g, xpGrade()), after = myGrade(); if (after > g) { if (career.seen == null) careerInit(g, careerTitle(g), BRANCHES[br].n); career.picks += after - g; logPromotion({ g: after, t: postOf(after), b: BRANCHES[br].n, why: res.headline }); buildPromo(g, after); $("#promoM").style.display = "flex"; fanfare(after, br); } toast(`${res.label} — 평정 ${res.score}점 · +${fmt(res.xpGain)} XP`, 3.5); refreshMenus(); renderDutyDesk(); } return; }
+    if (a === "del") { const m = staffMods(g, br), res = resolveCrisisDelegate(g, br, m.outK); if (res) { profile.xp += res.xpGain; saveProfile(); const bd = runBoard(g, xpGrade()), after = myGrade(); if (after > g) { career.picks += after - g; logPromotion({ g: after, t: postOf(after), b: BRANCHES[br].n, why: res.msg }); buildPromo(g, after); $("#promoM").style.display = "flex"; fanfare(after, br); } toast(res.msg, 4); refreshMenus(); renderDutyDesk(); } return; }
+    if (a === "fm") { const cr = dutyCrisisById(dutyState().crisis); dutyDirect = true; startOpMap(cr?.opAir); return; }
+    if (a === "3d") { const cr = dutyCrisisById(dutyState().crisis); launchDirect3d(cr?.op3d || "navy", true); return; }
+    if (a === "next") { nextDutyWeek(svk, g); toast(`${dutyState().week}주차 직무가 도착했습니다`, 2.5); renderDutyDesk(); return; }
+    if (a === "admrank" && profile.admin) { const nx = Math.min(10, g + 1); profile.xp = Math.max(profile.xp, ECON_RANK_XP[nx]); setCap(nx); saveProfile(); career.picks += nx - g; logPromotion({ g: nx, t: postOf(nx), b: BRANCHES[br].n, why: "관리자 진급 시험" }); buildPromo(g, nx); $("#promoM").style.display = "flex"; refreshMenus(); renderDutyDesk(); return; }
+    if (a === "tomin") { if (g < 9 && profile.admin) { profile.xp = Math.max(profile.xp, ECON_RANK_XP[9]); setCap(9); saveProfile(); } career.minister = true; saveCareer(); minStart(cmdr.name); hqView = "min"; renderMin(); refreshMenus(); toast("국방부장관으로 취임했습니다 — 36주 국방 경영 시작", 4); return; } }
   if (e.target.closest('[data-act="hqadmin"]')) { if (act({ kind: "admin", code: $("#hqAdmin").value })) { sfx.coin(); toast("관리자 모드 — 사령부 모든 자리 선택 가능"); refreshMenus(); renderHQ(); } return; }
   const tk = e.target.closest("[data-take]");
   if (tk && !profile.admin && tk.dataset.take !== "reset") { const [, g, t] = tk.dataset.take.split(":"); sfx.click(); toast(+g > myGrade() ? `${t} — ${ECON_RANKS[+g]} 보직입니다. 그 계급으로 진급할 때 인사명령의 보직 선택에서 고를 수 있습니다` : `${t} — 상부에서 임명하는 보직입니다`, 4); return; }
