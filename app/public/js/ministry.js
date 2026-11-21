@@ -396,4 +396,4 @@ export function minClick(a) {
   return {};
 }
 
-export const NG_RESET = ["steeltide:potus", "steeltide:pres", "steeltide:profile", "steeltide:career", "steeltide:staff", "steeltide:duty", "steeltide:kcamp", "steeltide:camp", "steeltide:oplog", "steeltide:c72", "steeltide:post", "steeltide:mission", MK];
+export const NG_RESET = ["steeltide:uspres", "steeltide:potus", "steeltide:pres", "steeltide:profile", "steeltide:career", "steeltide:staff", "steeltide:duty", "steeltide:kcamp", "steeltide:camp", "steeltide:oplog", "steeltide:c72", "steeltide:post", "steeltide:mission", MK];

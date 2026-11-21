@@ -1,6 +1,6 @@
 // Fleet headquarters staff (modern era). Appointments shape every modern battle, auto battles included,
 // through a handful of multipliers the battle code already exposes: hull damage in/out, gun reload, repair crews, jets.
-import { US_SERVICES, US_BRANCHES, US_FLAG_POSTS, usNpcName, usRankName } from "./us-ranks.js";
+import { US_SERVICES, US_BRANCHES, US_FLAG_POSTS, usNpcName, koreanUsRanks, usRankName } from "./us-ranks.js";
 
 const clamp01 = (v, a, b) => Math.min(b, Math.max(a, v));
 
@@ -52,7 +52,9 @@ export const STAFF = [
   { id: "a6", r: "air", nm: "안창남", nat: "kr", ri: 5, sk: 5, tr: "green", f: [4, 0, 1, null, false, 0.98] },
 ];
 export const RANKS = ["소위", "중위", "대위", "소령", "중령", "대령", "준장", "소장", "중장", "대장", "원수"];
-for (const o of STAFF) o.rk = RANKS[o.ri];
+for (const o of STAFF) {
+  Object.defineProperty(o, "rk", {get: () => o.nat === "us" && isUS() ? usRankName(o.ri, serviceOf()) : RANKS[o.ri]});
+}
 /** The operations commander (해군작전사령관) above you until you make 중장 yourself. */
 export const FLEET_CDR = { id: "fc", nm: "손원일", nat: "kr", ri: 8, f: [3, 0, 2, null, true, 1.0] };
 FLEET_CDR.rk = RANKS[FLEET_CDR.ri];
@@ -122,7 +124,7 @@ const GEN = [], GEN_US = [], US_NCO = ["SGT", "SSG", "SFC", "CSM"];
     const ri = e === 0 ? -1 : e === 1 ? 1 + (i % 2) : (R === "cos" ? 5 : 3 + (i % 3));
     const age = 1 + (e > 0 ? 1 : 0) + (i === 3 ? 1 : 0) > 3 ? 3 : 1 + (e > 0 ? 1 : 0);
     GEN.push({ id: `g${e}${R}${i}`, r: R, e, nm, nat: "kr", ri, rk: e === 0 ? NCO[1 + (i % 3)] : RANKS[ri], sk, tr: tr[(h >> 4) % 5], f: [3 + (i % 2), i % 2 ? 0 : 1, age, e === 2 && i === 0 ? "trim" : null, i === 2, 0.96 + (i % 3) * 0.05] });
-    GEN_US.push({ id: `u${e}${R}${i}`, r: R, e, nm: usNpcName(`us_${e}_${R}_${i}`), nat: "us", ri, rk: e === 0 ? US_NCO[1 + (i % 3)] : usRankName(ri, "army"), sk, tr: tr[(h >> 4) % 5], f: [i % 3, 1 + (i % 4), age, e === 2 && i === 0 ? "trim" : null, i === 2, 0.96 + (i % 3) * 0.05] }); n++;
+    GEN_US.push({ id: `u${e}${R}${i}`, r: R, e, nm: usNpcName(`us_${e}_${R}_${i}`), nat: "us", ri, get rk() { return e === 0 ? (koreanUsRanks() ? NCO : US_NCO)[1 + (i % 3)] : usRankName(ri, serviceOf()); }, sk, tr: tr[(h >> 4) % 5], f: [i % 3, 1 + (i % 4), age, e === 2 && i === 0 ? "trim" : null, i === 2, 0.96 + (i % 3) * 0.05] }); n++;
   } }
 export const canFill = () => true;
 export const POST_RANK = { cos: 7, ops: 5, int: 5, log: 5, air: 5 };

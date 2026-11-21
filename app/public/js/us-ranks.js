@@ -1,3 +1,4 @@
+import { ECON_RANKS } from "./shop.js";
 // U.S. Armed Forces 3-Service Rank System, Authentic Insignia SVGs, Official English Billets, Org Charts & Discharge Endings.
 // Pay grades O-1 (0) through O-10 (9) + Special 5-Star O-11 (10).
 
@@ -37,8 +38,16 @@ export const US_RANK_FULL = {
   ],
 };
 
-export const usRankName = (g, svc = "navy") => (US_RANKS[svc] || US_RANKS.army)[Math.max(0, Math.min(10, g))];
-export const usRankFull = (g, svc = "navy") => (US_RANK_FULL[svc] || US_RANK_FULL.army)[Math.max(0, Math.min(10, g))];
+const rankLanguageKey = "steeltide:us-rank-language";
+let rankLanguage = "en";
+try { if (localStorage.getItem(rankLanguageKey) === "ko") rankLanguage = "ko"; } catch {}
+export const koreanUsRanks = () => rankLanguage === "ko";
+export function toggleUsRankLanguage() {
+  rankLanguage = koreanUsRanks() ? "en" : "ko";
+  try { localStorage.setItem(rankLanguageKey, rankLanguage); } catch {}
+}
+export const usRankName = (g, svc = "navy") => (koreanUsRanks() ? ECON_RANKS : US_RANKS[svc] || US_RANKS.army)[Math.max(0, Math.min(10, g))];
+export const usRankFull = (g, svc = "navy") => (koreanUsRanks() ? ECON_RANKS : US_RANK_FULL[svc] || US_RANK_FULL.army)[Math.max(0, Math.min(10, g))];
 
 /** Authentic U.S. military officer rank insignia SVG (O-1 Gold Bar → O-11 5-Star Pentagon Ring). */
 export function insigniaUS(r, size = 24) {
