@@ -42,11 +42,8 @@ export function initAudio() {
   const n = c.sampleRate * 4; A.noise = c.createBuffer(1, n, c.sampleRate); A.brown = c.createBuffer(1, n, c.sampleRate);
   const w = A.noise.getChannelData(0), b = A.brown.getChannelData(0); let last = 0;
   for (let i = 0; i < n; i++) { w[i] = Math.random() * 2 - 1; last = (last + 0.02 * w[i]) / 1.02; b[i] = last * 3.5; }
-  // open-sea bed: slow swell + crest hiss + wind, each breathing at its own slow rate
-  const swell = loopNoise(A.brown, "lowpass", 320, 0.5, 0.16); lfo(swell.gain, 0.071, 0.06); lfo(swell.gain, 0.113, 0.04);
-  const crest = loopNoise(A.noise, "bandpass", 700, 0.6, 0.018); lfo(crest.gain, 0.17, 0.012); lfo(crest.gain, 0.053, 0.008);
-  const wind = loopNoise(A.noise, "bandpass", 1700, 1.1, 0.008); lfo(wind.gain, 0.04, 0.005);
-  A.amb = { swell, crest, wind, hull: loopNoise(A.noise, "bandpass", 420, 0.8, 0), rush: loopNoise(A.noise, "bandpass", 900, 0.7, 0) };
+  // open-sea ambience removed (multi-service 3군 UI에서는 바다 파도소리 미재생)
+  A.amb = { swell: null, crest: null, wind: null, hull: null, rush: loopNoise(A.noise, "bandpass", 900, 0.7, 0) };
   for (const f of FILES) fetch(`sfx/${f}.mp3`).then((r) => r.arrayBuffer()).then((x) => c.decodeAudioData(x)).then((buf) => { A.buf[f] = buf; }).catch(() => {});
   const loadR = (k, url) => fetch(url).then((r) => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then((x) => c.decodeAudioData(x)).then((buf) => { A.radio[k] = buf; }).catch(() => {});
   /* Korean lines (Typecast, tools/typecast_tts.py) win when present; the English set fills the rest */
@@ -508,8 +505,6 @@ export function updateAudio(dt, ctx = {}) {
   const onDeck = !flying && p && G.state !== "menu", near = ctx.nearShip ?? 1;
   const set = (g, v) => g && g.gain.setTargetAtTime(v, A.ctx.currentTime, 0.25);
   set(A.hum, onDeck ? (0.03 + 0.07 * Math.abs(p.speed) / p.vmax) * near : 0);
-  set(A.amb.hull, onDeck ? 0.06 * clamp(Math.abs(p.speed) / p.vmax, 0, 1) * near : 0);
-  set(A.amb.swell, flying ? 0.05 : 0.16); set(A.amb.crest, flying ? 0.004 : 0.018);
   set(A.amb.rush, flying ? clamp((pl.speed - 30) / 120, 0, 1) * (ctx.cockpit ? 0.05 : 0.09) : 0);
   if (flying && !A.eng && A.buf.engine) A.eng = play("engine", { loop: true, vol: 0 });
   if (A.eng) {
