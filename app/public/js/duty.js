@@ -149,6 +149,13 @@ export function dutyState() {
 }
 export function saveDuty(d) { wr(DK, d); }
 
+function shuffle3() { const a = [0, 1, 2]; for (let i = 2; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [a[i], a[j]] = [a[j], a[i]]; } return a; }
+export const dutyOptionHint = (optIdx) => (
+  optIdx === 0 ? "강경·적극 지휘 · 높은 성과 기대 / 부대 피로 누적·돌발 사고 리스크"
+  : optIdx === 1 ? "교범·균형 지휘 · 안정적 임무 수행 및 부대 컨디션 관리"
+  : "보수·안전 우선 · 부대 사기 회복·위험 최소화 / 소극 대응 지적 가능"
+);
+
 function drawEvents(d, svc, grade) {
   if (!d.rivals) d.rivals = mkRivals(svc);
   const us = isUS(), evSrc = us ? US_EVENTS : EVENTS, crSrc = us ? US_CRISES : CRISES;
@@ -158,6 +165,7 @@ function drawEvents(d, svc, grade) {
   const out = [], copy = src.slice();
   while (out.length < 2 && copy.length) out.push(copy.splice((Math.random() * copy.length) | 0, 1)[0][0]);
   d.pending = out;
+  d.optOrder = Object.fromEntries(out.map((id) => [id, shuffle3()]));
   d.nat = us ? "us" : "kr";
   d.crisis = d.week >= 3 && (d.week % 4 === 0 || Math.random() < 0.2) ? pick(crSrc).id : null; /* 합동 위기 빈도 완화 */
   saveDuty(d);
@@ -189,26 +197,46 @@ function tickRivals(d, playerGrade) {
   }
 }
 
-/** Resolve a weekly duty choice -> may trigger an after-action report dilemma (은폐 vs 정직 보고) */
+/** Resolve a weekly duty choice with genuine risk/morale tradeoffs (no guaranteed best pick). */
 export function resolveDuty(id, optIdx, grade) {
   const d = dutyState(), ev = dutyEventById(id); if (!ev || !d.pending.includes(id)) return null;
   const o = ev[6][optIdx]; if (!o) return null;
-  const [label, , xpBase, sc, dm, dr, headline] = o;
+  let [label, , xpBase, sc, dm, dr, headline] = o;
+  let backfired = false;
+  if (optIdx === 0) {
+    const failProb = clamp(0.18 + Math.max(0, 72 - d.morale) * 0.008 + Math.max(0, d.tension - 50) * 0.003, 0.14, 0.58);
+    if (Math.random() < failProb) {
+      backfired = true;
+      sc = 42 + ((Math.random() * 12) | 0);
+      xpBase = Math.round(xpBase * 0.55);
+      dm = -6; dr = -7;
+      headline = `[작전 차질] ${ev[4]} 강경 대응 중 장비·안전 차질 발생 — 지휘 책임 추궁`;
+    } else {
+      sc = clamp(sc + (((Math.random() * 7) | 0) - 3), 84, 96);
+      dm = Math.min(dm, -2); /* 고강도 작전은 성공해도 부대 피로가 누적됨 */
+    }
+  } else if (optIdx === 1) {
+    sc = clamp(sc + (((Math.random() * 9) | 0) - 4), 70, 86);
+    dm = Math.max(dm, 2);
+  } else {
+    sc = clamp(sc + (((Math.random() * 11) | 0) - 3), 50, 68);
+    dm = Math.max(dm, 5); /* 보수·안전 선택은 부대 사기를 크게 회복 */
+  }
   const xpGain = Math.round(xpBase * (1 + grade * 0.22));
   d.morale = clamp(d.morale + dm, 10, 100);
   d.rep = clamp(d.rep + dr, 0, 100);
-  d.tension = clamp(d.tension + (sc >= 85 ? -2 : sc < 55 ? 4 : 0), 5, 95);
+  d.tension = clamp(d.tension + (backfired ? 5 : optIdx === 2 ? -3 : sc >= 85 ? -2 : 0), 5, 95);
   d.pending = d.pending.filter((x) => x !== id);
   d.headlines.unshift(`${d.week}주차 · ${headline}`);
   d.headlines = d.headlines.slice(0, 12);
-  d.last = `${ev[4]} → ${label} (평정 ${letter(sc)} · +${xpGain} XP)`;
-  if (!d.report && (sc < 80 || d.week % 3 === 0)) {
-    d.report = { title: `${ev[4]} — 상부 결과 보고서 작성`, desc: "수행 과정에서 일부 미흡점과 장비 소모가 보고됐습니다. 상급부대에 어떻게 보고하시겠습니까?" };
+  d.last = `${ev[4]} → ${label}${backfired ? " [차질 발생!]" : ""} (평정 ${letter(sc)} · ${sc}점 · +${xpGain} XP)`;
+  if (!d.report && (backfired || sc < 80 || d.week % 3 === 0)) {
+    d.report = { title: `${ev[4]} — 상부 결과 보고서 작성`, desc: backfired ? "강경 대응 과정에서 발생한 차질과 장비 손실을 상급부대에 어떻게 보고하시겠습니까?" : "수행 과정에서 일부 미흡점과 장비 소모가 보고됐습니다. 상급부대에 어떻게 보고하시겠습니까?" };
   }
   if (!d.pending.length && !d.crisis && !d.report) d.doneWeek = true;
   recordEval(grade, sc);
   saveDuty(d);
-  return { xpGain, score: sc, headline, label };
+  return { xpGain, score: sc, headline, label: backfired ? `${label} (작전 차질!)` : label, backfired };
 }
 
 /** Resolve after-action report dilemma: 0 = honest, 1 = embellish (18% audit risk), 2 = blame subordinate */
