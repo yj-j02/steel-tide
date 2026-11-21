@@ -63,4 +63,4 @@ export function marshalQuest(profile, grade, rep = 0) {
 
 export function setCap(g) { st().cap = g; career.defer = 0; career.discharged = null; saveCareer(); }
 /** 7: a light warning when the board keeps passing you over (never reveals hidden posting tier). */
-export const deferNote = () => (st().defer >= 2 ? `진급 심사 ${career.defer}회 연속 누락 — 다음 심사에서도 누락되면 계급정년으로 전역하게 됩니다` : st().defer === 1 ? "진급 심사 1회 누락 — 보직 경력과 근무평정을 끌어올려야 합니다" : "");
+export const deferNote = () => (st().defer >= 2 ? `진급 심사 ${career.defer}회 연속 미선발 — 집무실에서 현역 복무 기한을 확인하십시오` : st().defer === 1 ? "진급 심사 1회 누락 — 보직 경력과 근무평정을 끌어올려야 합니다" : "");

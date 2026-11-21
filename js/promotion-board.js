@@ -1,4 +1,4 @@
-import { careerDate, rankMonths, serviceDuration } from "./service-calendar.js";
+import { careerDate, careerMonths, rankMonths, serviceDuration } from "./service-calendar.js";
 import { ECON_RANK_XP } from "./shop.js";
 import { usNpcName } from "./us-ranks.js";
 import { career, saveCareer } from "./career.js";
@@ -30,15 +30,14 @@ export function hint(title) {
   }[postTier(title)];
 }
 export const automaticCaptain = (grade) => grade === 1;
+const boardCutoffs = [55, 0, 73, 75, 77, 80, 82, 84, 86];
 
 export function preview(g, xp, title, br, svc, d = dutyState()) {
   const b = board(g, xp),
     season =
       (career.boardHistory || []).filter((entry) => entry.grade === g).length +
       1,
-    cutoff = automaticCaptain(g)
-      ? 0
-      : [55, 68, 76, 78][g < 3 ? 0 : g < 5 ? 1 : g === 5 ? 2 : 3];
+    cutoff = boardCutoffs[g] ?? 100;
   const prior = career.boardHistory?.at(-1),
     tours = career.tours || {};
   // Legacy receipts stored a four-week season number instead of the actual review week.
@@ -61,26 +60,25 @@ export function preview(g, xp, title, br, svc, d = dutyState()) {
             ? 8
             : 0
         : 0;
+  const senior = g >= 2;
+  const partMax = senior ? [55, 15, 10, 10] : [40, 25, 20, 15];
   const parts = [
-    [
-      "근무평정",
-      Math.round(bound(g < 2 ? ((b.e.avg - 55) * 40) / 45 : b.e.avg * 0.4, 40)),
-    ],
-    ["보직 트랙", { key: 25, std: 15, back: 5 }[postTier(title)]],
-    ["군내 평판", Math.round(bound(d.rep, 100) / 5)],
+    ["근무평정", Math.round(bound(senior ? b.e.avg * 0.55 : ((b.e.avg - 55) * 40) / 45, partMax[0]))],
+    ["보직 트랙", (senior ? { key: 15, std: 12, back: 8 } : { key: 25, std: 15, back: 5 })[postTier(title)]],
+    ["군내 평판", Math.round(bound(d.rep, 100) * partMax[2] / 100)],
     [
       "전공·훈장",
       bound(
-        (career.crisisWins?.[g] || 0) * 5 +
-          Object.keys(career.medals || {}).length * 2,
-        15,
+        (career.crisisWins?.[g] || 0) * (senior ? 4 : 5) +
+          Math.min(Object.keys(career.medals || {}).length * 2, senior ? 4 : 15),
+        partMax[3],
       ),
     ],
   ];
   const moraleBonus =
-    g >= 2 ? Math.round(bound(((d.morale ?? 70) - 70) / 6, 5)) : 0;
+    senior ? Math.round(bound(((d.morale ?? 70) - 70) / 15, 2)) : 0;
   const bonus =
-    (cmd && joint ? 5 : 0) + (tours.edu && g >= 5 ? 8 : 0) + moraleBonus;
+    (cmd && joint ? 5 : 0) + (tours.edu && g >= 3 ? (g >= 5 ? 6 : 3) : 0) + moraleBonus;
   const penalty =
     bound(
       (d.auditByGrade?.[g] || 0) * 4 + ((d.lowMoraleWeeks || 0) >= 2 ? 4 : 0),
@@ -102,7 +100,7 @@ export function preview(g, xp, title, br, svc, d = dutyState()) {
       name: isUS() ? usNpcName(r.name + index) : r.name,
       g: r.g,
       score: bound(
-        57 +
+        cutoff - 12 +
           ((season * 7 + index * 13) % 24) +
           (r.style === "야전 엘리트" ? 3 : 0),
         100,
@@ -121,6 +119,7 @@ export function preview(g, xp, title, br, svc, d = dutyState()) {
     !career.discharged;
   return {
     parts,
+    partMax,
     cutoff,
     score,
     bonus,
@@ -157,7 +156,7 @@ export function settle(g, xp, title, br, svc, preferred) {
     : v.score < v.cutoff
       ? "기준 미달 · " +
         v.parts
-          .map(([n, s], i) => [n, s / [40, 25, 20, 15][i]])
+          .map(([n, s], i) => [n, s / v.partMax[i]])
           .sort((a, b) => a[1] - b[1])[0][0]
       : "동기 경쟁에서 정원 밖";
   const receipt = {
@@ -170,6 +169,7 @@ export function settle(g, xp, title, br, svc, preferred) {
     date: careerDate(d.week),
     previousPost: title,
     serviceMonths: rankMonths(g, weeksOf(g)),
+    careerMonths: careerMonths(d.week),
     contribution: v.parts.reduce((top, part) =>
       part[1] > top[1] ? part : top,
     ),
@@ -195,15 +195,9 @@ export function settle(g, xp, title, br, svc, preferred) {
       career.post = { g: g + 1, t: seat.t };
       if (g === 8) receipt.appointedBranch = seat.b;
     }
-  } else if (g >= 3 && ++career.defer >= 3)
-    career.discharged = {
-      g,
-      title,
-      avg: board(g, xp).e.avg,
-      at: new Date().toISOString().slice(0, 10),
-      date: receipt.date,
-      turn: d.week,
-    };
+  } else if (g >= 2) {
+    career.defer++;
+  }
   for (const r of selected.filter((r) => r.index >= 0)) {
     d.rivals[r.index].g = g + 1;
     d.rivals[r.index].rankSinceWeek = d.week;

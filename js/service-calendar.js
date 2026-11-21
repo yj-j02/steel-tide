@@ -17,14 +17,21 @@ export function serviceDuration(months) {
 export const serviceTurn = (record = career) =>
   Object.values(record.rankWeeks ?? {}).reduce((sum, count) => sum + count, 1);
 
-export function careerDate(turn = 1, rankWeeks = career.rankWeeks ?? {}) {
+export function careerMonths(turn = 1, rankWeeks = career.rankWeeks ?? {}) {
   let total = 0;
   let counted = 0;
   for (const [grade, steps] of Object.entries(rankWeeks)) {
     total += rankMonths(grade, steps);
     counted += steps;
   }
-  total += rankMonths(0, Math.max(0, turn - 1 - counted));
+  return total + rankMonths(0, Math.max(0, turn - 1 - counted));
+}
+
+export function careerDate(turn = 1, rankWeeks = career.rankWeeks ?? {}) {
+  return calendarLabel(careerMonths(turn, rankWeeks));
+}
+
+export function calendarLabel(total) {
   const season = ["겨울", "봄", "여름", "가을"][Math.floor((total % 12) / 3)];
   return `복무 ${Math.floor(total / 12) + 1}년차 · ${season}`;
 }
