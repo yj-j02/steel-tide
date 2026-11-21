@@ -117,7 +117,7 @@ function tileMapHTML(s) {
     ? `<div class="us-swing-bar"><small>핵심 7대 경합주:</small>${SWING_STATES.map((code) => `<button data-usstate="${code}" class="${s.target === code ? "on" : ""}">${code} (${electors[code]})</button>`).join("")}</div>`
     : "";
   const legend = `<div class="us-ec-leg"><span><i style="background:${myCol}"></i>우세</span><span><i style="background:#b88724"></i>경합주(★)</span><span><i style="background:${oppCol}"></i>열세</span></div>`;
-  return `${bar}<div class="us-tiles">${cells}</div>${quickSwings}${legend}`;
+  return `${bar}<div class="us-tiles">${cells}</div>${quickSwings}${s.phase === "campaign" ? `<label class="mobile-picker">유세할 주 선택<select data-map-action="state"><option value="">주를 선택하세요</option>${Object.entries(electors).map(([code, votes]) => `<option value="${code}" ${s.target === code ? "selected" : ""}>${STATE_NAMES[code] || code} · ${votes}명</option>`).join("")}</select></label>` : ""}${legend}`;
 }
 
 export function usPresHTML() {

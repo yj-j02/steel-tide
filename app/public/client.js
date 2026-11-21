@@ -1547,7 +1547,7 @@ function renderDutyDesk() {
           <button class="dm-tab" data-duty="retire_now" ${serviceTerms.obligationLeft ? "disabled" : ""} style="margin-top:6px;border-color:rgba(255,140,120,.35);color:#f2b8b0"><span>${serviceTerms.obligationLeft ? "의무복무 이행 중" : retireArm ? "⚠ 한 번 더 클릭: 전역" : "🚪 전역 신청"}</span></button>
         </nav>
         <div class="dm-main">${deskCards}</div>
-        <aside class="dm-side">${globalThis.__careerProfileHTML()}${bossCard}${rivalsHTML}<div class="mn-card dm-news"><div class="mn-h">📰 군 내부 · 언론 헤드라인</div>${(d.headlines || []).slice(0, 7).map((h) => `<small>• ${h.replace(/^(\d+)주차 ·/, "안건 $1 ·")}</small>`).join("")}</div></aside>
+        <button class="mobile-side" aria-controls="careerSide" aria-expanded="false">참모·동기·부대 소식</button><aside class="dm-side" id="careerSide">${globalThis.__careerProfileHTML()}${bossCard}${rivalsHTML}<div class="mn-card dm-news"><div class="mn-h">📰 군 내부 · 언론 헤드라인</div>${(d.headlines || []).slice(0, 7).map((h) => `<small>• ${h.replace(/^(\d+)주차 ·/, "안건 $1 ·")}</small>`).join("")}</div></aside>
       </div>
     </div>`;
   openPromotionBoard(g, br, svk, true);
@@ -1890,6 +1890,18 @@ function openHQ(view = null) {
   setTab(hqView === "org" ? "org" : "hq");
   $("#topbar").style.display = "flex"; renderHQ(); $("#hqP").style.display = "block"; showcase(flagshipId());
 }
+const mobileMenu = $("#topbar .mobile-menu");
+$("#topbar").addEventListener("click", event => {
+  if (event.target.closest("button, #logoHome")) {
+    mobileMenu.setAttribute("aria-expanded", String(event.target === mobileMenu && mobileMenu.getAttribute("aria-expanded") === "false"));
+  }
+});
+$("#hqP").addEventListener("change", event => {
+  const picker = event.target.closest("select[data-map-action]");
+  if (!picker || !picker.value) return;
+  usPresClick(picker.dataset.mapAction + ":" + picker.value);
+  renderUsPres();
+});
 $("#tabHQ").addEventListener("click", () => { sfx.click(); openHQ("duty"); });
 $("#tabOrg")?.addEventListener("click", () => { sfx.click(); openHQ("org"); });
 $("#tabCharacters")?.addEventListener("click", () => { sfx.click(); openTitleHub(false); });
@@ -1949,6 +1961,8 @@ addEventListener("keydown", (e) => {
   if (nextBtn) { e.preventDefault(); nextBtn.click(); }
 });
 $("#hqP").addEventListener("click", (e) => {
+  const side = e.target.closest(".mobile-side");
+  if (side) side.setAttribute("aria-expanded", String(side.getAttribute("aria-expanded") === "false"));
   const link = e.target.closest('a[href^="#duty-"]');
   if (link) {
     const group = document.getElementById(link.hash.slice(1))?.closest("details");

@@ -6,7 +6,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "public")
 PORT = int(sys.argv[1]) if len(sys.argv) > 1 else 8820
 MUTE = b"""<script>if (!/[?&]sound\\b/.test(location.search)) { const AC = window.AudioContext;
-  window.AudioContext = class extends AC { constructor(o) { super(o); this.suspend(); } resume() { return Promise.resolve(); } };
+  if (AC) window.AudioContext = class extends AC { constructor(o) { super(o); this.suspend(); } resume() { return Promise.resolve(); } };
   HTMLMediaElement.prototype.play = function () { return Promise.resolve(); }; }</script>"""
 
 class NoCache(SimpleHTTPRequestHandler):

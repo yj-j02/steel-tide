@@ -119,6 +119,7 @@ export function worldMapHTML(s) {
       </svg>
       ${pins}
     </div>
+    <label class="mobile-picker">상황실 지역 선택<select data-map-action="th">${WORLD_THEATERS.map(t => `<option value="${t.id}" ${t.id === sel.id ? "selected" : ""}>${t.name}</option>`).join("")}</select></label>
     <div style="margin-top:10px;padding:10px 12px;border-radius:8px;background:rgba(12,24,38,.72);border:1px solid rgba(93,168,232,.3)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
         <b style="color:#fff;font-size:13.5px">${sel.icon} ${sel.name} (${sel.en}) — ${sel.sub}</b>

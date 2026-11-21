@@ -1,0 +1,56 @@
+/* Career touch layouts. Tactical controls have their own screen. */
+.mobile-menu, .mobile-side, .mobile-picker { display:none }
+@media (max-width: 760px), (pointer:coarse) and (max-height: 550px) {
+  #titleHub, #hqP, #recordP, #scene2d, #promoM, .bd-modal { touch-action:pan-y pinch-zoom }
+  #titleHub { padding:8px }
+  .th-card, .th-roster { box-sizing:border-box; width:100%; max-height:94vh; max-height:94dvh; padding:16px 12px }
+  .th-title { font-size:30px }
+  .th-brs, .th-row { grid-template-columns:repeat(2,minmax(0,1fr)) }
+  .th-service-contract, .th-faces, .hq-tog { flex-wrap:wrap }
+  .th-service-contract select { min-width:0; max-width:100% }
+  #titleHub :is(input,select), .mobile-picker select { font-size:16px }
+  #titleHub button, #hqP button:not(.us-st,.wh-pin), #promoM button, .bd-modal button, #scene2d button { min-height:44px; touch-action:manipulation }
+  #topbar { height:52px; padding:0 8px; gap:8px }
+  #topbar .logo { font-size:15px; white-space:nowrap }
+  #topbar .tb-right { min-width:0; overflow:hidden }
+  #tbRank { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:42vw }
+  .mobile-menu, .mobile-side { display:block; background:#182a37; border:1px solid #517183; border-radius:5px; color:#ecf2f6; padding:8px 12px; min-height:44px }
+  #topbar nav, #topbar #natSw { display:none }
+  #topbar .mobile-menu[aria-expanded="true"] ~ nav, #topbar .mobile-menu[aria-expanded="true"] ~ #natSw {
+    display:grid; position:absolute; left:0; right:0; top:52px; margin:0; padding:6px; gap:3px; background:#10202a; grid-template-columns:repeat(3,minmax(0,1fr))
+  }
+  #topbar .mobile-menu[aria-expanded="true"] ~ #natSw { top:155px }
+  #topbar .tab, #natSw button { min-height:44px; padding:4px; font-size:13px }
+  #hqP, #recordP { left:0; top:52px; width:100%; max-width:100%; transform:none; padding:8px; max-height:calc(100vh - 52px); max-height:calc(100dvh - 52px); overscroll-behavior:contain }
+  #hqP .mn { padding:6px; font-size:14px; overflow-wrap:anywhere }
+  #hqP :is(.mn-body,.mn-body.us-campaign-grid,.dm-grid,.duty-overview,.dm-ops,.dm-wargrid) { grid-template-columns:minmax(0,1fr) }
+  .mn-body > *, .dm-grid > *, .dm-main, .mn-col { min-width:0 }
+  #hqP .dm-top { grid-template-columns:repeat(2,minmax(0,1fr)); gap:6px }
+  .dm-shell .duty-overview { order:-2 }
+  .dm-shell .service-terms { order:2 }
+  .dm-main { order:-1 }
+  .dm-nav, .dm-side { position:static }
+  .mobile-side[aria-expanded="false"] + .dm-side { display:none }
+  .mobile-picker { display:grid; gap:4px; margin:8px 0 }
+  .mobile-picker select { width:100%; min-height:44px; color:#e6f3ff; background:#142837 }
+  .us-election-steps { flex-wrap:wrap }
+  .us-election-steps li { flex:1 1 24%; padding:4px }
+  #hqP .us-tiles { gap:1px }
+  #hqP .us-st { min-width:0; padding:1px; font-size:9px }
+  .mn-top { gap:6px 10px }
+  #hqP .mn-war { order:0 }
+  .bd-modal button:last-child { position:sticky; bottom:0; background:#203747; color:#fff }
+  .hq-tog small { flex-basis:100% }
+  .bd-modal { padding:14px; overflow:auto }
+  #promoM .pm-doc { width:calc(100vw - 16px); box-sizing:border-box; padding:16px; max-height:92dvh }
+  #promoM .pm-next, #promoOk { position:sticky; bottom:0 }
+  #scene2d .s3-title { left:12px; top:12px; max-width:67% }
+  #scene2d .s3-title b { font-size:16px }
+  #scene2d .s3-skip { right:6px; top:8px; bottom:auto }
+  #scene2d .s3-sub, #scene2d .s3-opts, #scene2d .s3-card.on { box-sizing:border-box; width:calc(100% - 20px); left:10px; right:auto; transform:none; overflow-y:auto; font-size:15px }
+  #scene2d .s3-sub { bottom:calc(66px + env(safe-area-inset-bottom)); max-height:28%; padding:9px }
+  #scene2d .s3-opts, #scene2d .s3-card.on { top:19%; max-height:39%; padding:6px }
+  #scene2d .s3-next { bottom:calc(8px + env(safe-area-inset-bottom)); left:10px; right:10px }
+  #scene2d .s3-opts button { flex:none }
+  #recordP .mi { grid-template-columns:minmax(0,1fr) }
+}

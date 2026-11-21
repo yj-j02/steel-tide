@@ -1125,6 +1125,7 @@ body.us-nat .rec-tab.on { background:rgba(93,168,232,.22); border-color:#6cb6f5;
 .board-part {display:grid;grid-template-columns:6em 1fr 4em;gap:.65em;align-items:center;margin:.5em 0}
 .board-part meter {width:100%}
 </style>
+<link rel="stylesheet" href="css/mobile-career.css">
 </head>
   <body>
     <canvas id="gl"></canvas>
@@ -1148,7 +1149,8 @@ body.us-nat .rec-tab.on { background:rgba(93,168,232,.22); border-color:#6cb6f5;
 
     <header id="topbar" class="g">
       <div class="logo" id="logoHome" title="타이틀 화면으로">THE GENERAL</div>
-      <nav aria-label="메뉴">
+      <button type="button" class="mobile-menu" aria-controls="careerTabs natSw" aria-expanded="false">메뉴</button>
+      <nav id="careerTabs" aria-label="메뉴">
         <button id="tabCharacters" class="tab" type="button">캐릭터</button>
         <button id="tabHQ" class="tab on">집무실</button>
         <button id="tabOrg" class="tab">지휘 계통</button>
