@@ -930,14 +930,54 @@ function shoulderBoard(g, flip) {
   } else o += `<circle cx="${w - 10}" cy="${h / 2}" r="3.2" fill="#c9a23a" stroke="#7a6220" stroke-width=".6"/>` + krDevs(g, 30, h / 2, g <= 2 ? 1.1 : 1.05, 19);
   return o + `</g>`;
 }
+const serviceEmblemPath = (svc, us = isUS()) => `img/service-emblems/${us ? "us" : "kr"}-${svc}.png`;
+function serviceEmblem(svc, us = isUS()) {
+  const serviceName = { army: "육군", navy: "해군", air: "공군" }[svc];
+  if (!serviceName) return "";
+  return `<img class="service-emblem" src="${serviceEmblemPath(svc, us)}" alt="${us ? "미국" : "대한민국"} ${serviceName} 휘장">`;
+}
+
+function ceremonialBackdrop(grade, svc) {
+  const us = isUS(), id = `ceremonial-${faceN++}`;
+  const field = { army: "#8a2639", navy: "#1a4777", air: "#2e5998" }[svc];
+  const stars = us ? Array.from({ length: 9 }, (_, row) =>
+    Array.from({ length: row % 2 ? 5 : 6 }, (_, col) =>
+      `<text x="${0.69 + col * 1.30 + (row % 2 ? 0.65 : 0)}" y="${0.71 + row * 0.68}" text-anchor="middle" font-size=".67" fill="#fff">★</text>`
+    ).join("")
+  ).join("") : "";
+  const national = us ? FLAG.us(252).replace("</svg>", stars + "</svg>") : FLAGSVG.kr(222);
+  return `<g class="portrait-ceremony" aria-hidden="true">
+    <defs>
+      <linearGradient id="${id}-folds"><stop stop-color="#070c19" stop-opacity=".50"/><stop offset=".18" stop-color="#fff" stop-opacity=".16"/><stop offset=".37" stop-color="#101321" stop-opacity=".27"/><stop offset=".62" stop-color="#fff2c7" stop-opacity=".19"/><stop offset=".85" stop-color="#050610" stop-opacity=".38"/><stop offset="1" stop-color="#110b16" stop-opacity=".1"/></linearGradient>
+      <radialGradient id="${id}-light" cx=".5" cy=".34" r=".72"><stop stop-color="#162237" stop-opacity="0"/><stop offset=".65" stop-color="#091121" stop-opacity=".12"/><stop offset="1" stop-color="#080b12" stop-opacity=".55"/></radialGradient>
+      <clipPath id="${id}-frame"><rect width="300" height="300" rx="8"/></clipPath>
+    </defs>
+    <g clip-path="url(#${id}-frame)">
+      <rect width="300" height="300" fill="#172636"/>
+      <g transform="translate(-27 -20) rotate(84 109 84)" opacity=".92">
+        ${national}<rect width="${us ? 252 : 222}" height="${us ? 151 : 147}" fill="url(#${id}-folds)"/>
+      </g>
+      <g transform="translate(200 -13) rotate(9 50 122)">
+        <rect width="112" height="270" fill="${field}" stroke="#debd75" stroke-width="3"/>
+        <image class="portrait-banner-emblem" href="${serviceEmblemPath(svc)}" x="15" y="45" width="83" height="83" preserveAspectRatio="xMidYMid meet"/>
+        <rect width="112" height="270" fill="url(#${id}-folds)"/>
+      </g>
+      <rect width="300" height="300" fill="url(#${id}-light)"/>
+      <rect x="6" y="6" width="288" height="288" rx="6" fill="none" stroke="#ecd38c" stroke-opacity=".72" stroke-width="1"/>
+    </g>
+    <text x="150" y="22" text-anchor="middle" fill="#ffdfa0" stroke="#121c2c" stroke-width="2" paint-order="stroke" font-size="12" letter-spacing="2">${"★".repeat(grade - 5)}</text>
+  </g>`;
+}
+
 function portraitHTML(g) {
   const F = { ...agedFace(cmdr.face, g), bare: true }, MD = curMedals(), svk = serviceOf(staff.branch);
+  const ceremonial = g >= 6;
   const meds = Object.keys(MD).filter((k) => career.medals?.[k]), per = 3, rows = [];
   for (let i = 0; i < meds.length; i += per) rows.push(meds.slice(i, i + per));
   const rack = rows.reverse().map((row, r) => row.map((k, i) => { const rb = MD[k].rb, x = 200 - (row.length * 17) / 2 + i * 17, y = 252 - r * 7; return rb.map((col, j) => `<rect x="${x + (j * 16) / rb.length}" y="${y}" width="${16 / rb.length + 0.2}" height="6" fill="${col}"/>`).join("") + `<rect x="${x}" y="${y}" width="16" height="6" fill="none" stroke="#333" stroke-width=".4"/>`; }).join("")).join("");
   const coat = isUS() ? (svk === "army" ? ["#54523b", "#313022", "#e2d6b6", "#2c281d"] : svk === "air" ? ["#1f3a68", "#0e1d38", "#dce9f7", "#0f203d"] : ["#162238", "#0a101d", "#f4f5f7", "#11141c"]) : ["#ffffff", "#d9dde2", "#f4f6f8", "#c4c9cf"];
-  return `<svg class="mi-por" viewBox="0 0 300 300" width="300" height="300"><defs><radialGradient id="porbg" cx=".5" cy=".35" r=".8"><stop offset="0" stop-color="${isUS() ? "#1f3c63" : "#2b4f7c"}"/><stop offset="1" stop-color="#0c1726"/></radialGradient><linearGradient id="porw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${coat[0]}"/><stop offset="1" stop-color="${coat[1]}"/></linearGradient></defs>`
-    + `<rect width="300" height="300" rx="8" fill="url(#porbg)"/><circle cx="150" cy="120" r="96" fill="none" stroke="rgba(242,202,92,.12)" stroke-width="2"/>`
+  return `<svg class="mi-por${ceremonial ? " mi-por-general" : ""}" role="img" aria-label="${rankLabel(g, svk)} 정복 초상" viewBox="0 0 300 300" width="300" height="300"><defs><radialGradient id="porbg" cx=".5" cy=".35" r=".8"><stop offset="0" stop-color="${isUS() ? "#1f3c63" : "#2b4f7c"}"/><stop offset="1" stop-color="#0c1726"/></radialGradient><linearGradient id="porw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${coat[0]}"/><stop offset="1" stop-color="${coat[1]}"/></linearGradient></defs>`
+    + (ceremonial ? ceremonialBackdrop(g, svk) : `<rect width="300" height="300" rx="8" fill="url(#porbg)"/><circle cx="150" cy="120" r="96" fill="none" stroke="rgba(242,202,92,.12)" stroke-width="2"/>`)
     + `<path d="M8 300 C10 248 34 216 100 200 L150 222 L200 200 C266 216 290 248 292 300Z" fill="url(#porw)" stroke="${coat[3]}" stroke-width="1"/>`
     + `<path d="M120 204 L150 226 L180 204 L176 196 L150 212 L124 196Z" fill="${coat[2]}" stroke="${coat[3]}"/>${isUS() ? `<path d="M145 215 L150 210 L155 215 L153 265 L150 272 L147 265Z" fill="${coat[3]}"/>` : `<path d="M150 226 L150 300" stroke="#c4c9cf" stroke-width="1.2"/>`}${[240, 262, 284].map((y) => `<circle cx="150" cy="${y}" r="3.4" fill="#d8b247" stroke="#7a6220" stroke-width=".6"/>`).join("")}`
     + `<g transform="translate(34 224) rotate(-17)">${shoulderBoard(g, false)}</g><g transform="translate(266 224) rotate(17) scale(-1 1)">${shoulderBoard(g, false)}</g>`
@@ -946,7 +986,8 @@ function portraitHTML(g) {
       : `<g transform="translate(22 262) rotate(-8)"><rect width="34" height="20" rx="1.6" fill="#ffffff" stroke="#b8c0c8" stroke-width="1.1"/><path d="M12 10a5 5 0 0 1 10 0z" fill="#cd2e3a"/><path d="M12 10a5 5 0 0 0 10 0z" fill="#0047a0"/><g stroke="#111" stroke-width="1.1"><path d="M4.5 4.2h4.2M4.5 6.2h4.2M25.3 4.2h4.2M25.3 6.2h4.2M4.5 13.8h4.2M4.5 15.8h4.2M25.3 13.8h4.2M25.3 15.8h4.2"/></g></g>`)
     + rack
     + `<rect x="80" y="250" width="40" height="11" rx="1.5" fill="#1c2430"/><text x="100" y="258.5" font-size="7.5" fill="#fff" text-anchor="middle" font-family="Noto Sans KR, sans-serif">${cmdr.name}</text>`
-    + `<g transform="translate(35 30) scale(2.3)">${face(F, 100).replace(/^<svg /, "<svg x=\"0\" y=\"0\" ")}</g></svg>`;
+    + `<g transform="translate(35 30) scale(2.3)">${face(F, 100).replace(/^<svg /, "<svg x=\"0\" y=\"0\" ")}</g>`
+    + (ceremonial ? `<circle cx="255" cy="257" r="23" fill="#111a27" stroke="#e5c77c" stroke-width="1.3"/><image class="portrait-service-emblem" href="${serviceEmblemPath(svk)}" x="237" y="239" width="36" height="36"/>` : "") + "</svg>";
 }
 /** Epilogue card after a story chapter (shown over the menu). */
 let storyQ = null;
@@ -1080,7 +1121,7 @@ function hqEff(k, m) { /* what each department contributes, shown in the grey bo
 globalThis.__careerProfileHTML = () => {
   const g = myGrade(), br = normBranch(staff.branch), BR = curBranches(), SV = curServices(), B = BR[br], svk = serviceOf(br), sv = SV[svk] || SV.navy, rl = rankLine(), ev = evalOf(g);
   const ps = payStep(profile.xp, g, ECON_RANK_XP), nextG = Math.min(10, g + 1);
-  return `<div class="mn-card dm-prof"><div class="dm-prof-top">${face(myFace(), 56)}<div><b>${cmdr.name}</b><small>${sv.icon} ${sv.n} · ${postLabel(B.n)}</small><small>${postLabel(postOf(g))}</small></div></div>
+  return `<div class="mn-card dm-prof"><div class="dm-prof-top">${face(myFace(), 56)}<div><b>${cmdr.name}</b><small>${serviceEmblem(svk)} ${sv.n} · ${postLabel(B.n)}</small><small>${postLabel(postOf(g))}</small></div></div>
     <div class="dm-rkrow"><span>${insignia(g, 20)} <b>${rankLabel(g, svk)}</b> ${isUS() ? US_PAY[g] : `${ps.step}호봉`}</span>${g < 10 ? `<span>› ${insignia(nextG, 18)} ${rankLabel(nextG, svk)}</span>` : `<span>★ 최고 계급</span>`}</div>
     <small style="color:#9ec2d4;font-size:11px">근무평정 <b>${ev.n ? `${ev.avg}점 (${ev.l})` : "평가 전"}</b> · ${rl.next ? `${rl.next}까지 ${fmt(Math.max(0, rl.need - profile.xp))} XP` : "최고 계급 도달"}</small>
     <small style="color:#7de2d1;font-size:10.5px">병과 특화: ${B.bonus}</small></div>`;
@@ -1093,7 +1134,7 @@ globalThis.__careerTrackHTML = () => {
 };
 function renderBranchPick() {
   const svk = svcDraft || staff.service || "navy", SV = curServices(), BR = curBranches();
-  const svcs = Object.entries(SV).map(([k, S]) => `<button class="svc-card${k === svk ? " on" : ""}" data-svc="${k}"><div class="sv-h"><span>${S.icon} ${S.n}</span><small>${S.en}</small></div><div style="display:flex;gap:10px;align-items:center">${face({ ...agedFace(cmdr.face, 0), svc: k }, 52)}<div><div class="sv-m">${S.motto}</div><p>${S.d}</p></div></div></button>`).join("");
+  const svcs = Object.entries(SV).map(([k, S]) => `<button class="svc-card${k === svk ? " on" : ""}" data-svc="${k}"><div class="sv-h"><span>${serviceEmblem(k)} ${S.n}</span><small>${S.en}</small></div><div style="display:flex;gap:10px;align-items:center">${face({ ...agedFace(cmdr.face, 0), svc: k }, 52)}<div><div class="sv-m">${S.motto}</div><p>${S.d}</p></div></div></button>`).join("");
   const brs = Object.entries(BR).filter(([, B]) => B.svc === svk);
   const cards = brs.map(([k, B]) => `<div class="hq-br"><h4>${SV[svk].icon} ${postLabel(B.n)}</h4><p>${B.d}</p><div class="hq-bb">특화 버프 · ${B.bonus}</div><ol>${B.t.map((t, i) => `<li${i >= 8 ? ' class="sh"' : ""}><span>${insignia(i, 13)}${rankLabel(i, svk)}</span>${postLabel(t)}</li>`).join("")}</ol><button data-branch="${k}">${SV[svk].n} ${postLabel(B.n)} 임관</button></div>`).join("");
   $("#hqP").innerHTML = `<div class="hq-head"><div><h3>STEP 1 · ${isUS() ? "🇺🇸 미합중국 3군 (Army · Navy · Air Force) 군종 및 병과 선택" : "🇰🇷 3군(육·해·공) 군종 및 병과 선택"}</h3><p>${isUS() ? "O-1 소위로 임관했습니다. 미 육·해·공군 군종을 선택하면 미군 정복·계급장(바→오크리프→독수리→별)과 펜타곤 지휘계통이 적용됩니다." : "소위로 임관했습니다. 군종(육군·해군·공군)을 고르면 해당 군종 정복과 병과 트랙이 적용됩니다. 진급 시에도 소속 군종 보직(영관급부터 공통 융합 트랙 포함)만 선택할 수 있습니다."}</p></div></div><div class="svc-grid">${svcs}</div><div class="hq-brs">${cards}</div>`;
@@ -1436,7 +1477,7 @@ function characterCard(slot) {
   const name = escapeTitle(slot.commander.name || "무명");
   const record = (slot.career.log || []).map(e => `<li>${escapeTitle(e.d)} · ${escapeTitle(postLabel(e.t, us))} · ${escapeTitle(e.why)}</li>`).join("");
   return `<article class="th-slot">
-    <div><b>${name}</b> <small>${slot.id === activeCharacterId() ? "플레이 중" : ""}</small><br><span>${us ? "미군" : "한국군"} · ${rank || "소위"} · ${escapeTitle(postLabel(branch?.n || "", us))}</span></div>
+    <div>${serviceEmblem(service, us)} <b>${name}</b> <small>${slot.id === activeCharacterId() ? "플레이 중" : ""}</small><br><span>${us ? "미군" : "한국군"} · ${rank || "소위"} · ${escapeTitle(postLabel(branch?.n || "", us))}</span></div>
     ${slot.archived ? `<details><summary>보관된 인사기록</summary>${record ? `<ul>${record}</ul>` : "<p>인사기록 없음</p>"}</details>` : `<button class="th-sec" data-th="play:${slot.id}">선택</button>`}
     <button class="th-sec dng" data-th="delete:${slot.id}" aria-label="${name} ${slot.archived ? "기록 " : ""}삭제">삭제</button>
   </article>`;
@@ -1469,7 +1510,7 @@ function renderTitleHub() {
     <h1 class="th-title">THE GENERAL</h1>
     <p class="th-sub">${us ? "Choose your nation, service branch, and officer profile to begin your command." : "국가·군종·병과와 지휘관 프로필을 선택하고 소위로 임관하십시오."}</p>
     <div class="th-nat"><button data-th="nat:kr" class="${!us ? "on" : ""}">🇰🇷 대한민국 국군</button><button data-th="nat:us" class="${us ? "on" : ""}">🇺🇸 U.S. Armed Forces</button></div>
-    <div class="th-svcs">${["army", "navy", "air"].map((k) => `<button class="th-svc${thSvc === k ? " on" : ""}" data-th="svc:${k}">${SV[k].icon} ${SV[k].n}<small>${SV[k].d.split("·")[0]}</small></button>`).join("")}</div>
+    <div class="th-svcs">${["army", "navy", "air"].map((k) => `<button class="th-svc${thSvc === k ? " on" : ""}" data-th="svc:${k}">${serviceEmblem(k, us)} <span>${SV[k].n}</span><small>${SV[k].d.split("·")[0]}</small></button>`).join("")}</div>
     <div class="th-brs">${svBrs.map(([k, B]) => `<button class="th-br${thBr === k ? " on" : ""}" data-th="br:${k}"><b>${postLabel(B.n, us)}</b><small>${postLabel(B.t[0], us)} → ${postLabel(B.t[9], us)}</small></button>`).join("")}</div>
     <div class="th-id">
       <div class="th-faces">${fList.map((_, i) => `<button class="th-face${thFace === i ? " on" : ""}" data-th="face:${i}">${face(agedFace(i, 0, us), 48)}</button>`).join("")}</div>
