@@ -93,7 +93,7 @@ const KEY_POSTS = new Set(["보병대대장", "K2 전차대대장", "K9 포병�
   "Commander, F-35A Fighter Sq", "Commander, 1st Fighter Wing", "Commander, 7th Air Force", "Commander, 11th Air Force", "Deputy CSAF (Operations)", "Commander, Pacific Air Forces", "Commander, Air Combat Command", "Vice Chairman, Joint Chiefs (VCJCS)", "NSC Military Advisor"]);
 const BACK_POSTS = new Set(["육군교육사령관", "해군사관학교장", "공군교육사령관", "방공관제사 부사령관", "군수사 부사령관", "주외무관", "항공정보단 작전과장", "기계화대대 작전과장", "해상항공전대장", "잠수함 부장", "방공유도탄대대 작전과장", "보병사단 부사단장", "기동군단 참모장",
   "Commandant, Armor School", "Deputy Commanding General", "U.S. Defense Attaché", "Executive Officer (SSN)", "VFA Squadron XO", "Commander, 9th Recon Wing", "Deputy Director, DLA"]);
-export const postTier = (title) => (KEY_POSTS.has(title) ? "key" : BACK_POSTS.has(title) ? "back" : "std");
+export const postTier = (title) => (KEY_POSTS.has(title) || /Commander|Commanding Officer|^CG,|Chief of Staff|Joint Staff|Platoon Leader/i.test(title) ? "key" : BACK_POSTS.has(title) || /School|Instructor|Academy/i.test(title) ? "back" : "std");
 export const isUS = () => staff.nation === "us";
 export const curServices = () => (isUS() ? US_SERVICES : SERVICES);
 export const curBranches = () => (isUS() ? US_BRANCHES : BRANCHES);

@@ -1,3 +1,5 @@
+import { career } from "./career.js";
+import { civicMap } from "./civic-map.js";
 // 국방부장관 · 국방 경영 (36주 임기, 3열 6탭 싱글 화면): 예산·지지율·긴장도·사기, 3군 합동 워룸(자동 위임 / FM 작전 / 3D 직접 개입), 전력증강, 사령부인사, 국회·정치, 커리어트랙.
 import { KOREA, kxy } from "./korea.js";
 import { ministryContent } from "./content/kr.js";
@@ -35,7 +37,23 @@ const { DOCTRINES, PROGS, AREAS, FLEETS, LVN, SUR, DOCKET, REINF, LVK, THREAT, G
 export { DOCTRINES, PROGS, AREAS };
 
 function chain(m, id, weeks) { (m.queue ??= []).push({ id, week: m.week + weeks }); }
-const DK = (id) => DOCKET.find((d) => d[0] === id);
+const usCases=[
+  ["housing","군 가족 관사 보수","버지니아의 장병 가족들이 누수 피해를 증언했다.","보수 예산을 앞당긴다","피해 가구부터 현장 조사한다"],
+  ["port","조선소 인력 양성","해군 조선소가 숙련 기술자의 퇴직 현황을 제출했다.","지역 전문대와 도제 과정을 연다","기존 교육의 이수율부터 확인한다"],
+  ["audit","펜타곤 회계 감사","감사관이 중복 청구 의심 항목을 의회에 보고했다.","독립 검토팀을 꾸린다","계약별 지출 명세를 공개한다"],
+  ["forest","산불 피해 지역 지원","서부 주지사들이 임시 숙소 확보를 요청했다.","민간 대피소 운영을 지원한다","주정부와 공동 수요조사를 연다"],
+  ["care","장병 돌봄 공백","맞벌이 군인 가족에게 보육시설 대기 기간이 길어졌다.","야간 돌봄 시범사업을 편성한다","지역 보육기관과 빈자리 정보를 공유한다"],
+  ["clinic","전역자 의료 인계","국방부와 보훈부의 진료 기록 형식이 달라 재검사가 늘었다.","시범 병원에 연계 인력을 둔다","공통 기록 양식을 합의한다"],
+  ["storm","허리케인 복구","걸프 연안의 지역 병원이 장기간 정전에 대비하고 있다.","시설 복구 보조금을 편성한다","연방 재난관리청과 수요를 집계한다"],
+  ["budget","세출위원회 증언","잠정예산이 끝나기 전, 양당 의원들이 사업 내역을 요구한다.","차관보와 함께 수정 예산을 설명한다","서면 비용 추계를 제출한다"]
+].map(([id,title,body,fund,review])=>["us-"+id,title,body,[
+  [fund,id==="budget"?"예산 승인 시 +$0.45B":"사업비 −$0.25B · 지지율 +3",m=>{
+    if(id==="budget"){const ok=Math.random()<0.55+(career.deputy?0.12:0);if(ok)m.budget+=450;note(m,ok?"수정 예산 승인":"위원회 심의 연기");}
+    else{m.budget-=250;m.support+=3;}
+  }],
+  [review,"지지율 +1",m=>{m.support++;}]
+]]);
+const DK = id => usCases.find(d=>d[0]===id)||DOCKET.find(d=>d[0]===id);
 function fx(m, k, v, weeks) { (m.fx ??= []).push({ k, v, until: m.week + weeks }); }
 function note(m, t) { (m.notes ??= []).unshift(`${m.week}주차 · ${t}`); m.notes = m.notes.slice(0, 30); (m.headlines ??= []).unshift(`${m.week}주차 · ${t}`); m.headlines = m.headlines.slice(0, 14); }
 
@@ -57,7 +75,7 @@ export function minStart(name) {
   let m = minState();
   if (m && !m.retired) { ensureCmdrs(m); save(m); return m; }
   const L = legacy();
-  m = { nat: isUS() ? "us" : "kr", week: 1, budget: 16500, support: 60, tension: 34, morale: 72, doctrine: null, prog: { ship: 0, air: 0, kamd: 0, log: 0 }, fx: [], notes: [], headlines: [isUS() ? `SecDef ${name} 미 국방장관 취임 — 36주 펜타곤 임기 시작` : `${name} 국방부장관 취임 — 36주 임기 시작`], sup: [], bud: [], war: null, wins: 0, fights: 0, docket: [], name, cmdr: {}, retired: false };
+  m = { nat: isUS() ? "us" : "kr", week: 1, budget: 16500, support: career.deputy ? 63 : 60, tension: 34, morale: 72, doctrine: null, prog: { ship: 0, air: 0, kamd: 0, log: 0 }, fx: [], notes: [], headlines: [isUS() ? `SecDef ${name} 미 국방장관 취임 — 36주 펜타곤 임기 시작` : `${name} 국방부장관 취임 — 36주 임기 시작`], sup: [], bud: [], war: null, wins: 0, fights: 0, docket: [], name, cmdr: {}, retired: false };
   ensureCmdrs(m);
   if (L?.prog) m.prog[L.prog] = 3;
   newWeek(m, true); save(m); return m;
@@ -102,14 +120,20 @@ function newWeek(m, first) {
   m.war = { areas, direct: null };
   const seen = m.seenDk ??= {}, due = (m.queue || []).filter((q) => q.week <= m.week).map((q) => q.id);
   m.queue = (m.queue || []).filter((q) => q.week > m.week);
-  let pool = DOCKET.filter((d) => !d[4]?.chainOnly && !(d[4]?.once && seen[d[0]]) && !(seen[d[0]] && m.week - seen[d[0]] < 14) && !due.includes(d[0])).map((d) => d[0]);
-  if (pool.length < 3) pool = DOCKET.filter((d) => !d[4]?.chainOnly && !(d[4]?.once && seen[d[0]])).map((d) => d[0]);
+  const cases=isUS()?usCases:DOCKET;
+  let pool = cases.filter((d) => !d[4]?.chainOnly && !(d[4]?.once && seen[d[0]]) && !(seen[d[0]] && m.week - seen[d[0]] < 14) && !due.includes(d[0])).map((d) => d[0]);
+  if (pool.length < (isUS()?1:3)) pool = cases.filter((d) => !d[4]?.chainOnly && !(d[4]?.once && seen[d[0]])).map((d) => d[0]);
   const n = first ? 1 : Math.random() < 0.55 ? 2 : 1;
   m.docket = due.slice(0, 2);
   while (m.docket.length < n && pool.length) { const id = pool.splice((Math.random() * pool.length) | 0, 1)[0]; if (!m.docket.includes(id)) m.docket.push(id); }
   for (const id of m.docket) seen[id] = m.week;
 }
 
+const councilOptions=()=>isUS()?[
+  ["연방기관 상황 공유","상황 보고 체계 조정","관계 기관에 동일한 현황 보고서를 배포하겠습니다."],
+  ["동맹 외교 채널 가동","외교 협의 개시","국무부와 함께 동맹국 협의 일정을 잡겠습니다."],
+  ["정례 보고 유지","현지 상황 관찰","지역 담당자의 정례 보고를 받겠습니다."]
+]:NSC_OPT;
 const NSC_OPT = [
   ["진돗개 하나 발령 · 대비태세 격상", "해당 구역 위임 승률 +10% · 지지율 −1 · 긴장도 +4", "진돗개 하나를 발령하고 해당 구역 전력을 즉각 대응 태세로 올리겠습니다.", (m, W) => { W.nsc = 0.1; m.support -= 1; m.tension = clamp((m.tension || 34) + 4, 5, 95); }],
   ["한미 공조 · 외교 채널 가동", "위협 한 단계 낮춤 · 예산 −300억 · 긴장도 −6", "동맹과 정보를 공유하고 외교 채널로 긴장 완화를 시도하겠습니다.", (m, W) => { W.lvl = Math.max(0, W.lvl - 1); m.budget -= 300; m.tension = clamp((m.tension || 34) - 6, 5, 95); }],
@@ -136,7 +160,7 @@ export function minOpResult(win, modeLabel = "직접 지휘") {
   W.res = win ? ["대승", "g", 3, 800, modeLabel] : ["패배", "r", -5, -500, modeLabel];
   m.tension = clamp((m.tension || 34) + (win ? -6 : 8), 5, 95);
   m.morale = clamp((m.morale || 72) + (win ? 5 : -5), 10, 100);
-  note(m, `${AREAS[k].n} ${modeLabel} — ${win ? "대승" : "패배"}`);
+  note(m, `${areaName(k)} ${modeLabel} — ${win ? "대승" : "패배"}`);
   m.war.direct = null;
   save(m);
 }
@@ -151,7 +175,7 @@ function endWeek(m) {
     const sup = o[2] < 0 ? Math.round(o[2] * (m.doctrine === "off" ? 1.3 : 1)) : o[2];
     m.support += sup; m.budget += o[3]; m.fights++;
     if (o[0] !== "패배") m.wins++;
-    log.push(`${AREAS[k].n} ${o[0]}(${o[4] === true ? "직접 지휘" : o[4] || "위임"}) 지지율 ${sup > 0 ? "+" : ""}${sup}`);
+    log.push(`${areaName(k)} ${o[0]}(${o[4] === true ? "직접 지휘" : o[4] || "위임"}) 지지율 ${sup > 0 ? "+" : ""}${sup}`);
   }
   if (fxv(m, "misfire", 0) > 0 && Math.random() < 0.1) { m.support -= 20; log.push("선제 타격 수칙 — 오발 사고 발생, 지지율 −20"); }
   const inc = income(m), up = upkeep(m); m.budget += inc - up; log.push(`정기 예산 +${won(inc)} · 유지비 −${won(up)}`);
@@ -291,6 +315,7 @@ const RIC = { mob: "⚓", sub: "◆", airc: "✈", art: "✹" };
 
 /** 합동 워룸 한반도 상황도 (육·해·공 4개 구역) */
 function warMap(m) {
+  if(isUS()) return civicMap("home");
   const A = m.war.areas, P = (lo, la) => kxy(lo, la).map((v) => v.toFixed(1)).join(","), C = ["#5fd17a", "#f2ca5c", "#ff6b5e"];
   const mdl = [[126.1, 37.75], [126.7, 37.95], [127.1, 38.25], [127.8, 38.3], [128.3, 38.6]].map(([a, b]) => P(a, b)).join(" "), nll = [[124.6, 37.95], [124.9, 37.68], [125.7, 37.6], [126.1, 37.72]].map(([a, b]) => P(a, b)).join(" ");
   const city = ([lo, la, n, cap, left]) => { const [x, y] = kxy(lo, la); return `<circle cx="${x}" cy="${y}" r="${cap ? 3.2 : 2.2}" fill="${cap ? "#fff" : "#cfe"}"/><text x="${left ? x - 5 : x + 5}" y="${y + 4}" class="ct"${left ? ' text-anchor="end"' : ""}>${n}</text>`; };
@@ -379,7 +404,7 @@ export function minClick(a) {
   if (a.startsWith("pg:")) { const k = a.slice(3), L = m.prog[k] || 0; if (L >= 5) return {}; const c = progCost(m, k, L); if (m.budget < c) return { toast: "예산이 부족합니다" }; m.budget -= c; m.prog[k] = L + 1; note(m, `${PROGS[k].n} LV${L + 1} 완료 (−${won(c)})`); save(m); return { redraw: true, toast: `${PROGS[k].n} LV${L + 1} — ${PROGS[k].lv[L][1]}` }; }
   if (a.startsWith("rf:")) { const [, k, r] = a.split(":"), W = m.war.areas[k]; if (!W) return {}; W.reinf = W.reinf === r ? null : r; save(m); return { redraw: true }; }
   if (a.startsWith("swap:")) { const k = a.slice(5); if (m.budget < 1200) return { toast: "예산이 부족합니다 (1,200억 필요)" }; m.budget -= 1200; m.cmdr[k] = { name: `${pick(SUR)}${pick(GIV)}`, st: 66 + ((Math.random() * 28) | 0) }; note(m, `사령부 인사 교체 — ${m.cmdr[k].name} 중장 임명 (지휘 ${m.cmdr[k].st})`); save(m); return { redraw: true, toast: `${m.cmdr[k].name} 중장 임명 (지휘 ${m.cmdr[k].st})` }; }
-  if (a.startsWith("del:")) { const k = a.slice(4), W = m.war.areas[k]; if (!W || W.res) return {}; const p = clamp(areaP(m, k) + ((Math.random() * 21) | 0) - 10, 0, 100); const o = outcomeOf(p); W.res = [...o, "자동 위임", p]; note(m, `${AREAS[k].n} 자동 위임 → ${o[0]} (승률 ${p}%)`); save(m); return { redraw: true, toast: `${AREAS[k].n} 위임 결과: ${o[0]}` }; }
+  if (a.startsWith("del:")) { const k = a.slice(4), W = m.war.areas[k]; if (!W || W.res) return {}; const p = clamp(areaP(m, k) + ((Math.random() * 21) | 0) - 10, 0, 100); const o = outcomeOf(p); W.res = [...o, "자동 위임", p]; note(m, `${areaName(k)} 자동 위임 → ${o[0]} (승률 ${p}%)`); save(m); return { redraw: true, toast: `${areaName(k)} 위임 결과: ${o[0]}` }; }
   if (a.startsWith("fm:")) { const k = a.slice(3), W = m.war.areas[k]; if (!W || W.res) return {}; m.war.direct = k; save(m); return { direct: true, directAir: AREAS[k].domain === "air" }; }
   if (a.startsWith("3d:")) { const k = a.slice(3), W = m.war.areas[k]; if (!W || W.res) return {}; m.war.direct = k; save(m); return { direct3d: { area: k, domain: AREAS[k].domain } }; }
   if (a === "direct") { if (m.war.areas.west?.res) return {}; m.war.direct = "west"; save(m); return { direct: true }; }
@@ -388,11 +413,11 @@ export function minClick(a) {
     endWeek(m); m.support = clamp(m.support, 0, 100);
     const hot = !m.retired && (m.week - (m.lastNsc || -9) >= 3) ? Object.keys(AREAS).find((k) => m.war.areas[k].lvl === 2) : null;
     m.nsc = hot || null; if (hot) m.lastNsc = m.week; save(m);
-    return { redraw: true, retire: m.retired ? retireCuts(m) : null, toast: m.retired ? "" : `${m.week}주차 — 새 위기와 결재 안건`, nsc: hot && scenesOn() ? { kind: "nsc", title: `${AREAS[hot].n} 위협 '높음'`, id: hot, questions: [{ who: "국가안보실장", q: `${AREAS[hot].n}에서 적 도발 징후가 급증했습니다. 이번 주 위기 대응 방침을 정해 주십시오.`, opts: NSC_OPT.map(([n, e, l]) => [n, e, l]) }] } : null };
+    return { redraw: true, retire: m.retired ? retireCuts(m) : null, toast: m.retired ? "" : `${m.week}주차 — 새 위기와 결재 안건`, nsc: hot && scenesOn() ? { kind: "nsc", title: `${areaName(hot)} 위협 '높음'`, id: hot, questions: [{ who: "국가안보실장", q: `${areaName(hot)}에서 적 도발 징후가 급증했습니다. 이번 주 위기 대응 방침을 정해 주십시오.`, opts: councilOptions().map(([n, e, l]) => [n, e, l]) }] } : null };
   }
   if (a === "scenes") { const on = !scenesOn(); try { localStorage.setItem(SCK, on ? "on" : "off"); } catch { /* 저장 불가 */ } return { redraw: true, toast: on ? "결재 연출 켜짐 — 기자회견·국회·NSC 장면이 나옵니다" : "결재 연출 꺼짐 — 결재판에서 바로 고릅니다" }; }
-  if (a === "nscview") { const k = m.nsc; if (!k) return {}; return { nsc: { kind: "nsc", title: `${AREAS[k].n} 위협 '높음'`, id: k, questions: [{ who: "국가안보실장", q: `${AREAS[k].n}에서 적 도발 징후가 급증했습니다. 이번 주 위기 대응 방침을 정해 주십시오.`, opts: NSC_OPT.map(([n, e, l]) => [n, e, l]) }] } }; }
-  if (a.startsWith("nsc:")) { const k = m.nsc, W = k && m.war.areas[k], i = +a.slice(4); if (!W) return {}; NSC_OPT[i]?.[3](m, W); m.nsc = null; m.support = clamp(m.support, 0, 100); note(m, `NSC — ${AREAS[k].n}: ${NSC_OPT[i][0]}`); save(m); return { redraw: true }; }
+  if (a === "nscview") { const k = m.nsc; if (!k) return {}; return { nsc: { kind: "nsc", title: `${areaName(k)} 위협 '높음'`, id: k, questions: [{ who: "국가안보실장", q: `${areaName(k)}에서 적 도발 징후가 급증했습니다. 이번 주 위기 대응 방침을 정해 주십시오.`, opts: councilOptions().map(([n, e, l]) => [n, e, l]) }] } }; }
+  if (a.startsWith("nsc:")) { const k = m.nsc, W = k && m.war.areas[k], i = +a.slice(4); if (!W) return {}; NSC_OPT[i]?.[3](m, W); m.nsc = null; m.support = clamp(m.support, 0, 100); note(m, `NSC — ${areaName(k)}: ${councilOptions()[i][0]}`); save(m); return { redraw: true }; }
   return {};
 }
 

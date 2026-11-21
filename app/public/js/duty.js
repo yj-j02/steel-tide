@@ -1,7 +1,7 @@
 // 3군 장교 커리어 성장기 (소위 → 대장): 주간 직무·훈련 결재, 계급장 성장 시각화, 위기 3대 대응(위임 / FM 작전 / 3D 직접 개입).
 import { SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, isUS, curFlagPosts, curBranches } from "./staff.js";
 import { usNpcName } from "./us-ranks.js";
-import { recordEval, evalOf, board, runBoard, FOCUS, letter, addRankWeek, weeksOf, minWeeks } from "./service.js";
+import { recordEval, evalOf, board, FOCUS, letter, addRankWeek, weeksOf, minWeeks } from "./service.js";
 import { career, saveCareer, awardMedals } from "./career.js";
 
 const DK = "steeltide:duty";
@@ -310,6 +310,7 @@ export function ensureDuty(svc, grade, playerPost = "") {
   const d = dutyState(), wantNat = isUS() ? "us" : "kr", wantTier = rankTier(Math.min(9, grade));
   let dirty = false;
   if (!d.rivals) { d.rivals = mkRivals(svc); dirty = true; }
+  for(const rival of d.rivals){if(rival.rel==null){rival.rel=50;dirty=true;}}
   if (d.rivals.some((r) => r.g <= grade - 2)) { tickRivals(d, grade, svc, playerPost); dirty = true; }
   if (syncRivalPosts(d, svc, playerPost)) dirty = true;
   if ((d.nat && d.nat !== wantNat) || (d.tier != null && d.tier !== wantTier)) { d.pending = []; d.crisis = null; d.report = null; d.doneWeek = false; drawEvents(d, svc, grade); syncRivalPosts(d, svc, playerPost); saveDuty(d); return d; }
@@ -327,7 +328,7 @@ function tickRivals(d, playerGrade, svc = "navy", playerPost = "") {
   const cap = Math.min(9, playerGrade + 1);
   const promoted = [];
   d.rivals.forEach((r, ri) => {
-    if (r.g >= 9) return;
+    if (r.g >= 9 || (r.g >= 3 && r.g === playerGrade)) return;
     const elite = r.style === "야전 엘리트";
     let nextG = r.g;
     if (r.g <= playerGrade - 2) {
@@ -410,6 +411,7 @@ export function resolveReport(choiceIdx, grade) {
   } else if (choiceIdx === 1) {
     const caught = Math.random() < 0.18;
     if (caught) {
+      (d.auditByGrade ??= {})[grade] = (d.auditByGrade[grade] || 0) + 1;
       sc = 44; dm = -4; dr = -10; msg = "성과 과장·축소 보고 감찰 적발! — 평정 44점 · 평판 −10";
       d.headlines.unshift(`${d.week}주차 · [감찰 경고] 허위·축소 보고 정황 포착 — 인사 평정 감점`);
     } else {
@@ -465,6 +467,7 @@ export function resolveCrisisDirect(win, grade, modeLabel = "3D 직접 개입") 
   d.crisis = null; if (!d.pending.length) d.doneWeek = true;
   recordEval(grade, sc);
   awardMedals({ won: win, crisis: true, score: sc, morale: d.morale, goodEvals: career.goodEvals || 0, grade });
+  if (win) { (career.crisisWins ??= {})[grade] = (career.crisisWins[grade] || 0) + 1; saveCareer(); }
   saveDuty(d);
   return { win, xpGain, score: sc, msg: hl };
 }
@@ -473,6 +476,13 @@ export function nextDutyWeek(svc, grade, playerPost = "") {
   const d = dutyState();
   d.week++; d.doneWeek = false;
   addRankWeek(grade, 1);
+  d.lowMoraleWeeks = d.morale < 35 ? (d.lowMoraleWeeks || 0) + 1 : 0;
+  if (d.study) {
+    d.study--; recordEval(grade, 80);
+    d.last = d.study ? "합동 세미나 · 부처 간 예산 조정 사례 발표" : "고등군사교육 수료 · 평판 +6";
+    if (d.study) { d.doneWeek=true; saveDuty(d); return d; }
+    (career.tours ??= {}).edu=true; saveCareer(); d.rep=Math.min(100,d.rep+6);
+  }
   d.tension = clamp(d.tension + (Math.random() < 0.45 ? 3 : -1), 5, 95);
   tickRivals(d, grade, svc, playerPost);
   drawEvents(d, svc, grade);
@@ -481,4 +491,4 @@ export function nextDutyWeek(svc, grade, playerPost = "") {
   return d;
 }
 
-export { SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, evalOf, board, runBoard, FOCUS, letter, career, saveCareer, weeksOf, minWeeks };
+export { SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, evalOf, board, FOCUS, letter, career, saveCareer, weeksOf, minWeeks };
