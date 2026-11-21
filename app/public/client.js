@@ -283,9 +283,9 @@ function face(i, s = 64) {
     + `<path d="M34 72 L46 90 L44 100 M66 72 L54 90 L56 100" stroke="#05080d" stroke-width="1.2" fill="none"/>`
     + (f.civ ? "" : `<g transform="translate(60 84)"><rect width="5" height="2.6" fill="#b03a2e"/><rect x="5" width="5" height="2.6" fill="#2a5aa0"/><rect x="10" width="5" height="2.6" fill="#d8b23a"/><rect y="2.8" width="5" height="2.6" fill="#3b7a3e"/><rect x="5" y="2.8" width="5" height="2.6" fill="#c9c9c9"/><rect x="10" y="2.8" width="5" height="2.6" fill="#8a1f1f"/></g>`
     + `<rect x="10" y="88" width="18" height="2.2" fill="#c9a23a"/><rect x="10" y="91.5" width="18" height="2.2" fill="#c9a23a"/>`);
-  // back hair (female neat bob / bun)
-  if (f.fem) o += `<path d="M29 33 C25 46 27 59 33 65 L40 63 C35 55 34 45 35 35Z M71 33 C75 46 73 59 67 65 L60 63 C65 55 66 45 65 35Z" fill="${f.hair}"/>`
-    + `<ellipse cx="50" cy="64" rx="11" ry="4.5" fill="${mixHex(f.hair, "#000000", 0.25)}" opacity=".6"/>`;
+  // back hair (female smooth bob silhouette)
+  if (f.fem) o += `<path d="M31 24 C25 35 25 54 31.5 66 Q41 70 50 69 Q59 70 68.5 66 C75 54 75 35 69 24 C64 13.5 36 13.5 31 24Z" fill="${f.hair}"/>`
+    + `<path d="M33 48 C34 58 39 66 50 67 C61 66 66 58 67 48 L67 65 Q58 69 50 68 Q42 69 33 65Z" fill="${mixHex(f.hair, "#000000", 0.28)}" opacity=".55"/>`;
   // neck + ears + head contour
   const nk = f.fem ? 7.2 : 8.8;
   o += `<path d="M${50 - nk} 58 L${50 - nk} 72 Q50 78 ${50 + nk} 72 L${50 + nk} 58Z" fill="${sh}"/><path d="M${50 - nk} 64 Q50 71 ${50 + nk} 64 L${50 + nk} 69 Q50 75 ${50 - nk} 69Z" fill="${dk}" opacity=".42"/>`
@@ -295,10 +295,14 @@ function face(i, s = 64) {
   o += `<ellipse cx="40.5" cy="49.5" rx="4.2" ry="2.2" fill="${hi}" opacity=".22"/><ellipse cx="59.5" cy="49.5" rx="4.2" ry="2.2" fill="${hi}" opacity=".18"/>`
     + `<ellipse cx="50" cy="62.5" rx="4" ry="1.8" fill="${hi}" opacity=".18"/>`
     + `<path d="M${jx + 2} 50 Q${cx1} 61.5 50 64.8 Q${cx2} 61.5 ${jx2 - 2} 50" stroke="${dk}" stroke-width="1.4" opacity=".22" fill="none"/>`;
-  // side hair / temples (with realistic silver temple streaks as career progresses)
+  // side hair / temples (male sideburns; female hair frames softly in the top-hair pass)
   const sw = f.hairStyle === "short" ? 2.0 : f.hairStyle === "parted" ? 3.2 : 2.8, tCol = f.templeGrey ? mixHex(f.hair, "#e0dfd8", f.templeGrey * 0.65) : f.hair;
-  o += `<path d="M${jx} 29.5 L${jx + sw} 29.5 L${jx + sw - 0.4} 44.5 L${jx} 40.5Z M${jx2} 29.5 L${jx2 - sw} 29.5 L${jx2 - sw + 0.4} 44.5 L${jx2} 40.5Z" fill="${f.hair}"/>`;
-  if (f.templeGrey > 0.15) o += `<path d="M${jx + 0.2} 36 L${jx + sw - 0.5} 36 L${jx + sw - 0.8} 43.5 L${jx} 40.5Z M${jx2 - 0.2} 36 L${jx2 - sw + 0.5} 36 L${jx2 - sw + 0.8} 43.5 L${jx2} 40.5Z" fill="${tCol}" opacity=".85"/>`;
+  if (!f.fem) {
+    o += `<path d="M${jx} 29.5 L${jx + sw} 29.5 L${jx + sw - 0.4} 44.5 L${jx} 40.5Z M${jx2} 29.5 L${jx2 - sw} 29.5 L${jx2 - sw + 0.4} 44.5 L${jx2} 40.5Z" fill="${f.hair}"/>`;
+    if (f.templeGrey > 0.15) o += `<path d="M${jx + 0.2} 36 L${jx + sw - 0.5} 36 L${jx + sw - 0.8} 43.5 L${jx} 40.5Z M${jx2 - 0.2} 36 L${jx2 - sw + 0.5} 36 L${jx2 - sw + 0.8} 43.5 L${jx2} 40.5Z" fill="${tCol}" opacity=".85"/>`;
+  } else {
+    o += `<path d="M${jx - 1} 28 Q${jx + 1.5} 36 ${jx + 0.2} 44 Q${jx - 2.2} 38 ${jx - 1} 28Z M${jx2 + 1} 28 Q${jx2 - 1.5} 36 ${jx2 - 0.2} 44 Q${jx2 + 2.2} 38 ${jx2 + 1} 28Z" fill="${f.hair}"/>`;
+  }
   // brow ridge shadow, eyes with iris catchlight & eyelid crease
   o += `<path d="M37.5 ${ey - 3.2} Q42.5 ${ey - 5.4} 47.2 ${ey - 3} M52.8 ${ey - 3} Q57.5 ${ey - 5.4} 62.5 ${ey - 3.2}" stroke="${dk}" stroke-width="2.2" opacity=".28" fill="none"/>`;
   const eyeScale = f.eye || 1;
@@ -342,8 +346,14 @@ function face(i, s = 64) {
   }
   // civilian hair vs combination cap
   if (f.civ) {
-    const rc = f.recede ? 2.4 : 0;
-    o += `<path d="M${jx - 1.5} 36 C${jx - 3} 17 38 11.5 50 11.5 C63 11.5 ${jx2 + 3} 17 ${jx2 + 1.5} 36 L${jx2 - 1} 31 C${jx2 - 3} ${22.5 + rc} 60 ${20.2 + rc} 50 ${21.4 + rc * 0.5} C44 ${21 + rc * 0.5} ${jx + 6} ${22 + rc} ${jx + 1} 31Z" fill="${f.hair}"/><path d="M42 14.5 Q47 19 60 19.5" stroke="#00000033" stroke-width="1" fill="none"/>`;
+    if (f.fem) {
+      o += `<path d="M29 36 C28 19 37 12.5 50 12.5 C63 12.5 72 19 71 36 C69 30 65 24 58 22.5 C52 21.5 44 21 38 25 C34 27.5 31 31.5 29 36Z" fill="${f.hair}"/>`
+        + `<path d="M40 15.5 Q49 18.5 61 19.5" stroke="${mixHex(f.hair, "#ffffff", 0.35)}" stroke-width="1.2" opacity=".45" fill="none"/>`
+        + (f.templeGrey > 0.15 ? `<path d="M32 28 Q35 23 41 21.5 M68 28 Q65 23 59 21.5" stroke="${tCol}" stroke-width="1.4" opacity=".6" fill="none" stroke-linecap="round"/>` : "");
+    } else {
+      const rc = f.recede ? 2.4 : 0;
+      o += `<path d="M${jx - 1.5} 36 C${jx - 3} 17 38 11.5 50 11.5 C63 11.5 ${jx2 + 3} 17 ${jx2 + 1.5} 36 L${jx2 - 1} 31 C${jx2 - 3} ${22.5 + rc} 60 ${20.2 + rc} 50 ${21.4 + rc * 0.5} C44 ${21 + rc * 0.5} ${jx + 6} ${22 + rc} ${jx + 1} 31Z" fill="${f.hair}"/><path d="M42 14.5 Q47 19 60 19.5" stroke="#00000033" stroke-width="1" fill="none"/>`;
+    }
   } else {
     o += `<path d="M24 25 C26 11 74 11 76 25 L74 28 L26 28Z" fill="url(#${u}c)"/><rect x="${jx - 1}" y="26" width="${(jx2 - jx) + 2}" height="6" fill="#121417"/>`
       + `<path d="M${jx - 1} 32 L${jx2 + 1} 32 L${jx2 - 3} 37 Q50 39 ${jx + 3} 37Z" fill="#07090b"/><path d="M${jx + 1} 35.5 Q50 37.8 ${jx2 - 1} 35.5" stroke="#c9a23a" stroke-width="1.3" fill="none"/>`
