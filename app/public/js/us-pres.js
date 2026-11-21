@@ -31,6 +31,24 @@ const esc = (v) =>
   );
 
 export const usPresState = () => rd();
+export const US_PRESIDENT_MARK = "img/us_potus_mark.png";
+
+export function usPresOffice(state) {
+  if (state?.phase === "inauguration") return { title: "미국 대통령 당선인" };
+  if (state?.term > 0) {
+    const former = state.phase === "end";
+    return {
+      title: former ? "전직 미국 대통령" : "미국 대통령",
+      mark: US_PRESIDENT_MARK,
+      term: state.term,
+      quarter: state.quarter,
+      trust: state.trust,
+      former,
+    };
+  }
+  return null;
+}
+
 export function usPresStart(name, trust = 62, ministry = null) {
   let s = rd();
   if (s && s.phase !== "service") return s;
@@ -126,10 +144,11 @@ export function usPresHTML() {
           : "img/bg/us_capitol_hearing.jpg";
   const bgStyle = `background:linear-gradient(rgba(10,16,24,.72),rgba(8,12,18,.88)),url(${bgImg}) center/cover`;
 
+  const office = usPresOffice(s);
   return `<div class="mn dm-shell" style="${bgStyle}">
     ${progress}
     <div class="mn-top dm-top">
-      <div class="mt">${s.term > 0 ? `<img class="us-president-mark" src="img/us_potus_mark.png" alt="미국 대통령 표장">` : ""}<span>직책</span><b>${esc(s.phase === "end" ? (s.term ? "전직 미국 대통령" : "전직 후보") : s.phase === "inauguration" ? "미국 대통령 당선인" : s.term ? "미국 대통령" : s.phase === "prologue" ? "전직 공직자" : "대선 후보")}</b><small>${s.party === "red" ? "리버티당" : s.party === "blue" ? "유니언당" : "정당 선택 전"}</small></div>
+      <div class="mt">${office?.mark ? `<img class="us-president-mark" src="${office.mark}" alt="미국 대통령 휘장">` : ""}<span>직책</span><b>${office?.title ?? (s.phase === "end" ? "전직 후보" : s.phase === "prologue" ? "전직 공직자" : "대선 후보")}</b><small>${s.party === "red" ? "리버티당" : s.party === "blue" ? "유니언당" : "정당 선택 전"}</small></div>
       <div class="mt"><span>단계</span><b>${esc(phaseLbl)}</b></div>
       <div class="mt"><span>지지율 (Trust)</span><b class="${s.trust >= 55 ? "g" : s.trust >= 40 ? "y" : "r"}">${s.trust}%</b></div>
       ${inWH ? `<div class="mt"><span>미 의회</span><b>하원 ${s.house}/435 · 상원 ${s.senate}/100</b><small>제정 법안 ${s.laws}건</small></div>` : `<div class="mt"><span>선거인단 과반</span><b>${s.results && s.phase !== "blackout" ? `${elecSum} / 538` : "270 / 538 필요"}</b></div>`}

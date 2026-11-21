@@ -12,7 +12,7 @@ const { boardCard, preview, settle, interact } =
   await import("../../app/public/js/promotion-board.js");
 const { curFlagPosts, flagPostsForTrack, curBranches, staff } =
   await import("../../app/public/js/staff.js");
-const { usPresStart, usPresClick, usPresHTML, usPresState, usPresAdmin } =
+const { usPresStart, usPresClick, usPresHTML, usPresState, usPresAdmin, usPresOffice } =
   await import("../../app/public/js/us-pres.js");
 function fixture(g, week, score = 100) {
   Object.assign(career, {
@@ -146,14 +146,17 @@ savedElection.results = { ...electors };
 localStorage.setItem("steeltide:uspres", JSON.stringify(savedElection));
 assert.equal(usPresClick("c:0").inaugurated, false);
 assert.equal(usPresState().phase, "inauguration");
-assert.match(usPresHTML(), /us_potus_mark/);
+assert.equal(usPresOffice(usPresState()).title, "미국 대통령 당선인");
+assert.doesNotMatch(usPresHTML(), /us_potus_mark/);
 assert.equal(usPresClick("c:0").inaugurated, true);
 assert.equal(usPresState().phase, "cabinet");
+assert.match(usPresHTML(), /us_potus_mark/);
 for (let i = 0; i < 160 && usPresState().phase !== "end"; i++) {
   assert.ok(!usPresHTML().includes("undefined"));
   usPresClick(usPresState().phase === "renew" ? "c:1" : "c:0");
 }
 assert.equal(usPresState().phase, "end");
+assert.equal(usPresOffice(usPresState()).title, "전직 미국 대통령");
 console.log(
   "Board seasons, repeated non-selection, vacancies, education, campaign, presidential term passed.",
 );
