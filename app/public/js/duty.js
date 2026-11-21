@@ -1,5 +1,6 @@
 // 3군 장교 커리어 성장기 (소위 → 대장): 주간 직무·훈련 결재, 계급장 성장 시각화, 위기 3대 대응(위임 / FM 작전 / 3D 직접 개입).
 import { SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, isUS } from "./staff.js";
+import { usNpcName } from "./us-ranks.js";
 import { recordEval, evalOf, board, runBoard, FOCUS, letter } from "./service.js";
 import { career, saveCareer } from "./career.js";
 
@@ -174,6 +175,7 @@ function drawEvents(d, svc, grade) {
 export function ensureDuty(svc, grade) {
   const d = dutyState(), wantNat = isUS() ? "us" : "kr";
   if (!d.rivals) { d.rivals = mkRivals(svc); saveDuty(d); }
+  if (d.rivals.some((r) => r.g <= grade - 2)) { tickRivals(d, grade); saveDuty(d); }
   if (d.nat && d.nat !== wantNat) { d.pending = []; d.crisis = null; d.report = null; d.doneWeek = false; drawEvents(d, svc, grade); return d; }
   if (!d.pending || (!d.pending.length && !d.crisis && !d.report && !d.doneWeek)) drawEvents(d, svc, grade);
   return d;
@@ -182,19 +184,29 @@ export function ensureDuty(svc, grade) {
 export function dutyEventById(id) { return EVENTS.find((e) => e[0] === id) || US_EVENTS.find((e) => e[0] === id); }
 export function dutyCrisisById(id) { return CRISES.find((c) => c.id === id) || US_CRISES.find((c) => c.id === id); }
 
-/** Advance rival classmates alongside player progress and post news headlines when they promote */
+/** Advance rival classmates alongside player progress so they stay neck-and-neck (playerGrade - 1 to +1). */
 function tickRivals(d, playerGrade) {
   if (!d.rivals) return;
-  for (const r of d.rivals) {
-    if (r.g >= 9) continue;
-    const rate = r.style === "야전 엘리트" ? 0.24 : 0.2;
-    if (r.g <= playerGrade && Math.random() < rate) {
-      r.g = Math.min(9, r.g + 1);
+  const cap = Math.min(9, playerGrade + 1);
+  d.rivals.forEach((r, ri) => {
+    if (r.g >= 9) return;
+    const elite = r.style === "야전 엘리트";
+    let nextG = r.g;
+    if (r.g <= playerGrade - 2) {
+      nextG = Math.min(cap, playerGrade - 1 + (elite && Math.random() < 0.55 ? 1 : Math.random() < 0.35 ? 1 : 0));
+    } else if (r.g === playerGrade - 1) {
+      if (Math.random() < (elite ? 0.72 : 0.55)) nextG = Math.min(cap, r.g + 1);
+    } else if (r.g === playerGrade && playerGrade < 9) {
+      if (Math.random() < (elite ? 0.32 : 0.18)) nextG = Math.min(cap, r.g + 1);
+    }
+    if (nextG > r.g) {
+      r.g = nextG;
       const t = careerTitle(r.g, r.br);
-      d.headlines.unshift(`${d.week}주차 · [동기 동향] 임관 동기 ${r.name}, ${t} 보직으로 진급!`);
+      const rNm = isUS() ? usNpcName(r.name + ri) : r.name;
+      d.headlines.unshift(`${d.week}주차 · [동기 동향] ${isUS() ? "사관학교 동기" : "임관 동기"} ${rNm}, ${t} 보직으로 진급!`);
       d.headlines = d.headlines.slice(0, 12);
     }
-  }
+  });
 }
 
 /** Resolve a weekly duty choice with genuine risk/morale tradeoffs (no guaranteed best pick). */
