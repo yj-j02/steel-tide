@@ -152,8 +152,8 @@ export const holds = () => false; /* your own staff is always a smaller unit's j
 const KEY = "steeltide:staff";
 export const staff = (() => {
   let s = null; try { s = JSON.parse(careerStorage.getItem(KEY) || "null"); } catch {}
-  if (!s || !s.a) s = { a: {}, x: {} };
-  s.byE ||= {};
+  if (!s || typeof s !== "object") s = { a: {}, x: {} };
+  s.a ||= {}; s.x ||= {}; s.byE ||= {};
   return s;
 })();
 export const saveStaff = () => { try { careerStorage.setItem(KEY, JSON.stringify(staff)); } catch {} };

@@ -1549,7 +1549,7 @@ function restartCurrentCareer(keepAdmin = false) {
   if (contract) careerStorage.setItem("steeltide:career", JSON.stringify({
     log: [], serviceContract: {...contract, obligation:contract.initialObligation ?? contract.obligation, earlyUsed:false},
   }));
-  careerStorage.setItem("steeltide:staff", JSON.stringify({ branch, service, nation }));
+  careerStorage.setItem("steeltide:staff", JSON.stringify({ branch, service, nation, a: {}, byE: {}, x: {}, e: 0 }));
   if (keepAdmin) careerStorage.setItem(CACHE, JSON.stringify({ ...econNewProfile(), admin: true }));
   location.hash = "#hq";
   location.reload();
