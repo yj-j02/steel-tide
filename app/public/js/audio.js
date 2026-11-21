@@ -266,6 +266,14 @@ export function playMinisterAnthem() {
   };
   run(isUsMode ? "sfx/promo/us_secdef.mp3" : "sfx/promo/minister.mp4", "sfx/promo/g4.mp3");
 }
+/** 미국 대통령 전용 예우곡 — Hail to the Chief (us_potus.mp3) */
+export function playPotusAnthem() {
+  if (A.muted) return; stopFanfare();
+  const bg = A.bgmEl, v0 = bg ? bg.volume : 0; if (bg) bg.volume = v0 * 0.15;
+  const el = new Audio("sfx/promo/us_potus.mp3"); el.volume = Math.min(1, A.vol.sfx * 1.05); promoEl = el;
+  el.onended = () => { if (bg && A.bgmEl === bg) bg.volume = v0; if (promoEl === el) promoEl = null; el.onended = null; };
+  el.play().catch(() => { el.onended?.(); });
+}
 let promoEl = null;
 export function stopFanfare() { const el = promoEl; if (!el) return; promoEl = null; const v0 = el.volume, t0 = performance.now(); const step = () => { const k = 1 - (performance.now() - t0) / 700; if (k <= 0) { el.pause(); el.onended?.(); return; } el.volume = v0 * k; requestAnimationFrame(step); }; step(); }
 const US_HONORS = { 6: [0, 17], 7: [17, 37], 8: [38, 58], 9: [59, null], 10: [59, null] };
