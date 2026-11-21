@@ -46,9 +46,16 @@ export function usPresHTML() {
     const dis = s.phase === "campaign" && !s.target;
     return `<button class="us-ch" data-uspres="c:${i}" ${dis ? "disabled" : ""}><b>${esc(lbl)}</b>${dis ? "<small>먼저 아래 538 선거인단 지도에서 유세할 주(State)를 선택하세요</small>" : ""}</button>`;
   }).join("");
-  const bgStyle = inWH
-    ? `background:linear-gradient(rgba(10,16,24,.76),rgba(8,12,18,.90)),url(img/bg/us_oval_office.jpg) center/cover`
-    : `background:linear-gradient(rgba(10,16,24,.82),rgba(8,12,18,.92)),url(img/bg/us_capitol_hearing.jpg) center/cover`;
+  const bgImg = inWH
+    ? (s.term === 1 && s.quarter === 1 ? "img/bg/us_inauguration.jpg" : "img/bg/us_oval_office.jpg")
+    : ["primary", "campaign", "debate"].includes(s.phase)
+      ? "img/bg/us_rally.jpg"
+      : s.phase === "night" || s.phase === "contingent"
+        ? "img/bg/us_inauguration.jpg"
+        : s.phase === "end" && s.term > 0
+          ? "img/bg/us_inauguration.jpg"
+          : "img/bg/us_capitol_hearing.jpg";
+  const bgStyle = `background:linear-gradient(rgba(10,16,24,.72),rgba(8,12,18,.88)),url(${bgImg}) center/cover`;
 
   return `<div class="mn dm-shell" style="${bgStyle}">
     <div class="mn-top dm-top">

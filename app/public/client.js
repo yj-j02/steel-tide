@@ -430,17 +430,31 @@ function disposeAll() {
   if (showAir) { scene.remove(showAir); showAir = null; }
   clearMissiles(); opsClear(); jetSound(0); droneSound(0); G.modern = false; if (typeof md !== "undefined") { md.q.length = 0; md.aimPt = null; md.supPt = null; md.jamCd = 0; md.flyFP = false; } clearTorps(); show = null; showId = null; showSvc = null; clearShells(); clearAir(); clearFx(); for (const k of markers) { k.t = 0; k.m.visible = false; } lock = null;
 }
+let showNat = null;
+const SVC_BG_IMG = {
+  kr: {
+    army: "linear-gradient(155deg, rgba(14,24,16,.52), rgba(8,14,10,.74)), url(img/bg/kr_bg_army.jpg)",
+    air: "linear-gradient(155deg, rgba(12,20,30,.48), rgba(8,14,22,.72)), url(img/bg/kr_bg_air.jpg)",
+  },
+  us: {
+    army: "linear-gradient(155deg, rgba(18,22,16,.52), rgba(10,14,10,.74)), url(img/bg/us_bg_army.jpg)",
+    navy: "linear-gradient(155deg, rgba(10,18,28,.48), rgba(6,12,20,.72)), url(img/bg/us_bg_navy.jpg)",
+    air: "linear-gradient(155deg, rgba(10,18,28,.48), rgba(6,12,20,.72)), url(img/bg/us_bg_air.jpg)",
+  },
+};
 function showcase(id) {
-  const sv = svcDraft || (staff.branch ? serviceOf(staff.branch) : staff.service || "navy"), bgEl = $("#svcBg");
-  if (showSvc === sv && (sv !== "navy" || (showId === id && show))) { if (bgEl) bgEl.classList.toggle("on", sv === "army"); return; }
-  disposeAll(); showSvc = sv;
-  if (bgEl) bgEl.classList.toggle("on", sv === "army");
-  if (sv === "army") return;
-  if (sv === "air") {
-    showAir = new THREE.Group(); showAir.position.set(0, 240, 0);
-    for (const [x, y, z] of [[0, 0, 0], [-24, -4, -22], [-24, -4, 22]]) { const jm = jetMesh(false); jm.scale.setScalar(1.9); jm.position.set(x, y, z); showAir.add(jm); }
-    scene.add(showAir); return;
+  const sv = svcDraft || (staff.branch ? serviceOf(staff.branch) : staff.service || "navy"), nat = isUS() ? "us" : "kr", bgEl = $("#svcBg");
+  const bgCss = SVC_BG_IMG[nat]?.[sv] || null;
+  if (showSvc === sv && showNat === nat && (bgCss || (showId === id && show))) {
+    if (bgEl) { bgEl.classList.toggle("on", !!bgCss); if (bgCss) bgEl.style.backgroundImage = bgCss; }
+    return;
   }
+  disposeAll(); showSvc = sv; showNat = nat;
+  if (bgEl) {
+    bgEl.classList.toggle("on", !!bgCss);
+    if (bgCss) bgEl.style.backgroundImage = bgCss;
+  }
+  if (bgCss) return;
   show = new Ship(MODERN[id], 0, 0, 0, "us", perkMods().upg); show.tele = 3; show.speed = show.vmax * 0.5; G.ships = [show]; G.player = show; showId = id;
 }
 const uniq = (list) => { for (const s of list) { const same = list.filter((o) => o.spec === s.spec); if (same.length > 1) s.name = `${s.spec.short} ${same.indexOf(s) + 1}`; } };
