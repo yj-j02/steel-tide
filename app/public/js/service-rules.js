@@ -18,13 +18,13 @@ export function commissionRoutes(us, branch, service) {
       : [{id:"academy", title:"사관학교 · 일반 현역 약정", years:5}];
   }
   const standard = [
-    {id:"academy", title:"사관학교 · 장기복무", years:10},
-    {id:"short", title:"사관후보생 · 단기복무", years:3},
+    {id:"academy", title:"사관학교 · 장기복무 (진급 우대)", years:10},
+    {id:"short", title:"학사장교·사관후보생 · 단기복무 (진급 난이도 ↑↑)", years:3},
   ];
-  if (service === "army") standard.push({id:"army3", title:"육군3사관학교 · 단기복무", years:6});
+  if (service === "army") standard.push({id:"army3", title:"육군3사관학교 · 단기복무 (진급 난이도 ↑)", years:6});
   if (flight) standard.unshift(
-    {id:"aviationAcademy", title:"해·공군 사관학교 · 비회전익 조종", years:15},
-    {id:"aviationOther", title:"기타 임관 · 비회전익 조종", years:13},
+    {id:"aviationAcademy", title:"해·공군 사관학교 · 비회전익 조종 (진급 우대)", years:15},
+    {id:"aviationOther", title:"학사·기타 임관 · 비회전익 조종 (진급 난이도 ↑↑)", years:13},
   );
   return branch === "plt" ? standard.slice(0, 2) : standard;
 }

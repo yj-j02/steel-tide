@@ -32,6 +32,16 @@ export function hint(title) {
 export const automaticCaptain = (grade) => grade === 1;
 const boardCutoffs = [55, 0, 73, 75, 77, 80, 82, 84, 86];
 
+/** Korean commissioning-source promotion modifier (g >= 2): 사관학교 우대, 3사·학사 난이도 상향. */
+export function commissionMod(g) {
+  if (isUS() || g < 2) return { delta: 0, label: "" };
+  const id = career.serviceContract?.id;
+  if (id === "academy" || id === "aviationAcademy") return { delta: g >= 5 ? 5 : 3, label: "사관학교 출신" };
+  if (id === "army3") return { delta: g >= 5 ? -5 : -3, label: "3사 출신" };
+  if (id === "short" || id === "aviationOther") return { delta: g >= 5 ? -7 : -5, label: "학사·후보생 출신" };
+  return { delta: 0, label: "" };
+}
+
 export function preview(g, xp, title, br, svc, d = dutyState()) {
   const b = board(g, xp),
     season =
@@ -77,13 +87,14 @@ export function preview(g, xp, title, br, svc, d = dutyState()) {
   ];
   const moraleBonus =
     senior ? Math.round(bound(((d.morale ?? 70) - 70) / 15, 2)) : 0;
+  const routeMod = commissionMod(g);
   const bonus =
-    (cmd && joint ? 5 : 0) + (tours.edu && g >= 3 ? (g >= 5 ? 6 : 3) : 0) + moraleBonus;
+    (cmd && joint ? 5 : 0) + (tours.edu && g >= 3 ? (g >= 5 ? 6 : 3) : 0) + moraleBonus + Math.max(0, routeMod.delta);
   const penalty =
     bound(
       (d.auditByGrade?.[g] || 0) * 4 + ((d.lowMoraleWeeks || 0) >= 2 ? 4 : 0),
       10,
-    ) + gap;
+    ) + gap + Math.max(0, -routeMod.delta);
   const score = bound(
     parts.reduce((sum, [, v]) => sum + v, 0) + bonus - penalty,
     100,
@@ -133,6 +144,7 @@ export function preview(g, xp, title, br, svc, d = dutyState()) {
     vacant,
     ready,
     kind,
+    routeMod,
   };
 }
 export function settle(g, xp, title, br, svc, preferred) {
@@ -295,6 +307,9 @@ export function boardCard(g, xp, title, br, svc, d, experience) {
     g < 9
       ? `<p>경험치 ${experience.toLocaleString()} / ${ECON_RANK_XP[g + 1].toLocaleString()} XP · 평정 ${b.e.n} / ${b.need}회${automaticCaptain(g) ? " · 조건 충족 시 자동진급" : ` · 예상 심사 ${v.score} / ${v.cutoff}점`}</p>`
       : "";
+  const routeNote = v.routeMod?.delta
+    ? `<p>임관 출신 반영 · ${v.routeMod.label} (${v.routeMod.delta > 0 ? `+${v.routeMod.delta}` : `−${Math.abs(v.routeMod.delta)}`}점)</p>`
+    : "";
   return (
     '<section class="mn-card"><b>정기 진급심사위원회</b><p>' +
     (g >= 9
@@ -312,6 +327,7 @@ export function boardCard(g, xp, title, br, svc, d, experience) {
     serviceDuration(rankMonths(g, minWeeks(g))) +
     "</p>" +
     requirements +
+    routeNote +
     (last
       ? "<p>최근 진급 기록 · " +
         (last.automatic ? last.reason : last.score + "점 · " + last.reason) +
