@@ -16,8 +16,8 @@ const won = (n) => {
   return Math.abs(n) >= 10000 ? `${(n / 10000).toFixed(2)}조` : `${Math.round(n).toLocaleString("ko-KR")}억`;
 };
 const US_AREAS_N = { dmz: "동유럽 NATO 전선", west: "대만해협 · 남중국해", east: "북태평양 · 알래스카", kadiz: "북미·태평양 영공 (NORAD)" };
-const US_FLEETS_N = { army1: "미 유럽·육군전력사 (FORSCOM)", f2: "미 제7함대 (INDOPACOM)", f1: "미 태평양함대 (USPACFLT)", air1: "미 태평양공군 (PACAF)" };
-const US_REINF_N = { mob: "항모타격단(CSG)", sub: "버지니아급 SSN", airc: "F-22/B-21 비행단", art: "HIMARS·THAAD" };
+const US_FLEETS_N = { army1: "U.S. Army Forces Command (FORSCOM)", f2: "U.S. 7th Fleet (INDOPACOM)", f1: "U.S. Pacific Fleet (USPACFLT)", air1: "Pacific Air Forces (PACAF)" };
+const US_REINF_N = { mob: "Carrier Strike Group", sub: "Virginia-class SSN", airc: "F-22 / B-21 Wing", art: "HIMARS / THAAD" };
 const US_PROGS_N = { ship: "포드급 항모 · DDG(X) 함대", air: "NGAD 6세대기 · B-21 레이더", kamd: "골든 돔 · THAAD/SM-3 방공", log: "콜럼비아급 SSBN · 글로벌 군수" };
 const US_DOC_N = {
   off: ["글로벌 투사 교리 (Global Strike)", "항모·B-21 선제 타격으로 전구 억제력 극대화"],
@@ -253,7 +253,7 @@ export function minHTML() {
       }).join("")}</div></div>`;
   } else if (tab === "staff") {
     const posts = us
-      ? [["army1", "⛨ 미 육군전력사령관 (FORSCOM)"], ["f2", "⚓ 미 제7함대사령관 (인태)"], ["f1", "⚓ 미 태평양함대사령관 (USPACFLT)"], ["air1", "✈️ 미 태평양공군사령관 (PACAF)"], ["mob", "⚓ 항모타격단장 (CSG 증원)"], ["sub", "⚓ 태평양잠수함사령관 (SUBPAC)"], ["airc", "✈️ 제1전투비행단장 (F-22 증원)"], ["art", "⛨ THAAD 방공여단장 (증원)"]]
+      ? [["army1", "⛨ CG, U.S. Army Forces Command"], ["f2", "⚓ Commander, U.S. 7th Fleet"], ["f1", "⚓ Commander, U.S. Pacific Fleet"], ["air1", "✈️ Commander, Pacific Air Forces"], ["mob", "⚓ Commander, Carrier Strike Group"], ["sub", "⚓ Commander, SUBPAC"], ["airc", "✈️ Commander, 1st Fighter Wing"], ["art", "⛨ Commander, 32nd AAMDC"]]
       : [["army1", "⛨ 지상작전사령관"], ["f2", "⚓ 제2함대사령관 (서해)"], ["f1", "⚓ 제1함대사령관 (동해)"], ["air1", "✈️ 공군작전사령관"], ["mob", "⚓ 기동함대사령관 (증원)"], ["sub", "⚓ 잠수함사령관 (증원)"], ["airc", "✈️ 전투비행단장 (증원)"], ["art", "⛨ 화력여단장 (증원)"]];
     center = `<div class="dm-main"><div class="mn-h">${us ? "미군 통합 전투사령부 인사" : "3군 통합 사령부 인사"} <small>지휘관 능력치가 합동 워룸 위임 승률에 직접 반영됩니다 · 교체 비용 ${won(1200)}</small></div>
       <div class="dm-sgrid">${posts.map(([k, title]) => {
