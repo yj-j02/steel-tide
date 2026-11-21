@@ -2,12 +2,17 @@
 // 정지 이미지 위에 카메라 패닝·줌(컷 전환), 플래시, 자막, 답변 선택지를 얹는다. 이미지 속 인물은 모두 AI로 만든 가상 인물이다.
 /* 정당 색 테마 (blue = 민주함께당, red = 한누리당, null = 무소속/공통) */
 let THEME = null; const THEMED = ["declaration", "primary_hall", "rally", "election_night", "victory", "president_office", "address"];
+const usBackgrounds = { briefing: "press_spokesperson", hearing: "assembly", indopac: "war_room", situation: "nsc", office: "office", ceremony: "ceremony", study: "study", primary: "primary_hall", rally: "rally", convention: "primary_hall", debate: "debate", poll: "poll_booth", election_night: "election_night", victory: "victory", inauguration: "inauguration", president_office: "office", address: "press_spokesperson", summit: "summit" };
+THEMED.push(...["primary","rally","convention","election_night","victory","address","president_office"].map(n => "us_" + n));
+/* Add delivered US artwork here to enable it ahead of the fallback. */
+const availableUS = new Set();
 export const setTheme = (t) => { THEME = t || null; };
 const IMG = (n) => `img/bg/${THEMED.includes(n) && THEME ? `${n}_${THEME}` : n}.jpg`;
 /* 아직 없는 배경은 비슷한 기존 사진으로 대신한다 */
-const FB = { declaration: "press_minister", election_night: "nsc", victory: "press_minister", rally: "ceremony", primary_hall: "press_minister", debate: "press_minister", primary_hall: "press_minister", poll_booth: "office", camp_room: "war_room", election_night: "nsc", victory: "press_minister", inauguration: "ceremony", study: "office", rally: "ceremony", summit: "nsc", president_office: "office", address: "press_minister" };
+const FB = { declaration: "press_minister", election_night: "nsc", victory: "press_minister", rally: "ceremony", primary_hall: "press_minister", debate: "press_minister", poll_booth: "office", camp_room: "war_room", inauguration: "ceremony", study: "office", summit: "nsc", president_office: "office", address: "press_minister" };
+for (const [id, fallback] of Object.entries(usBackgrounds)) FB["us_" + id] = fallback;
 /* 테마 이미지 우선 로드 후 실패 시 대체 사진(FB) 사용 */
-const load = (img, n, go) => { const tries = [n, FB[n]].filter(Boolean); let i = 0;
+const load = (img, n, go) => { const tries = (n.startsWith("us_") && !availableUS.has(n) ? [FB[n]] : [n, FB[n]]).filter(Boolean); let i = 0;
   img.onload = go; img.onerror = () => { i++; if (i < tries.length) img.src = IMG(tries[i]); else go(); }; img.src = IMG(tries[0]); };
 /* 컷: [이미지, 초점 x, 초점 y (0~1), 확대 배율] */
 const SHOTS = {
@@ -19,8 +24,11 @@ const SHOTS = {
   summit: { wide: ["summit", 0.5, 0.5, 1.06], ask: ["summit", 0.75, 0.55, 1.6], askAlt: ["summit", 0.7, 0.5, 1.6], ans: ["summit", 0.3, 0.55, 1.6], end: ["summit", 0.5, 0.5, 1.1] },
   nsc: { wide: ["nsc", 0.5, 0.5, 1.06], ask: ["nsc", 0.8, 0.5, 1.75], askAlt: ["nsc", 0.62, 0.7, 1.7], ans: ["nsc", 0.42, 0.6, 1.7], end: ["nsc", 0.62, 0.32, 1.5] },
 };
-const PLACE = { declare: "출마 선언 기자회견", declare: "출마 선언 기자회견", summit: "정상회담", debate: "TV 토론", primary: "당내 경선", press: "국방부 브리핑룸 · 정례 기자회견", assembly: "국회 국방위원회 · 현안 질의", nsc: "국가안전보장회의 · 긴급 소집" };
-const END = { declare: ["사회자", "이상으로 출마 선언 기자회견을 마치겠습니다."], declare: ["사회자", "출마 선언 기자회견을 마치겠습니다."], summit: ["의전비서관", "회담을 마치고 공동 기자회견을 시작하겠습니다."], debate: ["사회자", "이상으로 오늘 토론을 마치겠습니다."], primary: ["사회자", "합동 토론회를 마칩니다."], press: ["대변인", "이상으로 오늘 브리핑을 마치겠습니다."], assembly: ["위원장", "답변 잘 들었습니다. 다음 안건으로 넘어가겠습니다."], nsc: ["안보실장", "결정 사항을 각 군에 하달하겠습니다."] };
+for (const [id, original] of Object.entries({ hearing: "assembly", debate: "debate", briefing: "press", situation: "nsc", summit: "summit" })) {
+  SHOTS["us_" + id] = Object.fromEntries(Object.entries(SHOTS[original]).map(([key, [, ...focus]]) => [key, ["us_" + id, ...focus]]));
+}
+const PLACE = { declare: "출마 선언 기자회견", summit: "정상회담", debate: "TV 토론", primary: "당내 경선", press: "국방부 브리핑룸 · 정례 기자회견", assembly: "국회 국방위원회 · 현안 질의", nsc: "국가안전보장회의 · 긴급 소집" };
+const END = { declare: ["사회자", "출마 선언 기자회견을 마치겠습니다."], summit: ["의전비서관", "회담을 마치고 공동 기자회견을 시작하겠습니다."], debate: ["사회자", "이상으로 오늘 토론을 마치겠습니다."], primary: ["사회자", "합동 토론회를 마칩니다."], press: ["대변인", "이상으로 오늘 브리핑을 마치겠습니다."], assembly: ["위원장", "답변 잘 들었습니다. 다음 안건으로 넘어가겠습니다."], nsc: ["안보실장", "결정 사항을 각 군에 하달하겠습니다."] };
 let R = null;
 
 /** 나레이션 장면: cuts = [{ img, f: [x, y, 배율], who, text, card?, flash? }] 순서대로 재생 후 닫힘 */
@@ -28,7 +36,7 @@ export function playCuts({ title = "", place = "", cuts = [], onClose }) {
   closeScene();
   const el = document.createElement("div"); el.id = "scene2d"; el.className = "cuts";
   el.innerHTML = `<div class="sv"><div class="ly"></div><div class="ly"></div></div><div class="fl"></div><div class="vg"></div><div class="s3-bar t"></div><div class="s3-bar b"></div>
-    <div class="s3-title"><span>${place}</span><b>${title}</b></div><div class="s3-card"></div><div class="s3-sub"></div><button class="s3-skip">건너뛰기 ✕</button><button class="s3-next">다음 ›</button>`;
+    <div class="s3-title"><span>${place}</span><b>${title}</b></div><div class="s3-card"></div><div class="s3-sub"></div><button class="s3-skip">${document.documentElement.lang === "en" ? "Skip" : "건너뛰기"} ✕</button><button class="s3-next">${document.documentElement.lang === "en" ? "Next" : "다음"} ›</button>`;
   document.body.appendChild(el);
   const S = (R = { el, onClose, qi: 0, timers: [], cur: 0, typer: 0, skipped: false });
   const L = [...el.querySelectorAll(".ly")], sub = el.querySelector(".s3-sub"), card = el.querySelector(".s3-card"), fl = el.querySelector(".fl"), nb = el.querySelector(".s3-next");
@@ -56,7 +64,7 @@ export function openScene({ kind = "press", title = "", questions = [], onPick, 
   const K = SHOTS[kind] ? kind : "press", Sh = SHOTS[K];
   const el = document.createElement("div"); el.id = "scene2d"; el.className = K;
   el.innerHTML = `<div class="sv"><div class="ly"></div><div class="ly"></div></div><div class="fl"></div><div class="vg"></div><div class="s3-bar t"></div><div class="s3-bar b"></div>
-    <div class="s3-title"><span>${place || PLACE[K]}</span><b>${title}</b></div><div class="s3-sub"></div><div class="s3-opts"></div><button class="s3-skip">건너뛰기 ✕</button>`;
+    <div class="s3-title"><span>${place || PLACE[K]}</span><b>${title}</b></div><div class="s3-sub"></div><div class="s3-opts"></div><button class="s3-skip">${document.documentElement.lang === "en" ? "Skip" : "건너뛰기"} ✕</button>`;
   document.body.appendChild(el);
   const S = (R = { el, onClose, qi: 0, timers: [], cur: 0, typer: 0, skipped: false });
   const L = [...el.querySelectorAll(".ly")], sub = el.querySelector(".s3-sub"), box = el.querySelector(".s3-opts"), fl = el.querySelector(".fl");
@@ -82,7 +90,7 @@ export function openScene({ kind = "press", title = "", questions = [], onPick, 
   const answer = (ai) => { const o = questions[S.qi].opts[ai]; box.className = "s3-opts"; box.innerHTML = ""; shot(Sh.ans); if (K === "press") flash(4);
     onPick?.(S.qi, ai);
     later(() => say(speaker, o[2] || `${o[0]}. 정부는 이 방침에 따라 책임 있게 대응하겠습니다.`, "a", () => later(() => { S.qi++; if (S.qi < questions.length) { shot(Sh.wide, false); later(ask, 1300); } else finish(); }, 1700)), 500); };
-  const finish = () => { shot(Sh.end, false); const [w, t] = END[K]; later(() => say(w, t, "", () => later(() => closeScene(true), 1300)), 700); };
+  const finish = () => { shot(Sh.end, false); const [w, t] = K.startsWith("us_") ? ["Chair", "The session is adjourned."] : END[K]; later(() => say(w, t, "", () => later(() => closeScene(true), 1300)), 700); };
   box.addEventListener("click", (e) => { const b = e.target.closest("[data-a]"); if (b && box.classList.contains("on")) answer(+b.dataset.a); });
   el.querySelector(".s3-skip").addEventListener("click", () => { if (S.qi < questions.length) S.skipped = true; closeScene(true); });
   S.resize = () => { const img = L[S.cur].querySelector("img"); if (img) img.style.transition = "none"; };

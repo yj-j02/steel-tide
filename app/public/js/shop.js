@@ -95,4 +95,4 @@ function econApply(p, a) {
   return q;
 }
 
-export { ECON_SHIPS, ECON_RANKS, ECON_RANK_XP, econRank, ECON_PARTS, ECON_MAX_LV, econPartCost, econNewProfile, econProfile, econReward, econCheck, econApply };
+export { econIsAdminCode, ECON_SHIPS, ECON_RANKS, ECON_RANK_XP, econRank, ECON_PARTS, ECON_MAX_LV, econPartCost, econNewProfile, econProfile, econReward, econCheck, econApply };

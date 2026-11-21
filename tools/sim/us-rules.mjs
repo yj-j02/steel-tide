@@ -1,0 +1,47 @@
+import assert from "node:assert/strict";
+import { chamberVote } from "../../app/public/js/career-rules.js";
+import { newCareer, decide, election, choices } from "../../app/public/js/us-career.js";
+import { electors } from "../../app/public/js/content/us.js";
+
+assert.equal(chamberVote(100,59,60).ok,false);
+assert.equal(chamberVote(100,60,60).ok,true);
+assert.equal(chamberVote(435,289,290).ok,false);
+const state = phase => ({...newCareer(), phase});
+const failed = state("waiver");
+decide(failed,0,()=>0);
+assert.ok(failed.waiverDenied);
+decide(failed,0);
+assert.equal(failed.phase,"hearing");
+const run = state("campaign");
+run.score = 5;
+run.polls = Object.fromEntries(Object.keys(electors).map(k=>[k,0]));
+let rolls = [.5,0,.999,0,.999,0];
+const results = election(run,()=>rolls.shift() ?? .5);
+assert.equal(results.ME,3);
+assert.equal(results.NE,3);
+assert.ok(Object.entries(results).every(([k,v])=>v>=0 && v<=electors[k]));
+const tied = state("night");
+tied.results = {total:269};
+decide(tied,0);
+assert.equal(tied.phase,"contingent");
+decide(tied,0,()=>.1);
+assert.equal(tied.term,1);
+for(const [house,senate,pass] of [[300,70,true],[300,65,false],[285,70,false]]) {
+ const s=state("bill");s.votes=[house,senate];decide(s,1,()=>.36);assert.equal(s.laws,Number(pass));
+}
+const removed=Object.assign(state("crisis"),{quarter:3,house:180,senate:33,trust:20});
+decide(removed,1);
+assert.equal(removed.phase,"trial");
+decide(removed,0,()=>0);
+assert.equal(removed.phase,"end");
+const mid=Object.assign(state("bill"),{quarter:8,term:1,trust:70,votes:[250,62]});
+decide(mid,0,()=>.5);
+assert.equal(mid.phase,"summit");
+decide(mid,0,()=>.5);
+assert.equal(mid.quarter,9);
+assert.ok(mid.log.some(line=>line.includes("Midterms")));
+const final=Object.assign(state("summit"),{quarter:16,term:2});
+decide(final,0);
+assert.equal(final.phase,"end");
+assert.equal(choices(final).length,0);
+console.log("Waiver, district electors, contingent election, cloture, veto, removal, midterms and term limit passed.");
