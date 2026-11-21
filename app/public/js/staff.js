@@ -91,7 +91,7 @@ export const serviceOf = (b = staff.branch) => { const br = BRANCHES[normBranch(
 const KEY_POSTS = new Set(["보병대대장", "공병대대장", "공병단장", "K2 전차대대장", "K9 포병대대장", "특전여단장", "기갑여단장", "화력여단장", "보병사단장", "수도방위사령관", "군단장", "지상작전사령관", "제2작전사령관", "육군참모차장",
   "구축함 함장", "214급 잠수함장", "안창호급 잠수함장", "구축함전대장", "해상전투단장", "잠수함전단장", "제2함대사령관", "잠수함사령관", "해군작전사령관", "해군참모차장",
   "F-35A 비행대대장", "패트리어트 대대장", "항공작전전대장", "전투비행단장", "공중전투사령관", "미사일방어사령관", "공군작전사령관", "공군참모차장",
-  "방위사업청 사업담당", "전력기획처장", "국방부 정책기획과장", "국방정책실 국장", "NSC 안보비서관", "국방정보본부장", "합동참모차장", "합참 전략기획본부장", "합참 군사지원본부장", "한미연합사 부사령관",
+  "방위사업청 사업담당", "전력기획처장", "국방부 정책기획과장", "합참 전략기획과장", "국방정책실 국장", "NSC 안보비서관", "국방정보본부장", "합동참모차장", "합참 전략기획본부장", "합참 군사지원본부장", "한미연합사 부사령관",
   "Infantry Battalion Commander", "Combined Arms Bn Commander", "Brigade Combat Team Commander", "CG, 82nd Airborne Division", "CG, 1st Armored Division", "CG, XVIII Airborne Corps", "Deputy CG, FORSCOM", "CG, U.S. Army Forces Command", "Vice Chief of Staff of the Army",
   "CO, Arleigh Burke-class DDG", "CO, Virginia-class SSN", "CO, Ohio-class SSBN", "Commander, Carrier Strike Group", "Commander, U.S. 7th Fleet", "Commander, U.S. 3rd Fleet", "Deputy CNO (Operations)", "Commander, U.S. Pacific Fleet", "Commander, USINDOPACOM",
   "Commander, F-35A Fighter Sq", "Commander, 1st Fighter Wing", "Commander, 7th Air Force", "Commander, 11th Air Force", "Deputy CSAF (Operations)", "Commander, Pacific Air Forces", "Commander, Air Combat Command", "Vice Chairman, Joint Chiefs (VCJCS)", "NSC Military Advisor"]);
@@ -152,8 +152,8 @@ export const holds = () => false; /* your own staff is always a smaller unit's j
 const KEY = "steeltide:staff";
 export const staff = (() => {
   let s = null; try { s = JSON.parse(careerStorage.getItem(KEY) || "null"); } catch {}
-  if (!s || !s.a) s = { a: {}, x: {} };
-  s.byE ||= {};
+  if (!s || typeof s !== "object") s = { a: {}, x: {} };
+  s.a ||= {}; s.x ||= {}; s.byE ||= {};
   return s;
 })();
 export const saveStaff = () => { try { careerStorage.setItem(KEY, JSON.stringify(staff)); } catch {} };

@@ -29,8 +29,18 @@ export function hint(title) {
     back: "지원·교육 경험을 쌓는 자리입니다.",
   }[postTier(title)];
 }
-export const automaticCaptain = (grade) => grade === 1;
-const boardCutoffs = [55, 0, 73, 75, 77, 80, 82, 84, 86];
+export const automaticCaptain = (grade) => grade <= 1;
+const boardCutoffs = [0, 0, 69, 71, 73, 74, 75, 77, 79];
+
+/** Korean commissioning-source promotion modifier (g >= 2): 사관학교 우대, 3사·학사 난이도 상향. */
+export function commissionMod(g) {
+  if (isUS() || g < 2) return { delta: 0, label: "" };
+  const id = career.serviceContract?.id;
+  if (id === "academy" || id === "aviationAcademy") return { delta: g >= 5 ? 5 : 3, label: "사관학교 출신" };
+  if (id === "army3") return { delta: g >= 5 ? -5 : -3, label: "3사 출신" };
+  if (id === "short" || id === "aviationOther") return { delta: g >= 5 ? -7 : -5, label: "학사·후보생 출신" };
+  return { delta: 0, label: "" };
+}
 
 export function preview(g, xp, title, br, svc, d = dutyState()) {
   const b = board(g, xp),
@@ -69,21 +79,22 @@ export function preview(g, xp, title, br, svc, d = dutyState()) {
     [
       "전공·훈장",
       bound(
-        (career.crisisWins?.[g] || 0) * (senior ? 4 : 5) +
-          Math.min(Object.keys(career.medals || {}).length * 2, senior ? 4 : 15),
+        ((career.crisisWins?.[g] || 0) + (g >= 6 ? (career.warHero || 0) : 0)) * (senior ? 4 : 5) +
+          Math.min(Object.keys(career.medals || {}).length * (senior ? 1 : 2), senior ? 6 : 15),
         partMax[3],
       ),
     ],
   ];
   const moraleBonus =
     senior ? Math.round(bound(((d.morale ?? 70) - 70) / 15, 2)) : 0;
+  const routeMod = commissionMod(g);
   const bonus =
-    (cmd && joint ? 5 : 0) + (tours.edu && g >= 3 ? (g >= 5 ? 6 : 3) : 0) + moraleBonus;
+    (cmd && joint ? 5 : 0) + (tours.edu && g >= 3 ? (g >= 5 ? 6 : 3) : 0) + moraleBonus + Math.max(0, routeMod.delta);
   const penalty =
     bound(
       (d.auditByGrade?.[g] || 0) * 4 + ((d.lowMoraleWeeks || 0) >= 2 ? 4 : 0),
       10,
-    ) + gap;
+    ) + gap + Math.max(0, -routeMod.delta);
   const score = bound(
     parts.reduce((sum, [, v]) => sum + v, 0) + bonus - penalty,
     100,
@@ -133,6 +144,7 @@ export function preview(g, xp, title, br, svc, d = dutyState()) {
     vacant,
     ready,
     kind,
+    routeMod,
   };
 }
 export function settle(g, xp, title, br, svc, preferred) {
@@ -151,7 +163,7 @@ export function settle(g, xp, title, br, svc, preferred) {
     passed = selected.some((r) => r.index === -1);
   const reason = passed
     ? automaticCaptain(g)
-      ? "대위 자동진급"
+      ? (g === 0 ? "중위 자동진급" : "대위 자동진급")
       : "진급 선발"
     : v.score < v.cutoff
       ? "기준 미달 · " +
@@ -239,7 +251,7 @@ export function interact(id, g) {
   } else if (
     id === "study" &&
     g >= 3 &&
-    g <= 5 &&
+    g <= 6 &&
     !career.tours?.edu &&
     !d.study &&
     d.doneWeek
@@ -295,6 +307,9 @@ export function boardCard(g, xp, title, br, svc, d, experience) {
     g < 9
       ? `<p>경험치 ${experience.toLocaleString()} / ${ECON_RANK_XP[g + 1].toLocaleString()} XP · 평정 ${b.e.n} / ${b.need}회${automaticCaptain(g) ? " · 조건 충족 시 자동진급" : ` · 예상 심사 ${v.score} / ${v.cutoff}점`}</p>`
       : "";
+  const routeNote = v.routeMod?.delta
+    ? `<p>임관 출신 반영 · ${v.routeMod.label} (${v.routeMod.delta > 0 ? `+${v.routeMod.delta}` : `−${Math.abs(v.routeMod.delta)}`}점)</p>`
+    : "";
   return (
     '<section class="mn-card"><b>정기 진급심사위원회</b><p>' +
     (g >= 9
@@ -312,6 +327,7 @@ export function boardCard(g, xp, title, br, svc, d, experience) {
     serviceDuration(rankMonths(g, minWeeks(g))) +
     "</p>" +
     requirements +
+    routeNote +
     (last
       ? "<p>최근 진급 기록 · " +
         (last.automatic ? last.reason : last.score + "점 · " + last.reason) +
@@ -322,13 +338,13 @@ export function boardCard(g, xp, title, br, svc, d, experience) {
       : "") +
     (d.study
       ? "<p>고등군사교육 · 남은 세미나 " + d.study + "회</p>"
-      : g >= 3 && g <= 5 && d.doneWeek && !career.tours?.edu
+      : g >= 3 && g <= 6 && d.doneWeek && !career.tours?.edu
         ? '<button data-duty="study">' +
           (isUS()
-            ? g === 5
+            ? g >= 5
               ? "미 국방대학"
               : "미 지휘참모대학"
-            : g === 5
+            : g >= 5
               ? "국방대학교"
               : "합동군사대학교") +
           " 2회 과정 파견</button>"

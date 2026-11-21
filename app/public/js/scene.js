@@ -5,7 +5,7 @@ let THEME = null; const THEMED = ["declaration", "primary_hall", "rally", "elect
 const usBackgrounds = { briefing: "us_press_spokesperson", hearing: "us_capitol_hearing", indopac: "us_war_room", situation: "us_war_room", office: "us_pentagon_office", ceremony: "us_ceremony", study: "us_pentagon_office", primary: "primary_hall", rally: "rally", convention: "primary_hall", debate: "debate", poll: "poll_booth", election_night: "election_night", victory: "victory", inauguration: "us_ceremony", president_office: "us_oval_office", address: "us_press_secdef", summit: "summit" };
 THEMED.push(...["primary","rally","convention","election_night","victory","address","president_office"].map(n => "us_" + n));
 /* Add delivered US artwork here to enable it ahead of the fallback. */
-const availableUS = new Set(["us_rally", "us_war_room", "us_pentagon_office", "us_oval_office", "us_capitol_hearing", "us_press_secdef", "us_press_corps", "us_press_spokesperson", "us_ceremony"]);
+const availableUS = new Set(["us_rally", "us_inauguration", "us_war_room", "us_pentagon_office", "us_oval_office", "us_capitol_hearing", "us_press_secdef", "us_press_corps", "us_press_spokesperson", "us_ceremony"]);
 export const setTheme = (t) => { THEME = t || null; };
 const US_SWAP = { war_room: "us_war_room", nsc: "us_war_room", office: "us_pentagon_office", assembly: "us_capitol_hearing", president_office: "us_oval_office", press_minister: "us_press_secdef", press_journalist: "us_press_corps", press_spokesperson: "us_press_spokesperson", ceremony: "us_ceremony" };
 const IMG = (n) => {

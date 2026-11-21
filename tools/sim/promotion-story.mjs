@@ -147,7 +147,7 @@ localStorage.setItem("steeltide:uspres", JSON.stringify(savedElection));
 const victory = usPresClick("c:0");
 assert.equal(victory.inaugurated, false);
 assert.match(victory.cuts[1].card, /당선 확정.*538 \/ 538/);
-assert.deepEqual(usPresClick("replay").cuts, victory.cuts);
+assert.deepEqual(usPresClick("replay-election").cuts, victory.cuts);
 assert.equal(usPresState().phase, "inauguration");
 assert.equal(usPresOffice(usPresState()).title, "미국 대통령 당선인");
 assert.doesNotMatch(usPresHTML(), /us_potus_mark/);
@@ -160,10 +160,10 @@ for (let i = 0; i < 160 && usPresState().phase !== "end"; i++) {
 }
 assert.equal(usPresState().phase, "end");
 assert.equal(usPresOffice(usPresState()).title, "전직 미국 대통령");
-assert.deepEqual(usPresClick("replay").cuts, victory.cuts);
+assert.deepEqual(usPresClick("replay-election").cuts, victory.cuts);
 const defeat = usPresAdmin("loss");
 assert.match(defeat.cuts[1].card, /낙선.*0 \/ 538/);
-assert.deepEqual(usPresClick("replay").cuts, defeat.cuts);
+assert.deepEqual(usPresClick("replay-election").cuts, defeat.cuts);
 
 console.log(
   "Board seasons, repeated non-selection, vacancies, education, campaign, presidential term passed.",
@@ -207,11 +207,11 @@ for (const nation of ["kr", "us"]) {
   );
   assert.equal(career.cap, 2);
   assert.equal(settle(1, 2, "시설복구장교", "eng", "army"), null);
-  fixture(2, 35, 75);
+  fixture(2, 35, 68);
   career.medals = { commend: true, service: true, chungmu: true };
   saveDuty({ ...dutyState(), morale:100, rep:100 });
   const routine = preview(...args(2));
-  assert.equal(routine.cutoff, 73);
+  assert.equal(routine.cutoff, 69);
   assert.ok(routine.score < routine.cutoff);
   assert.equal(settle(...args(2)).passed, false);
   fixture(2, 35, 85);

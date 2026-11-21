@@ -8,6 +8,8 @@ import { recordEval, evalOf, board, FOCUS, letter, addRankWeek, weeksOf, minWeek
 import { career, saveCareer, awardMedals } from "./career.js";
 import { ngBonuses } from "./endings.js";
 import { bossMod, RIVAL_EVENTS, allyBonus } from "./relations.js";
+import { currentRankArc } from "./rank-arcs.js";
+import { warroomById, pickWarroom } from "./warroom.js";
 
 export const STANCES = {
   hard: { n: "🔥 실전 강훈", d: "XP +15% · 평정 +3 / 매 안건 사기 −4 · 차질 위험↑" },
@@ -362,7 +364,105 @@ function drawEvents(d, svc, grade) {
     const ev = RIVAL_EVENTS[Math.floor(d.week / 4) % RIVAL_EVENTS.length];
     d.rivalEvent = { evId: ev.id, ri };
   }
+  if (grade >= 6 && d.week >= 3 && d.week % 5 === 0 && !d.warroom && d.warroomWeek !== d.week) {
+    const wrs = pickWarroom(d.week);
+    if (wrs) d.warroom = { id: wrs.id, stage: 0, score: 0 };
+  }
   saveDuty(d);
+}
+
+export function resolveWarroom(choiceIdx, grade) {
+  const d = dutyState();
+  if (!d.warroom) return null;
+  const scObj = warroomById(d.warroom.id);
+  const stg = scObj?.stages?.[d.warroom.stage];
+  const opt = stg?.opts?.[choiceIdx];
+  if (!scObj || !stg || !opt) return null;
+  d.warroom.score += opt.pts;
+  d.morale = clamp(d.morale + opt.mor, 10, 100);
+  d.rep = clamp(d.rep + opt.rep, 0, 100);
+  d.tension = clamp(d.tension + opt.ten, 5, 95);
+  d.warroom.stage++;
+  if (d.warroom.stage < scObj.stages.length) {
+    d.last = `[워룸 ${d.warroom.stage}/${scObj.stages.length}단계] ${opt.l} (누적 통제력 ${d.warroom.score}점)`;
+    saveDuty(d);
+    return { done: false, xpGain: 0, msg: `워룸 ${d.warroom.stage}단계 결단 완료 — 누적 통제력 ${d.warroom.score}점` };
+  }
+  const total = d.warroom.score, ng = ngBonuses();
+  let evalSc = 58, xpGain = Math.round(260 * ng.xpMult), gradeTxt = "대응 차질", hl = `[워룸 결산] ${scObj.tag} — 대응 차질 (통제력 ${total}점)`;
+  if (total >= 250) {
+    evalSc = 95; xpGain = Math.round(900 * ng.xpMult); gradeTxt = "🏆 완벽 제압 (원수 특별진급 공적 +1)";
+    d.rep = clamp(d.rep + 6, 0, 100); d.morale = clamp(d.morale + 5, 10, 100); d.tension = clamp(d.tension - 8, 5, 95);
+    career.marshalWins = (career.marshalWins || 0) + 1;
+    career.warHero = (career.warHero || 0) + 1;
+    (career.crisisWins ??= {})[grade] = (career.crisisWins[grade] || 0) + 1;
+    saveCareer();
+    hl = `[워룸 대승] ${scObj.tag} 완벽 제압! (통제력 ${total}점 · 원수 특별진급 공적 획득)`;
+  } else if (total >= 180) {
+    evalSc = 84; xpGain = Math.round(550 * ng.xpMult); gradeTxt = "✅ 위기 안정화";
+    d.rep = clamp(d.rep + 3, 0, 100); d.tension = clamp(d.tension - 5, 5, 95);
+    hl = `[워룸 결산] ${scObj.tag} 안정화 성공 (통제력 ${total}점)`;
+  } else {
+    d.rep = clamp(d.rep - 4, 0, 100); d.tension = clamp(d.tension + 4, 5, 95);
+  }
+  d.headlines.unshift(`${careerDate(d.week)} · ${hl}`);
+  d.headlines = d.headlines.slice(0, 12);
+  (d.timeline ??= []).push({
+    id: `${d.week}:wr:${scObj.id}`,
+    turn: d.week,
+    date: careerDate(d.week),
+    title: scObj.tag,
+    choice: `${gradeTxt} (통제력 ${total}점)`,
+    outcome: hl,
+    score: evalSc,
+  });
+  d.last = `${scObj.tag} → ${gradeTxt} (평정 ${letter(evalSc)} · +${xpGain} XP)`;
+  d.warroom = null;
+  d.warroomWeek = d.week;
+  recordEval(grade, evalSc);
+  if (evalSc >= 70) { career.goodEvals = (career.goodEvals || 0) + 1; saveCareer(); }
+  awardMedals({ won: total >= 180, crisis: true, source: scObj.tag, turn: d.week, score: evalSc, morale: d.morale, goodEvals: career.goodEvals || 0, grade });
+  saveDuty(d);
+  return { done: true, xpGain, score: evalSc, total, msg: `${scObj.tag} 종료 — ${gradeTxt} (+${xpGain} XP)` };
+}
+
+export function activeRankArc(d, grade) {
+  if (!d || d.arcWeek === d.week) return null;
+  return currentRankArc(d, grade);
+}
+
+export function resolveRankArc(choiceIdx, grade) {
+  const d = dutyState();
+  const arc = activeRankArc(d, grade);
+  if (!arc) return null;
+  const opt = arc.ep.opts[choiceIdx];
+  if (!opt) return null;
+  const ng = ngBonuses();
+  const carryPts = arc.carryover?.pts || 0;
+  const sc = clamp(opt.sc + carryPts, 40, 99);
+  const completed = arc.step === arc.total - 1;
+  const xpGain = Math.round((opt.xp + (completed ? 300 : 0)) * ng.xpMult);
+  d.morale = clamp(d.morale + opt.mor, 10, 100);
+  d.rep = clamp(d.rep + opt.rep + (completed ? 3 : 0), 0, 100);
+  (d.arcChoices ??= {})[grade] = [...(d.arcChoices[grade] || []), choiceIdx];
+  d.arcWeek = d.week;
+  d.headlines.unshift(`${careerDate(d.week)} · ${opt.hl}`);
+  d.headlines = d.headlines.slice(0, 12);
+  (d.timeline ??= []).push({
+    id: `${d.week}:arc:${grade}:${arc.step}`,
+    turn: d.week,
+    date: careerDate(d.week),
+    title: `[${arc.tag}] ${arc.ep.title}`,
+    choice: opt.l,
+    outcome: opt.hl,
+    score: sc,
+  });
+  d.last = `${arc.ep.title} → ${opt.l} (평정 ${letter(sc)} · ${sc}점 · +${xpGain} XP${completed ? " · 아크 완결 보너스!" : ""})`;
+  recordEval(grade, sc);
+  if (sc >= 70) { career.goodEvals = (career.goodEvals || 0) + 1; saveCareer(); }
+  awardMedals({ source: arc.ep.title, turn: d.week, score: sc, morale: d.morale, goodEvals: career.goodEvals || 0, grade });
+  saveDuty(d);
+  return { xpGain, score: sc, completed, msg: `${arc.ep.title} 완료 — 평정 ${letter(sc)}(${sc}점) · +${xpGain} XP${completed ? " · 🏆 시그니처 아크 완결!" : ""}` };
 }
 
 export function resolveRivalEvent(choiceIdx) {
@@ -476,12 +576,20 @@ export function rivalEligible(rival, week) {
   return week - (rival.rankSinceWeek ?? (rival.g === 0 ? 1 : week)) >= minWeeks(rival.g);
 }
 
-/** Advance rival classmates alongside player progress so they stay neck-and-neck (playerGrade - 1 to +1). */
+/** Advance rival classmates flexibly: can pull 1-2 ranks ahead or fall 1-3 ranks behind organically. */
 function tickRivals(d, playerGrade, svc = "navy", playerPost = "") {
   if (!d.rivals) return;
+  const maxG = playerGrade === 0 ? 0 : Math.min(9, playerGrade + 2);
   const promoted = [];
   d.rivals.forEach((r, ri) => {
-    if (r.g >= playerGrade || r.g >= 9 || !rivalEligible(r, d.week)) return;
+    if (r.g >= maxG || r.g >= 9 || !rivalEligible(r, d.week)) return;
+    const elite = r.style === "야전 엘리트";
+    const diff = r.g - playerGrade;
+    const prob = diff <= -2 ? (elite ? 0.65 : 0.45)
+      : diff === -1 ? (elite ? 0.60 : 0.40)
+      : diff === 0 ? (elite ? 0.36 : 0.20)
+      : (elite ? 0.18 : 0.08);
+    if (Math.random() >= prob) return;
     const prevG = r.g;
     r.g++;
     r.rankSinceWeek = d.week;

@@ -1082,6 +1082,32 @@ body.us-nat .th-face.on { border-color:#6cb6f5; }
 .rec-tab.on { background:rgba(242,202,92,.2); border-color:#f2ca5c; color:#fff4d0; }
 body.us-nat .rec-tab.on { background:rgba(93,168,232,.22); border-color:#6cb6f5; color:#eaf5ff; }
 #topbar .logo { cursor:pointer; }
+/* Realistic US 538 Electoral Map & White House Global Situation Room */
+.us-ec-wrap { margin-bottom:10px; }
+.us-ec-nums { display:flex; justify-content:space-between; font:700 11.5px "Noto Sans KR",sans-serif; margin-bottom:4px; }
+.us-ec-bar { position:relative; display:flex; height:12px; border-radius:6px; overflow:hidden; background:#142030; border:1px solid rgba(255,255,255,.16); }
+.us-ec-bar i { display:block; height:100%; transition:width .35s ease; }
+.us-ec-270 { position:absolute; left:50.18%; top:-2px; bottom:-2px; width:2px; background:#fff; box-shadow:0 0 8px #ffd166; }
+.us-tiles { display:grid; grid-template-columns:repeat(11, minmax(0, 1fr)); gap:3px; }
+.us-st { border:1px solid rgba(255,255,255,.18); border-radius:4px; padding:4px 2px; color:#fff; cursor:pointer; display:flex; flex-direction:column; align-items:center; justify-content:center; line-height:1.1; transition:transform .12s,box-shadow .12s; }
+.us-st b { font-size:10px; font-weight:700; letter-spacing:.02em; }
+.us-st small { font-size:9px; opacity:.88; }
+.us-st:hover:not(:disabled) { transform:scale(1.1); z-index:2; box-shadow:0 0 10px rgba(255,255,255,.45); }
+.us-st.on { outline:2px solid #fff; box-shadow:0 0 12px #ffd166; z-index:3; }
+.us-st.swing { box-shadow:inset 0 0 0 1px rgba(255,215,100,.6); }
+.us-swing-bar { display:flex; flex-wrap:wrap; align-items:center; gap:5px; margin-top:8px; }
+.us-swing-bar small { color:#ffd166; font-weight:700; font-size:11px; }
+.us-swing-bar button { padding:3px 7px; border-radius:5px; border:1px solid rgba(242,202,92,.45); background:rgba(184,135,36,.22); color:#fff3cf; font:700 10.5px "Noto Sans KR",sans-serif; cursor:pointer; }
+.us-swing-bar button.on { background:#e2b646; color:#141108; }
+.us-ec-leg { display:flex; gap:12px; justify-content:flex-end; margin-top:6px; font-size:10.5px; color:#9eb8ca; }
+.us-ec-leg i { display:inline-block; width:10px; height:10px; border-radius:2px; margin-right:4px; vertical-align:middle; }
+.wh-world { position:relative; width:100%; border-radius:8px; overflow:hidden; border:1px solid rgba(93,168,232,.32); background:#091320; }
+.wh-svg { display:block; width:100%; height:auto; }
+.wh-pin { position:absolute; transform:translate(-50%,-50%); padding:4px 7px; border-radius:7px; border:1px solid #5da8e8; background:rgba(10,20,34,.88); color:#fff; cursor:pointer; text-align:center; line-height:1.15; transition:transform .12s,background .12s; white-space:nowrap; }
+.wh-pin span { font-size:13px; margin-right:3px; }
+.wh-pin b { font-size:10.5px; font-weight:700; }
+.wh-pin em { display:block; font-style:normal; font-size:9.5px; font-weight:700; }
+.wh-pin:hover, .wh-pin.on { transform:translate(-50%,-50%) scale(1.08); background:rgba(24,56,92,.96); box-shadow:0 0 12px rgba(93,168,232,.55); z-index:3; }
 .nat-sw button:hover { color:#fff; background:rgba(255,255,255,.06); }
 .nat-sw button.on { background:rgba(242,202,92,.22); color:#ffe79e; box-shadow:inset 0 0 0 1px rgba(242,202,92,.55); }
 .us-tiles { display:grid; grid-template-columns:repeat(11,minmax(0,1fr)); gap:3px; margin-top:6px; }
