@@ -1,3 +1,4 @@
+import { remember, followUp, quarterBrief } from "./policy-memory.js";
 import { representativeDecision } from "./career-timeline.js";
 import { dutyState } from "./duty.js";
 import { careerStorage } from "./characters.js";
@@ -165,8 +166,10 @@ export function usPresHTML() {
   const bgStyle = `background:linear-gradient(rgba(10,16,24,.72),rgba(8,12,18,.88)),url(${bgImg}) center/cover`;
 
   const office = usPresOffice(s);
+  const quarterIndex = (s.term - 1) * 16 + s.quarter;
   return `<div class="mn dm-shell" style="${bgStyle}">
     ${progress}
+    ${inWH ? quarterBrief(s,quarterIndex,"백악관 비서실장") : ""}
     <div class="mn-top dm-top">
       <div class="mt">${office?.mark ? `<img class="us-president-mark" src="${office.mark}" alt="미국 대통령 표장">` : ""}<span>직책</span><b>${esc(s.phase === "end" ? (s.term ? "전직 미국 대통령" : "전직 후보") : s.phase === "inauguration" ? "미국 대통령 당선인" : s.term ? "미국 대통령" : s.phase === "prologue" ? "전직 공직자" : "대선 후보")}</b><small>${s.party === "red" ? "리버티당" : s.party === "blue" ? "유니언당" : "정당 선택 전"}</small></div>
       <div class="mt"><span>단계</span><b>${esc(phaseLbl)}</b></div>
@@ -178,7 +181,7 @@ export function usPresHTML() {
         <div class="mn-h">${inWH ? "🏛️ 백악관 오벌 오피스 결재판" : "🗳️ 대선 캠프 결재판"}</div>
         <div class="mn-card mn-dk mn-paper" style="border-color:${s.party === "red" ? "#e06464" : "#5da8e8"}">
           <div class="dh"><div class="dt"><small>${inWH ? "THE WHITE HOUSE · EXECUTIVE ACTION" : "U.S. PRESIDENTIAL CAMPAIGN"}</small><b>${esc(title)}</b></div></div>
-          <p>${esc(desc)}</p>
+          <p>${esc(desc)}</p>${inWH ? followUp(s,quarterIndex,s.phase+":"+s.quarter) : ""}
           ${s.serviceDecision && (s.phase === "declare" || (s.phase === "debate" && s.turn === 3)) ? `<p class="campaign-service-record"><b>인사기록 · ${esc(s.serviceDecision.date)}</b><br>${esc(s.serviceDecision.outcome)}</p>` : ""}
           <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${btns || `<button class="mn-go" data-uspres="reset">↺ 새 대선 캠페인 시작</button>`}${replayableElection(s) ? `<button data-uspres="replay-election">개표 결과 연출 다시 보기</button>` : ""}</div>
         </div>
@@ -269,6 +272,7 @@ export function usPresClick(act) {
     s.econ = cl(s.econ + opt.econ);
     s.trust = cl(s.trust + opt.trust);
     s.theaters[tid] = cl((s.theaters[tid] ?? 65) + Math.max(4, opt.sec + opt.world));
+    remember(s,(s.term-1)*16+s.quarter,"global:"+tid,th.name,opt.l,opt.log);
     s.globalActQ = qKey;
     (s.journal ??= []).unshift(`[백악관 상황실 · ${th.name}] ${opt.log}`);
     s.journal = s.journal.slice(0, 30);
@@ -357,6 +361,14 @@ export function usPresClick(act) {
       );
     if (s.phase === "inauguration") report.push("당선 · 취임 선서 대기");
     if (before === "inauguration") report.push("취임 선서 · 제" + s.term + "기 행정부 출범");
+    if (prevTerm > 0 && ["cabinet","bill","crisis","summit","trial","renew"].includes(before)) {
+      const advice = before === "cabinet" && i < 2
+        ? (s.phase === "bill" ? "양원에서 가결됐습니다. 서명한 법안의 집행 계획을 의회에 설명할 준비를 하겠습니다." : "의결에 필요한 표를 확보하지 못했습니다. 다음 협상에는 쟁점 조항 수정안을 준비하겠습니다.")
+        : before === "summit" ? (i ? "서명을 보류한 쟁점은 다음 실무 회담 의제로 넘겼습니다." : "합의 이행 일정을 상대국과 대조하겠습니다.")
+        : before === "crisis" ? (i ? "추가 보고를 요청한 지역의 피해 집계가 다음 판단의 기준입니다." : "승인한 지원이 현장에 도착했는지 관계 기관에 확인하겠습니다.")
+        : report.slice(1).join(" · ") || `‘${answers[i]}’ 결정 이후의 진행 상황을 점검하겠습니다.`;
+      remember(s,(prevTerm-1)*16+quarter,before+":"+quarter,title,answers[i],advice);
+    }
     const voted = before === "night" || before === "contingent";
     const elected = voted && s.phase === "inauguration";
     const lostElection = voted && s.phase === "end";
