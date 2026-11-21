@@ -88,7 +88,7 @@ const BR_ALIAS = { ops: "sea", int: "tac", log: "acq", air: "mar" };
 export const normBranch = (b) => (BRANCHES[b] ? b : BR_ALIAS[b] || "sea");
 export const serviceOf = (b = staff.branch) => { const br = BRANCHES[normBranch(b)]; return br?.svc && br.svc !== "joint" ? br.svc : staff.service || "navy"; };
 /** Hidden posting tier for promotion board odds (never shown to the player): "key" (요직) / "std" (보통) / "back" (한직). */
-const KEY_POSTS = new Set(["보병대대장", "K2 전차대대장", "K9 포병대대장", "특전여단장", "기갑여단장", "화력여단장", "보병사단장", "수도방위사령관", "군단장", "지상작전사령관", "제2작전사령관", "육군참모차장",
+const KEY_POSTS = new Set(["보병대대장", "공병대대장", "공병단장", "K2 전차대대장", "K9 포병대대장", "특전여단장", "기갑여단장", "화력여단장", "보병사단장", "수도방위사령관", "군단장", "지상작전사령관", "제2작전사령관", "육군참모차장",
   "구축함 함장", "214급 잠수함장", "안창호급 잠수함장", "구축함전대장", "해상전투단장", "잠수함전단장", "제2함대사령관", "잠수함사령관", "해군작전사령관", "해군참모차장",
   "F-35A 비행대대장", "패트리어트 대대장", "항공작전전대장", "전투비행단장", "공중전투사령관", "미사일방어사령관", "공군작전사령관", "공군참모차장",
   "방위사업청 사업담당", "전력기획처장", "국방부 정책기획과장", "국방정책실 국장", "NSC 안보비서관", "국방정보본부장", "합동참모차장", "합참 전략기획본부장", "합참 군사지원본부장", "한미연합사 부사령관",
@@ -101,7 +101,16 @@ export const postTier = (title) => (KEY_POSTS.has(title) || /Commander|Commandin
 export const isUS = () => staff.nation === "us";
 export const curServices = () => (isUS() ? US_SERVICES : SERVICES);
 export const curBranches = () => (isUS() ? US_BRANCHES : BRANCHES);
-export const curFlagPosts = () => (isUS() ? US_FLAG_POSTS : FLAG_POSTS);
+export const curFlagPosts = () => (isUS() ? allUsFlagPosts : allKrFlagPosts);
+
+export function flagPostsForTrack(grade, branch, service) {
+  const posts = curFlagPosts().filter(post => post.g === grade && (post.svc === service || post.svc === "joint"));
+  const track = curBranches()[branch];
+  const ownTitle = track?.t[grade];
+  // Shared titles such as service chief can continue any branch in that service.
+  const own = posts.find(post => post.t === ownTitle && post.svc === track?.svc);
+  return own ? [{ ...own, b: branch }, ...posts.filter(post => post !== own)] : posts;
+}
 export const careerTitle = (grade, br = staff.branch) => (curBranches()[normBranch(br)] || curBranches().sea).t[Math.max(0, Math.min(10, grade))];
 export function setNation(n) { if (n === "kr" || n === "us") { staff.nation = n; saveStaff(); } }
 export function setService(s) { if (SERVICES[s]) { staff.service = s; saveStaff(); } }
@@ -204,3 +213,20 @@ export const FLAG_POSTS = [
   { g: 6, t: "전투비행단장", c: "sea", b: "plt", svc: "air" }, { g: 6, t: "방공유도탄여단장", c: "ops", b: "sam", svc: "air" }, { g: 6, t: "방공관제사 부사령관", c: "int", b: "tac", svc: "air" },
   { g: 6, t: "전력기획처장", c: "log", b: "acq", svc: "joint" }, { g: 6, t: "국방정책실 국장", c: "int", b: "pol", svc: "joint" },
 ];
+
+function includeBranchFlagPosts(posts, branches) {
+  const column = {inf:"sea", arm:"ops", art:"air", eng:"log", sea:"sea", sub:"ops", mar:"air",
+    plt:"sea", sam:"ops", tac:"int", acq:"log", pol:"jcs"};
+  const expanded = [...posts];
+  for (const [branch, track] of Object.entries(branches)) {
+    for (let grade = 6; grade <= 9; grade++) {
+      const title = track.t[grade];
+      if (!title || expanded.some(post => post.g === grade && post.svc === track.svc && post.t === title)) continue;
+      expanded.push({g:grade, t:title, c:column[branch], b:branch, svc:track.svc});
+    }
+  }
+  return expanded;
+}
+
+const allKrFlagPosts = includeBranchFlagPosts(FLAG_POSTS, BRANCHES);
+const allUsFlagPosts = includeBranchFlagPosts(US_FLAG_POSTS, US_BRANCHES);
