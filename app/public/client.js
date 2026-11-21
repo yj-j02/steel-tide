@@ -980,19 +980,18 @@ function ceremonialBackdrop(grade, svc) {
       <rect width="300" height="300" fill="url(#${id}-light)"/>
       <rect x="6" y="6" width="288" height="288" rx="6" fill="none" stroke="#ecd38c" stroke-opacity=".72" stroke-width="1"/>
     </g>
-    <text x="150" y="22" text-anchor="middle" fill="#ffdfa0" stroke="#121c2c" stroke-width="2" paint-order="stroke" font-size="12" letter-spacing="2">${"★".repeat(grade - 5)}</text>
+    ${grade >= 6 ? `<text class="portrait-stars" x="150" y="22" text-anchor="middle" fill="#ffdfa0" stroke="#121c2c" stroke-width="2" paint-order="stroke" font-size="12" letter-spacing="2">${"★".repeat(grade - 5)}</text>` : ""}
   </g>`;
 }
 
 function portraitHTML(g) {
   const F = { ...agedFace(cmdr.face, g), bare: true }, MD = curMedals(), svk = serviceOf(staff.branch);
-  const ceremonial = g >= 6;
   const meds = Object.keys(MD).filter((k) => career.medals?.[k]), per = 3, rows = [];
   for (let i = 0; i < meds.length; i += per) rows.push(meds.slice(i, i + per));
   const rack = rows.reverse().map((row, r) => row.map((k, i) => { const rb = MD[k].rb, x = 200 - (row.length * 17) / 2 + i * 17, y = 252 - r * 7; return rb.map((col, j) => `<rect x="${x + (j * 16) / rb.length}" y="${y}" width="${16 / rb.length + 0.2}" height="6" fill="${col}"/>`).join("") + `<rect x="${x}" y="${y}" width="16" height="6" fill="none" stroke="#333" stroke-width=".4"/>`; }).join("")).join("");
   const coat = isUS() ? (svk === "army" ? ["#54523b", "#313022", "#e2d6b6", "#2c281d"] : svk === "air" ? ["#1f3a68", "#0e1d38", "#dce9f7", "#0f203d"] : ["#162238", "#0a101d", "#f4f5f7", "#11141c"]) : ["#ffffff", "#d9dde2", "#f4f6f8", "#c4c9cf"];
-  return `<svg class="mi-por${ceremonial ? " mi-por-general" : ""}" role="img" aria-label="${rankLabel(g, svk)} 정복 초상" viewBox="0 0 300 300" width="300" height="300"><defs><radialGradient id="porbg" cx=".5" cy=".35" r=".8"><stop offset="0" stop-color="${isUS() ? "#1f3c63" : "#2b4f7c"}"/><stop offset="1" stop-color="#0c1726"/></radialGradient><linearGradient id="porw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${coat[0]}"/><stop offset="1" stop-color="${coat[1]}"/></linearGradient></defs>`
-    + (ceremonial ? ceremonialBackdrop(g, svk) : `<rect width="300" height="300" rx="8" fill="url(#porbg)"/><circle cx="150" cy="120" r="96" fill="none" stroke="rgba(242,202,92,.12)" stroke-width="2"/>`)
+  return `<svg class="mi-por mi-por-ceremonial" role="img" aria-label="${rankLabel(g, svk)} 정복 초상" viewBox="0 0 300 300" width="300" height="300"><defs><linearGradient id="porw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${coat[0]}"/><stop offset="1" stop-color="${coat[1]}"/></linearGradient></defs>`
+    + ceremonialBackdrop(g, svk)
     + `<path d="M8 300 C10 248 34 216 100 200 L150 222 L200 200 C266 216 290 248 292 300Z" fill="url(#porw)" stroke="${coat[3]}" stroke-width="1"/>`
     + `<path d="M120 204 L150 226 L180 204 L176 196 L150 212 L124 196Z" fill="${coat[2]}" stroke="${coat[3]}"/>${isUS() ? `<path d="M145 215 L150 210 L155 215 L153 265 L150 272 L147 265Z" fill="${coat[3]}"/>` : `<path d="M150 226 L150 300" stroke="#c4c9cf" stroke-width="1.2"/>`}${[240, 262, 284].map((y) => `<circle cx="150" cy="${y}" r="3.4" fill="#d8b247" stroke="#7a6220" stroke-width=".6"/>`).join("")}`
     + `<g transform="translate(34 224) rotate(-17)">${shoulderBoard(g, false)}</g><g transform="translate(266 224) rotate(17) scale(-1 1)">${shoulderBoard(g, false)}</g>`
@@ -1002,7 +1001,7 @@ function portraitHTML(g) {
     + rack
     + `<rect x="80" y="250" width="40" height="11" rx="1.5" fill="#1c2430"/><text x="100" y="258.5" font-size="7.5" fill="#fff" text-anchor="middle" font-family="Noto Sans KR, sans-serif">${cmdr.name}</text>`
     + `<g transform="translate(35 30) scale(2.3)">${face(F, 100).replace(/^<svg /, "<svg x=\"0\" y=\"0\" ")}</g>`
-    + (ceremonial ? `<circle cx="255" cy="257" r="23" fill="#111a27" stroke="#e5c77c" stroke-width="1.3"/><image class="portrait-service-emblem" href="${serviceEmblemPath(svk)}" x="237" y="239" width="36" height="36"/>` : "") + "</svg>";
+    + `<circle cx="255" cy="257" r="23" fill="#111a27" stroke="#e5c77c" stroke-width="1.3"/><image class="portrait-service-emblem" href="${serviceEmblemPath(svk)}" x="237" y="239" width="36" height="36"/></svg>`;
 }
 /** Epilogue card after a story chapter (shown over the menu). */
 let storyQ = null;
