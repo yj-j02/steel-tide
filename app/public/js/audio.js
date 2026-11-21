@@ -253,9 +253,10 @@ function synthFanfare(grade) {
 
 /* Real honours music from the owner's reference video (sfx/promo): one piece per rank, the whole span of that rank (all services) uncut. 위관 gets a radio call instead of music. */
 const PROMO = (g) => g >= 10 ? "marshal" : g === 9 ? "g4" : g === 8 ? "g3" : g === 7 ? "g2" : g === 6 ? "g1" : g >= 3 ? "field" : null;
-/** 대한민국 국방부장관 취임·이임식 전용 예우곡 — 위대한 전진 (minister.mp4 우선, 없으면 g4.mp3) */
+/** 국방부장관 취임·이임식 전용 예우곡 — KR: 위대한 전진(minister.mp4) / US: 미 국방장관 예우곡(us_secdef.mp3) */
 export function playMinisterAnthem() {
   if (A.muted) return; stopFanfare();
+  const isUsMode = typeof document !== "undefined" && document.body?.classList.contains("us-nat");
   const bg = A.bgmEl, v0 = bg ? bg.volume : 0; if (bg) bg.volume = v0 * 0.15;
   const run = (src, fb) => {
     const el = new Audio(src); el.volume = Math.min(1, A.vol.sfx * 1.05); promoEl = el;
@@ -263,7 +264,7 @@ export function playMinisterAnthem() {
     el.onerror = () => { if (fb) run(fb, null); else el.onended?.(); };
     el.play().catch(() => { if (fb) run(fb, null); else { el.onended?.(); synthFanfare(9); } });
   };
-  run("sfx/promo/minister.mp4", "sfx/promo/g4.mp3");
+  run(isUsMode ? "sfx/promo/us_secdef.mp3" : "sfx/promo/minister.mp4", "sfx/promo/g4.mp3");
 }
 let promoEl = null;
 export function stopFanfare() { const el = promoEl; if (!el) return; promoEl = null; const v0 = el.volume, t0 = performance.now(); const step = () => { const k = 1 - (performance.now() - t0) / 700; if (k <= 0) { el.pause(); el.onended?.(); return; } el.volume = v0 * k; requestAnimationFrame(step); }; step(); }
