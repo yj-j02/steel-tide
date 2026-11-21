@@ -20,7 +20,8 @@ export const FOCUS = {
   pol: { n: "정보·외교·정책", f: "임무 완수 · 전략적 안정", k: { win: 1.3, hp: 1.2, loss: 1.2, eff: 0.85 } },
 };
 export const PASS = 55; /* B or better */
-export const minBattles = (g) => (g <= 1 ? 2 : g === 2 ? 3 : g <= 4 ? 4 : g === 5 ? 5 : 6);
+export const minWeeks = (g) => (g <= 2 ? 10 : g <= 5 ? 12 : 14); /* 한 계급당 최소 10~14주 복무 */
+export const minBattles = (g) => (g <= 2 ? 10 : g <= 5 ? 12 : 14);
 export const letter = (s) => (s >= 85 ? "S" : s >= 70 ? "A" : s >= PASS ? "B" : s >= 40 ? "C" : "D");
 
 /** m: { won, hp (0–1), sunk, foes, lost, allies, secs, jetsOut }. Returns { s, parts }. */
@@ -39,28 +40,30 @@ export function scoreBattle(m, branch) {
   return { s: Math.round(Math.max(0, Math.min(100, (raw / top) * 100))), parts };
 }
 
-const st = () => { career.evals ||= {}; career.defer ||= 0; return career; };
-export function recordEval(g, s) { const c = st(); (c.evals[g] ||= []).push(s); if (c.evals[g].length > 20) c.evals[g].shift(); saveCareer(); }
+const st = () => { career.evals ||= {}; career.rankWeeks ||= {}; career.defer ||= 0; return career; };
+export function recordEval(g, s) { const c = st(); (c.evals[g] ||= []).push(s); if (c.evals[g].length > 30) c.evals[g].shift(); saveCareer(); }
 export function evalOf(g) { const L = st().evals[g] || [], avg = L.length ? Math.round(L.reduce((a, b) => a + b, 0) / L.length) : 0; return { n: L.length, avg, l: L.length ? letter(avg) : "—" }; }
+export function weeksOf(g) { return st().rankWeeks[g] || 0; }
+export function addRankWeek(g, n = 1) { const c = st(); c.rankWeeks[g] = (c.rankWeeks[g] || 0) + n; saveCareer(); return c.rankWeeks[g]; }
 
 /** The promotion board for the next rank. xpGrade: the rank your XP alone would give. */
 export function board(g, xpGrade) {
-  const e = evalOf(g), need = minBattles(g);
-  if (g >= 9) return { ok: false, xp: false, cnt: false, score: false, need: 5, e, special: true }; /* 원수(10)는 특별진급 퀘스트로만 진급 */
-  const xp = xpGrade > g, cnt = e.n >= need, score = e.n > 0 && e.avg >= PASS;
-  return { ok: xp && cnt && score, xp, cnt, score, need, e };
+  const e = evalOf(g), need = minBattles(g), needWk = minWeeks(g), weeks = weeksOf(g);
+  if (g >= 9) return { ok: false, xp: false, wk: weeks >= 10, needWk: 10, weeks, cnt: false, score: false, need: 5, e, special: true }; /* 원수(10)는 특별진급 퀘스트로만 진급 */
+  const xp = xpGrade > g, wk = weeks >= needWk, cnt = e.n >= need, score = e.n > 0 && e.avg >= PASS;
+  return { ok: xp && wk && cnt && score, xp, wk, needWk, weeks, cnt, score, need, e };
 }
-/** 원수(5성) 특별진급 퀘스트 조건 (매우 어려움): 대장 평정 S(85+)·5회 + 직접 지휘 대승 3회 + 누적 10전·승률 85%+ */
-export function marshalQuest(profile, grade) {
-  const e9 = evalOf(9), wins = career.marshalWins || 0, b = profile?.battles || 0, wr = b ? Math.round(((profile?.wins || 0) / b) * 100) : 0;
-  const c1 = grade >= 9 && e9.n >= 5 && e9.avg >= 85, c2 = wins >= 3, c3 = b >= 10 && wr >= 85;
-  return { ok: c1 && c2 && c3, c1, c2, c3, e9, wins, b, wr };
+/** 원수(5성) 특별진급 퀘스트 조건: 대장 평정 S(85+)·5회 + 위기 직접 지휘 대승 3회 + 군내 평판 85+ & 대장 복무 10주 */
+export function marshalQuest(profile, grade, rep = 0) {
+  const e9 = evalOf(9), wins = career.marshalWins || 0, w9 = weeksOf(9);
+  const c1 = grade >= 9 && e9.n >= 5 && e9.avg >= 85, c2 = wins >= 3, c3 = rep >= 85 && w9 >= 10;
+  return { ok: c1 && c2 && c3, c1, c2, c3, e9, wins, rep, w9 };
 }
 /** Run the board after a battle/duty: 위관(소위~대위) guaranteed on pass; 소령+(3~8) uses hidden 요직/한직 odds and discharges after 3 consecutive pass-overs. */
 export function runBoard(g, xpGrade, postTitle = "") {
   if (g >= 9) return { ...board(g, xpGrade), promoted: false };
   const b = board(g, xpGrade), c = st();
-  if (!b.xp) return { ...b, promoted: false };
+  if (!b.xp || !b.wk) return { ...b, promoted: false };
   if (g <= 2) {
     if (b.ok) { c.cap = g + 1; c.defer = 0; saveCareer(); return { ...b, promoted: true }; }
     c.defer++; saveCareer(); return { ...b, promoted: false };

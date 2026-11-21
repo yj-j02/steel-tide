@@ -18,7 +18,7 @@ import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, update
 import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, candidates, roleTitle, ECH, echOf, staffFor, FLAG_POSTS, FLEET_CDR, SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, setService, setBranch, POST_RANK, holds, saveStaff, isUS, setNation, curServices, curBranches, curFlagPosts } from "./js/staff.js";
 import { insigniaUS, US_PAY, usRankName, usRankFull, US_SVC_ORG, usNpcName, usDischargeEndingOf } from "./js/us-ranks.js";
 import { dutyState, ensureDuty, dutyEventById, dutyCrisisById, dutyOptionHint, resolveDuty, resolveReport, resolveCrisisDelegate, resolveCrisisDirect, nextDutyWeek } from "./js/duty.js";
-import { PERKS, career, saveCareer, careerInit, rollPerks, takePerk, logPromotion, perkMods, payStep, MEDALS, US_MEDALS, awardMedals } from "./js/career.js";
+import { career, saveCareer, careerInit, logPromotion, perkMods, payStep, MEDALS, US_MEDALS, awardMedals } from "./js/career.js";
 const curMedals = () => (isUS() ? US_MEDALS : MEDALS);
 import { openOpMap, opMapAdvance, opMapState, opMapAir } from "./js/opmap.js";
 import { openScene, playCuts, setTheme } from "./js/scene.js";
@@ -853,13 +853,6 @@ function renderPostPick(g) {
   el.innerHTML = `<div class="pk-h">보직 선택 · ${svName}${g >= 3 ? " · 공통 융합" : ""} 트랙 (${rankLabel(g, sv)})</div><div class="pst-row">${pmPostOpts.map((k, i) => `<button class="pst${k === pmPostSel ? " on" : ""}" data-post="${k}"><i>${i === 0 ? "현 병과 계속" : BR[k].svc === "joint" ? "융합 전과" : "병과 전환"}</i><b>${BR[k].t[g]}</b><small>${BR[k].n} 병과</small><span>평정 중점: ${FOCUS[k].f}</span></button>`).join("")}</div>`;
 }
 let pmOpts = null;
-function renderPerkPick(sel, g) {
-  const el = $(sel); if (!el) return;
-  if (career.picks <= 0) { el.innerHTML = `<div class="pk-done">진급 특기 부여 완료</div>`; $("#promoOk")?.classList.remove("dim"); return; }
-  pmOpts ||= rollPerks(g, staff.branch);
-  el.innerHTML = `<div class="pk-h">진급 특기 부여 (택 1)${career.picks > 1 ? ` · 남은 선택 ${career.picks}회` : ""}</div><div class="pk-row">${pmOpts.map((k, i) => { const P = PERKS[k], lv = career.perks[k] || 0; return `<button class="pk${P.tier ? " sp" : ""}" data-perk="${k}">${i === 0 ? `<i>병과 추천</i>` : P.tier ? `<i>${P.c}</i>` : ""}<b>${P.n}</b><small>${P.c}${P.max > 1 ? ` · ${lv} → ${lv + 1}단계` : ""}</small><span>${P.d}</span></button>`; }).join("")}</div>`;
-  $("#promoOk")?.classList.add("dim");
-}
 function flagHTML(g, before) { /* 장성기: KR red+wreath+mugunghwa / US Personal Colors (Army Scarlet+Gold Fringe, Navy Blue diamond/triangle, USAF Ultramarine) */
   const n = g - 5, old = Math.max(0, before - 5), W = 240, H = 160, N = 40, sw = W / N, id = `fl${faceN++}`;
   const svk = serviceOf(staff.branch);
@@ -988,14 +981,13 @@ function evalHTML(rl) {
   const ck = (ok, t) => `<li class="${ok ? "ok" : "no"}">${ok ? "✓" : "✗"} ${t}</li>`;
   return `<h3>근무평정 · 진급 심사</h3><div class="mi-ev"><div class="ev-top"><div><span>현 보직</span><b>${postOf(g)}</b><small>${(BR[br] || FOCUS[br]).n} 병과 · 평정 중점 ${FOCUS[br].f}</small></div><div class="ev-g ${e.l}"><b>${e.l}</b><small>${e.n ? `평균 ${e.avg}점` : "평정 없음"}</small></div></div>`
     + `<div class="ev-l">${L.length ? L.map((s) => `<i style="height:${Math.max(6, s)}%" title="${s}점"></i>`).join("") : "<em>이 계급에서 아직 출격 기록이 없습니다</em>"}</div>`
-    + (rl.next ? `<ul class="ev-ck">${ck(b.xp, `경험치 ${rl.next} 기준 도달`)}${ck(b.cnt, `이 계급 근무 ${e.n}/${b.need}회`)}${ck(b.score, `평정 평균 ${PASS}점 이상 (B)`)}</ul>${deferNote() ? `<div class="ev-warn">${deferNote()}</div>` : ""}` : `<div class="ev-max">최고 계급</div>`) + `</div>`;
+    + (rl.next ? `<ul class="ev-ck">${ck(b.xp, `경험치 ${rl.next} 기준 도달`)}${ck(b.wk, `현 계급 복무 ${b.weeks}/${b.needWk}주`)}${ck(b.cnt, `이 계급 근무 ${e.n}/${b.need}회`)}${ck(b.score, `평정 평균 ${PASS}점 이상 (B)`)}</ul>${deferNote() ? `<div class="ev-warn">${deferNote()}</div>` : ""}` : `<div class="ev-max">최고 계급</div>`) + `</div>`;
 }
-function renderRecord() { /* 내 정보: profile card, perks, record, service record (약력), rank table */
+function renderRecord() { /* 내 정보: profile card, record, service record (약력), rank table */
   const rl = rankLine(), acc = profile.shots ? ((profile.hits / profile.shots) * 100).toFixed(1) : "0.0", best = profile.bestSeconds ? `${Math.floor(profile.bestSeconds / 60)}분 ${profile.bestSeconds % 60}초` : "—";
-  const unlock = () => "", br = normBranch(staff.branch), svk = serviceOf(br), BR = curBranches(), SV = curServices();
+  const br = normBranch(staff.branch), svk = serviceOf(br), BR = curBranches(), SV = curServices();
   if (staff.branch) careerInit(rl.r, postOf(rl.r), (BR[br] || BRANCHES.sea).n);
   const ps = payStep(profile.xp, rl.r, ECON_RANK_XP), lo = ECON_RANK_XP[rl.r], hi = ECON_RANK_XP[rl.r + 1], stepPct = ps.max ? (((profile.xp - lo) / (hi - lo)) * ps.max % 1) * 100 : ((profile.xp - lo) % 3000) / 30;
-  const perks = Object.entries(career.perks).filter(([, v]) => v > 0).map(([k, v]) => `<li><b>${PERKS[k].n}</b>${PERKS[k].max > 1 ? `<em>${v}단계</em>` : ""}<small>${PERKS[k].d}</small></li>`).join("") || `<li class="none">아직 받은 진급 특기가 없습니다</li>`;
   const tierCls = (g) => (g >= 6 ? "gen" : g >= 3 ? "fld" : "co");
   const log = career.log.slice().reverse().map((e) => `<div class="cr ${tierCls(e.g)}"><span class="d">${e.d}</span><span class="ins">${insignia(e.g, 16)}</span><div><b>${rankLabel(e.g, svk)} ${e.why === "임관" ? "임관" : e.why === "보직 변경" ? "보직 변경" : e.why === "기존 경력 승계" ? "(경력 승계)" : "진급"}</b> · ${e.t}${e.b ? ` <small>(${e.b})</small>` : ""}${e.why && !["임관", "보직 변경", "기존 경력 승계"].includes(e.why) ? `<div class="sub">공적: ${e.why}</div>` : ""}${e.perk ? `<div class="sub pkl">특기: ${e.perk}</div>` : ""}</div></div>`).join("") || `<div class="none">사령부에서 보직을 고르면 약력이 시작됩니다</div>`;
   staffFor(rl.r); const of = (k) => officer(staff.a[k]);
@@ -1015,7 +1007,8 @@ function renderRecord() { /* 내 정보: profile card, perks, record, service re
     + `<h3>${(SV[svk] || SV.navy).n} 장교 인사기록 · 약력</h3><div class="mi-log">${log}</div>`
     + `<details class="mi-lad"><summary>전체 계급·직함표 보기 (${(SV[svk] || SV.navy).n})</summary>`;
   h += `<h3>${(SV[svk] || SV.navy).n} 계급 — 경험치 ${fmt(profile.xp)}</h3><div class="ladder">`;
-  ECON_RANKS.forEach((_, r) => { h += `<div class="${r === rl.r ? "cur" : r < rl.r ? "done" : ""}"><span>${insignia(r, 22)}</span><b class="bh">${isUS() ? `${US_PAY[r]} · ` : ""}${rankLabel(r, svk)}</b><span>${postOf(r)}</span><span class="xp">${fmt(ECON_RANK_XP[r])} XP</span><span>호위함 ${escortsFor(r)}척${unlock(r) ? ` · ${unlock(r)} 해금` : ""}</span></div>`; });
+  const cmdScale = (r) => (r <= 1 ? (isUS() ? "Platoon / Division" : "소대·부서 실무") : r === 2 ? (isUS() ? "Company / Flight" : "중대·편대 지휘") : r <= 4 ? (isUS() ? "Battalion / Ship" : "대대·함정·비행대대") : r === 5 ? (isUS() ? "Brigade / Wing" : "연대·전대·비행단") : r <= 7 ? (isUS() ? "Division / Strike Group" : "여단·사단·함대") : r === 8 ? (isUS() ? "Corps / Fleet" : "군단·작전사령부") : r === 9 ? (isUS() ? "Service Chief / JCS" : "참모총장·합참") : (isUS() ? "Supreme Command" : "최고 통수 지휘"));
+  ECON_RANKS.forEach((_, r) => { h += `<div class="${r === rl.r ? "cur" : r < rl.r ? "done" : ""}"><span>${insignia(r, 22)}</span><b class="bh">${isUS() ? `${US_PAY[r]} · ` : ""}${rankLabel(r, svk)}</b><span>${postOf(r)}</span><span class="xp">${fmt(ECON_RANK_XP[r])} XP</span><span>${cmdScale(r)}</span></div>`; });
   $("#recordP").innerHTML = h + "</div></details></div></div>";
   if (career.picks > 0) renderPerkPick("#miPk", rl.r);
 }
@@ -1078,12 +1071,12 @@ function renderBranchPick() {
 }
 function marshalCardHTML(g) {
   if (g !== 9) return "";
-  const q = marshalQuest(profile, g);
+  const q = marshalQuest(profile, g, dutyState().rep || 0);
   return `<div class="mn-card" style="border-color:#f2ca5c;background:rgba(36,28,12,.72)"><b>★ 원수(5성) 특별진급 퀘스트 · 최고 난이도</b><p style="font-size:11.5px;color:#e6dcc0;margin:4px 0 8px">원수는 일반 진급이 불가하며, 아래 전시 합동작전 최고 공훈 3가지를 모두 달성해야 특별진급할 수 있습니다.</p>
     <div style="display:flex;flex-direction:column;gap:3px;font-size:11.5px;margin-bottom:8px">
       <span class="${q.c1 ? "g" : ""}">${q.c1 ? "✔" : "○"} 대장 근무평정 평균 S(85점+) · 5회 이상 (현재 ${q.e9.avg}점 · ${q.e9.n}/5회)</span>
       <span class="${q.c2 ? "g" : ""}">${q.c2 ? "✔" : "○"} 위기 직접 지휘(3D/FM) 대승 3회 이상 (현재 ${q.wins}/3회)</span>
-      <span class="${q.c3 ? "g" : ""}">${q.c3 ? "✔" : "○"} 누적 전투·작전 10전 이상 &amp; 승률 85% 이상 (현재 ${q.b}전 · ${q.wr}%)</span>
+      <span class="${q.c3 ? "g" : ""}">${q.c3 ? "✔" : "○"} 군내 평판 85점+ &amp; 대장 복무 10주 이상 (현재 평판 ${q.rep} · ${q.w9}/10주)</span>
     </div>
     <button class="mn-go" data-duty="marshal" ${q.ok || profile.admin ? "" : "disabled"}>${q.ok ? "★ 원수(5성) 특별진급 심사 상정 ›" : profile.admin ? "★ [관리자] 원수 특별진급 즉시 실행 ›" : "특별진급 조건 미달"}</button></div>`;
 }
@@ -1131,7 +1124,7 @@ function renderDutyDesk() {
           <button class="dm-tab on" data-hqv="duty"><span>📋 주간 직무·위기</span>${(d.pending?.length || 0) + (d.report ? 1 : 0) ? `<em>${(d.pending?.length || 0) + (d.report ? 1 : 0)}</em>` : ""}</button>
           <button class="dm-tab" data-hqv="org"><span>👥 참모·조직도</span></button>
           <button class="dm-tab" data-hqv="track"><span>🎖️ 계급장 로드맵</span></button>
-          <div class="dm-goals"><b>${g >= 9 ? "원수 특별진급" : "다음 진급 조건"}</b>${g >= 9 ? `<small>특별진급 퀘스트 3종 달성 필요</small>` : `<small class="${bd.xp ? "g" : ""}">경험치 ${bd.xp ? "충족" : rl.next ? `${fmt(Math.max(0, rl.need - profile.xp))} 남음` : "완료"}</small><small class="${bd.cnt ? "g" : ""}">근무 평가 ${ev.n}/${bd.need}회</small><small class="${bd.score ? "g" : ""}">평균 평정 ${ev.avg}/55점</small>`}</div>
+          <div class="dm-goals"><b>${g >= 9 ? "원수 특별진급" : "다음 진급 조건"}</b>${g >= 9 ? `<small>특별진급 퀘스트 3종 달성 필요</small>` : `<small class="${bd.wk ? "g" : ""}">복무 기간 ${bd.weeks}/${bd.needWk}주</small><small class="${bd.xp ? "g" : ""}">경험치 ${bd.xp ? "충족" : rl.next ? `${fmt(Math.max(0, rl.need - profile.xp))} 남음` : "완료"}</small><small class="${bd.cnt ? "g" : ""}">근무 평가 ${ev.n}/${bd.need}회</small><small class="${bd.score ? "g" : ""}">평균 평정 ${ev.avg}/55점</small>`}</div>
           <button class="dm-tab" data-duty="retire_now" style="margin-top:6px;border-color:rgba(255,140,120,.35);color:#f2b8b0"><span>${retireArm ? "⚠ 한 번 더 클릭: 전역" : "🚪 명예 전역 신청"}</span></button>
         </nav>
         <div class="dm-main">${tierAuthHTML(g)}${marshalCardHTML(g)}${minBtn}${repCard}${crCard}${evCards || (!repCard && !crCard ? `<div class="mn-card"><small>이번 주 직무와 보고를 모두 마쳤습니다. 우측 상단의 '${d.week + 1}주차 진행 ▶'을 눌러 다음 주로 넘어가십시오.</small></div>` : "")}${d.last ? `<div class="mn-card"><small>최근 결과: ${d.last}</small></div>` : ""}</div>
@@ -1305,15 +1298,14 @@ addEventListener("resize", () => { if (screen === "hq") drawHQLines(); });
 function openHQ() { initAudio(); bgm("menu"); hideAll(); screen = "hq"; G.state = "menu"; setTab("hq"); $("#topbar").style.display = "flex"; renderHQ(); $("#hqP").style.display = "block"; showcase(flagshipId()); }
 $("#tabHQ").addEventListener("click", () => { sfx.click(); openHQ(); });
 $("#recordP").addEventListener("click", (e) => {
-  const pk = e.target.closest("[data-perk]"); if (pk) { sfx.coin(); takePerk(pk.dataset.perk); pmOpts = null; renderRecord(); return; }
   if (e.target.closest('[data-act="setrank"]') && profile.admin) {
     const g = +$("#setRank").value, before = myGrade(); if (g === before) return;
     if (!act({ kind: "setxp", xp: ECON_RANK_XP[g] })) return; setCap(g); if (career.post && career.post.g !== g) { career.post = null; saveCareer(); } if (g < 9 && career.minister) { career.minister = false; saveCareer(); } staff.adminPost = null; saveStaff();
-    if (g > before) { if (career.seen == null && staff.branch) careerInit(before, careerTitle(before), BRANCHES[staff.branch].n); career.picks += g - before; logPromotion({ g, t: postOf(g), b: BRANCHES[staff.branch]?.n || "", why: "관리자 진급" }); pmMedals = awardMedals({ won: false, flight: false, wins: profile.wins, sunk: 0, hp: 0, grade: g }); pmOpts = null; initAudio(); buildPromo(before, g); $("#promoM").style.display = "flex"; fanfare(g, staff.branch); }
+    if (g > before) { if (career.seen == null && staff.branch) careerInit(before, careerTitle(before), BRANCHES[staff.branch].n); logPromotion({ g, t: postOf(g), b: BRANCHES[staff.branch]?.n || "", why: "관리자 진급" }); pmMedals = awardMedals({ won: false, flight: false, wins: profile.wins, sunk: 0, hp: 0, grade: g }); pmOpts = null; initAudio(); buildPromo(before, g); $("#promoM").style.display = "flex"; fanfare(g, staff.branch); }
     else toast(`관리자 — 계급을 ${ECON_RANKS[g]}(으)로 조정했습니다`);
     refreshMenus(); renderRecord(); return;
   }
-  if (e.target.closest('[data-act="minister"]') && myGrade() >= 9 && ministerOk(myGrade()) && !career.minister) { ministerOrder(); return; }
+  if (e.target.closest('[data-act="minister"]') && myGrade() >= 9 && ministerOk(myGrade()) && !career.minister) { hqView = "min"; ministerOrder(); return; }
   if (e.target.closest('[data-act="pvpromo"]') && profile.admin) { const g = +$("#pvRank").value; pmMedals = []; initAudio(); fanfare(g, staff.branch); buildPromo(g - 1, g, "", true); $("#promoM").style.display = "flex"; return; }
   if (e.target.closest('[data-act="miadmin"]')) { if (act({ kind: "admin", code: $("#miAdmin").value })) { sfx.coin(); toast("관리자 모드 활성화"); renderRecord(); } }
 });
@@ -1322,11 +1314,6 @@ $("#promoM").addEventListener("click", (e) => {
   const fp = e.target.closest("[data-fpost]"); if (fp) { const p = curFlagPosts().find((x) => x.t === fp.dataset.fpost && x.g === pmPostG); if (!p) return; pmPostSel = p.t; $("#pmPostT").textContent = p.t; if (!pmPreview) { career.post = { g: p.g, t: p.t }; setBranch(p.b); const last = career.log[career.log.length - 1]; if (last && last.g === p.g) { last.t = p.t; last.b = (curBranches()[p.b] || BRANCHES[p.b]).n; } saveCareer(); refreshMenus(); } sfx.click(); renderPostPick(pmPostG); return; }
   const go = e.target.closest("[data-pmgo]"); if (go) { pmGo(+go.dataset.pmgo); return; }
   const ps = e.target.closest("[data-post]"); if (ps) { const k = ps.dataset.post, BR = curBranches(); if (!BR[k]) return; pmPostSel = k; if (pmPreview) { $("#pmPostT").textContent = BR[k].t[pmPostG]; sfx.click(); } else { career.post = null; setBranch(k); const g = myGrade(), last = career.log[career.log.length - 1]; if (last && last.g === g) { last.t = postOf(g); last.b = BR[normBranch(staff.branch)].n; } saveCareer(); $("#pmPostT").textContent = postOf(g); refreshMenus(); sfx.click(); } renderPostPick(pmPostG); return; }
-  const pk = e.target.closest("[data-perk]"); if (pk) { /* every pick the promotion earned can be taken here (a multi-rank jump gives several) */
-    if (!takePerk(pk.dataset.perk)) return; sfx.coin(); pmTook++; pmOpts = null; const P = PERKS[pk.dataset.perk]; (pmTakenL ??= []).push(P.n);
-    const done = `<div class="pk-done">진급 특기 부여 — <b>${pmTakenL.join(" · ")}</b></div>`;
-    if (career.picks > 0) { renderPerkPick("#pmPk", pmAfter); $("#pmPk").insertAdjacentHTML("afterbegin", done); } else { $("#pmPk").innerHTML = done; pmTakenL = []; }
-    $("#promoOk")?.classList.remove("dim"); return; }
   if (e.target.closest("#promoOk")) { sfx.click(); stopFanfare(); $("#promoM").style.display = "none"; refreshMenus(); if (screen === "hq") renderHQ(); if (storyQ) { const q = storyQ; storyQ = null; setTimeout(() => storyCard(q), 300); } }
 });
 $("#hqP").addEventListener("keydown", (e) => { if (e.target.id === "hqAdmin" && e.key === "Enter") $('[data-act="hqadmin"]')?.click(); });
@@ -1360,8 +1347,8 @@ $("#hqP").addEventListener("click", (e) => {
     if (a === "3d") { const cr = dutyCrisisById(dutyState().crisis); launchDirect3d(cr?.op3d || "navy", true); return; }
     if (a === "next") { nextDutyWeek(svk, g, postOf(g)); toast(`${dutyState().week}주차 직무가 도착했습니다`, 2.5); renderDutyDesk(); return; }
     if (a === "admrank" && profile.admin) { const nx = Math.min(9, g + 1); if (g >= 9) return toast("원수(5성)는 특별진급 퀘스트 버튼으로 시험할 수 있습니다", 3); profile.xp = Math.max(profile.xp, ECON_RANK_XP[nx]); setCap(nx); saveProfile(); career.picks += nx - g; logPromotion({ g: nx, t: postOf(nx), b: BRANCHES[br].n, why: "관리자 진급 시험" }); buildPromo(g, nx); $("#promoM").style.display = "flex"; refreshMenus(); renderDutyDesk(); return; }
-    if (a === "marshal") { const q = marshalQuest(profile, g); if (!q.ok && !profile.admin) return toast("원수 특별진급 퀘스트 조건을 모두 달성해야 합니다", 3); profile.xp = Math.max(profile.xp, ECON_RANK_XP[10]); setCap(10); saveProfile(); career.picks += 1; unlockEnding(isUS() ? "us_marshal" : "kr_marshal"); logPromotion({ g: 10, t: postOf(10), b: (curBranches()[br] || BRANCHES[br]).n, why: "원수(5성) 특별진급" }); buildPromo(g, 10); $("#promoM").style.display = "flex"; fanfare(10, br); refreshMenus(); renderDutyDesk(); return; }
-    if (a === "tomin") { if (g < 9 && profile.admin) { profile.xp = Math.max(profile.xp, ECON_RANK_XP[9]); setCap(9); saveProfile(); } career.minister = true; saveCareer(); minStart(cmdr.name); hqView = "min"; renderMin(); refreshMenus(); initAudio(); playMinisterAnthem(); toast(isUS() ? "미 국방장관(SecDef)으로 취임했습니다 — 36주 펜타곤 경영 시작" : "국방부장관으로 취임했습니다 — 36주 국방 경영 시작", 4); return; } }
+    if (a === "marshal") { const q = marshalQuest(profile, g, dutyState().rep || 0); if (!q.ok && !profile.admin) return toast("원수 특별진급 퀘스트 조건을 모두 달성해야 합니다", 3); profile.xp = Math.max(profile.xp, ECON_RANK_XP[10]); setCap(10); saveProfile(); unlockEnding(isUS() ? "us_marshal" : "kr_marshal"); logPromotion({ g: 10, t: postOf(10), b: (curBranches()[br] || BRANCHES[br]).n, why: "원수(5성) 특별진급" }); buildPromo(g, 10); $("#promoM").style.display = "flex"; fanfare(10, br); refreshMenus(); renderDutyDesk(); return; }
+    if (a === "tomin") { if (g < 9 && profile.admin) { profile.xp = Math.max(profile.xp, ECON_RANK_XP[9]); setCap(9); saveProfile(); } hqView = "min"; ministerOrder(); renderMin(); toast(isUS() ? "미 국방장관(SecDef)으로 취임했습니다 — 36주 펜타곤 경영 시작" : "국방부장관으로 취임했습니다 — 36주 국방 경영 시작", 4); return; } }
   if (e.target.closest('[data-act="hqadmin"]')) { if (act({ kind: "admin", code: $("#hqAdmin").value })) { sfx.coin(); toast("관리자 모드 — 사령부 모든 자리 선택 가능"); refreshMenus(); renderHQ(); } return; }
   const tk = e.target.closest("[data-take]");
   if (tk && !profile.admin && tk.dataset.take !== "reset") { const [, g, t] = tk.dataset.take.split(":"); sfx.click(); toast(+g > myGrade() ? `${t} — ${rankLabel(+g)} 보직입니다. 그 계급으로 진급할 때 인사명령의 보직 선택에서 고를 수 있습니다` : `${t} — 상부에서 임명하는 보직입니다`, 4); return; }

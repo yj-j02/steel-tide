@@ -1,61 +1,25 @@
-// Officer career: promotion perks (replace the old shipyard upgrades), pay steps (호봉) within a rank,
-// the service record (약력) and the flagship assigned by rank. Kept apart from the economy profile.
-
-export const PERKS = {
-  reload: { n: "장전·발사 숙련", c: "화력", d: "주포·어뢰 재장전 −8%/단계", max: 3 },
-  fc: { n: "사격통제 정밀화", c: "명중", d: "탄착 산포 −15% · 적 요격률 −4% /단계", max: 3 },
-  hull: { n: "선체 격벽·손상통제", c: "생존", d: "기함·아군 최대 내구도 +10%/단계", max: 3 },
-  engine: { n: "기관 출력 극대화", c: "기동", d: "최고 속력 +5%/단계", max: 3 },
-  ad: { n: "방공망·기만 숙련", c: "방어", d: "아군 요격 성공률 +8%/단계", max: 3 },
-  air: { n: "함재기 출격 정비", c: "항공", d: "전투기 재무장 시간 −10%/단계", max: 3 },
-  repair: { n: "수리반·응급정비", c: "지속", d: "수리반 회복량 +15%/단계", max: 3 },
-  alpha: { n: "초탄 일제사격", c: "상급 전술", d: "전투 첫 60초 화력 +20% · 재장전 −4%", max: 1, tier: 1 },
-  screen: { n: "호위 진형 숙달", c: "상급 전술", d: "아군 호위함 받는 피해 −8% · 수리반 +1", max: 1, tier: 1 },
-  shield: { n: "기동전단 방패", c: "제독 특기", d: "아군 함대 전체 받는 피해 −10%", max: 1, tier: 2 },
-  strike: { n: "합동 항공타격", c: "제독 특기", d: "전투기 +1기 · 재무장 −20%", max: 1, tier: 2 },
-};
-const FAVOR = { sea: ["hull", "engine", "repair"], ops: ["reload", "fc"], int: ["ad", "fc"], log: ["reload", "repair"], air: ["air", "ad"] };
-
+// Officer career: pay steps (호봉) within a rank, service record (약력), medals and flagship assignment.
 
 const KEY = "steeltide:career";
-export const career = (() => { let c = null; try { c = JSON.parse(localStorage.getItem(KEY) || "null"); } catch {} return c && c.perks ? c : null; })() || { perks: {}, picks: 0, log: [], ship: null, seen: null };
+export const career = (() => { let c = null; try { c = JSON.parse(localStorage.getItem(KEY) || "null"); } catch {} return c && c.log ? c : null; })() || { log: [], ship: null, seen: null };
 export const saveCareer = () => { try { localStorage.setItem(KEY, JSON.stringify(career)); } catch {} };
 
-/** First visit after this update: one pick per promotion already earned, and a single enlistment line. */
+/** First visit: record a single enlistment line. */
 export function careerInit(grade, title, branchName) {
   if (career.seen != null) return;
-  career.seen = grade; career.picks = grade;
+  career.seen = grade;
   career.log.push({ g: grade, t: title, b: branchName, d: new Date().toISOString().slice(0, 10), why: grade ? "기존 경력 승계" : "임관" });
   saveCareer();
 }
 
-const tierOf = (g) => (g >= 6 ? 2 : g >= 3 ? 1 : 0);
-/** Three distinct choices for a promotion to grade g; the first favours the branch. */
-export function rollPerks(g, branch, rnd = Math.random) {
-  const ok = (k) => (PERKS[k].tier || 0) <= tierOf(g) && (career.perks[k] || 0) < PERKS[k].max;
-  const pool = Object.keys(PERKS).filter(ok), out = [];
-  const fav = (FAVOR[branch] || []).filter(ok);
-  if (fav.length) out.push(fav[Math.floor(rnd() * fav.length)]);
-  const special = pool.filter((k) => (PERKS[k].tier || 0) === tierOf(g) && tierOf(g) > 0 && !out.includes(k));
-  if (special.length) out.push(special[Math.floor(rnd() * special.length)]);
-  while (out.length < 3) { const rest = pool.filter((k) => !out.includes(k)); if (!rest.length) break; out.push(rest[Math.floor(rnd() * rest.length)]); }
-  return out;
-}
-export function takePerk(k) {
-  if (!PERKS[k] || career.picks <= 0) return false;
-  career.perks[k] = Math.min(PERKS[k].max, (career.perks[k] || 0) + 1); career.picks--;
-  const last = career.log[career.log.length - 1]; if (last && !last.perk) last.perk = `${PERKS[k].n}${PERKS[k].max > 1 ? ` ${career.perks[k]}단계` : ""}`;
-  saveCareer(); return true;
-}
 export function logPromotion(e) { career.log.push({ ...e, d: new Date().toISOString().slice(0, 10) }); saveCareer(); }
 
-/** What the perks do in battle. */
+/** Neutral combat modifiers (kept for 3D battle compatibility). */
 export function perkMods() {
-  const p = (k) => career.perks[k] || 0;
   return {
-    upg: { engine: p("engine"), fc: p("fc"), gun: p("reload"), armor: 0 }, /* fed to the ship like the old yard levels */
-    hpK: 1 + 0.1 * p("hull"), icptK: 1 + 0.08 * p("ad"), penK: 1 - 0.04 * p("fc"), rearmK: (1 - 0.1 * p("air")) * (p("strike") ? 0.8 : 1),
-    repairK: 1 + 0.15 * p("repair"), jets: p("strike"), alpha: !!p("alpha"), escortK: p("screen") ? 0.92 : 1, fleetK: p("shield") ? 0.9 : 1, repairN: p("screen") ? 1 : 0,
+    upg: { engine: 0, fc: 0, gun: 0, armor: 0 },
+    hpK: 1, icptK: 1, penK: 1, rearmK: 1,
+    repairK: 1, jets: 0, alpha: false, escortK: 1, fleetK: 1, repairN: 0,
   };
 }
 
@@ -68,35 +32,39 @@ export function payStep(xp, g, XP) {
 
 /** Decorations: names of Korean military decorations, ribbon colours are the game's own (not official patterns). */
 export const MEDALS = {
-  commend: { n: "국방부장관 표창", d: "첫 승리", rb: ["#1d4e9e", "#ffffff", "#1d4e9e"] },
-  service: { n: "보국포장", d: "누적 10승", rb: ["#2a6e3f", "#e8d35a", "#2a6e3f"] },
-  inheon: { n: "인헌무공훈장", d: "한 전투에서 적함 3척 이상 격침", rb: ["#c8202c", "#ffffff", "#2a6e3f", "#ffffff", "#c8202c"] },
-  hwarang: { n: "화랑무공훈장", d: "선체 50% 이하에서 역전승", rb: ["#7a1f2b", "#e8d35a", "#7a1f2b"] },
-  chungmu: { n: "충무무공훈장", d: "선체 손상 없이 승리", rb: ["#0d3b66", "#e8d35a", "#ffffff", "#e8d35a", "#0d3b66"] },
+  commend: { n: "국방부장관 표창", d: "첫 임무 완수 (작전 승리 또는 평정 S)", rb: ["#1d4e9e", "#ffffff", "#1d4e9e"] },
+  service: { n: "보국포장", d: "누적 10회 작전 승 또는 우수 평정 15회", rb: ["#2a6e3f", "#e8d35a", "#2a6e3f"] },
+  inheon: { n: "인헌무공훈장", d: "위기 작전 완승 또는 한 전투 3표적 격파", rb: ["#c8202c", "#ffffff", "#2a6e3f", "#ffffff", "#c8202c"] },
+  hwarang: { n: "화랑무공훈장", d: "악조건(사기 50↓ 또는 선체 50%↓) 극복", rb: ["#7a1f2b", "#e8d35a", "#7a1f2b"] },
+  chungmu: { n: "충무무공훈장", d: "완벽 임무 (평정 93+ 또는 무손실 승리)", rb: ["#0d3b66", "#e8d35a", "#ffffff", "#e8d35a", "#0d3b66"] },
   samil: { n: "보국훈장 삼일장", d: "영관(소령) 진급", rb: ["#5a3d8a", "#ffffff", "#5a3d8a"] },
   cheonsu: { n: "보국훈장 천수장", d: "대령 진급", rb: ["#5a3d8a", "#e8d35a", "#5a3d8a"] },
   eulji: { n: "을지무공훈장", d: "장성(준장) 진급", rb: ["#c8202c", "#e8d35a", "#c8202c", "#e8d35a", "#c8202c"] },
-  taeguk: { n: "태극무공훈장", d: "원수 진급", rb: ["#c8202c", "#1d4e9e", "#ffffff", "#1d4e9e", "#c8202c"] },
-  modern: { n: "현대전 참전기장", d: "현대전 첫 출격", rb: ["#3a7ca5", "#ffffff", "#3a7ca5"] },
+  taeguk: { n: "태극무공훈장", d: "원수(5성) 특별진급", rb: ["#c8202c", "#1d4e9e", "#ffffff", "#1d4e9e", "#c8202c"] },
+  modern: { n: "합동작전 참전기장", d: "첫 위기 작전 또는 실전 출격", rb: ["#3a7ca5", "#ffffff", "#3a7ca5"] },
 };
 /** Official U.S. Armed Forces decorations & ribbon colors (matching the 10 career milestones). */
 export const US_MEDALS = {
-  commend: { n: "합동복무표창 (JSCM)", d: "첫 승리", rb: ["#1f5c3a", "#ffffff", "#66a3d2", "#ffffff", "#1f5c3a"] },
-  service: { n: "공로훈장 (MSM)", d: "누적 10승", rb: ["#8e1b3d", "#ffffff", "#8e1b3d", "#ffffff", "#8e1b3d"] },
-  inheon: { n: "동성훈장 (Bronze Star)", d: "한 전투에서 적함 3척 이상 격침", rb: ["#ffffff", "#b8202c", "#ffffff", "#1b3b82", "#ffffff", "#b8202c", "#ffffff"] },
-  hwarang: { n: "퍼플 하트 (Purple Heart)", d: "선체 50% 이하에서 역전승", rb: ["#ffffff", "#5a2a82", "#5a2a82", "#5a2a82", "#ffffff"] },
-  chungmu: { n: "은성훈장 (Silver Star)", d: "선체 손상 없이 승리", rb: ["#1b3b82", "#ffffff", "#1b3b82", "#ffffff", "#c8202c", "#ffffff", "#1b3b82", "#ffffff", "#1b3b82"] },
-  samil: { n: "레지온 오브 메리트 (LOM)", d: "영관(O-4) 진급", rb: ["#ffffff", "#9c1c3e", "#9c1c3e", "#9c1c3e", "#ffffff"] },
-  cheonsu: { n: "국방우수복무훈장 (DSSM)", d: "대령(O-6) 진급", rb: ["#6ea8d8", "#1b3b82", "#e8c448", "#c8202c", "#e8c448", "#1b3b82", "#6ea8d8"] },
-  eulji: { n: "수훈장 (DSM)", d: "장성(O-7) 진급", rb: ["#1b3b82", "#ffffff", "#c8202c", "#ffffff", "#1b3b82"] },
-  taeguk: { n: "명예훈장 (Medal of Honor)", d: "원수(5성) 특별진급", rb: ["#6aa6d8", "#ffffff", "#6aa6d8", "#ffffff", "#6aa6d8"] },
-  modern: { n: "인도-태평양 전역기장", d: "현대전 첫 출격", rb: ["#1b4f8a", "#e8c448", "#c8202c", "#e8c448", "#1b4f8a"] },
+  commend: { n: "Joint Service Commendation Medal", d: "첫 임무 완수 (작전 승리 또는 평정 S)", rb: ["#1f5c3a", "#ffffff", "#66a3d2", "#ffffff", "#1f5c3a"] },
+  service: { n: "Meritorious Service Medal (MSM)", d: "누적 10회 작전 승 또는 우수 평정 15회", rb: ["#8e1b3d", "#ffffff", "#8e1b3d", "#ffffff", "#8e1b3d"] },
+  inheon: { n: "Bronze Star Medal", d: "위기 작전 완승 또는 한 전투 3표적 격파", rb: ["#ffffff", "#b8202c", "#ffffff", "#1b3b82", "#ffffff", "#b8202c", "#ffffff"] },
+  hwarang: { n: "Purple Heart", d: "악조건(사기 50↓ 또는 선체 50%↓) 극복", rb: ["#ffffff", "#5a2a82", "#5a2a82", "#5a2a82", "#ffffff"] },
+  chungmu: { n: "Silver Star", d: "완벽 임무 (평정 93+ 또는 무손실 승리)", rb: ["#1b3b82", "#ffffff", "#1b3b82", "#ffffff", "#c8202c", "#ffffff", "#1b3b82", "#ffffff", "#1b3b82"] },
+  samil: { n: "Legion of Merit (LOM)", d: "영관(O-4) 진급", rb: ["#ffffff", "#9c1c3e", "#9c1c3e", "#9c1c3e", "#ffffff"] },
+  cheonsu: { n: "Defense Superior Service Medal", d: "대령(O-6) 진급", rb: ["#6ea8d8", "#1b3b82", "#e8c448", "#c8202c", "#e8c448", "#1b3b82", "#6ea8d8"] },
+  eulji: { n: "Distinguished Service Medal", d: "장성(O-7) 진급", rb: ["#1b3b82", "#ffffff", "#c8202c", "#ffffff", "#1b3b82"] },
+  taeguk: { n: "Medal of Honor", d: "원수(5성) 특별진급", rb: ["#6aa6d8", "#ffffff", "#6aa6d8", "#ffffff", "#6aa6d8"] },
+  modern: { n: "Indo-Pacific Campaign Medal", d: "첫 위기 작전 또는 실전 출격", rb: ["#1b4f8a", "#e8c448", "#c8202c", "#e8c448", "#1b4f8a"] },
 };
-/** Award what this battle (and promotion) earned; returns the new medal keys. */
-export function awardMedals(o) {
+/** Award what this battle/duty/promotion earned; returns the new medal keys. */
+export function awardMedals(o = {}) {
   career.medals ||= {}; const got = [], give = (k) => { if (!career.medals[k]) { career.medals[k] = new Date().toISOString().slice(0, 10); got.push(k); } };
-  if (o.flight !== false) give("modern");
-  if (o.won) { give("commend"); if (o.wins >= 10) give("service"); if (o.sunk >= 3) give("inheon"); if (o.lowHp) give("hwarang"); if (o.hp >= 0.995) give("chungmu"); }
-  if (o.grade >= 3) give("samil"); if (o.grade >= 5) give("cheonsu"); if (o.grade >= 6) give("eulji"); if (o.grade >= 10) give("taeguk");
+  if (o.flight !== false && (o.battle || o.crisis)) give("modern");
+  if (o.won || (o.score || 0) >= 85) give("commend");
+  if ((o.wins || 0) >= 10 || (o.goodEvals || 0) >= 15) give("service");
+  if (o.won && ((o.sunk || 0) >= 3 || o.crisis)) give("inheon");
+  if ((o.won && o.lowHp) || ((o.score || 0) >= 85 && (o.morale ?? 100) <= 50)) give("hwarang");
+  if ((o.won && (o.hp || 0) >= 0.995) || (o.score || 0) >= 93) give("chungmu");
+  if ((o.grade || 0) >= 3) give("samil"); if ((o.grade || 0) >= 5) give("cheonsu"); if ((o.grade || 0) >= 6) give("eulji"); if ((o.grade || 0) >= 10) give("taeguk");
   if (got.length) saveCareer(); return got;
 }
