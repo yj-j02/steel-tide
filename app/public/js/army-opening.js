@@ -1,4 +1,7 @@
+import { navyAirStories } from "./navy-air-opening.js";
+
 const stories = {
+  ...navyAirStories,
   inf: [
     [
       "소대 인수인계",
@@ -248,7 +251,9 @@ const stories = {
 };
 
 export function openingDuty(branch, week) {
-  const chapter = stories[branch]?.[week - 1];
+  const chapter = Object.hasOwn(stories, branch)
+    ? stories[branch][week - 1]
+    : null;
   if (!chapter) return null;
   const [title, description, first, second, ...outcomes] = chapter;
   return {
@@ -263,6 +268,6 @@ export function openingDuty(branch, week) {
 }
 
 export function openingEvent(id) {
-  const match = /^opening-(inf|art|eng)-(\d+)$/.exec(id);
+  const match = /^opening-([a-z]+)-(\d+)$/.exec(id);
   return match && openingDuty(match[1], Number(match[2]));
 }

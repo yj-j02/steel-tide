@@ -236,7 +236,7 @@ export const dutyOptionHint = (optIdx) => (
 
 const rankTier = (g) => (g <= 2 ? 0 : g <= 5 ? 1 : 2);
 const currentOpening = (d, svc, grade) =>
-  svc === "army" && grade === 0 ? openingDuty(staff.branch, d.week) : null;
+  grade === 0 && svc === serviceOf(staff.branch) ? openingDuty(staff.branch, d.week) : null;
 
 export function openingCarryover(d, event) {
   const previous = d.openingChoices?.[event.track]?.[event.week - 1];
@@ -383,7 +383,7 @@ function tickRivals(d, playerGrade, svc = "navy", playerPost = "") {
 
 function resolveOpening(d, event, choice, grade) {
   const label = event.options[choice];
-  if (!label || grade !== 0 || currentOpening(d, "army", grade)?.id !== event.id) return null;
+  if (!label || grade !== 0 || currentOpening(d, serviceOf(staff.branch), grade)?.id !== event.id) return null;
   const previous = openingCarryover(d, event);
   const score = (choice === 0 ? 93 : 86) + (previous?.points ?? 0);
   const track = ((d.openingChoices ??= {})[event.track] ??= {});
