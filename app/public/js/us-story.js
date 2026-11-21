@@ -138,7 +138,9 @@ export function chapter(s) {
         "리버티당",
       ];
     case "declare":
-      return ["출마 선언 기자회견", "워싱턴에서 후보 등록을 발표한다. 기자가 첫 공약의 재원과 추진 절차를 묻는다.", "의회와 협의할 예산안을 공개한다", "주정부와 먼저 시범사업을 논의한다"];
+      return ["출마 선언 기자회견",
+        s.serviceDecision ? `워싱턴 기자회견에서 복무 중 「${s.serviceDecision.title}」로 “${s.serviceDecision.choice}”를 선택한 기록이 공개됐다. 연방정부에서도 같은 원칙을 적용하시겠습니까?` : "워싱턴에서 후보 등록을 발표한다. 기자가 첫 공약의 재원과 추진 절차를 묻는다.",
+        "비용과 근거를 공개하고 의회와 협의한다 · 선거 점수 +0.6", "주정부와 시범사업부터 논의한다 · 선거 점수 +0.3"];
     case "primary":
       return [
         [
@@ -164,6 +166,12 @@ export function chapter(s) {
     case "campaign":
       return stops[s.turn];
     case "debate":
+      if (s.turn === 3 && s.serviceDecision) return [
+        "첫 토론 · 복무 경력 검증",
+        `사회자가 「${s.serviceDecision.title}」 기록을 제시한다. “${s.serviceDecision.choice}”라는 선택을 바탕으로 의회에 어떤 집행 기준을 제안하시겠습니까?`,
+        "효과와 한계를 설명하고 예산 근거를 밝힌다 · 선거 점수 +0.8",
+        "복무 경험을 강조하고 집행 기준은 추후 공개한다 · 선거 점수 −0.9",
+      ];
       return [
         ["첫 토론 · 경제", "두 번째 토론 · 의료", "마지막 토론 · 동맹"][
           Math.floor(s.turn / 3) - 1

@@ -8,7 +8,7 @@ globalThis.localStorage = {
 const { career } = await import("../../app/public/js/career.js");
 const { dutyState, saveDuty, nextDutyWeek } =
   await import("../../app/public/js/duty.js");
-const { preview, settle, interact } =
+const { boardCard, preview, settle, interact } =
   await import("../../app/public/js/promotion-board.js");
 const { curFlagPosts, staff } = await import("../../app/public/js/staff.js");
 const { usPresStart, usPresClick, usPresHTML, usPresState, usPresAdmin } =
@@ -18,6 +18,7 @@ function fixture(g, week, score = 100) {
     cap: g,
     defer: 0,
     boardHistory: [],
+    boardWaits: [],
     rankWeeks: { [g]: week - 1 },
     evals: { [g]: Array(14).fill(score) },
     tours: {},
@@ -26,33 +27,42 @@ function fixture(g, week, score = 100) {
   saveDuty({ ...dutyState(), rivals: [], rep: 100, week, doneWeek: true });
 }
 const args = (g) => [g, g + 1, "Company Commander", "inf", "army"];
-const {ensureDuty} = await import("../../app/public/js/duty.js");
-fixture(0,1);
-saveDuty({...dutyState(),rivals:null});
-ensureDuty("army",0);
-for(let i=1;i<=29;i++){
-  nextDutyWeek("army",0);
-  assert.ok(ensureDuty("army",0).rivals.every(r=>r.g===0));
+const { ensureDuty } = await import("../../app/public/js/duty.js");
+fixture(0, 1);
+saveDuty({ ...dutyState(), rivals: null });
+ensureDuty("army", 0);
+for (let i = 1; i <= 29; i++) {
+  nextDutyWeek("army", 0);
+  assert.ok(ensureDuty("army", 0).rivals.every((r) => r.g === 0));
 }
-assert.equal(dutyState().week,30);
-assert.equal(settle(...args(0)).passed,true);
-assert.ok(dutyState().rivals.every(r=>r.g===1 && r.rankSinceWeek===30));
-assert.equal(settle(...args(0)),null);
-fixture(3,33);
-saveDuty({...dutyState(),rivals:[{name:"A",g:3,rankSinceWeek:30},{name:"B",g:3,rankSinceWeek:21}]});
-assert.deepEqual(preview(...args(3)).rivals.map(r=>r.name),["B"]);
-for(let g=0;g<9;g++){
+assert.equal(dutyState().week, 30);
+assert.equal(settle(...args(0)).passed, true);
+assert.ok(dutyState().rivals.every((r) => r.g === 1 && r.rankSinceWeek === 30));
+assert.equal(settle(...args(0)), null);
+fixture(3, 33);
+saveDuty({
+  ...dutyState(),
+  rivals: [
+    { name: "A", g: 3, rankSinceWeek: 30 },
+    { name: "B", g: 3, rankSinceWeek: 21 },
+  ],
+});
+assert.deepEqual(
+  preview(...args(3)).rivals.map((r) => r.name),
+  ["B"],
+);
+for (let g = 0; g < 9; g++) {
   fixture(g, 42);
-  career.rankWeeks[g]=9;
-  assert.equal(preview(...args(g)).ready,false);
-  career.rankWeeks[g]=10;
-  assert.equal(preview(...args(g)).ready,true);
+  career.rankWeeks[g] = 9;
+  assert.equal(preview(...args(g)).ready, false);
+  career.rankWeeks[g] = 10;
+  assert.equal(preview(...args(g)).ready, true);
 }
-fixture(3,30,55);
-assert.equal(settle(...args(3)).passed,false);
-for(const week of [31,32,33,34]){
-  saveDuty({...dutyState(),week});
-  assert.equal(preview(...args(3)).ready,week===34);
+fixture(3, 30, 55);
+assert.equal(settle(...args(3)).passed, false);
+for (const week of [31, 32, 33, 34]) {
+  saveDuty({ ...dutyState(), week });
+  assert.equal(preview(...args(3)).ready, week === 34);
 }
 fixture(0, 13);
 assert.equal(preview(0, 0, "Company Commander", "inf", "army").ready, false);
@@ -74,12 +84,25 @@ saveDuty({
 });
 assert.equal(settle(...args(5)), null);
 assert.equal(career.defer, 0);
+const vacancyArgs = [...args(5), dutyState(), 60000];
+assert.match(boardCard(...vacancyArgs), /공석 대기/);
+boardCard(...vacancyArgs);
+assert.equal(career.boardWaits.length, 1);
+assert.equal(career.boardHistory.length, 0);
+
 fixture(3, 17);
 interact("study", 3);
 nextDutyWeek("army", 3);
 nextDutyWeek("army", 3);
 assert.equal(career.tours.edu, true);
 staff.nation = "us";
+const { dutyHistory, representativeDecision } =
+  await import("../../app/public/js/career-timeline.js");
+const legacyDuty = { openingChoices: { eng: { 1: 1, 2: 0 } } };
+assert.equal(dutyHistory(legacyDuty)[0].nextPoints, -4);
+assert.ok(dutyHistory(legacyDuty)[0].followupCompleted);
+assert.equal(representativeDecision(legacyDuty).title, "현장 조사");
+saveDuty({ ...dutyState(), ...legacyDuty });
 const { minStart, minClick, minState, minHTML } =
   await import("../../app/public/js/ministry.js");
 minStart("테스트");
@@ -101,6 +124,7 @@ for (let i = 0; i < 4; i++) usPresClick("c:0");
 assert.equal(usPresState().phase, "party");
 usPresClick("c:0");
 assert.equal(usPresState().phase, "declare");
+assert.match(usPresHTML(), /현장 조사/);
 usPresClick("c:0");
 usPresAdmin("pri");
 for (let i = 0; i < 13; i++) {
@@ -114,7 +138,7 @@ usPresClick("c:0");
 assert.equal(usPresState().phase, "night");
 const { electors } = await import("../../app/public/js/content/us.js");
 const savedElection = usPresState();
-savedElection.results = {...electors};
+savedElection.results = { ...electors };
 localStorage.setItem("steeltide:uspres", JSON.stringify(savedElection));
 assert.equal(usPresClick("c:0").inaugurated, false);
 assert.equal(usPresState().phase, "inauguration");
@@ -130,14 +154,19 @@ console.log(
   "Board seasons, discharge, vacancies, education, campaign, presidential term passed.",
 );
 
-const { careerDate, rankMonths } = await import("../../app/public/js/service-calendar.js");
-assert.equal(careerDate(1, {}), careerDate(2, {0:1}));
+const { careerDate, rankMonths } =
+  await import("../../app/public/js/service-calendar.js");
+assert.equal(careerDate(1, {}), careerDate(2, { 0: 1 }));
 assert.equal(careerDate(7, {}), "복무 2년차 · 겨울");
-assert.equal(careerDate(11, {0: 10}), "복무 3년차 · 겨울");
+assert.equal(careerDate(11, { 0: 10 }), "복무 3년차 · 겨울");
 assert.equal(rankMonths(2, 10), 48);
-const { US_BRANCHES, US_FLAG_POSTS } = await import("../../app/public/js/us-ranks.js");
-const { koreanPostName } = await import("../../app/public/js/us-post-labels.js");
+const { US_BRANCHES, US_FLAG_POSTS } =
+  await import("../../app/public/js/us-ranks.js");
+const { koreanPostName } =
+  await import("../../app/public/js/us-post-labels.js");
 for (const branch of Object.values(US_BRANCHES)) {
-  for (const post of [branch.n, ...branch.t]) assert.notEqual(koreanPostName(post), post);
+  for (const post of [branch.n, ...branch.t])
+    assert.notEqual(koreanPostName(post), post);
 }
-for (const post of US_FLAG_POSTS) assert.notEqual(koreanPostName(post.t), post.t);
+for (const post of US_FLAG_POSTS)
+  assert.notEqual(koreanPostName(post.t), post.t);

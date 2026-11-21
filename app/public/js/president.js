@@ -1,3 +1,5 @@
+import { representativeDecision } from "./career-timeline.js";
+import { dutyState } from "./duty.js";
 import { careerStorage } from "./characters.js";
 // 대통령 선거 (국방부장관 임기를 마친 민간인): 프롤로그 → 출마 선언 → 정당 선택 → 당내 경선 → 본선 7턴 → TV 토론 3회 → 선거일 밤.
 // 정당·후보·인물은 모두 가상이다. 수치는 게임용 값이며 실제 여론·득표와 무관하다.
@@ -25,7 +27,7 @@ export function presStart(name) {
   const m = minState(), T = m?.term || { avg: 55, l5: 1, rate: 80, ok: false };
   const P = { stage: "pro", turn: 0, name, fame: clamp(32 + (T.avg - 55) + (T.ok ? 8 : 0), 15, 70), money: 120, org: 30, hp: 100, trust: 40 + T.l5 * 5,
     g: { sec: clamp(50 + (T.rate - 80) * 0.5, 35, 70), eco: 50, youth: 50, mid: 50, old: 50 }, r: Object.fromEntries(Object.keys(REG).map((k) => [k, 50])),
-    pl: { sec: 0, eco: 0, wel: 0, youth: 0, bal: 0 }, picks: m?.picks || {}, flags: {}, log: [], poll: [], docket: [], seen: [], debates: [], term: T };
+    pl: { sec: 0, eco: 0, wel: 0, youth: 0, bal: 0 }, picks: m?.picks || {}, serviceDecision: representativeDecision(dutyState()), flags: {}, log: [], poll: [], docket: [], seen: [], debates: [], term: T };
   note(P, "국방부장관 임기를 마치고 민간인이 되었습니다."); save(P); return P;
 }
 
@@ -88,6 +90,10 @@ const blackout = (P) => dday(P) <= 6;
 export function debateQs(P) {
   const k = [1, 3, 5].indexOf(P.turn), base = DEBATE_Q[k].map(([q, o]) => ({ who: "사회자", q, opts: o.map(([n, e]) => [n, e]) })), o = P.opp[0];
   base.push({ who: `${o.n} 후보`, q: `${P.name} 후보는 장관 시절 성과를 말하지만, 그때 국정 지지율이 평균 ${P.term.avg}였습니다. 국민이 그 성과를 체감했다고 보십니까?`, opts: [["숫자로 실적 반박", "신뢰 +"], ["인정하고 비전으로 전환", "중도층 +"], ["상대 후보 이력으로 역공", "지지층 결집 · 중도층 −"]] });
+  if (k === 0 && P.serviceDecision) {
+    base[2] = {who: "사회자", q: `복무 중 「${P.serviceDecision.title}」에서 “${P.serviceDecision.choice}”를 선택했습니다. 정부에서도 그 판단 기준을 적용할 수 있겠습니까?`,
+      opts: [["당시 결과와 판단 근거를 공개한다", "신뢰 +3"], ["제도의 한계와 개선안을 설명한다", "중도층 +4"], ["군 지휘 경력을 앞세운다", "안보층·경제층 +2 · 중도층 −4"]]};
+  }
   const ks = Object.keys(PAST).filter((id) => P.picks[id] != null), id = ks[k % Math.max(1, ks.length)];
   if (id) { const [t, opts] = PAST[id], was = opts[P.picks[id]] || opts[0]; base.push({ who: "패널 기자", q: `장관 시절 「${t}」에서 '${was}' 쪽으로 결재하셨습니다. 지금도 같은 입장입니까?`, opts: [["그 입장 그대로입니다", "신뢰 +3 · 해당 지지층 +"], ["상황이 바뀌어 입장을 조정하겠습니다", "중도층 +2 · 신뢰 −5"]], past: id }); }
   return base;
@@ -159,14 +165,14 @@ export function presHTML() {
 }
 
 /** 클릭 처리 → { redraw, toast, scene, cuts } */
-const declScene = (P) => ({ kind: "declare", title: "대통령 선거 출마 선언", place: `${PARTIES[P.party]?.n || "무소속"} · 출마 선언 기자회견`, speaker: P.name, questions: [{ who: "기자", q: "국방부장관 출신으로 대선에 출마하시는 이유는 무엇입니까?", opts: [["안보와 민생을 함께 지키겠습니다", "중도층 +3"], ["경험으로 증명하겠습니다", "인지도 +4"], ["새로운 정치를 하겠습니다", "청년층 +3"]] }], pick: (qi, ai) => presClick(`decl:${ai}`) });
+const declScene = (P) => ({ kind: "declare", title: "대통령 선거 출마 선언", place: `${PARTIES[P.party]?.n || "무소속"} · 출마 선언 기자회견`, speaker: P.name, questions: [{ who: "기자", q: P.serviceDecision ? `복무 중 「${P.serviceDecision.title}」에서 “${P.serviceDecision.choice}”를 선택했습니다. 이 경험을 정부에서 어떻게 살리겠습니까?` : "공직을 마치고 대선에 출마하시는 이유는 무엇입니까?", opts: [["안보와 민생을 함께 지키겠습니다", "중도층 +3"], ["경험으로 증명하겠습니다", "인지도 +4"], ["새로운 정치를 하겠습니다", "청년층 +3"]] }], pick: (qi, ai) => presClick(`decl:${ai}`) });
 export function presClick(a) {
   const P = presState(); if (!P) return {};
   const done = (t) => { save(P); return { redraw: true, toast: t }; };
   if (a.startsWith("pro:") && P.stage === "pro") { const o = PROLOGUE.find((x) => x[0] === a.slice(4)); apply(P, o[3]); note(P, `민간인 ${P.turn + 1}/4 — ${o[1].slice(2)}`); P.turn++;
     if (P.turn >= 4) { P.stage = "party"; save(P); return { redraw: true, toast: "출마를 결심했습니다 — 출마할 길을 고르십시오" }; }
     return done(o[1]); }
-  if (a.startsWith("decl:")) { apply(P, [{ g: { mid: 3 } }, { fame: 4 }, { g: { youth: 3 } }][+a.slice(5)]); note(P, "대통령 선거 출마를 선언했습니다."); return done(); }
+  if (a.startsWith("decl:")) { apply(P, [{ g: { mid: 3 } }, { fame: 4 }, { g: { youth: 3 } }][+a.slice(5)]); note(P, "대통령 선거 출마를 선언했습니다."); return done(["중도층 호감 +3", "인지도 +4", "청년층 호감 +3"][+a.slice(5)]); }
   if (a === "quit") { P.stage = "quit"; note(P, "불출마를 선택하고 민간인으로 남았습니다."); return done(); }
   if (a.startsWith("party:") && P.stage === "party") { const k = a.slice(6); P.party = k; note(P, `${PARTIES[k].n}${k === "ind" ? "로 출마" : "에 입당"}`);
     if (k === "ind") { apply(P, { g: { mid: 8 } }); setupRace(P); return { ...done("무소속 후보 등록 — 본선 시작"), scene: declScene(P) }; }

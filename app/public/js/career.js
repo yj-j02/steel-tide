@@ -1,3 +1,4 @@
+import { careerDate, serviceTurn } from "./service-calendar.js";
 import { careerStorage } from "./characters.js";
 // Officer career: pay steps (호봉) within a rank, service record (약력), medals and flagship assignment.
 
@@ -9,11 +10,11 @@ export const saveCareer = () => { try { careerStorage.setItem(KEY, JSON.stringif
 export function careerInit(grade, title, branchName) {
   if (career.seen != null) return;
   career.seen = grade;
-  career.log.push({ g: grade, t: title, b: branchName, d: new Date().toISOString().slice(0, 10), why: grade ? "기존 경력 승계" : "임관" });
+  career.log.push({ serviceDate: careerDate(), turn: serviceTurn(), g: grade, t: title, b: branchName, d: new Date().toISOString().slice(0, 10), why: grade ? "기존 경력 승계" : "임관" });
   saveCareer();
 }
 
-export function logPromotion(e) { career.log.push({ ...e, d: new Date().toISOString().slice(0, 10) }); saveCareer(); }
+export function logPromotion(e) { career.log.push({ serviceDate: careerDate(), turn: serviceTurn(), ...e, d: new Date().toISOString().slice(0, 10) }); saveCareer(); }
 
 /** Neutral combat modifiers (kept for 3D battle compatibility). */
 export function perkMods() {
@@ -59,7 +60,9 @@ export const US_MEDALS = {
 };
 /** Award what this battle/duty/promotion earned; returns the new medal keys. */
 export function awardMedals(o = {}) {
-  career.medals ||= {}; const got = [], give = (k) => { if (!career.medals[k]) { career.medals[k] = new Date().toISOString().slice(0, 10); got.push(k); } };
+  career.medals ||= {}; const got = [], give = (k) => { if (!career.medals[k]) { career.medals[k] = new Date().toISOString().slice(0, 10); (career.medalHistory ??= {})[k] = {
+    date: careerDate(o.turn), turn: o.turn ?? serviceTurn(), source: o.source,
+  }; got.push(k); } };
   if (o.flight !== false && (o.battle || o.crisis)) give("modern");
   if (o.won || (o.score || 0) >= 85) give("commend");
   if ((o.wins || 0) >= 10 || (o.goodEvals || 0) >= 15) give("service");

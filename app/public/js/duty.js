@@ -393,6 +393,13 @@ function resolveOpening(d, event, choice, grade) {
   const xpGain = 450;
   d.rep = clamp(d.rep + (choice === 0 ? 3 : 1), 0, 100);
   d.morale = clamp(d.morale + (choice === 0 ? 2 : 0), 10, 100);
+  const next = openingDuty(event.track, event.week + 1);
+  (d.timeline ??= []).push({
+    id: event.id, opening: true, turn: d.week, date: careerDate(d.week), title: event.title,
+    choice: label, outcome: event.outcomes[choice], score,
+    nextTitle: next?.title, nextPoints: next ? choice === 0 ? 4 : -4 : undefined,
+    carriedPoints: previous?.points,
+  });
   d.last = `${event.outcomes[choice]} · 평정 ${score}점 · +${xpGain} XP`;
   d.headlines = [`${careerDate(d.week)} · ${event.title} · ${event.outcomes[choice]}`, ...d.headlines].slice(0, 12);
   d.pending = d.pending.filter(id => id !== event.id);
@@ -400,7 +407,7 @@ function resolveOpening(d, event, choice, grade) {
   recordEval(grade, score);
   career.goodEvals = (career.goodEvals || 0) + 1;
   saveCareer();
-  awardMedals({score, morale: d.morale, goodEvals: career.goodEvals, grade});
+  awardMedals({source: event.title, turn: d.week, score, morale: d.morale, goodEvals: career.goodEvals, grade});
   saveDuty(d);
   return {xpGain, score, label};
 }
@@ -442,6 +449,10 @@ export function resolveDuty(id, optIdx, grade) {
   d.pending = d.pending.filter((x) => x !== id);
   d.headlines.unshift(`${careerDate(d.week)} · ${headline}`);
   d.headlines = d.headlines.slice(0, 12);
+  if (sc >= 85 || backfired) {
+    (d.timeline ??= []).push({id: `${d.week}:${id}`, turn: d.week, date: careerDate(d.week),
+      title: ev[4], choice: label, outcome: headline, score: sc});
+  }
   d.last = `${ev[4]} → ${label}${backfired ? " [차질 발생!]" : ""} (평정 ${letter(sc)} · ${sc}점 · +${xpGain} XP)`;
   if ((!d.report || d.report.routine) && (backfired || sc < 80)) {
     d.report = { title: `${ev[4]} — 상부 결과 보고`, items: d.report?.items ?? [], desc: backfired ? "업무 차질과 손실을 상급부대에 어떻게 보고하시겠습니까?" : "수행 중 확인된 미흡점과 장비 소모를 어떻게 보고하시겠습니까?" };
@@ -452,7 +463,7 @@ export function resolveDuty(id, optIdx, grade) {
   if (!d.pending.length && !d.crisis && !d.report) d.doneWeek = true;
   recordEval(grade, sc);
   if (sc >= 70) { career.goodEvals = (career.goodEvals || 0) + 1; saveCareer(); }
-  awardMedals({ score: sc, morale: d.morale, goodEvals: career.goodEvals || 0, grade });
+  awardMedals({ source: ev[4], turn: d.week, score: sc, morale: d.morale, goodEvals: career.goodEvals || 0, grade });
   saveDuty(d);
   return { xpGain, score: sc, headline, label: backfired ? `${label} (작전 차질!)` : label, backfired };
 }
@@ -487,6 +498,11 @@ export function resolveReport(choiceIdx, grade) {
   d.morale = clamp(d.morale + dm, 10, 100);
   d.rep = clamp(d.rep + dr, 0, 100);
   d.headlines = d.headlines.slice(0, 12);
+  if (!routine) {
+    const labels = ["사실대로 보고", "성과 강조 · 미흡점 축소", "현장 실무자 책임으로 선 긋기"];
+    (d.timeline ??= []).push({id: `${d.week}:report:${title}`, date: careerDate(d.week), turn:d.week,
+      title, choice:labels[choiceIdx], outcome:msg, score:sc});
+  }
   d.last = `${title} → ${msg}`;
   if (!d.pending.length && !d.crisis) d.doneWeek = true;
   recordEval(grade, sc);

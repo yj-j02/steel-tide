@@ -14,6 +14,9 @@ export function serviceDuration(months) {
   return [years ? `${years}년` : "", remainder ? `${remainder}개월` : ""].filter(Boolean).join(" ") || "0개월";
 }
 
+export const serviceTurn = (record = career) =>
+  Object.values(record.rankWeeks ?? {}).reduce((sum, count) => sum + count, 1);
+
 export function careerDate(turn = 1, rankWeeks = career.rankWeeks ?? {}) {
   let total = 0;
   let counted = 0;

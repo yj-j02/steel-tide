@@ -61,6 +61,7 @@ export function characters() {
     commander: json(keyFor(slot.id, "steeltide:cmdr"), {}),
     staff: json(keyFor(slot.id, "steeltide:staff"), {}),
     career: json(keyFor(slot.id, "steeltide:career"), {}),
+    duty: json(keyFor(slot.id, "steeltide:duty"), {}),
   }));
 }
 

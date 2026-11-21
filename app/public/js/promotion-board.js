@@ -1,4 +1,4 @@
-import { rankMonths, serviceDuration } from "./service-calendar.js";
+import { careerDate, rankMonths, serviceDuration } from "./service-calendar.js";
 import { ECON_RANK_XP } from "./shop.js";
 import { usNpcName } from "./us-ranks.js";
 import { career, saveCareer } from "./career.js";
@@ -147,6 +147,12 @@ export function settle(g, xp, title, br, svc, preferred) {
     season: v.season,
     grade: g,
     score: v.score,
+    cutoff: v.cutoff,
+    date: careerDate(d.week),
+    previousPost: title,
+    serviceMonths: rankMonths(g, weeksOf(g)),
+    contribution: v.parts.reduce((top, part) => part[1] > top[1] ? part : top),
+    penalty: v.penalty,
     passed,
     reason,
   };
@@ -170,6 +176,8 @@ export function settle(g, xp, title, br, svc, preferred) {
       title,
       avg: board(g, xp).e.avg,
       at: new Date().toISOString().slice(0, 10),
+      date: receipt.date,
+      turn: d.week,
     };
   for (const r of selected.filter((r) => r.index >= 0)) {
     d.rivals[r.index].g = g + 1;
@@ -243,6 +251,10 @@ export function boardCard(g, xp, title, br, svc, d, experience) {
   prepareRecord(g);
   const v = preview(g, xp, title, br, svc, d),
     left = v.waitWeeks;
+  if (v.ready && !v.seats && !career.boardWaits?.some(entry => entry.grade === g)) {
+    (career.boardWaits ??= []).push({ grade: g, week: d.week, date: careerDate(d.week), previousPost: title });
+    saveCareer();
+  }
   const peer =
     d.rivals?.[(d.week / 7 - 1) % Math.max(1, d.rivals?.length || 1)];
   const last = career.boardHistory?.at(-1);

@@ -1,3 +1,5 @@
+import { representativeDecision } from "./career-timeline.js";
+import { dutyState } from "./duty.js";
 import { careerStorage } from "./characters.js";
 import { chapter } from "./us-story.js";
 import { civicMap } from "./civic-map.js";
@@ -40,6 +42,7 @@ export function usPresStart(name, trust = 62, ministry = null) {
     ministry?.retired && ministry.nat === "us"
       ? { minister: true, weeks: ministry.sup?.length || 36 }
       : { minister: false };
+  s.serviceDecision = representativeDecision(dutyState());
   s.trust = Math.max(45, Math.min(80, trust));
   s.journal = [
     "공직을 마치고 민간인으로 돌아왔다. 출마를 두고 가족과 상의했다.",
@@ -137,6 +140,7 @@ export function usPresHTML() {
         <div class="mn-card mn-dk mn-paper" style="border-color:${s.party === "red" ? "#e06464" : "#5da8e8"}">
           <div class="dh"><div class="dt"><small>미국 대선 · 백악관 회의록</small><b>${esc(title)}</b></div></div>
           <p>${esc(desc)}</p>
+          ${s.serviceDecision && (s.phase === "declare" || (s.phase === "debate" && s.turn === 3)) ? `<p class="campaign-service-record"><b>인사기록 · ${esc(s.serviceDecision.date)}</b><br>${esc(s.serviceDecision.outcome)}</p>` : ""}
           <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${btns || `<button class="mn-go" data-uspres="reset">↺ 새 대선 캠페인 시작</button>`}</div>
         </div>
       </div>
@@ -209,6 +213,8 @@ export function usPresClick(act) {
       if ((before === "night" || before === "contingent") && s.term > prevTerm) s.phase = "inauguration";
     }
     const report = [title + " · " + answers[i]];
+    if (before === "declare") report.push(i === 0 ? "선거 점수 +0.6" : "선거 점수 +0.3");
+    if (before === "debate") report.push(i === 0 ? "선거 점수 +0.8" : "선거 점수 −0.9");
     if (before === "campaign") report.push(region + "주 유세 완료");
     if (before === "primary") report.push("누적 대의원 " + s.delegates + "명");
     if (before === "cabinet" && i !== 2)
