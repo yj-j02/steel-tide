@@ -144,7 +144,10 @@ const { electors } = await import("../../app/public/js/content/us.js");
 const savedElection = usPresState();
 savedElection.results = { ...electors };
 localStorage.setItem("steeltide:uspres", JSON.stringify(savedElection));
-assert.equal(usPresClick("c:0").inaugurated, false);
+const victory = usPresClick("c:0");
+assert.equal(victory.inaugurated, false);
+assert.match(victory.cuts[1].card, /당선 확정.*538 \/ 538/);
+assert.deepEqual(usPresClick("replay").cuts, victory.cuts);
 assert.equal(usPresState().phase, "inauguration");
 assert.equal(usPresOffice(usPresState()).title, "미국 대통령 당선인");
 assert.doesNotMatch(usPresHTML(), /us_potus_mark/);
@@ -157,6 +160,11 @@ for (let i = 0; i < 160 && usPresState().phase !== "end"; i++) {
 }
 assert.equal(usPresState().phase, "end");
 assert.equal(usPresOffice(usPresState()).title, "전직 미국 대통령");
+assert.deepEqual(usPresClick("replay").cuts, victory.cuts);
+const defeat = usPresAdmin("loss");
+assert.match(defeat.cuts[1].card, /낙선.*0 \/ 538/);
+assert.deepEqual(usPresClick("replay").cuts, defeat.cuts);
+
 console.log(
   "Board seasons, repeated non-selection, vacancies, education, campaign, presidential term passed.",
 );

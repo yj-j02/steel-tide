@@ -13,7 +13,7 @@ const won = (n) => `${Math.round(n).toLocaleString("ko-KR")}조`;
 const TERM = 20, GE_Q = 12; /* 임기 중 총선 (3년차) */
 
 import { potusContent } from "./content/kr.js";
-const { AGENDA, AG_LV, NATIONS, MINS, DOCKET, CRISES, CR_OPT, SUMMIT } = potusContent();
+const { AGENDA, AG_LV, NATIONS, MINS, DOCKET, CRISES, CR_OPT, SUMMIT, CRISIS_DIALOGUE, SUMMIT_DIALOGUE } = potusContent();
 export { AGENDA };
 
 export const potusState = () => rd(QK, null);
@@ -97,10 +97,12 @@ export function potusClick(a) {
     fx(Q, { sec: k === "sec" ? 4 : 0, eco: k === "eco" ? 4 : 0, ap: k === "wel" || k === "youth" ? 2 : 1, fis: -1 }); note(Q, `국정 과제 — ${AG_LV[k][L]}`); return done(`국정 과제 추진 — ${AG_LV[k][L]}`); }
   if (a.startsWith("call:") && !Q.act.dip) { const k = a.slice(5); Q.rel[k] = clamp(Q.rel[k] + 4, 0, 100); Q.act.dip = true; note(Q, `${NATIONS[k][0]} 정상과 통화`); return done(`${NATIONS[k][0]} 정상 통화 — 관계 +4`); }
   if (a === "summit" && Q.summit && !Q.act.dip) { const [t, opts] = SUMMIT[Q.summit][0], n = NATIONS[Q.summit][0];
-    return { scene: { kind: "summit", title: `${n} 정상회담`, place: `정상회담 · ${t}`, speaker: "대통령", questions: [{ who: `${n} 정상`, q: `${t}에 대해 대통령님의 입장을 듣고 싶습니다.`, opts: opts.map(([x, e]) => [x, e]) }], pick: (qi, ai) => potusClick(`sm:${ai}`) } }; }
+    const [question, ...answers] = SUMMIT_DIALOGUE[Q.summit];
+    return { scene: { kind: "summit", title: `${n} 정상회담`, place: `정상회담 · ${t}`, speaker: "대통령", questions: [{ who: `${n} 정상`, q: question, opts: opts.map(([x, e], i) => [x, e, answers[i]]) }], pick: (qi, ai) => potusClick(`sm:${ai}`) } }; }
   if (a.startsWith("sm:") && Q.summit && !Q.act.dip) { const o = SUMMIT[Q.summit][0][1][+a.slice(3)]; fx(Q, o[2]); Q.act.dip = true; note(Q, `${NATIONS[Q.summit][0]} 정상회담 — ${o[0]}`); return done(`정상회담 — ${o[0]}`); }
   if (a === "nsc" && Q.crisis && !Q.crisis.res) { const c = CRISES.find((x) => x[0] === Q.crisis.id);
-    return { scene: { kind: "nsc", title: c[1], place: "국가안전보장회의 · 대통령 주재", speaker: "대통령", questions: [{ who: `국방부장관 ${Q.min || ""}`, q: `${c[2]} 대응 방침을 결정해 주십시오.`, opts: CR_OPT.map(([x, e]) => [x, e]) }], pick: (qi, ai) => potusClick(`cr:${ai}`) } }; }
+    const [question, ...answers] = CRISIS_DIALOGUE[c[0]];
+    return { scene: { kind: "nsc", title: c[1], place: "국가안전보장회의 · 대통령 주재", speaker: "대통령", questions: [{ who: `국방부장관 ${Q.min || ""}`, q: `${c[2]} ${question}`, opts: CR_OPT.map(([x, e], i) => [x, e, answers[i]]) }], pick: (qi, ai) => potusClick(`cr:${ai}`) } }; }
   if (a.startsWith("cr:") && Q.crisis && !Q.crisis.res) { const i = +a.slice(3), p = clamp(0.45 + Q.ag.sec * 0.07 + (Q.sec - 50) / 200 + (Q.rel.us - 50) / 300, 0.15, 0.92), ok = Math.random() < p;
     const R = [ok ? ["격퇴 성공", "g", "적 도발을 비례적으로 제압했습니다.", { sec: 6, ap: 5 }] : ["대응 실패", "r", "피해가 커졌고 대응이 늦었다는 비판이 나옵니다.", { sec: -6, ap: -7 }],
       ["외교 압박", "g", "동맹과 공동 성명을 내고 국제 공조를 이끌었습니다.", { us: 5, nk: -6, sec: 2, ap: 1 }], ["상황 관리", ok ? "g" : "r", ok ? "확전 없이 상황이 진정됐습니다." : "소극적 대응이라는 비판이 큽니다.", ok ? { eco: 1, ap: 1 } : { ap: -4, sec: -3 }]][i];

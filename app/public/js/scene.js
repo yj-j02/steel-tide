@@ -5,12 +5,12 @@ let THEME = null; const THEMED = ["declaration", "primary_hall", "rally", "elect
 const usBackgrounds = { briefing: "us_press_spokesperson", hearing: "us_capitol_hearing", indopac: "us_war_room", situation: "us_war_room", office: "us_pentagon_office", ceremony: "us_ceremony", study: "us_pentagon_office", primary: "primary_hall", rally: "rally", convention: "primary_hall", debate: "debate", poll: "poll_booth", election_night: "election_night", victory: "victory", inauguration: "us_ceremony", president_office: "us_oval_office", address: "us_press_secdef", summit: "summit" };
 THEMED.push(...["primary","rally","convention","election_night","victory","address","president_office"].map(n => "us_" + n));
 /* Add delivered US artwork here to enable it ahead of the fallback. */
-const availableUS = new Set(["us_war_room", "us_pentagon_office", "us_oval_office", "us_capitol_hearing", "us_press_secdef", "us_press_corps", "us_press_spokesperson", "us_ceremony"]);
+const availableUS = new Set(["us_rally", "us_war_room", "us_pentagon_office", "us_oval_office", "us_capitol_hearing", "us_press_secdef", "us_press_corps", "us_press_spokesperson", "us_ceremony"]);
 export const setTheme = (t) => { THEME = t || null; };
 const US_SWAP = { war_room: "us_war_room", nsc: "us_war_room", office: "us_pentagon_office", assembly: "us_capitol_hearing", president_office: "us_oval_office", press_minister: "us_press_secdef", press_journalist: "us_press_corps", press_spokesperson: "us_press_spokesperson", ceremony: "us_ceremony" };
 const IMG = (n) => {
   if (typeof document !== "undefined" && document.body?.classList.contains("us-nat") && US_SWAP[n]) return `img/bg/${US_SWAP[n]}.jpg`;
-  return `img/bg/${THEMED.includes(n) && THEME ? `${n}_${THEME}` : n}.jpg`;
+  return `img/bg/${THEMED.includes(n) && THEME && !availableUS.has(n) ? `${n}_${THEME}` : n}.jpg`;
 };
 /* 아직 없는 배경은 비슷한 기존 사진으로 대신한다 */
 const FB = { declaration: "press_minister", election_night: "nsc", victory: "press_minister", rally: "ceremony", primary_hall: "press_minister", debate: "press_minister", poll_booth: "office", camp_room: "war_room", inauguration: "ceremony", study: "office", summit: "nsc", president_office: "office", address: "press_minister" };
@@ -45,17 +45,35 @@ export function playCuts({ title = "", place = "", cuts = [], onClose }) {
   const S = (R = { el, onClose, qi: 0, timers: [], cur: 0, typer: 0, skipped: false });
   const L = [...el.querySelectorAll(".ly")], sub = el.querySelector(".s3-sub"), card = el.querySelector(".s3-card"), fl = el.querySelector(".fl"), nb = el.querySelector(".s3-next");
   for (const c of cuts) load(new Image(), c.img, () => {});
-  let i = -1, ready = false;
-  const show = (c) => { const img = new Image(); const nx = L[S.cur ^ 1], old = L[S.cur], [fx, fy, z] = c.f || [0.5, 0.5, 1.06];
-    const go = () => { nx.innerHTML = ""; nx.appendChild(img); img.style.transition = "none"; img.style.transform = fit(el, img, fx, fy, z); nx.style.transition = "opacity 1.2s"; nx.style.opacity = 1; old.style.opacity = 0; S.cur ^= 1;
+  let i = -1;
+  const show = (c, cutIndex) => { const img = new Image(); const nx = L[S.cur ^ 1], old = L[S.cur], [fx, fy, z] = c.f || [0.5, 0.5, 1.06];
+    const go = () => { if (R !== S || cutIndex !== i) return; nx.innerHTML = ""; nx.appendChild(img); img.style.transition = "none"; img.style.transform = fit(el, img, fx, fy, z); nx.style.transition = "opacity 1.2s"; nx.style.opacity = 1; old.style.opacity = 0; S.cur ^= 1;
       requestAnimationFrame(() => requestAnimationFrame(() => { img.style.transition = "transform 10s cubic-bezier(.25,.1,.25,1)"; img.style.transform = fit(el, img, c.to?.[0] ?? fx, c.to?.[1] ?? fy, c.to?.[2] ?? z * 1.08); })); };
     load(img, c.img, go); };
-  const next = () => { if (!ready && i >= 0) return; i++; if (i >= cuts.length) return closeScene(true); const c = cuts[i]; ready = false; nb.classList.remove("on");
-    if (c.img !== cuts[i - 1]?.img || c.f) show(c); if (c.flash) for (let k = 0; k < c.flash; k++) S.timers.push(setTimeout(() => { fl.classList.remove("on"); void fl.offsetWidth; fl.classList.add("on"); }, 300 + k * 260));
-    card.className = c.card ? "s3-card on" : "s3-card"; card.innerHTML = c.card || "";
-    const done = () => { ready = true; nb.classList.add("on"); if (c.auto) S.timers.push(setTimeout(next, c.auto)); };
-    S.timers.push(setTimeout(() => { sub.className = `s3-sub on ${c.cls || ""}`; sub.innerHTML = `<i>${c.who || ""}</i><span></span>`; const sp = sub.querySelector("span"), t0 = performance.now(); clearInterval(S.typer);
-      S.typer = setInterval(() => { const n = Math.ceil((performance.now() - t0) / 38); sp.textContent = c.text.slice(0, n); if (n >= c.text.length) { clearInterval(S.typer); done(); } }, 30); }, 700)); };
+  const next = () => {
+    S.timers.forEach(clearTimeout);
+    S.timers.length = 0;
+    clearInterval(S.typer);
+    i++;
+    if (i >= cuts.length) return closeScene(true);
+    const c = cuts[i];
+    nb.classList.add("on");
+    show(c, i);
+    if (c.flash) for (let k = 0; k < c.flash; k++) S.timers.push(setTimeout(() => { fl.classList.remove("on"); void fl.offsetWidth; fl.classList.add("on"); }, 300 + k * 260));
+    card.className = c.card ? "s3-card on" : "s3-card";
+    card.innerHTML = c.card || "";
+    sub.className = `s3-sub on ${c.cls || ""}`;
+    sub.innerHTML = `<i>${c.who || ""}</i><span></span>`;
+    const sp = sub.querySelector("span"), t0 = performance.now();
+    S.typer = setInterval(() => {
+      const n = Math.ceil((performance.now() - t0) / 38);
+      sp.textContent = c.text.slice(0, n);
+      if (n >= c.text.length) {
+        clearInterval(S.typer);
+        if (c.auto) S.timers.push(setTimeout(next, c.auto));
+      }
+    }, 30);
+  };
   nb.addEventListener("click", next); el.querySelector(".s3-skip").addEventListener("click", () => { S.skipped = true; closeScene(true); });
   S.resize = () => {}; next();
 }
@@ -77,9 +95,11 @@ export function openScene({ kind = "press", title = "", questions = [], onPick, 
   /* 화면을 꽉 채우도록 배율·위치를 계산해 (fx, fy)가 화면 중앙에 오게 한다 */
   const frame = (img, fx, fy, z) => { const W = el.clientWidth, H = el.clientHeight, iw = img.naturalWidth || 1376, ih = img.naturalHeight || 768, s = Math.max(W / iw, H / ih) * z, w = iw * s, h = ih * s;
     const x = Math.min(0, Math.max(W - w, W / 2 - fx * w)), y = Math.min(0, Math.max(H - h, H / 2 - fy * h)); return `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${s.toFixed(4)})`; };
+  let shotIndex = 0;
   const shot = ([n, fx, fy, z], cut = true) => {
+    const index = ++shotIndex;
     const nx = L[S.cur ^ 1], old = L[S.cur], img = new Image();
-    const go = () => { nx.innerHTML = ""; nx.appendChild(img); img.style.transition = "none"; img.style.transform = frame(img, fx, fy, z);
+    const go = () => { if (R !== S || index !== shotIndex) return; nx.innerHTML = ""; nx.appendChild(img); img.style.transition = "none"; img.style.transform = frame(img, fx, fy, z);
       nx.style.transition = cut ? "opacity .35s" : "opacity 1.1s"; nx.style.opacity = 1; old.style.opacity = 0; S.cur ^= 1;
       /* 천천히 밀고 들어가는 카메라 (Ken Burns) */
       requestAnimationFrame(() => requestAnimationFrame(() => { img.style.transition = "transform 9s cubic-bezier(.25,.1,.25,1)"; img.style.transform = frame(img, fx + (Math.random() - 0.5) * 0.04, fy, z * 1.07); })); };
@@ -88,18 +108,59 @@ export function openScene({ kind = "press", title = "", questions = [], onPick, 
   const flash = (n = 3) => { for (let i = 0; i < n; i++) later(() => { fl.classList.remove("on"); void fl.offsetWidth; fl.classList.add("on"); }, i * (120 + Math.random() * 260)); };
   const say = (who, text, cls, done) => { sub.className = `s3-sub on ${cls}`; sub.innerHTML = `<i>${who}</i><span></span>`; const sp = sub.querySelector("span"), t0 = performance.now(); clearInterval(S.typer);
     S.typer = setInterval(() => { const n = Math.ceil((performance.now() - t0) / 33); sp.textContent = text.slice(0, n); if (n >= text.length) { clearInterval(S.typer); done?.(); } }, 30); };
-  const ask = () => { const Q = questions[S.qi]; if (!Q) return finish(); box.className = "s3-opts"; box.innerHTML = "";
-    shot(S.qi % 2 ? Sh.askAlt : Sh.ask); if (K === "press") flash(2);
-    later(() => say(Q.who || (K === "press" ? "기자" : K === "assembly" ? "국방위원" : "참석자"), Q.q, "q", () => later(() => { box.innerHTML = Q.opts.map(([n, e], i) => `<button data-a="${i}"><b>${n}</b>${e ? `<small>${e}</small>` : ""}</button>`).join(""); box.className = "s3-opts on"; }, 250)), 600); };
-  const answer = (ai) => { const o = questions[S.qi].opts[ai]; box.className = "s3-opts"; box.innerHTML = ""; shot(Sh.ans); if (K === "press") flash(4);
+  const nb = document.createElement("button");
+  nb.className = "s3-next";
+  nb.textContent = document.documentElement.lang === "en" ? "Next ›" : "다음 ›";
+  el.appendChild(nb);
+  let advance = null;
+  const clearWaits = () => {
+    S.timers.forEach(clearTimeout);
+    S.timers.length = 0;
+    clearInterval(S.typer);
+  };
+  const setNext = (callback) => {
+    advance = callback;
+    nb.classList.add("on");
+  };
+  nb.onclick = () => {
+    if (!advance) return;
+    const callback = advance;
+    advance = null;
+    nb.classList.remove("on");
+    clearWaits();
+    callback();
+  };
+  const ask = () => {
+    const Q = questions[S.qi];
+    if (!Q) return finish();
+    shot(S.qi % 2 ? Sh.askAlt : Sh.ask);
+    if (K === "press") flash(2);
+    say(Q.who || (K === "press" ? "기자" : K === "assembly" ? "국회의원" : "참석자"), Q.q, "q");
+    box.innerHTML = Q.opts.map(([n, e], i) => `<button data-a="${i}"><b>${n}</b>${e ? `<small>${e}</small>` : ""}</button>`).join("");
+    box.className = "s3-opts on";
+  };
+  const answer = (ai) => {
+    const o = questions[S.qi].opts[ai];
+    clearWaits();
+    box.className = "s3-opts";
+    box.innerHTML = "";
+    shot(Sh.ans);
+    if (K === "press") flash(4);
     onPick?.(S.qi, ai);
-    later(() => say(speaker, o[2] || `${o[0]}. 정부는 이 방침에 따라 책임 있게 대응하겠습니다.`, "a", () => later(() => { S.qi++; if (S.qi < questions.length) { shot(Sh.wide, false); later(ask, 1300); } else finish(); }, 1700)), 500); };
-  const finish = () => { shot(Sh.end, false); const [w, t] = K.startsWith("us_") ? ["Chair", "The session is adjourned."] : END[K]; later(() => say(w, t, "", () => later(() => closeScene(true), 1300)), 700); };
+    setNext(() => { S.qi++; ask(); });
+    say(speaker, o[2] || `${o[0]}. 정부는 이 방침에 따라 책임 있게 대응하겠습니다.`, "a", () => later(() => nb.click(), 1400));
+  };
+  const finish = () => {
+    shot(Sh.end, false);
+    const [w, t] = K.startsWith("us_") ? ["Chair", "The session is adjourned."] : END[K];
+    setNext(() => closeScene(true));
+    say(w, t, "", () => later(() => nb.click(), 1100));
+  };
   box.addEventListener("click", (e) => { const b = e.target.closest("[data-a]"); if (b && box.classList.contains("on")) answer(+b.dataset.a); });
   el.querySelector(".s3-skip").addEventListener("click", () => { if (S.qi < questions.length) S.skipped = true; closeScene(true); });
   S.resize = () => { const img = L[S.cur].querySelector("img"); if (img) img.style.transition = "none"; };
   addEventListener("resize", S.resize);
-  shot(Sh.wide, false); later(ask, 1800);
+  ask();
 }
 export function closeScene(fire = false) {
   if (!R) return; const S = R; R = null; S.timers.forEach(clearTimeout); clearInterval(S.typer); removeEventListener("resize", S.resize); S.el.remove();

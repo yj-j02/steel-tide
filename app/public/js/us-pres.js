@@ -1,7 +1,7 @@
 import { representativeDecision } from "./career-timeline.js";
 import { dutyState } from "./duty.js";
 import { careerStorage } from "./characters.js";
-import { chapter } from "./us-story.js";
+import { chapter, presidencyMap } from "./us-story.js";
 import { civicMap } from "./civic-map.js";
 // U.S. Presidential Election (538 Electoral College) & White House Chapter integrated into THE GENERAL (#hqP).
 import { tiles, electors } from "./content/us.js";
@@ -72,6 +72,28 @@ export function usPresReset() {
   try {
     careerStorage.removeItem(KEY);
   } catch {}
+}
+
+function electionResult(s) {
+  if (s.electionResult) return s.electionResult;
+  if (!s.results || (s.phase !== "end" && !s.term)) return null;
+  const votes = Object.values(s.results).reduce((sum, count) => sum + count, 0);
+  return { votes, won: s.term > 0, contingent: votes === 269 };
+}
+
+function electionCuts({ votes, won, contingent }) {
+  const result = won ? "당선 확정" : "낙선";
+  const final = contingent
+    ? "하원 주별 대표단의 표결 결과가 나왔습니다."
+    : won ? "선거인단 과반을 확보했습니다." : "상대 후보가 선거인단 과반을 확보했습니다.";
+  const card = `<h4>${result}</h4><p>선거인단 ${votes} / 538 · 당선 기준 270</p>`;
+  return [
+    { img: "us_rally", who: "개표 방송", text: `최종 집계입니다. 선거인단 ${votes}명을 확보했습니다.` },
+    { img: "us_capitol_hearing", f: [0.5, 0.45, 1.1], who: "개표 방송", text: final, card },
+    { img: "us_rally", f: [0.5, 0.45, 1.24], who: won ? "대통령 당선인" : "후보",
+      text: won ? "미국 국민의 선택에 감사드립니다. 모든 미국인의 대통령이 되겠습니다." : "국민의 선택을 받아들입니다. 당선인에게 축하를 전합니다.",
+      card, flash: won ? 4 : 0 },
+  ];
 }
 
 function tileMapHTML(s) {
@@ -160,11 +182,11 @@ export function usPresHTML() {
           <div class="dh"><div class="dt"><small>미국 대선 · 백악관 회의록</small><b>${esc(title)}</b></div></div>
           <p>${esc(desc)}</p>
           ${s.serviceDecision && (s.phase === "declare" || (s.phase === "debate" && s.turn === 3)) ? `<p class="campaign-service-record"><b>인사기록 · ${esc(s.serviceDecision.date)}</b><br>${esc(s.serviceDecision.outcome)}</p>` : ""}
-          <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${btns || `<button class="mn-go" data-uspres="reset">↺ 새 대선 캠페인 시작</button>`}</div>
+          <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${btns || `<button class="mn-go" data-uspres="reset">↺ 새 대선 캠페인 시작</button>`}${electionResult(s) ? `<button data-uspres="replay">개표 결과 연출 다시 보기</button>` : ""}</div>
         </div>
       </div>
       <div class="mn-col">
-        ${civicMap(s.phase === "crisis" && s.quarter % 2 ? "europe" : s.phase === "summit" && s.quarter === 4 ? "pacific" : "home")}
+        ${civicMap(presidencyMap(s))}
         ${voting ? `<div class="mn-card"><div class="mn-h">🗺️ 미국 538 선거인단 지도 <small>${s.phase === "campaign" ? (s.target ? `선택한 주: ${s.target} (${electors[s.target]}명)` : "경합주(황토색) 또는 원하는 주를 클릭하세요") : s.results ? `확보 선거인단 ${elecSum} / 538 (당선 기준 270)` : "투표 마감 후 집계"}</small></div>${tileMapHTML(s)}</div>` : ""}
       </div>
       <aside class="mn-col">
@@ -182,6 +204,10 @@ export function usPresHTML() {
 export function usPresClick(act) {
   const s = rd();
   if (!s) return {};
+  if (act === "replay") {
+    const result = electionResult(s);
+    return result ? { cuts: electionCuts(result) } : {};
+  }
   if (act === "reset") {
     usPresReset();
     usPresStart(s.name, 60);
@@ -208,7 +234,8 @@ export function usPresClick(act) {
       return {};
     const before = s.phase,
       quarter = s.quarter,
-      oldLaws = s.laws;
+      oldLaws = s.laws,
+      priorTrust = s.trust;
     const region = s.target,
       intro = s.introStep || 0;
     if (before === "prologue") {
@@ -254,8 +281,14 @@ export function usPresClick(act) {
           ? "법원이 집행을 정지했습니다."
           : "연방기관이 집행을 시작했습니다.",
       );
-    if (before === "bill")
-      report.push(s.laws > oldLaws ? "법률 제정" : "거부권 유지");
+    if (before === "bill") {
+      report.push(i === 0 ? "대통령 서명 · 법률 제정"
+        : s.laws > oldLaws ? "양원 재의결 · 법률 제정" : "의회 재의결 실패 · 거부권 유지");
+    }
+    if (before === "crisis" || before === "summit") {
+      const change = s.trust - priorTrust;
+      if (change) report.push(`지지율 ${change > 0 ? "+" : ""}${change}%p`);
+    }
     if (quarter === 8 && s.quarter === 9)
       report.push(
         "중간선거 · 여당 하원 " + s.house + "석 / 상원 " + s.senate + "석",
@@ -264,11 +297,18 @@ export function usPresClick(act) {
     if (before === "inauguration") report.push("취임 선서 · 제" + s.term + "기 행정부 출범");
     (s.journal ??= []).unshift(report.join(" — "));
     s.journal = s.journal.slice(0, 30);
+    const decided = (before === "night" || before === "contingent") && (s.phase === "inauguration" || s.phase === "end");
+    if (decided) s.electionResult = {
+      votes: Object.values(s.results).reduce((sum, count) => sum + count, 0),
+      won: s.phase === "inauguration",
+      contingent: before === "contingent",
+    };
     wr(s);
     const inaugurated = before === "inauguration";
     if (inaugurated) unlockEnding("us_potus");
     return {
       redraw: true,
+      cuts: decided ? electionCuts(s.electionResult) : null,
       inaugurated,
       toast: inaugurated
         ? "🇺🇸 미합중국 대통령(POTUS)에 취임했습니다! (Hail to the Chief)"
@@ -281,7 +321,6 @@ export function usPresClick(act) {
 export function usPresAdmin(id) {
   const s = rd();
   if (!s) return {};
-  const prevTerm = s.term;
   if (id === "pri") {
     if (!s.party) s.party = "blue";
     s.delegates = 75;
@@ -294,6 +333,12 @@ export function usPresAdmin(id) {
     if (id !== "night") {
       for (const k in electors) s.results[k] = id === "win" ? electors[k] : 0;
       decide(s, 0, Math.random);
+      if (id === "win") s.phase = "inauguration";
+      s.electionResult = {
+        votes: Object.values(s.results).reduce((sum, count) => sum + count, 0),
+        won: id === "win",
+        contingent: false,
+      };
     }
   }
   if (id === "seats") {
@@ -315,11 +360,8 @@ export function usPresAdmin(id) {
     s.ending = "Presidential retirement";
   }
   wr(s);
-  const inaugurated = prevTerm === 0 && s.term === 1;
-  if (inaugurated) unlockEnding("us_potus");
   return {
     redraw: true,
-    inaugurated,
-    toast: inaugurated ? "🇺🇸 [관리자] 미합중국 대통령 취임!" : "",
+    cuts: id === "win" || id === "loss" ? electionCuts(s.electionResult) : null,
   };
 }
