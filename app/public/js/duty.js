@@ -84,14 +84,24 @@ const CRISES = [
   { id: "land_fire", domain: "army", tag: "접경 위기", title: "서북 도서·접경 해안포 기습 포격 도발", desc: "적 해안포·방사포 진지가 아군 접경 기지와 해상을 겨냥해 포격을 개시했습니다.", map: "west", opAir: false, op3d: "army" },
 ];
 
+const SUR = ["김", "이", "박", "최", "정", "강", "조", "윤", "장", "임", "한", "오"], GIV = ["도현", "준혁", "민재", "서진", "태윤", "성호", "지훈", "현우", "정민", "재원"];
+function mkRivals(svc) {
+  const s1 = pick(SUR) + pick(GIV); let s2 = pick(SUR) + pick(GIV); if (s2 === s1) s2 = "한재민";
+  const brs = Object.keys(BRANCHES).filter((k) => BRANCHES[k].svc === svc);
+  return [
+    { name: s1, br: brs[0] || "sea", g: 0, style: "야전 엘리트", xp: 0 },
+    { name: s2, br: brs[1] || brs[0] || "sea", g: 0, style: "전략 참모형", xp: 0 },
+  ];
+}
 export function dutyState() {
   let d = rd(DK, null);
-  if (!d) { d = { week: 1, morale: 72, rep: 55, tension: 32, headlines: ["신임 소위 임관 — 대한민국 국군 장교 커리어 시작"], pending: [], crisis: null, last: null }; wr(DK, d); }
+  if (!d) { d = { week: 1, morale: 72, rep: 55, tension: 32, headlines: ["신임 소위 임관 — 대한민국 국군 장교 커리어 시작"], pending: [], crisis: null, report: null, rivals: null, last: null }; wr(DK, d); }
   return d;
 }
 export function saveDuty(d) { wr(DK, d); }
 
 function drawEvents(d, svc, grade) {
+  if (!d.rivals) d.rivals = mkRivals(svc);
   const pool = EVENTS.filter((e) => (e[1] === "all" || e[1] === svc) && grade >= e[2] && grade <= e[3]);
   const fallback = EVENTS.filter((e) => e[1] === "all" || e[1] === svc);
   const src = pool.length >= 2 ? pool : fallback;
@@ -104,14 +114,30 @@ function drawEvents(d, svc, grade) {
 
 export function ensureDuty(svc, grade) {
   const d = dutyState();
-  if (!d.pending || (!d.pending.length && !d.crisis && !d.doneWeek)) drawEvents(d, svc, grade);
+  if (!d.rivals) { d.rivals = mkRivals(svc); saveDuty(d); }
+  if (!d.pending || (!d.pending.length && !d.crisis && !d.report && !d.doneWeek)) drawEvents(d, svc, grade);
   return d;
 }
 
 export function dutyEventById(id) { return EVENTS.find((e) => e[0] === id); }
 export function dutyCrisisById(id) { return CRISES.find((c) => c.id === id); }
 
-/** Resolve a weekly duty choice -> returns { xpGain, score, headline, morale, rep } */
+/** Advance rival classmates alongside player progress and post news headlines when they promote */
+function tickRivals(d, playerGrade) {
+  if (!d.rivals) return;
+  for (const r of d.rivals) {
+    if (r.g >= 9) continue;
+    const rate = r.style === "야전 엘리트" ? 0.24 : 0.2;
+    if (r.g <= playerGrade && Math.random() < rate) {
+      r.g = Math.min(9, r.g + 1);
+      const t = careerTitle(r.g, r.br);
+      d.headlines.unshift(`${d.week}주차 · [동기 동향] 임관 동기 ${r.name}, ${t} 보직으로 진급!`);
+      d.headlines = d.headlines.slice(0, 12);
+    }
+  }
+}
+
+/** Resolve a weekly duty choice -> may trigger an after-action report dilemma (은폐 vs 정직 보고) */
 export function resolveDuty(id, optIdx, grade) {
   const d = dutyState(), ev = dutyEventById(id); if (!ev || !d.pending.includes(id)) return null;
   const o = ev[6][optIdx]; if (!o) return null;
@@ -124,10 +150,44 @@ export function resolveDuty(id, optIdx, grade) {
   d.headlines.unshift(`${d.week}주차 · ${headline}`);
   d.headlines = d.headlines.slice(0, 12);
   d.last = `${ev[4]} → ${label} (평정 ${letter(sc)} · +${xpGain} XP)`;
-  if (!d.pending.length && !d.crisis) d.doneWeek = true;
+  if (!d.report && (sc < 80 || d.week % 3 === 0)) {
+    d.report = { title: `${ev[4]} — 상부 결과 보고서 작성`, desc: "수행 과정에서 일부 미흡점과 장비 소모가 보고됐습니다. 상급부대에 어떻게 보고하시겠습니까?" };
+  }
+  if (!d.pending.length && !d.crisis && !d.report) d.doneWeek = true;
   recordEval(grade, sc);
   saveDuty(d);
   return { xpGain, score: sc, headline, label };
+}
+
+/** Resolve after-action report dilemma: 0 = honest, 1 = embellish (18% audit risk), 2 = blame subordinate */
+export function resolveReport(choiceIdx, grade) {
+  const d = dutyState(); if (!d.report) return null;
+  const title = d.report.title; d.report = null;
+  let sc = 75, dm = 0, dr = 0, msg = "";
+  if (choiceIdx === 0) {
+    sc = 72; dm = 3; dr = 6; msg = "사실대로 솔직 보고 — 군내 평판 +6 · 부대 사기 +3 (신뢰 확보)";
+    d.headlines.unshift(`${d.week}주차 · [군내 평판] 투명한 지휘 보고로 상급부대·부하 신뢰 확보`);
+  } else if (choiceIdx === 1) {
+    const caught = Math.random() < 0.18;
+    if (caught) {
+      sc = 44; dm = -4; dr = -10; msg = "성과 과장·축소 보고 감찰 적발! — 평정 44점 · 평판 −10";
+      d.headlines.unshift(`${d.week}주차 · [감찰 경고] 허위·축소 보고 정황 포착 — 인사 평정 감점`);
+    } else {
+      sc = 88; dm = -1; dr = 2; msg = "성과 중심 보고 통과 — 단기 평정 +88점 (감찰 미적발)";
+      d.headlines.unshift(`${d.week}주차 · [성과 보고] 우수 지휘 성과로 상급부대 호평`);
+    }
+  } else {
+    sc = 78; dm = -8; dr = -4; msg = "현장 실무자 책임 전가 — 단기 평정 방어 · 부대 사기 −8";
+    d.headlines.unshift(`${d.week}주차 · [부대 여론] 지휘관 책임 전가 논란으로 사기 저하`);
+  }
+  d.morale = clamp(d.morale + dm, 10, 100);
+  d.rep = clamp(d.rep + dr, 0, 100);
+  d.headlines = d.headlines.slice(0, 12);
+  d.last = `${title} → ${msg}`;
+  if (!d.pending.length && !d.crisis) d.doneWeek = true;
+  recordEval(grade, sc);
+  saveDuty(d);
+  return { score: sc, msg };
 }
 
 /** Auto-delegate a crisis based on staff/branch/morale -> returns { win, xpGain, score, msg } */
@@ -171,6 +231,7 @@ export function nextDutyWeek(svc, grade) {
   const d = dutyState();
   d.week++; d.doneWeek = false;
   d.tension = clamp(d.tension + (Math.random() < 0.45 ? 3 : -1), 5, 95);
+  tickRivals(d, grade);
   drawEvents(d, svc, grade);
   return d;
 }
