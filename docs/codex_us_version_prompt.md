@@ -71,7 +71,7 @@
   - 재선 출마
 - 장면 연출: `scene.js`의 `SHOTS`, `FB`, `THEMED`에 미국 이미지 이름(`us_*`)을 추가한다.
   - 이미지가 아직 없으니 `FB`로 기존 사진을 대신 쓴다.
-  - 단 `address.jpg`, `president_office.jpg`는 쓰지 않는다.
+  - 단 한국 대통령 얼굴이 보이는 사진(`address_*`, `president_office_*`)은 미국편 대체 사진으로 쓰지 않는다.
 - 내 정보·상단 바: 미국 계급명, Secretary of Defense, President 직함, 가상 대통령 표장(SVG로 직접 그림).
 - 관리자 시험 바를 미국편에도 단다:
   - 인준 통과
