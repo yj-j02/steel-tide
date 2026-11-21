@@ -124,8 +124,22 @@ const NATIONS = {
   cn: { n: "중국", cv: "shandong", base: { type: "J-16 (지상 발진)", asm: "YJ-83K", aam: "PL-12", n: 4 }, ships: ["t055", "t055b"], bloc: "e", names: ["왕젠궈", "리웨이", "장하이펑", "류청"], rk: "대교" },
   nk: { n: "북한", base: { type: "MiG-29 (지상 발진)", asm: "금성-3", aam: "R-27", n: 4 }, ships: ["choehyon", "kangkon"], bloc: "e", names: ["림철진", "강명수", "한광혁", "박영일"], rk: "대좌" },
 };
+// Taegeukgi proportions and trigram layout follow the Ministry of the Interior and Safety drawing guide.
+const TAEGEUKGI = (() => {
+  const trigram = (x, y, angle, broken) => `<g transform="translate(${x} ${y}) rotate(${angle})">${[-4, -1, 2].map((line, i) =>
+    broken[i] ? `<rect x="-6" y="${line}" width="5.5" height="2"/><rect x=".5" y="${line}" width="5.5" height="2"/>`
+      : `<rect x="-6" y="${line}" width="12" height="2"/>`).join("")}</g>`;
+  const angle = Math.atan2(2, 3) * 180 / Math.PI;
+  const x = 22 * Math.cos(angle * Math.PI / 180), y = 22 * Math.sin(angle * Math.PI / 180);
+  return `<rect width="72" height="48" fill="#fff"/><g transform="translate(36 24)">
+    <g transform="rotate(${angle})"><circle r="12" fill="#cd2e3a"/><path d="M-12 0a6 6 0 0 0 12 0a6 6 0 0 1 12 0a12 12 0 0 1-24 0Z" fill="#0047a0"/></g>
+    <g fill="#000">${trigram(-x, -y, angle - 90, [0, 0, 0])}${trigram(x, -y, 90 - angle, [1, 0, 1])}${trigram(-x, y, 90 - angle, [0, 1, 0])}${trigram(x, y, angle - 90, [1, 1, 1])}</g>
+  </g>`;
+})();
+const koreanFlagImage = new Image();
+koreanFlagImage.src = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 72 48" width="72" height="48">${TAEGEUKGI}</svg>`);
 const FLAGSVG = {
-  kr: (w = 22) => `<svg class="flag" role="img" aria-label="대한민국 국기" width="${w}" height="${Math.round(w * 0.66)}" viewBox="0 0 30 20"><rect width="30" height="20" fill="#fff"/><path d="M10 10a5 5 0 0 1 10 0z" fill="#cd2e3a"/><path d="M10 10a5 5 0 0 0 10 0z" fill="#0047a0"/><g fill="#000"><rect x="3" y="3" width="4" height="1"/><rect x="23" y="3" width="4" height="1"/><rect x="3" y="16" width="4" height="1"/><rect x="23" y="16" width="4" height="1"/></g></svg>`,
+  kr: (w = 22) => `<svg class="flag" role="img" aria-label="대한민국 국기" width="${w}" height="${w * 2 / 3}" viewBox="0 0 72 48">${TAEGEUKGI}</svg>`,
   jp: (w = 22) => `<svg class="flag" role="img" aria-label="일본 국기" width="${w}" height="${Math.round(w * 0.66)}" viewBox="0 0 30 20"><rect width="30" height="20" fill="#fff"/><circle cx="15" cy="10" r="6" fill="#bc002d"/></svg>`,
   cn: (w = 22) => `<svg class="flag" role="img" aria-label="중국 국기" width="${w}" height="${Math.round(w * 0.66)}" viewBox="0 0 30 20"><rect width="30" height="20" fill="#de2910"/><circle cx="5" cy="5" r="3" fill="#ffde00"/><g fill="#ffde00"><circle cx="10" cy="2" r="0.8"/><circle cx="12" cy="4" r="0.8"/><circle cx="12" cy="7" r="0.8"/><circle cx="10" cy="9" r="0.8"/></g></svg>`,
   nk: (w = 22) => `<svg class="flag" role="img" aria-label="북한 국기" width="${w}" height="${Math.round(w * 0.66)}" viewBox="0 0 30 20"><rect width="30" height="20" fill="#024fa2"/><rect y="3.3" width="30" height="13.4" fill="#fff"/><rect y="4" width="30" height="12" fill="#ed1c27"/><circle cx="10" cy="10" r="4" fill="#fff"/><path d="M10 6.6l1 3h3.2l-2.6 1.9 1 3-2.6-1.9-2.6 1.9 1-3-2.6-1.9h3.2z" fill="#ed1c27"/></svg>`,
@@ -133,7 +147,7 @@ const FLAGSVG = {
 const flagOf = (S, w) => (S?.nation === "us" ? FLAG.us(w) : S?.nation && FLAGSVG[S.nation] ? FLAGSVG[S.nation](w) : S?.side === "foe" ? FLAG.foe(w) : FLAG.us(w));
 function drawNationFlag(x, y, w, n) {
   const h = w * 0.66; hx.fillStyle = n === "cn" ? "#de2910" : n === "nk" ? "#ed1c27" : "#fff"; hx.fillRect(x, y, w, h);
-  if (n === "kr") { hx.fillStyle = "#cd2e3a"; hx.beginPath(); hx.arc(x + w / 2, y + h / 2, h * 0.26, PI, 0); hx.fill(); hx.fillStyle = "#0047a0"; hx.beginPath(); hx.arc(x + w / 2, y + h / 2, h * 0.26, 0, PI); hx.fill(); }
+  if (n === "kr") { if (koreanFlagImage.naturalWidth) hx.drawImage(koreanFlagImage, x, y, w, w * 2 / 3); }
   else if (n === "jp") { hx.fillStyle = "#bc002d"; hx.beginPath(); hx.arc(x + w / 2, y + h / 2, h * 0.3, 0, TAU); hx.fill(); }
   else if (n === "cn") { hx.fillStyle = "#ffde00"; hx.beginPath(); hx.arc(x + w * 0.18, y + h * 0.26, h * 0.15, 0, TAU); hx.fill(); }
   else if (n === "nk") { hx.fillStyle = "#024fa2"; hx.fillRect(x, y, w, h * 0.17); hx.fillRect(x, y + h * 0.83, w, h * 0.17); hx.fillStyle = "#fff"; hx.beginPath(); hx.arc(x + w * 0.33, y + h / 2, h * 0.2, 0, TAU); hx.fill(); }
@@ -319,7 +333,7 @@ function face(i, s = 64) {
     + (f.civ ? "" : `<g transform="translate(60 84)"><rect width="5" height="2.6" fill="#b03a2e"/><rect x="5" width="5" height="2.6" fill="#2a5aa0"/><rect x="10" width="5" height="2.6" fill="#d8b23a"/><rect y="2.8" width="5" height="2.6" fill="#3b7a3e"/><rect x="5" y="2.8" width="5" height="2.6" fill="#c9c9c9"/><rect x="10" y="2.8" width="5" height="2.6" fill="#8a1f1f"/></g>`
     + (isUS()
       ? `<g transform="translate(13 80) rotate(-8)"><rect width="11" height="6.5" rx=".6" fill="#b22234" stroke="#d8b247" stroke-width=".4"/><rect y="1.1" width="11" height=".9" fill="#fff"/><rect y="2.8" width="11" height=".9" fill="#fff"/><rect y="4.5" width="11" height=".9" fill="#fff"/><rect width="4.6" height="3.6" fill="#233b6e"/></g>`
-      : `<g transform="translate(13 80) rotate(-8)"><rect width="11" height="6.5" rx=".6" fill="#fff" stroke="#9aa4b0" stroke-width=".4"/><path d="M3.9 3.25a1.6 1.6 0 0 1 3.2 0z" fill="#cd2e3a"/><path d="M3.9 3.25a1.6 1.6 0 0 0 3.2 0z" fill="#0047a0"/><path d="M1.4 1.3h1.6M8 1.3h1.6M1.4 5.2h1.6M8 5.2h1.6" stroke="#111" stroke-width=".55"/></g>`)
+      : `<g transform="translate(13 80) rotate(-8)">${FLAGSVG.kr(11)}</g>`)
     + `<rect x="10" y="89" width="18" height="2" fill="${U.sleeve}"/><rect x="10" y="92.2" width="18" height="2" fill="${U.sleeve}"/>`);
   // back hair (female smooth bob silhouette)
   if (f.fem) o += `<path d="M31 24 C25 35 25 54 31.5 66 Q41 70 50 69 Q59 70 68.5 66 C75 54 75 35 69 24 C64 13.5 36 13.5 31 24Z" fill="${f.hair}"/>`
@@ -945,7 +959,7 @@ function ceremonialBackdrop(grade, svc) {
       `<text x="${0.69 + col * 1.30 + (row % 2 ? 0.65 : 0)}" y="${0.71 + row * 0.68}" text-anchor="middle" font-size=".67" fill="#fff">★</text>`
     ).join("")
   ).join("") : "";
-  const national = us ? FLAG.us(252).replace("</svg>", stars + "</svg>") : FLAGSVG.kr(222);
+  const national = us ? FLAG.us(252).replace("</svg>", stars + "</svg>") : FLAGSVG.kr(143);
   return `<g class="portrait-ceremony" aria-hidden="true">
     <defs>
       <linearGradient id="${id}-folds"><stop stop-color="#070c19" stop-opacity=".50"/><stop offset=".18" stop-color="#fff" stop-opacity=".16"/><stop offset=".37" stop-color="#101321" stop-opacity=".27"/><stop offset=".62" stop-color="#fff2c7" stop-opacity=".19"/><stop offset=".85" stop-color="#050610" stop-opacity=".38"/><stop offset="1" stop-color="#110b16" stop-opacity=".1"/></linearGradient>
@@ -954,8 +968,9 @@ function ceremonialBackdrop(grade, svc) {
     </defs>
     <g clip-path="url(#${id}-frame)">
       <rect width="300" height="300" fill="#172636"/>
-      <g transform="translate(-27 -20) rotate(84 109 84)" opacity=".92">
-        ${national}<rect width="${us ? 252 : 222}" height="${us ? 151 : 147}" fill="url(#${id}-folds)"/>
+      <g transform="${us ? "translate(-27 -20) rotate(84 109 84)" : "translate(10 30) rotate(-8 71 47)"}" opacity=".94">
+        ${us ? "" : '<path d="M0 -9v206" stroke="#dfbb68" stroke-width="3"/><circle cy="-10" r="3" fill="#f4d68e"/>'}
+        ${national}<rect width="${us ? 252 : 143}" height="${us ? 151 : 95}" fill="url(#${id}-folds)"/>
       </g>
       <g transform="translate(200 -13) rotate(9 50 122)">
         <rect width="112" height="270" fill="${field}" stroke="#debd75" stroke-width="3"/>
@@ -983,7 +998,7 @@ function portraitHTML(g) {
     + `<g transform="translate(34 224) rotate(-17)">${shoulderBoard(g, false)}</g><g transform="translate(266 224) rotate(17) scale(-1 1)">${shoulderBoard(g, false)}</g>`
     + (isUS()
       ? `<g transform="translate(22 262) rotate(-8)"><rect width="34" height="20" rx="1.6" fill="#b22234" stroke="#d8b247" stroke-width="1.1"/>${[2.8, 6.2, 9.6, 13, 16.4].map((y) => `<rect y="${y}" width="34" height="1.7" fill="#fff"/>`).join("")}<rect width="14.5" height="11" fill="#1f3a6e"/>${[2.5, 5.5, 8.5].map((y) => [2.6, 5.8, 9, 12.2].map((x) => `<circle cx="${x}" cy="${y}" r=".65" fill="#fff"/>`).join("")).join("")}</g>`
-      : `<g transform="translate(22 262) rotate(-8)"><rect width="34" height="20" rx="1.6" fill="#ffffff" stroke="#b8c0c8" stroke-width="1.1"/><path d="M12 10a5 5 0 0 1 10 0z" fill="#cd2e3a"/><path d="M12 10a5 5 0 0 0 10 0z" fill="#0047a0"/><g stroke="#111" stroke-width="1.1"><path d="M4.5 4.2h4.2M4.5 6.2h4.2M25.3 4.2h4.2M25.3 6.2h4.2M4.5 13.8h4.2M4.5 15.8h4.2M25.3 13.8h4.2M25.3 15.8h4.2"/></g></g>`)
+      : `<g transform="translate(22 262) rotate(-8)">${FLAGSVG.kr(34)}</g>`)
     + rack
     + `<rect x="80" y="250" width="40" height="11" rx="1.5" fill="#1c2430"/><text x="100" y="258.5" font-size="7.5" fill="#fff" text-anchor="middle" font-family="Noto Sans KR, sans-serif">${cmdr.name}</text>`
     + `<g transform="translate(35 30) scale(2.3)">${face(F, 100).replace(/^<svg /, "<svg x=\"0\" y=\"0\" ")}</g>`
@@ -1505,12 +1520,12 @@ function renderTitleHub() {
   if (!svBrs.some(([k]) => k === thBr)) thBr = svBrs[0]?.[0] || "inf";
   const fList = facePool(us);
   const defNm = thName || (us ? "James Vance" : "김태훈");
-  el.innerHTML = `<div class="th-card">
+  el.innerHTML = `<div class="th-card" data-enlist-nation="${thNation}">
     <div class="th-kicker">${us ? "OFFICER COMMISSIONING · SELECT YOUR SERVICE" : "신임 장교 임관 · 군종 및 병과 선택"}</div>
     <h1 class="th-title">THE GENERAL</h1>
     <p class="th-sub">${us ? "Choose your nation, service branch, and officer profile to begin your command." : "국가·군종·병과와 지휘관 프로필을 선택하고 소위로 임관하십시오."}</p>
     <div class="th-nat"><button data-th="nat:kr" class="${!us ? "on" : ""}">🇰🇷 대한민국 국군</button><button data-th="nat:us" class="${us ? "on" : ""}">🇺🇸 U.S. Armed Forces</button></div>
-    <div class="th-svcs">${["army", "navy", "air"].map((k) => `<button class="th-svc${thSvc === k ? " on" : ""}" data-th="svc:${k}">${serviceEmblem(k, us)} <span>${SV[k].n}</span><small>${SV[k].d.split("·")[0]}</small></button>`).join("")}</div>
+    <div class="th-svcs" role="group" aria-label="군종 선택">${["army", "navy", "air"].map((k) => `<button class="th-svc${thSvc === k ? " on" : ""}" data-th="svc:${k}" aria-pressed="${thSvc === k}">${serviceEmblem(k, us)} <span>${SV[k].n}</span><small>${SV[k].d.split("·")[0]}</small></button>`).join("")}</div>
     <div class="th-brs">${svBrs.map(([k, B]) => `<button class="th-br${thBr === k ? " on" : ""}" data-th="br:${k}"><b>${postLabel(B.n, us)}</b><small>${postLabel(B.t[0], us)} → ${postLabel(B.t[9], us)}</small></button>`).join("")}</div>
     <div class="th-id">
       <div class="th-faces">${fList.map((_, i) => `<button class="th-face${thFace === i ? " on" : ""}" data-th="face:${i}">${face(agedFace(i, 0, us), 48)}</button>`).join("")}</div>
