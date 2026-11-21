@@ -311,7 +311,17 @@ export function ensureDuty(svc, grade, playerPost = "") {
   let dirty = false;
   if (!d.rivals) { d.rivals = mkRivals(svc); dirty = true; }
   for(const rival of d.rivals){if(rival.rel==null){rival.rel=50;dirty=true;}}
-  if (d.rivals.some((r) => r.g <= grade - 2)) { tickRivals(d, grade, svc, playerPost); dirty = true; }
+  for (const rival of d.rivals) {
+    if (rival.rankSinceWeek != null) continue;
+    // Older saves only know total weeks. Correct impossible early officer grades once.
+    const elapsed = d.week - 1;
+    if (rival.g > 0 && rival.g <= 3 && elapsed < rival.g * 12 && grade < rival.g) {
+      rival.g = Math.floor(elapsed / 12);
+      rival.post = null;
+    }
+    rival.rankSinceWeek = rival.g === 0 ? 1 : d.week;
+    dirty = true;
+  }
   if (syncRivalPosts(d, svc, playerPost)) dirty = true;
   if ((d.nat && d.nat !== wantNat) || (d.tier != null && d.tier !== wantTier)) { d.pending = []; d.crisis = null; d.report = null; d.doneWeek = false; drawEvents(d, svc, grade); syncRivalPosts(d, svc, playerPost); saveDuty(d); return d; }
   if (!d.pending || (!d.pending.length && !d.crisis && !d.report && !d.doneWeek)) { drawEvents(d, svc, grade); syncRivalPosts(d, svc, playerPost); saveDuty(d); return d; }
@@ -322,28 +332,22 @@ export function ensureDuty(svc, grade, playerPost = "") {
 export function dutyEventById(id) { return EVENTS.find((e) => e[0] === id) || US_EVENTS.find((e) => e[0] === id); }
 export function dutyCrisisById(id) { return CRISES.find((c) => c.id === id) || US_CRISES.find((c) => c.id === id); }
 
+export function rivalEligible(rival, week) {
+  return week - (rival.rankSinceWeek ?? (rival.g === 0 ? 1 : week)) >= minWeeks(rival.g);
+}
+
 /** Advance rival classmates alongside player progress so they stay neck-and-neck (playerGrade - 1 to +1). */
 function tickRivals(d, playerGrade, svc = "navy", playerPost = "") {
   if (!d.rivals) return;
-  const cap = Math.min(9, playerGrade + 1);
+  if ((d.week - 1) % 4 !== 0) return;
   const promoted = [];
   d.rivals.forEach((r, ri) => {
-    if (r.g >= 9 || (r.g >= 3 && r.g === playerGrade)) return;
-    const elite = r.style === "야전 엘리트";
-    let nextG = r.g;
-    if (r.g <= playerGrade - 2) {
-      nextG = Math.min(cap, playerGrade - 1 + (elite && Math.random() < 0.55 ? 1 : Math.random() < 0.35 ? 1 : 0));
-    } else if (r.g === playerGrade - 1) {
-      if (Math.random() < (elite ? 0.72 : 0.55)) nextG = Math.min(cap, r.g + 1);
-    } else if (r.g === playerGrade && playerGrade < 9) {
-      if (Math.random() < (elite ? 0.32 : 0.18)) nextG = Math.min(cap, r.g + 1);
-    }
-    if (nextG > r.g) {
-      const prevG = r.g;
-      r.g = nextG;
-      r.post = null;
-      promoted.push([r, ri, prevG]);
-    }
+    if (r.g >= playerGrade || r.g >= 9 || !rivalEligible(r, d.week)) return;
+    const prevG = r.g;
+    r.g++;
+    r.rankSinceWeek = d.week;
+    r.post = null;
+    promoted.push([r, ri, prevG]);
   });
   syncRivalPosts(d, svc, playerPost);
   for (const [r, ri, prevG] of promoted) {

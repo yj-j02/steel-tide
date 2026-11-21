@@ -26,6 +26,21 @@ function fixture(g, week, score = 100) {
   saveDuty({ ...dutyState(), rivals: [], rep: 100, week, doneWeek: true });
 }
 const args = (g) => [g, g + 1, "Company Commander", "inf", "army"];
+const {ensureDuty} = await import("../../app/public/js/duty.js");
+fixture(0,1);
+saveDuty({...dutyState(),rivals:null});
+ensureDuty("army",0);
+for(let i=1;i<=29;i++){
+  nextDutyWeek("army",0);
+  assert.ok(ensureDuty("army",0).rivals.every(r=>r.g===0));
+}
+assert.equal(dutyState().week,30);
+assert.equal(settle(...args(0)).passed,true);
+assert.ok(dutyState().rivals.every(r=>r.g===1 && r.rankSinceWeek===30));
+assert.equal(settle(...args(0)),null);
+fixture(3,33);
+saveDuty({...dutyState(),rivals:[{name:"A",g:3,rankSinceWeek:30},{name:"B",g:3,rankSinceWeek:21}]});
+assert.deepEqual(preview(...args(3)).rivals.map(r=>r.name),["B"]);
 fixture(0, 11);
 assert.equal(preview(...args(0)).ready, false);
 fixture(0, 13);

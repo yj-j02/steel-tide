@@ -1,8 +1,9 @@
+import { ECON_RANK_XP } from "./shop.js";
 import { usNpcName } from "./us-ranks.js";
 import { career, saveCareer } from "./career.js";
 import { board, minWeeks, weeksOf, recordEval } from "./service.js";
 import { curFlagPosts, postTier, isUS } from "./staff.js";
-import { dutyState, saveDuty, syncRivalPosts } from "./duty.js";
+import { dutyState, saveDuty, rivalEligible, syncRivalPosts } from "./duty.js";
 
 const bound = (n, max) => Math.max(0, Math.min(max, n));
 const termKey = (week) => Math.floor((week - 1) / 4);
@@ -90,11 +91,11 @@ export function preview(g, xp, title, br, svc, d = dutyState()) {
         100,
       ),
     }))
-    .filter((r) => g >= 3 && r.g === g);
+    .filter((r) => g >= 3 && r.g === g && rivalEligible(d.rivals[r.index], d.week));
   const ready =
     g < 9 &&
     season > 0 &&
-    (d.week - 1) % 4 === 0 &&
+    b.weeks - ((d.week - 1) % 4) >= b.needWk &&
     prior?.season !== season &&
     b.wk &&
     b.xp &&
@@ -167,7 +168,16 @@ export function settle(g, xp, title, br, svc, preferred) {
     };
   for (const r of selected.filter((r) => r.index >= 0)) {
     d.rivals[r.index].g = g + 1;
+    d.rivals[r.index].rankSinceWeek = d.week;
     d.rivals[r.index].post = null;
+  }
+  if (passed && g < 3) {
+    for (const rival of d.rivals || []) {
+      if (rival.g !== g || !rivalEligible(rival, d.week)) continue;
+      rival.g++;
+      rival.rankSinceWeek = d.week;
+      rival.post = null;
+    }
   }
   syncRivalPosts(
     d,
@@ -220,13 +230,19 @@ export function interact(id, g) {
   } else return;
   saveDuty(d);
 }
-export function boardCard(g, xp, title, br, svc, d) {
+export function boardCard(g, xp, title, br, svc, d, experience) {
+  if (g === 0 && !career.log.some(entry => entry.g > 0) && weeksOf(0) < d.week - 1) {
+    career.rankWeeks[0] = d.week - 1;
+    saveCareer();
+  }
   prepareRecord(g);
   const v = preview(g, xp, title, br, svc, d),
     left = (4 - ((d.week - 1) % 4)) % 4;
   const peer =
     d.rivals?.[(d.week / 7 - 1) % Math.max(1, d.rivals?.length || 1)];
   const last = career.boardHistory?.at(-1);
+  const b = board(g, xp);
+  const requirements = g < 9 ? `<p>경험치 ${experience.toLocaleString()} / ${ECON_RANK_XP[g+1].toLocaleString()} XP · 평정 ${b.e.n} / ${b.need}회 · 예상 심사 ${v.score} / ${v.cutoff}점</p>` : "";
   return (
     '<section class="mn-card"><b>정기 진급심사위원회</b><p>' +
     (g >= 9
@@ -242,12 +258,12 @@ export function boardCard(g, xp, title, br, svc, d) {
     weeksOf(g) +
     " / " +
     minWeeks(g) +
-    "주</p>" +
+    "주</p>" + requirements +
     (last
       ? "<p>최근 심사 · " + last.score + "점 · " + last.reason + "</p>"
       : "") +
     (v.ready && v.seats
-      ? '<button data-duty="review">채점표 및 후보 확인</button>'
+      ? '<button data-duty="review">진급심사 받기 · 채점표 확인</button>'
       : "") +
     (d.study
       ? "<p>고등군사교육 · 남은 세미나 " + d.study + "주</p>"

@@ -17,7 +17,7 @@ import { air, dirFrom, clearAir, updateAir } from "./js/air.js";
 import { aaGun, updateAAGun, jetPit, updateJetPit } from "./js/interior.js";
 import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, updateMG } from "./js/infantry.js";
 import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, candidates, roleTitle, ECH, echOf, staffFor, FLAG_POSTS, FLEET_CDR, SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, setService, setBranch, POST_RANK, holds, saveStaff, isUS, setNation, curServices, curBranches, curFlagPosts } from "./js/staff.js";
-import { insigniaUS, US_PAY, usRankName, usRankFull, US_SVC_ORG, usNpcName, usDischargeEndingOf } from "./js/us-ranks.js";
+import { koreanUsRanks, toggleUsRankLanguage, insigniaUS, US_PAY, usRankName, usRankFull, US_SVC_ORG, usNpcName, usDischargeEndingOf } from "./js/us-ranks.js";
 import { dutyState, ensureDuty, dutyEventById, dutyCrisisById, dutyOptionHint, resolveDuty, resolveReport, resolveCrisisDelegate, resolveCrisisDirect, nextDutyWeek } from "./js/duty.js";
 import { career, saveCareer, careerInit, logPromotion, perkMods, payStep, MEDALS, US_MEDALS, awardMedals } from "./js/career.js";
 const curMedals = () => (isUS() ? US_MEDALS : MEDALS);
@@ -713,6 +713,11 @@ function refreshMenus() {
   $("#tbRank").textContent = civil() ? presTitle() : career.minister ? `국방부장관 · 예비역 ${rl.name}` : `${rl.name} ${payStep(profile.xp, rl.r, ECON_RANK_XP).step}호봉 · ${postOf(rl.r)}`; $("#tbIns").innerHTML = badge(rl.r, 24);
   $("#rankBar").style.width = rl.pct * 100 + "%";
   document.body.classList.toggle("us-nat", isUS());
+  const langButton = $("#rankLang");
+  langButton.hidden = !isUS();
+  langButton.textContent = koreanUsRanks() ? "계급 한글" : "계급 EN";
+  langButton.setAttribute("aria-pressed", String(koreanUsRanks()));
+  langButton.title = koreanUsRanks() ? "영어 계급으로 전환" : "한국어 계급으로 전환";
   for (const b of document.querySelectorAll("#natSw [data-nat]")) b.classList.toggle("on", b.dataset.nat === (isUS() ? "us" : "kr"));
   { const sp = MODERN[flagshipId()], v = sp.vls || {}, cells = Object.values(v).reduce((n, x) => n + (x?.[1] || 0), 0), wp = Object.values(v).map((x) => x?.[0]).filter(Boolean).join(" · ");
     const hist = career.shipLog || {}, open = shipsOpen(), pick = open.length > 1 ? `<div class="shp">${open.map((o) => { const m = MODERN[o.id], h = hist[o.id]; return `<button data-flag="${o.id}" class="${o.id === sp.id ? "on" : ""}" title="${m.cls}"><b>${m.short}</b><i>${m.cls.replace(/ \(.*\)/, "")}</i><i>${h ? `출전 ${h.b} · 격침 ${h.k}` : "출전 기록 없음"}</i></button>`; }).join("")}</div>` : "";
@@ -746,6 +751,16 @@ function refreshMenus() {
   $("#maps").innerHTML = Object.entries(MAPS).filter(([k]) => k !== "uswest").map(([k, m]) => `<button class="mp${theater === k ? " on" : ""}" data-map="${k}"><b>${m.n}</b><small>${m.d}</small></button>`).join("");
   $("#cmdrFace").innerHTML = face(myFace(), 46); $("#cmdrName").textContent = civil() ? cmdr.name : career.minister ? `장관 ${cmdr.name}` : `${rankLabel(rl.r)} ${cmdr.name}`;
 }
+$("#rankLang").addEventListener("click", () => {
+  toggleUsRankLanguage();
+  refreshMenus();
+  if (screen === "record") {
+    const expanded = $("#recordP .mi-lad")?.open;
+    renderRecord();
+    if (expanded) $("#recordP .mi-lad").open = true;
+  }
+  if (screen === "hq") renderHQ();
+});
 $("#natSw")?.addEventListener("click", (e) => { const b = e.target.closest("[data-nat]"); if (!b) return; setNation(b.dataset.nat); sfx.click(); refreshMenus(); if (screen === "hq") renderHQ(); toast(isUS() ? "🇺🇸 미합중국 군 (U.S. Armed Forces) 계급·지휘계통 모드" : "🇰🇷 대한민국 국군 계급·지휘계통 모드", 2.5); });
 $("#nations").addEventListener("click", (e) => { const b = e.target.closest("[data-nu],[data-nf]"); if (!b || b.disabled) return; if (b.dataset.nu) natUs = b.dataset.nu; else natFoe = b.dataset.nf; try { localStorage.setItem("steeltide:natUs", natUs); localStorage.setItem("steeltide:natFoe", natFoe); } catch {} sfx.click(); refreshMenus(); });
 $("#maps").addEventListener("click", (e) => { const b = e.target.closest("[data-map]"); if (!b || b.disabled) return; theater = b.dataset.map; try { localStorage.setItem("steeltide:map", theater); } catch {} sfx.click(); refreshMenus(); });
@@ -1127,7 +1142,7 @@ function renderDutyDesk() {
           <div class="dm-goals"><b>${g >= 9 ? "원수 특별진급" : "다음 진급 조건"}</b>${g >= 9 ? `<small>특별진급 퀘스트 3종 달성 필요</small>` : `<small class="${bd.wk ? "g" : ""}">복무 기간 ${bd.weeks}/${bd.needWk}주</small><small class="${bd.xp ? "g" : ""}">경험치 ${bd.xp ? "충족" : rl.next ? `${fmt(Math.max(0, rl.need - profile.xp))} 남음` : "완료"}</small><small class="${bd.cnt ? "g" : ""}">근무 평가 ${ev.n}/${bd.need}회</small><small class="${bd.score ? "g" : ""}">평균 평정 ${ev.avg}/55점</small>`}</div>
           <button class="dm-tab" data-duty="retire_now" style="margin-top:6px;border-color:rgba(255,140,120,.35);color:#f2b8b0"><span>${retireArm ? "⚠ 한 번 더 클릭: 전역" : "🚪 명예 전역 신청"}</span></button>
         </nav>
-        <div class="dm-main">${boardCard(g,xpGrade(),postOf(g),br,svk,d)}${tierAuthHTML(g)}${marshalCardHTML(g)}${minBtn}${repCard}${crCard}${evCards || (!repCard && !crCard ? `<div class="mn-card"><small>이번 주 직무와 보고를 모두 마쳤습니다. 우측 상단의 '${d.week + 1}주차 진행 ▶'을 눌러 다음 주로 넘어가십시오.</small></div>` : "")}${d.last ? `<div class="mn-card"><small>최근 결과: ${d.last}</small></div>` : ""}</div>
+        <div class="dm-main">${boardCard(g,xpGrade(),postOf(g),br,svk,d,profile.xp)}${tierAuthHTML(g)}${marshalCardHTML(g)}${minBtn}${repCard}${crCard}${evCards || (!repCard && !crCard ? `<div class="mn-card"><small>이번 주 직무와 보고를 모두 마쳤습니다. 우측 상단의 '${d.week + 1}주차 진행 ▶'을 눌러 다음 주로 넘어가십시오.</small></div>` : "")}${d.last ? `<div class="mn-card"><small>최근 결과: ${d.last}</small></div>` : ""}</div>
         <aside class="dm-side">${globalThis.__careerProfileHTML()}${rivalsHTML}<div class="mn-card dm-news"><div class="mn-h">📰 군 내부 · 언론 헤드라인</div>${(d.headlines || []).slice(0, 7).map((h) => `<small>• ${h}</small>`).join("")}</div></aside>
       </div>
     </div>`;
