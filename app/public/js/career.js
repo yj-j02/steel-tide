@@ -79,6 +79,19 @@ export const MEDALS = {
   taeguk: { n: "태극무공훈장", d: "원수 진급", rb: ["#c8202c", "#1d4e9e", "#ffffff", "#1d4e9e", "#c8202c"] },
   modern: { n: "현대전 참전기장", d: "현대전 첫 출격", rb: ["#3a7ca5", "#ffffff", "#3a7ca5"] },
 };
+/** Official U.S. Armed Forces decorations & ribbon colors (matching the 10 career milestones). */
+export const US_MEDALS = {
+  commend: { n: "합동복무표창 (JSCM)", d: "첫 승리", rb: ["#1f5c3a", "#ffffff", "#66a3d2", "#ffffff", "#1f5c3a"] },
+  service: { n: "공로훈장 (MSM)", d: "누적 10승", rb: ["#8e1b3d", "#ffffff", "#8e1b3d", "#ffffff", "#8e1b3d"] },
+  inheon: { n: "동성훈장 (Bronze Star)", d: "한 전투에서 적함 3척 이상 격침", rb: ["#ffffff", "#b8202c", "#ffffff", "#1b3b82", "#ffffff", "#b8202c", "#ffffff"] },
+  hwarang: { n: "퍼플 하트 (Purple Heart)", d: "선체 50% 이하에서 역전승", rb: ["#ffffff", "#5a2a82", "#5a2a82", "#5a2a82", "#ffffff"] },
+  chungmu: { n: "은성훈장 (Silver Star)", d: "선체 손상 없이 승리", rb: ["#1b3b82", "#ffffff", "#1b3b82", "#ffffff", "#c8202c", "#ffffff", "#1b3b82", "#ffffff", "#1b3b82"] },
+  samil: { n: "레지온 오브 메리트 (LOM)", d: "영관(O-4) 진급", rb: ["#ffffff", "#9c1c3e", "#9c1c3e", "#9c1c3e", "#ffffff"] },
+  cheonsu: { n: "국방우수복무훈장 (DSSM)", d: "대령(O-6) 진급", rb: ["#6ea8d8", "#1b3b82", "#e8c448", "#c8202c", "#e8c448", "#1b3b82", "#6ea8d8"] },
+  eulji: { n: "수훈장 (DSM)", d: "장성(O-7) 진급", rb: ["#1b3b82", "#ffffff", "#c8202c", "#ffffff", "#1b3b82"] },
+  taeguk: { n: "명예훈장 (Medal of Honor)", d: "원수(5성) 특별진급", rb: ["#6aa6d8", "#ffffff", "#6aa6d8", "#ffffff", "#6aa6d8"] },
+  modern: { n: "인도-태평양 전역기장", d: "현대전 첫 출격", rb: ["#1b4f8a", "#e8c448", "#c8202c", "#e8c448", "#1b4f8a"] },
+};
 /** Award what this battle (and promotion) earned; returns the new medal keys. */
 export function awardMedals(o) {
   career.medals ||= {}; const got = [], give = (k) => { if (!career.medals[k]) { career.medals[k] = new Date().toISOString().slice(0, 10); got.push(k); } };

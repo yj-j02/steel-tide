@@ -18,7 +18,8 @@ import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, update
 import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, candidates, roleTitle, ECH, echOf, staffFor, FLAG_POSTS, FLEET_CDR, SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, setService, setBranch, POST_RANK, holds, saveStaff, isUS, setNation, curServices, curBranches, curFlagPosts } from "./js/staff.js";
 import { insigniaUS, US_PAY, usRankName, usRankFull, US_SVC_ORG, usNpcName, usDischargeEndingOf } from "./js/us-ranks.js";
 import { dutyState, ensureDuty, dutyEventById, dutyCrisisById, resolveDuty, resolveReport, resolveCrisisDelegate, resolveCrisisDirect, nextDutyWeek } from "./js/duty.js";
-import { PERKS, career, saveCareer, careerInit, rollPerks, takePerk, logPromotion, perkMods, payStep, MEDALS, awardMedals } from "./js/career.js";
+import { PERKS, career, saveCareer, careerInit, rollPerks, takePerk, logPromotion, perkMods, payStep, MEDALS, US_MEDALS, awardMedals } from "./js/career.js";
+const curMedals = () => (isUS() ? US_MEDALS : MEDALS);
 import { openOpMap, opMapAdvance, opMapState, opMapAir } from "./js/opmap.js";
 import { openScene, playCuts, setTheme } from "./js/scene.js";
 import { adminBar } from "./js/career-rules.js";
@@ -240,11 +241,19 @@ const CMDR_FACES = [
   { n: "지략 소위", skin: ["#f0d2ba", "#c5997b", "#8a624a"], hair: "#2b2623", brow: "#282320", age: 0, must: null, glass: "thin", fem: false, jaw: 0.92, chin: 0.84, eye: 1.0, browStyle: "arched", nose: "slim", mouthW: 0.92, hairStyle: "parted", agePath: "scholar", bg: "#3a3430" },
   { n: "여성 소위", skin: ["#f3d6c0", "#ca9c81", "#926752"], hair: "#2a1e19", brow: "#2b1f1a", age: 0, must: null, glass: false, fem: true, jaw: 0.87, chin: 0.78, eye: 1.1, browStyle: "fem", nose: "delicate", mouthW: 0.9, hairStyle: "bob", agePath: "poised", bg: "#34303c" },
 ];
+const US_CMDR_FACES = [
+  { n: "정통 장교 (US)", skin: ["#f5d2be", "#cf9f82", "#9a6c52"], hair: "#6b4c35", brow: "#583d29", eyeCol: "#3c678a", age: 0, must: null, glass: false, fem: false, jaw: 1.03, chin: 1.05, eye: 0.98, browStyle: "flat", nose: "straight", mouthW: 1.02, hairStyle: "neat", agePath: "dignified", bg: "#263445" },
+  { n: "강골 장교 (US)", skin: ["#946243", "#6d422a", "#422415"], hair: "#1a1614", brow: "#181412", eyeCol: "#2b1a12", age: 0, must: null, glass: false, fem: false, jaw: 1.14, chin: 1.18, eye: 0.84, browStyle: "thick", nose: "broad", mouthW: 1.12, hairStyle: "short", agePath: "rugged", bg: "#2b3830" },
+  { n: "지략 장교 (US)", skin: ["#f3d0bc", "#c9977b", "#8f6148"], hair: "#8f653b", brow: "#75512e", eyeCol: "#4b6e44", age: 0, must: null, glass: "thin", fem: false, jaw: 0.93, chin: 0.86, eye: 1.02, browStyle: "arched", nose: "slim", mouthW: 0.94, hairStyle: "parted", agePath: "scholar", bg: "#38322c" },
+  { n: "여성 장교 (US)", skin: ["#f6d7c4", "#cfa084", "#986b54"], hair: "#7e502f", brow: "#664026", eyeCol: "#3b6e78", age: 0, must: null, glass: false, fem: true, jaw: 0.87, chin: 0.78, eye: 1.12, browStyle: "fem", nose: "delicate", mouthW: 0.92, hairStyle: "bob", agePath: "poised", bg: "#332e3c" },
+];
+const facePool = () => (isUS() ? US_CMDR_FACES : CMDR_FACES);
 let faceN = 0;
 const mixHex = (a, b, t) => "#" + [1, 3, 5].map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t).toString(16).padStart(2, "0")).join("");
 /** The commander's face aged to the rank: 4 distinct young ensigns aging along unique paths (dignified / rugged / scholar / poised). */
 function agedFace(i, grade) {
-  const f = { ...((typeof i === "object" ? i : CMDR_FACES[i]) || CMDR_FACES[0]) }, g = clamp(grade | 0, 0, 10);
+  const pool = facePool();
+  const f = { ...((typeof i === "object" ? i : pool[i]) || pool[0]) }, g = clamp(grade | 0, 0, 10);
   const baseHair = f.hair || (f.fem ? "#2a1e19" : "#26201c"), baseBrow = f.brow || "#221c18";
   const path = f.agePath || (f.fem ? "poised" : "dignified");
   f.age = g <= 2 ? 0 : g <= 4 ? 1 : g <= 7 ? 2 : 3;
@@ -279,10 +288,15 @@ const SVC_UNI = {
   navy: { u0: "#1c2638", u1: "#0b0f18", sh: "#f1f1ee", tie: "#111111", cap0: "#ffffff", cap1: "#c9ccc8", band: "#121417", strap: "#c9a23a", sleeve: "#c9a23a" },
   air:  { u0: "#1d355a", u1: "#0d1b32", sh: "#dce9f7", tie: "#0f203d", cap0: "#2b4d80", cap1: "#193052", band: "#0f1a2c", strap: "#cfd8e3", sleeve: "#cfd8e3" },
 };
+const US_SVC_UNI = {
+  army: { u0: "#4b4a34", u1: "#28281a", sh: "#e2d6b6", tie: "#332e22", cap0: "#54523b", cap1: "#353425", band: "#2b251c", strap: "#d6ad42", sleeve: "#d6ad42" }, /* AGSU */
+  navy: { u0: "#121c2e", u1: "#080d17", sh: "#f4f5f7", tie: "#0d0f14", cap0: "#ffffff", cap1: "#cfd3d8", band: "#0e131c", strap: "#d6ad42", sleeve: "#d6ad42" },
+  air:  { u0: "#193058", u1: "#0c1830", sh: "#dce9f7", tie: "#0f203d", cap0: "#234375", cap1: "#142748", band: "#0e1a30", strap: "#d4dce6", sleeve: "#d4dce6" },
+};
 function face(i, s = 64) {
-  const f = (typeof i === "object" ? i : CMDR_FACES[i]) || CMDR_FACES[0], u = `fc${typeof i === "object" ? "s" : i}_${faceN++}`, [sk, sh, dk] = f.skin, j = f.jaw || 1, ch = f.chin || 1;
+  const pool = facePool(), f = (typeof i === "object" ? i : pool[i]) || pool[0], u = `fc${typeof i === "object" ? "s" : i}_${faceN++}`, [sk, sh, dk] = f.skin, j = f.jaw || 1, ch = f.chin || 1;
   const jx = 50 - 16.5 * j, jx2 = 50 + 16.5 * j, cx1 = 50 - 8.5 * ch, cx2 = 50 + 8.5 * ch;
-  const hi = mixHex(sk, "#fff6ee", 0.36), mw = f.mouthW || 1, ey = 41, my = ey + 18, U = SVC_UNI[f.svc] || SVC_UNI.navy;
+  const hi = mixHex(sk, "#fff6ee", 0.36), mw = f.mouthW || 1, ey = 41, my = ey + 18, uMap = isUS() ? US_SVC_UNI : SVC_UNI, U = uMap[f.svc] || uMap.navy;
   let o = `<svg role="img" aria-label="${f.n} 초상" width="${s}" height="${s}"${f.bare ? ' overflow="visible"' : ""} viewBox="${f.zoom ? "16 8 68 68" : "0 0 100 100"}"><defs>`
     + `<radialGradient id="${u}b" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="${f.bg}"/><stop offset="1" stop-color="#0d1114"/></radialGradient>`
     + `<radialGradient id="${u}s" cx=".4" cy=".34" r=".72"><stop offset="0" stop-color="${hi}"/><stop offset=".28" stop-color="${sk}"/><stop offset=".76" stop-color="${sh}"/><stop offset="1" stop-color="${dk}"/></radialGradient>`
@@ -321,7 +335,7 @@ function face(i, s = 64) {
   for (const x of [42.5, 57.5]) {
     o += `<g transform="translate(${x} ${ey}) scale(1 ${eyeScale}) translate(${-x} ${-ey})">`
       + `<path d="M${x - 4.3} ${ey} Q${x} ${ey - 2.7} ${x + 4.3} ${ey} Q${x} ${ey + 1.9} ${x - 4.3} ${ey}Z" fill="#f1ece4"/>`
-      + `<circle cx="${x}" cy="${ey - 0.15}" r="1.95" fill="#3a281d"/><circle cx="${x}" cy="${ey - 0.15}" r="1.0" fill="#100b08"/>`
+      + `<circle cx="${x}" cy="${ey - 0.15}" r="1.95" fill="${f.eyeCol || "#3a281d"}"/><circle cx="${x}" cy="${ey - 0.15}" r="1.0" fill="#100b08"/>`
       + `<circle cx="${x - 0.65}" cy="${ey - 0.75}" r="0.52" fill="#ffffff" opacity=".88"/>`
       + `<path d="M${x - 4.6} ${ey - 0.1} Q${x} ${ey - 3.3} ${x + 4.6} ${ey - 0.1}" stroke="#1d140f" stroke-width="${f.fem ? 1.35 : 1.15}" fill="none" stroke-linecap="round"/>`
       + `<path d="M${x - 3.8} ${ey - 2.4} Q${x} ${ey - 4.2} ${x + 3.8} ${ey - 2.4}" stroke="${dk}" stroke-width=".6" opacity=".48" fill="none"/>`
@@ -383,7 +397,7 @@ let cmdr = { name: "", face: 0 }; try { const c = JSON.parse(localStorage.getIte
 const cmdrSet = !!cmdr.name; if (!cmdr.name) cmdr.name = "무명";
 let cmdrDraft = cmdr.face;
 function renderCmdr() {
-  $("#cmdrFaces").innerHTML = CMDR_FACES.map((f, i) => `<button class="fc${i === cmdrDraft ? " on" : ""}" data-face="${i}">${face(agedFace(i, 0), 84)}<small>${f.n}</small></button>`).join("");
+  $("#cmdrFaces").innerHTML = facePool().map((f, i) => `<button class="fc${i === cmdrDraft ? " on" : ""}" data-face="${i}">${face(agedFace(i, 0), 84)}<small>${f.n}</small></button>`).join("");
 }
 function openCmdr() { cmdrDraft = cmdr.face; $("#cmdrInput").value = cmdrSet || cmdr.name !== "무명" ? cmdr.name : ""; renderCmdr(); $("#cmdrErr").textContent = ""; $("#cmdrM").style.display = "grid"; setTimeout(() => $("#cmdrInput").focus(), 30); }
 function saveCmdr() {
@@ -469,7 +483,7 @@ function newBattle() {
   log(`${first ? `${first.spec.name} 외 ${G.enemies.length - 1}척 접근 중. 전투 배치!` : `작전: ${MISSIONS[G.mop]?.n || ""} — ${MISSIONS[G.mop]?.d || ""}`}`);
   G.radio("battle");
   if (G.staffK) { const k = G.staffK, o = officer(staff.a.ops), c = officer(staff.a.cos), rg = hqGrade(); log(`참모진 — ${roleTitle("cos", rg)} ${c.rk} ${c.nm} · ${roleTitle("ops", rg)} ${o.rk} ${o.nm} | 화력 ${pctTxt(k.outK)} · 받는 피해 ${pctTxt(k.inK)} · 요격 ${pctTxt(k.icptK)}`); }
-  if (modern) { const F = CMDR_FACES[cmdr.face] || CMDR_FACES[0]; cicStart({ md, grade: myGrade(), face: face(myFace(), 110), faceSkin: F.skin?.[0], cmdrName: `${ECON_RANKS[myGrade()]} ${cmdr.name}`, nat: natUs, theater: mapId, toast, log, radio: G.radio, know, watchJet, watchMsl, isWatching: (j) => md.fly === j }); } else cicStop();
+  if (modern) { const P = facePool(), F = P[cmdr.face] || P[0]; cicStart({ md, grade: myGrade(), face: face(myFace(), 110), faceSkin: F.skin?.[0], cmdrName: `${rankLabel(myGrade())} ${cmdr.name}`, nat: natUs, theater: mapId, toast, log, radio: G.radio, know, watchJet, watchMsl, isWatching: (j) => md.fly === j }); } else cicStop();
 }
 G.toast = (m, t) => toast(m, t);
 G.onShellLand = (p, g, o) => G.modern && opsShellLand(p, g, o);
@@ -654,7 +668,7 @@ function finish() {
     else $("#endPromo").innerHTML = `<span class="k">RANK</span><div class="ib new">${insignia(after, 64)}</div><div class="big" style="font-size:30px">${ECON_RANKS[after]}</div><div class="sub">${postOf(after)}<br>${rl.next ? `${rl.next}까지 ${fmt(rl.need - profile.xp)} XP` : "최고 계급"}</div><div class="rk"><div class="hbar"><i style="width:${rl.pct * 100}%;background:var(--gold)"></i></div></div>`;
     const P0 = G.player, got = awardMedals({ won, modern: !!G.modern, wins: profile.wins, sunk: G.enemies.filter((e) => !e.alive).length, hp: P0 ? P0.hp / P0.maxHp : 0, lowHp: (G.minHp ?? 1) <= 0.5, grade: after });
     pmMedals = got;
-    if (got.length) { html += `<span>훈장 수여</span><span style="color:var(--gold)">${got.map((k) => MEDALS[k].n).join(" · ")}</span>`; if (after <= before) toast(`훈장 수여 — ${got.map((k) => MEDALS[k].n).join(" · ")}`, 4); } /* on a promotion the order's medal page shows them */
+    if (got.length) { const MD = curMedals(); html += `<span>훈장 수여</span><span style="color:var(--gold)">${got.map((k) => MD[k].n).join(" · ")}</span>`; if (after <= before) toast(`훈장 수여 — ${got.map((k) => MD[k].n).join(" · ")}`, 4); } /* on a promotion the order's medal page shows them */
   } else html += `<span>관전 모드</span><span>보상 없음</span>`;
   $("#endStats").innerHTML = html; $("#end").style.display = "grid"; bgm("menu");
 }
@@ -750,17 +764,17 @@ function buildPromo(before, after, unl = "", preview = false) {
   const josa = (w) => { const j = (w.charCodeAt(w.length - 1) - 0xac00) % 28; return j === 0 || j === 8 ? "로" : "으로"; };
   const sv0 = curServices()[serviceOf(staff.branch)] || curServices().navy;
   const pmHead = isUS() ? `U.S. Department of Defense · ${sv0.en}` : `대한민국 ${sv0.n}본부`;
-$("#promoM").innerHTML = `<div class="pm-doc"><div class="pm-pg on" data-pg="1"><div class="pm-h">${pmHead}</div><div class="pm-no">${isUS() ? `SPECIAL ORDERS NO. ${yr}-${no}` : `인사명령 제${yr}-${no}호`}</div>${after >= 6 ? flagHTML(after, before) : `<div class="pm-ins">${insignia(after, 120)}</div>`}<div class="pm-rank">${rankLabel(after)} 진급</div><div class="pm-name">${cmdr.name}</div><div class="pm-txt">위 사람을 ${rankLabel(before)}에서 ${rankLabel(after)}${josa(ECON_RANKS[after])} 진급시키고<br><b id="pmPostT">${postOf(after)}</b>에 보함</div><div class="pm-u">${opens}</div>${handover}${after < 3 ? `<div class="pm-radio"><b>무전</b> ${radioAddr(after)}, 진급을 축하드립니다!</div>` : ""}${MINISTER_SIGN}<button class="pm-next" data-pmgo="2">다음 ›</button></div><div class="pm-pg" data-pg="2"><div class="pm-h2">훈장 수여</div><div id="pmMed"></div><button class="pm-next" data-pmgo="3">다음 ›</button></div><div class="pm-pg" data-pg="3"><div class="pm-h2">보직 선택</div><div id="pmPost"></div><button class="pm-next" data-pmgo="4">다음 ›</button></div><div class="pm-pg" data-pg="4"><div class="pm-h2">진급 특기 부여</div><div id="pmPk"></div><button id="promoOk">명 받았습니다</button></div><div class="pm-dots">${[1, 2, 3, 4].map((n) => `<i data-d="${n}"${n === 1 ? ' class="on"' : ""}></i>`).join("")}</div></div>`; if (preview) { pmOpts = rollPerks(after, staff.branch); $("#pmPk").innerHTML = `<div class="pk-h">진급 특기 부여 (택 1) · 미리보기</div><div class="pk-row">${pmOpts.map((k, i) => `<div class="pk${PERKS[k].tier ? " sp" : ""}">${i === 0 ? "<i>병과 추천</i>" : PERKS[k].tier ? `<i>${PERKS[k].c}</i>` : ""}<b>${PERKS[k].n}</b><small>${PERKS[k].c}</small><span>${PERKS[k].d}</span></div>`).join("")}</div>`; pmOpts = null; } else renderPerkPick("#pmPk", after);
+$("#promoM").innerHTML = `<div class="pm-doc"><div class="pm-pg on" data-pg="1"><div class="pm-h">${pmHead}</div><div class="pm-no">${isUS() ? `SPECIAL ORDERS NO. ${yr}-${no}` : `인사명령 제${yr}-${no}호`}</div>${after >= 6 ? flagHTML(after, before) : `<div class="pm-ins">${insignia(after, 120)}</div>`}<div class="pm-rank">${rankLabel(after)} 진급</div><div class="pm-name">${cmdr.name}</div><div class="pm-txt">위 사람을 ${rankLabel(before)}에서 ${rankLabel(after)}${josa(ECON_RANKS[after])} 진급시키고<br><b id="pmPostT">${postOf(after)}</b>에 보함</div><div class="pm-u">${opens}</div>${handover}${after < 3 ? `<div class="pm-radio"><b>무전</b> ${radioAddr(after)}, 진급을 축하드립니다!</div>` : ""}${ministerSign()}<button class="pm-next" data-pmgo="2">다음 ›</button></div><div class="pm-pg" data-pg="2"><div class="pm-h2">훈장 수여</div><div id="pmMed"></div><button class="pm-next" data-pmgo="3">다음 ›</button></div><div class="pm-pg" data-pg="3"><div class="pm-h2">보직 선택</div><div id="pmPost"></div><button class="pm-next" data-pmgo="4">다음 ›</button></div><div class="pm-pg" data-pg="4"><div class="pm-h2">진급 특기 부여</div><div id="pmPk"></div><button id="promoOk">명 받았습니다</button></div><div class="pm-dots">${[1, 2, 3, 4].map((n) => `<i data-d="${n}"${n === 1 ? ' class="on"' : ""}></i>`).join("")}</div></div>`; if (preview) { pmOpts = rollPerks(after, staff.branch); $("#pmPk").innerHTML = `<div class="pk-h">진급 특기 부여 (택 1) · 미리보기</div><div class="pk-row">${pmOpts.map((k, i) => `<div class="pk${PERKS[k].tier ? " sp" : ""}">${i === 0 ? "<i>병과 추천</i>" : PERKS[k].tier ? `<i>${PERKS[k].c}</i>` : ""}<b>${PERKS[k].n}</b><small>${PERKS[k].c}</small><span>${PERKS[k].d}</span></div>`).join("")}</div>`; pmOpts = null; } else renderPerkPick("#pmPk", after);
   renderPostPick(after);
   return handover;
 }
-const MINISTER_SIGN = `<div class="pm-sign"><div class="pm-date">${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월 ${new Date().getDate()}일</div><div class="pm-sg"><span>국방부장관</span><svg viewBox="0 0 150 54" width="150" height="54"><path d="M8 38 C18 10 30 12 26 30 C22 46 34 40 42 22 C46 14 50 18 48 30 C46 40 56 34 64 20 C68 30 70 36 80 28 C88 22 92 16 98 24 C104 32 112 30 120 18 M60 44 C80 40 110 40 142 34" stroke="#1d2340" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><i>國防部長官印</i></div></div>`; /* fictional signature, no real person's name */
+const ministerSign = () => `<div class="pm-sign"><div class="pm-date">${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월 ${new Date().getDate()}일</div><div class="pm-sg"><span>${isUS() ? "Secretary of Defense" : "국방부장관"}</span><svg viewBox="0 0 150 54" width="150" height="54"><path d="M8 38 C18 10 30 12 26 30 C22 46 34 40 42 22 C46 14 50 18 48 30 C46 40 56 34 64 20 C68 30 70 36 80 28 C88 22 92 16 98 24 C104 32 112 30 120 18 M60 44 C80 40 110 40 142 34" stroke="#1d2340" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><i>${isUS() ? "U.S. DoD SEAL" : "國防部長官印"}</i></div></div>`; /* fictional signature, no real person's name */
 let pmMedals = [], pmPage = 1;
 function pmGo(n) {
   if (n === 2 && !pmMedals.length && !pmPreview) n = 3; /* no medal this time: straight to the posting */
   pmPage = n; for (const el of document.querySelectorAll("#promoM .pm-pg")) el.classList.toggle("on", +el.dataset.pg === n);
   for (const d of document.querySelectorAll("#promoM .pm-dots i")) d.classList.toggle("on", +d.dataset.d === n);
-  if (n === 2) $("#pmMed").innerHTML = (pmMedals.length ? pmMedals : pmPreview ? Object.keys(MEDALS).filter((k) => career.medals?.[k]).slice(0, 3) : []).map((k) => `<div class="pm-md"><i>${MEDALS[k].rb.map((col) => `<b style="background:${col}"></b>`).join("")}</i><div><b>${MEDALS[k].n}</b><small>${MEDALS[k].d}</small></div></div>`).join("") || `<div class="pm-none">이번에 받은 훈장이 없습니다</div>`;
+  if (n === 2) { const MD = curMedals(); $("#pmMed").innerHTML = (pmMedals.length ? pmMedals : pmPreview ? Object.keys(MD).filter((k) => career.medals?.[k]).slice(0, 3) : []).map((k) => `<div class="pm-md"><i>${MD[k].rb.map((col) => `<b style="background:${col}"></b>`).join("")}</i><div><b>${MD[k].n}</b><small>${MD[k].d}</small></div></div>`).join("") || `<div class="pm-none">이번에 받은 훈장이 없습니다</div>`; }
   $("#promoM").scrollTop = 0; sfx.click();
 }
 /** 보직 순환: at each promotion pick the next posting — stay on your branch line or cross over (the career and its evaluation weights follow). */
@@ -793,37 +807,68 @@ function renderPerkPick(sel, g) {
   el.innerHTML = `<div class="pk-h">진급 특기 부여 (택 1)${career.picks > 1 ? ` · 남은 선택 ${career.picks}회` : ""}</div><div class="pk-row">${pmOpts.map((k, i) => { const P = PERKS[k], lv = career.perks[k] || 0; return `<button class="pk${P.tier ? " sp" : ""}" data-perk="${k}">${i === 0 ? `<i>병과 추천</i>` : P.tier ? `<i>${P.c}</i>` : ""}<b>${P.n}</b><small>${P.c}${P.max > 1 ? ` · ${lv} → ${lv + 1}단계` : ""}</small><span>${P.d}</span></button>`; }).join("")}</div>`;
   $("#promoOk")?.classList.add("dim");
 }
-function flagHTML(g, before) { /* 장성기: red field, stars above a white wreath; the cloth waves in vertical slices, the new star flies in */
-  const n = g - 5, old = Math.max(0, before - 5), W = 240, H = 160, gap = W / (n + 1), N = 40, sw = W / N;
-  const spot = (i) => n === 5 ? [W / 2 + Math.cos(-Math.PI / 2 + (i * 2 * Math.PI) / 5) * 30, 50 + Math.sin(-Math.PI / 2 + (i * 2 * Math.PI) / 5) * 30] : [gap * (i + 1), 48];
-  const stars = Array.from({ length: n }, (_, i) => `<path class="${i >= old ? "nst" : ""}" style="animation-delay:${1.0 + (i - old) * 0.35}s" transform="translate(${spot(i)[0]} ${spot(i)[1]}) scale(${n === 5 ? 0.62 : 1.15})" d="M0 -22 L6.5 -6.5 L23 -6.5 L10 3.5 L14.5 20 L0 10 L-14.5 20 L-10 3.5 L-23 -6.5 L-6.5 -6.5Z" fill="#fff"/>`).join("");
-  const leaf = (x, y, r) => `<path transform="translate(${x} ${y}) rotate(${r}) scale(1.35)" d="M0 0 C7 -5 7 -14 0 -21 C-7 -14 -7 -5 0 0Z M0 -2 L0 -17 M0 -8 L3 -11 M0 -8 L-3 -11 M0 -13 L2.5 -15.5 M0 -13 L-2.5 -15.5" fill="#fff" stroke="#cf1f2b" stroke-width=".9"/>`;
-  const side = (s) => `<path d="M${W / 2 + s * 12} 146 Q${W / 2 + s * 44} 140 ${W / 2 + s * 50} 96" stroke="#fff" stroke-width="2.5" fill="none"/>` + [[14, 0, -50], [26, -8, -28], [36, -20, -10], [42, -34, 6], [44, -48, 18]].map(([x, y, r]) => leaf(W / 2 + s * (10 + x), 146 + y, s * r)).join("");
-  const flower = `<g transform="translate(${W / 2} 134) scale(1.4)">${[0, 72, 144, 216, 288].map((r) => `<ellipse transform="rotate(${r}) translate(0 -8)" rx="6" ry="8" fill="#fff" stroke="#c8202c" stroke-width=".8"/>`).join("")}<circle r="4.5" fill="#fff" stroke="#c8202c" stroke-width="1"/>${[0, 120, 240].map((r) => `<circle transform="rotate(${r}) translate(0 -2)" r="1" fill="#c8202c"/>`).join("")}</g>`;
-  const id = `fl${faceN++}`;
+function flagHTML(g, before) { /* 장성기: KR red+wreath+mugunghwa / US Personal Colors (Army Scarlet+Gold Fringe, Navy Blue diamond/triangle, USAF Ultramarine) */
+  const n = g - 5, old = Math.max(0, before - 5), W = 240, H = 160, N = 40, sw = W / N, id = `fl${faceN++}`;
+  const svk = serviceOf(staff.branch);
+  const starD = "M0 -22 L6.5 -6.5 L23 -6.5 L10 3.5 L14.5 20 L0 10 L-14.5 20 L-10 3.5 L-23 -6.5 L-6.5 -6.5Z";
+  let fieldSVG = "", label = `${rankLabel(g, svk)} 장성기 게양`;
+  if (isUS()) {
+    const bg = svk === "army" ? "#c8102e" : svk === "air" ? "#00308f" : "#0a2240";
+    const fringe = svk === "army" ? `<rect x="0" y="0" width="${W}" height="5" fill="#d9a82e"/><rect x="0" y="${H - 5}" width="${W}" height="5" fill="#d9a82e"/><rect x="${W - 5}" y="0" width="5" height="${H}" fill="#d9a82e"/>` : "";
+    const usSpot = (i) => {
+      if (n === 5) return [W / 2 + Math.cos(-Math.PI / 2 + (i * 2 * Math.PI) / 5) * 34, H / 2 + Math.sin(-Math.PI / 2 + (i * 2 * Math.PI) / 5) * 34];
+      if (svk === "navy") {
+        if (n === 1) return [W / 2, H / 2];
+        if (n === 2) return [W / 2, i === 0 ? 52 : 108];
+        if (n === 3) return [[W / 2, 46], [W / 2 - 48, 110], [W / 2 + 48, 110]][i];
+        return [[W / 2, 38], [W / 2 - 62, H / 2], [W / 2 + 62, H / 2], [W / 2, 122]][i]; /* USN Line 4-star diamond */
+      }
+      const gap = W / (n + 1); return [gap * (i + 1), H / 2]; /* US Army & USAF horizontal row */
+    };
+    const sc = n === 5 ? 0.64 : n >= 4 && svk !== "navy" ? 0.92 : 1.08;
+    const stars = Array.from({ length: n }, (_, i) => { const [sx, sy] = usSpot(i); return `<path class="${i >= old ? "nst" : ""}" style="animation-delay:${1.0 + (i - old) * 0.35}s" transform="translate(${sx} ${sy}) scale(${sc})" d="${starD}" fill="#ffffff"/>`; }).join("");
+    fieldSVG = `<rect width="${W}" height="${H}" fill="${bg}"/>${fringe}${stars}`;
+    label = `${(curServices()[svk] || curServices().navy).en} · ${rankLabel(g, svk)} 장성기 게양`;
+  } else {
+    const gap = W / (n + 1);
+    const spot = (i) => n === 5 ? [W / 2 + Math.cos(-Math.PI / 2 + (i * 2 * Math.PI) / 5) * 30, 50 + Math.sin(-Math.PI / 2 + (i * 2 * Math.PI) / 5) * 30] : [gap * (i + 1), 48];
+    const stars = Array.from({ length: n }, (_, i) => `<path class="${i >= old ? "nst" : ""}" style="animation-delay:${1.0 + (i - old) * 0.35}s" transform="translate(${spot(i)[0]} ${spot(i)[1]}) scale(${n === 5 ? 0.62 : 1.15})" d="${starD}" fill="#fff"/>`).join("");
+    const leaf = (x, y, r) => `<path transform="translate(${x} ${y}) rotate(${r}) scale(1.35)" d="M0 0 C7 -5 7 -14 0 -21 C-7 -14 -7 -5 0 0Z M0 -2 L0 -17 M0 -8 L3 -11 M0 -8 L-3 -11 M0 -13 L2.5 -15.5 M0 -13 L-2.5 -15.5" fill="#fff" stroke="#cf1f2b" stroke-width=".9"/>`;
+    const side = (s) => `<path d="M${W / 2 + s * 12} 146 Q${W / 2 + s * 44} 140 ${W / 2 + s * 50} 96" stroke="#fff" stroke-width="2.5" fill="none"/>` + [[14, 0, -50], [26, -8, -28], [36, -20, -10], [42, -34, 6], [44, -48, 18]].map(([x, y, r]) => leaf(W / 2 + s * (10 + x), 146 + y, s * r)).join("");
+    const flower = `<g transform="translate(${W / 2} 134) scale(1.4)">${[0, 72, 144, 216, 288].map((r) => `<ellipse transform="rotate(${r}) translate(0 -8)" rx="6" ry="8" fill="#fff" stroke="#c8202c" stroke-width=".8"/>`).join("")}<circle r="4.5" fill="#fff" stroke="#c8202c" stroke-width="1"/>${[0, 120, 240].map((r) => `<circle transform="rotate(${r}) translate(0 -2)" r="1" fill="#c8202c"/>`).join("")}</g>`;
+    fieldSVG = `<rect width="${W}" height="${H}" fill="#cf1f2b"/>${stars}${side(-1)}${side(1)}${flower}`;
+  }
   let slices = "";
   for (let i = 0; i < N; i++) slices += `<g class="wv" style="--a:${(1.5 + 9 * (i / N)).toFixed(1)};animation-delay:${(-i * 0.09).toFixed(2)}s"><svg x="${i * sw}" y="-14" width="${sw + 0.6}" height="${H + 28}" viewBox="${i * sw} -14 ${sw + 0.6} ${H + 28}" overflow="hidden"><use href="#${id}"/><rect class="sh" x="${i * sw}" y="0" width="${sw + 0.6}" height="${H}" style="animation-delay:${(-i * 0.09).toFixed(2)}s"/></svg></g>`;
-  return `<div class="pm-flag"><svg viewBox="-16 -16 ${W + 32} ${H + 40}" width="270" height="190"><defs><g id="${id}"><rect width="${W}" height="${H}" fill="#cf1f2b"/>${stars}${side(-1)}${side(1)}${flower}</g></defs><rect x="-12" y="-14" width="5" height="${H + 34}" rx="2" fill="#c9a23a"/><circle cx="-9.5" cy="-14" r="5" fill="#e3c04f"/>${slices}</svg><div class="pm-fl">${ECON_RANKS[g]} 장성기 게양</div></div>`;
+  return `<div class="pm-flag"><svg viewBox="-16 -16 ${W + 32} ${H + 40}" width="270" height="190"><defs><g id="${id}">${fieldSVG}</g></defs><rect x="-12" y="-14" width="5" height="${H + 34}" rx="2" fill="#c9a23a"/><circle cx="-9.5" cy="-14" r="5" fill="#e3c04f"/>${slices}</svg><div class="pm-fl">${label}</div></div>`;
 }
-/** 내 정보 portrait: white dress uniform, shoulder boards by rank, ribbon rack from earned medals, name tag. */
+/** 내 정보 portrait: service dress uniform, shoulder boards by rank, ribbon rack from earned medals, name tag. */
 function shoulderBoard(g, flip) {
-  const gen = g >= 6, w = 74, h = 26, base = gen ? "#d8b247" : "#15171c";
+  const gen = g >= 6, w = 74, h = 26, svk = serviceOf(staff.branch);
+  const base = isUS() ? (svk === "army" ? "#2e3120" : svk === "air" ? "#152b52" : gen ? "#d8b247" : "#111926") : (gen ? "#d8b247" : "#15171c");
   let o = `<g transform="${flip ? `translate(${w} 0) scale(-1 1)` : ""}"><path d="M0 4 Q0 0 4 0 L${w - 10} 0 L${w} ${h / 2} L${w - 10} ${h} L4 ${h} Q0 ${h} 0 ${h - 4}Z" fill="${base}" stroke="#7a6220" stroke-width="1"/>`;
   if (gen) { o += `<circle cx="${w - 10}" cy="${h / 2}" r="3.2" fill="#f3d878" stroke="#7a6220" stroke-width=".6"/>`; const n = g - 5;
     if (n === 5) [0, 1, 2, 3, 4].forEach((i) => { const a = -Math.PI / 2 + (i * 2 * Math.PI) / 5; o += `<path d="${starPath(30 + Math.cos(a) * 7, 13 + Math.sin(a) * 7, 4.2)}" fill="#e9ecef" stroke="#7d8287" stroke-width=".4"/>`; });
     else for (let i = 0; i < n; i++) o += `<path d="${starPath(10 + i * 11 + (4 - n) * 5, h / 2, 5)}" fill="#e9ecef" stroke="#7d8287" stroke-width=".4"/>`; }
-  else o += `<circle cx="${w - 10}" cy="${h / 2}" r="3.2" fill="#c9a23a" stroke="#7a6220" stroke-width=".6"/>` + krDevs(g, 30, h / 2, g <= 2 ? 1.1 : 1.05, 19);
+  else if (isUS()) {
+    o += `<circle cx="${w - 10}" cy="${h / 2}" r="3.2" fill="#c9a23a" stroke="#7a6220" stroke-width=".6"/>`;
+    if (g === 0 || g === 1) o += `<rect x="24" y="4" width="8" height="18" rx="1" fill="${g === 0 ? "#e2b546" : "#dfe4e8"}" stroke="#6b6e73" stroke-width=".6"/>`;
+    else if (g === 2) o += `<rect x="19" y="4" width="7" height="18" rx="1" fill="#dfe4e8" stroke="#6b6e73" stroke-width=".6"/><rect x="30" y="4" width="7" height="18" rx="1" fill="#dfe4e8" stroke="#6b6e73" stroke-width=".6"/>`;
+    else if (g === 3 || g === 4) o += `<ellipse cx="29" cy="13" rx="8" ry="6.5" fill="${g === 3 ? "#e0b341" : "#dfe4e8"}" stroke="#6b6e73" stroke-width=".6"/>`;
+    else o += `<path d="M16 10 L26 12 L29 7 L32 12 L42 10 L36 16 L32 17 L29 21 L26 17 L22 16Z" fill="#e2e7ec" stroke="#6b6e73" stroke-width=".6"/>`;
+  } else o += `<circle cx="${w - 10}" cy="${h / 2}" r="3.2" fill="#c9a23a" stroke="#7a6220" stroke-width=".6"/>` + krDevs(g, 30, h / 2, g <= 2 ? 1.1 : 1.05, 19);
   return o + `</g>`;
 }
 function portraitHTML(g) {
-  const F = { ...agedFace(cmdr.face, g), bare: true };
-  const meds = Object.keys(MEDALS).filter((k) => career.medals?.[k]), per = 3, rows = [];
+  const F = { ...agedFace(cmdr.face, g), bare: true }, MD = curMedals(), svk = serviceOf(staff.branch);
+  const meds = Object.keys(MD).filter((k) => career.medals?.[k]), per = 3, rows = [];
   for (let i = 0; i < meds.length; i += per) rows.push(meds.slice(i, i + per));
-  const rack = rows.reverse().map((row, r) => row.map((k, i) => { const rb = MEDALS[k].rb, x = 200 - (row.length * 17) / 2 + i * 17, y = 252 - r * 7; return rb.map((col, j) => `<rect x="${x + (j * 16) / rb.length}" y="${y}" width="${16 / rb.length + 0.2}" height="6" fill="${col}"/>`).join("") + `<rect x="${x}" y="${y}" width="16" height="6" fill="none" stroke="#333" stroke-width=".4"/>`; }).join("")).join("");
-  return `<svg class="mi-por" viewBox="0 0 300 300" width="300" height="300"><defs><radialGradient id="porbg" cx=".5" cy=".35" r=".8"><stop offset="0" stop-color="#2b4f7c"/><stop offset="1" stop-color="#0c1726"/></radialGradient><linearGradient id="porw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#d9dde2"/></linearGradient></defs>`
+  const rack = rows.reverse().map((row, r) => row.map((k, i) => { const rb = MD[k].rb, x = 200 - (row.length * 17) / 2 + i * 17, y = 252 - r * 7; return rb.map((col, j) => `<rect x="${x + (j * 16) / rb.length}" y="${y}" width="${16 / rb.length + 0.2}" height="6" fill="${col}"/>`).join("") + `<rect x="${x}" y="${y}" width="16" height="6" fill="none" stroke="#333" stroke-width=".4"/>`; }).join("")).join("");
+  const coat = isUS() ? (svk === "army" ? ["#54523b", "#313022", "#e2d6b6", "#2c281d"] : svk === "air" ? ["#1f3a68", "#0e1d38", "#dce9f7", "#0f203d"] : ["#162238", "#0a101d", "#f4f5f7", "#11141c"]) : ["#ffffff", "#d9dde2", "#f4f6f8", "#c4c9cf"];
+  return `<svg class="mi-por" viewBox="0 0 300 300" width="300" height="300"><defs><radialGradient id="porbg" cx=".5" cy=".35" r=".8"><stop offset="0" stop-color="${isUS() ? "#1f3c63" : "#2b4f7c"}"/><stop offset="1" stop-color="#0c1726"/></radialGradient><linearGradient id="porw" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${coat[0]}"/><stop offset="1" stop-color="${coat[1]}"/></linearGradient></defs>`
     + `<rect width="300" height="300" rx="8" fill="url(#porbg)"/><circle cx="150" cy="120" r="96" fill="none" stroke="rgba(242,202,92,.12)" stroke-width="2"/>`
-    + `<path d="M8 300 C10 248 34 216 100 200 L150 222 L200 200 C266 216 290 248 292 300Z" fill="url(#porw)" stroke="#c4c9cf" stroke-width="1"/>`
-    + `<path d="M120 204 L150 226 L180 204 L176 196 L150 212 L124 196Z" fill="#f4f6f8" stroke="#c4c9cf"/><path d="M150 226 L150 300" stroke="#c4c9cf" stroke-width="1.2"/>${[240, 262, 284].map((y) => `<circle cx="150" cy="${y}" r="3.4" fill="#d8b247" stroke="#7a6220" stroke-width=".6"/>`).join("")}`
+    + `<path d="M8 300 C10 248 34 216 100 200 L150 222 L200 200 C266 216 290 248 292 300Z" fill="url(#porw)" stroke="${coat[3]}" stroke-width="1"/>`
+    + `<path d="M120 204 L150 226 L180 204 L176 196 L150 212 L124 196Z" fill="${coat[2]}" stroke="${coat[3]}"/>${isUS() ? `<path d="M145 215 L150 210 L155 215 L153 265 L150 272 L147 265Z" fill="${coat[3]}"/>` : `<path d="M150 226 L150 300" stroke="#c4c9cf" stroke-width="1.2"/>`}${[240, 262, 284].map((y) => `<circle cx="150" cy="${y}" r="3.4" fill="#d8b247" stroke="#7a6220" stroke-width=".6"/>`).join("")}`
     + `<g transform="translate(34 224) rotate(-17)">${shoulderBoard(g, false)}</g><g transform="translate(266 224) rotate(17) scale(-1 1)">${shoulderBoard(g, false)}</g>`
     + rack
     + `<rect x="80" y="250" width="40" height="11" rx="1.5" fill="#1c2430"/><text x="100" y="258.5" font-size="7.5" fill="#fff" text-anchor="middle" font-family="Noto Sans KR, sans-serif">${cmdr.name}</text>`
@@ -898,7 +943,7 @@ function renderRecord() { /* 내 정보: profile card, perks, record, service re
     + (career.minister ? `<p class="mi-note">${potusOn() ? "소위 임관에서 대통령까지 — 사령부 탭 → 대통령실에서 국정을 운영합니다" : isPotus() ? "대통령 임기를 마쳤습니다" : civil() ? "국방부장관 임기를 마치고 민간인이 되었습니다" : "전역 후 국방부장관으로 임명되어 호봉·진급이 없습니다"}</p>` : `<div class="mi-bar"><span>다음 호봉</span><div class="hbar"><i style="width:${Math.max(2, stepPct).toFixed(0)}%"></i></div></div><div class="mi-bar"><span>${rl.next ? `${rl.next} 진급` : "최고 계급"}</span><div class="hbar"><i style="width:${(rl.pct * 100).toFixed(0)}%;background:var(--gold)"></i></div><small>${rl.next ? `${fmt(rl.need - profile.xp)} XP 남음` : ""}</small></div>`)
     + (career.minister ? "" : evalHTML(rl)) + ministerHTML(rl)
     + `<h3>진급 특기</h3>${career.picks > 0 ? `<div id="miPk"></div>` : ""}<ul class="mi-pk">${perks}</ul>`
-    + `<h3>훈장 · 표창</h3><div class="mi-md">${Object.entries(MEDALS).map(([k, M]) => `<div class="md${career.medals?.[k] ? "" : " no"}" title="${M.d}"><i>${M.rb.map((col) => `<b style="background:${col}"></b>`).join("")}</i><span>${M.n}</span><small>${career.medals?.[k] ? career.medals[k] : M.d}</small></div>`).join("")}</div>`
+    + `<h3>훈장 · 표창</h3><div class="mi-md">${Object.entries(curMedals()).map(([k, M]) => `<div class="md${career.medals?.[k] ? "" : " no"}" title="${M.d}"><i>${M.rb.map((col) => `<b style="background:${col}"></b>`).join("")}</i><span>${M.n}</span><small>${career.medals?.[k] ? career.medals[k] : M.d}</small></div>`).join("")}</div>`
     + `<h3>내 참모진 · ${ECH[echOf(rl.r)].u}</h3><div class="mi-st">${STAFF_ROLES.map((r) => `<span>${roleTitle(r.k, rl.r)}</span><b>${of(r.k).rk} ${of(r.k).nm}</b>`).join("")}</div>`
     + (profile.admin ? `<div class="mi-adm">관리자 · 실제 계급 변경 <select id="setRank">${ECON_RANKS.map((n, i) => `<option value="${i}"${i === rl.r ? " selected" : ""}>${n}</option>`).join("")}</select><button data-act="setrank">변경</button><small>경험치가 그 계급 기준으로 바뀌어 해금·직함·사령부·견장·특기가 모두 실제로 바뀝니다. 올리면 진급식·특기·훈장도 실제로 받습니다.</small></div><div class="mi-adm">관리자 모드 · 진급 연출 미리보기 <select id="pvRank">${ECON_RANKS.slice(1).map((n, i) => `<option value="${i + 1}"${i + 1 === 6 ? " selected" : ""}>${n}</option>`).join("")}</select><button data-act="pvpromo">보기</button><small>실제 계급·경험치·특기는 바뀌지 않습니다</small></div>` : `<div class="hq-adm in"><input id="miAdmin" type="password" maxlength="32" placeholder="관리자 코드" autocomplete="off"><button data-act="miadmin">적용</button></div>`)
     + `</div><div class="mi-r"><h3>전투 기록</h3><div class="rstats"><div><span>출격</span><b>${profile.battles}</b></div><div><span>승리</span><b>${profile.wins}</b></div><div><span>승률</span><b>${profile.battles ? Math.round((profile.wins / profile.battles) * 100) : 0}%</b></div><div><span>누적 명중률</span><b>${acc}%</b></div><div><span>최단 승리</span><b>${best}</b></div></div>`
