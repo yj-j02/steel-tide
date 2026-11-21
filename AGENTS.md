@@ -41,9 +41,10 @@
 
 저장 키: `profile`, `career`, `cmdr`, `staff`, `camp`, `oplog`, `c72`, `mod`, `hall`, `legacy`, `pres`, `potus`, `potus_hall`, `scenes` (모두 `steeltide:` 접두사).
 
-## 알려진 문제
+## 이미지 주의
 
-- `img/bg/address.jpg`, `img/bg/president_office.jpg`는 실존 전직 대통령과 닮아 보여 제거 예정(사용자 확인 대기). **새 작업에서 이 두 파일을 쓰지 않는다.** `img/bg/*_dm.jpg`, `*_hn.jpg`는 쓰지 않는 중복본.
+- 실존 인물과 닮아 보이던 `address.jpg`, `president_office.jpg`와 중복본 `*_dm/_hn.jpg`는 이미 제거됨. 지금은 정당 색 버전 `address_blue/red.jpg`, `president_office_blue/red.jpg`를 쓴다.
+- 새 이미지를 넣을 때도 실존 인물과 닮았는지 먼저 확인하고, 의심되면 쓰지 말고 사용자에게 보고한다.
 
 ## 검증
 
