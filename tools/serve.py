@@ -1,6 +1,6 @@
 """Local dev server for Steel Tide: serves app/public with caching off so every reload picks up edits.
 The page is served silent (test runs were waking the house); add ?sound to the URL to hear it."""
-import os, sys
+import os, re, sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "app", "public")
@@ -15,6 +15,8 @@ class NoCache(SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path.split("?")[0] in ("/", "/index.html"):
             body = open(os.path.join(ROOT, "index.html"), "rb").read().replace(b"<head>", b"<head>" + MUTE, 1)
+            body = body.replace(b'<html lang="ko">', b'<html lang="ko" data-static-host="local">')
+            body = re.sub(rb'<link [^>]*href="https://fonts\.[^>]*>', b'', body)
             self.send_response(200); self.send_header("Content-Type", "text/html; charset=utf-8"); self.send_header("Content-Length", str(len(body))); self.end_headers(); self.wfile.write(body); return
         super().do_GET()
     def end_headers(self):

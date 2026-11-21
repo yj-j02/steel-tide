@@ -1,6 +1,7 @@
 // 대통령 선거 (국방부장관 임기를 마친 민간인): 프롤로그 → 출마 선언 → 정당 선택 → 당내 경선 → 본선 7턴 → TV 토론 3회 → 선거일 밤.
 // 정당·후보·인물은 모두 가상이다. 수치는 게임용 값이며 실제 여론·득표와 무관하다.
 // 제도 모티브: 법정 TV 토론 3회(경제·사회·정치), 선거일 6일 전부터 여론조사 공표 금지, 사전투표.
+import { docketPaper } from "./career-rules.js";
 import { KOREA, kxy } from "./korea.js";
 import { minState } from "./ministry.js";
 
@@ -10,52 +11,9 @@ const wr = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v)), rnd = (a, b) => a + Math.random() * (b - a), pick = (a) => a[(Math.random() * a.length) | 0];
 const won = (n) => `${Math.round(n).toLocaleString("ko-KR")}억`;
 
-export const PARTIES = { dm: { n: "민주함께당", c: "#3b82f6", s: "민주함께" }, hn: { n: "한누리당", c: "#e05252", s: "한누리" }, ind: { n: "무소속", c: "#9aa5b1", s: "무소속" } };
-/* 유권자 집단·권역 비중 (게임용 값) */
-const GROUPS = { sec: ["안보 관심층", 0.2], eco: ["경제 관심층", 0.3], youth: ["청년층", 0.15], mid: ["중도·무당층", 0.2], old: ["고령층", 0.15] };
-const REG = { cap: ["수도권", 0.5, 127.0, 37.45], gang: ["강원", 0.03, 128.4, 37.75], chung: ["충청", 0.11, 127.15, 36.55], honam: ["호남", 0.1, 126.9, 35.15], yeong: ["영남", 0.25, 128.75, 35.85], jeju: ["제주", 0.01, 126.55, 33.38] };
-const AREA = { sec: "안보", eco: "경제", wel: "복지", youth: "청년", bal: "지역균형" };
-/* 공약 분야별 집단 반응 */
-const PLEDGE = { sec: { sec: 5, old: 3, mid: 1 }, eco: { eco: 5, mid: 2, youth: 1 }, wel: { old: 5, mid: 2, youth: 1 }, youth: { youth: 6, mid: 1 }, bal: { mid: 2, old: 1, r: 3 } };
-const PLEDGE_LV = { sec: ["국방 R&D 예산 확대", "병사 처우 3단계 개선", "한국형 3축 체계 조기 완성"], eco: ["중소기업 수출 바우처", "규제 샌드박스 확대", "첨단산업 투자 특구"], wel: ["돌봄 국가책임 강화", "기초연금 단계 인상", "의료 취약지 공공병원"], youth: ["청년 월세 지원", "첫 일자리 보장", "청년 자산 형성 계좌"], bal: ["지방 대학 지원", "광역 교통망 조기 착공", "공공기관 2차 이전"] };
-
-const PRIMARY = { dm: [["서도윤", "전 광역시장"], ["한재민", "3선 의원 · 경제통"]], hn: [["윤태성", "전 도지사"], ["김서진", "전 당 대표"]] };
-const THIRD = ["박은솔", "제3지대 신당"];
-const PROLOGUE = [
-  ["book", "📖 회고록 출간", "인지도 +6 · 자금 +40억", { fame: 6, money: 40 }],
-  ["talk", "🎓 대학·안보 포럼 강연", "안보 관심층 +4 · 청년층 +4", { g: { sec: 4, youth: 4 } }],
-  ["tank", "🏛 싱크탱크 설립", "정책 신뢰 +6 · 자금 −30억", { trust: 6, money: -30 }],
-  ["tour", "🚗 지역 순회", "가장 낮은 권역 +6 · 중도층 +2", { tour: 1, g: { mid: 2 } }],
-  ["rest", "☕ 휴식", "체력 +25", { hp: 25 }],
-];
-
-/** 본선 결재판 (실제 선거 양상을 모티브로 한 가상 사건) */
-const DOCKET = [
-  ["neg", "상대 캠프의 의혹 제기", "상대 캠프가 장관 시절 방산 계약에 의혹이 있다고 주장했습니다.", [["정면 해명 기자회견", "신뢰 +3 · 체력 −10", { trust: 3, hp: -10 }], ["법적 대응", "중도층 −2 · 상대 기세 꺾임", { g: { mid: -2 }, opp: -0.05 }], ["무대응", "신뢰 −4", { trust: -4 }]], "press"],
-  ["unify", "후보 단일화 제안", "제3지대 후보 측이 단일화 협상을 제안했습니다.", [["수용 — 여론조사 단일화", "제3지대 지지 흡수 (승리 시) · 중도층 +4", { unify: 1, g: { mid: 4 } }], ["조건부 협상", "중도층 +2 · 체력 −5", { g: { mid: 2 }, hp: -5 }], ["거절 — 완주", "신뢰 +2 · 중도층 −2", { trust: 2, g: { mid: -2 } }]], null, (P) => P.party !== "ind" && !P.flags.unify],
-  ["past", "장관 시절 결정 재조명", "언론이 장관 재임 중 내린 결정들을 다시 보도하고 있습니다.", [["입장 유지", "안보 관심층 +4 · 중도층 −2", { g: { sec: 4, mid: -2 } }], ["유감 표명", "중도층 +3 · 신뢰 −2", { g: { mid: 3 }, trust: -2 }], ["맥락 설명 자료 배포", "신뢰 +2 · 자금 −20억", { trust: 2, money: -20 }]]],
-  ["border", "접경지역 도발 발생", "선거 기간 중 서해 접경에서 무력 도발이 발생했습니다. 후보로서 메시지를 내야 합니다.", [["정부 대응에 초당적 협조", "안보 관심층 +5 · 중도층 +3", { g: { sec: 5, mid: 3 } }], ["정부 대응 비판", "안보 관심층 +3 · 중도층 −3", { g: { sec: 3, mid: -3 } }], ["현장 방문", "안보 관심층 +6 · 체력 −15", { g: { sec: 6 }, hp: -15 }]], "press"],
-  ["fake", "딥페이크 영상 유포", "후보의 발언을 조작한 영상이 온라인에 퍼지고 있습니다.", [["선관위 신고·수사 의뢰", "신뢰 +3", { trust: 3 }], ["팩트체크 영상 공개", "청년층 +4 · 자금 −15억", { g: { youth: 4 }, money: -15 }], ["무시", "청년층 −3", { g: { youth: -3 } }]]],
-  ["fund", "청년 공약 재원 논란", "청년 공약의 재원 마련 방안이 불분명하다는 지적이 나왔습니다.", [["재원 세부안 공개", "신뢰 +4 · 경제 관심층 +2", { trust: 4, g: { eco: 2 } }], ["공약 규모 축소", "경제 관심층 +3 · 청년층 −4", { g: { eco: 3, youth: -4 } }], ["원안 강행", "청년층 +3 · 신뢰 −3", { g: { youth: 3 }, trust: -3 }]]],
-  ["local", "지역 숙원 사업 약속 요청", "지역 단체들이 신공항·철도 같은 숙원 사업을 약속해 달라고 요구합니다.", [["약속", "가장 낮은 권역 +6 · 신뢰 −3", { tour: 1, trust: -3 }], ["임기 내 검토", "변화 적음 · 신뢰 +1", { trust: 1 }], ["거절", "신뢰 +3 · 지역 −2", { trust: 3, rAll: -2 }]]],
-  ["camp", "캠프 내부 인사 갈등", "선대위 핵심 인사들이 전략을 두고 공개적으로 충돌했습니다.", [["한쪽 정리", "조직 +6 · 체력 −5", { org: 6, hp: -5 }], ["중재", "조직 +2 · 체력 −10", { org: 2, hp: -10 }], ["방치", "조직 −6", { org: -6 }]]],
-  ["slip", "말실수 영상 확산", "유세 중 실언이 짧은 영상으로 퍼지고 있습니다.", [["즉시 사과", "신뢰 +1 · 중도층 −1", { trust: 1, g: { mid: -1 } }], ["발언 취지 해명", "중도층 −3", { g: { mid: -3 } }], ["반박", "지지층 결집 · 중도층 −5", { g: { sec: 2, mid: -5 } }]], null, (P) => P.hp < 40],
-  ["vet", "보훈·참전 단체 간담회", "보훈 단체가 처우 개선 공약을 요구합니다.", [["처우 개선 약속", "고령층 +4 · 안보 관심층 +3 · 자금 −20억", { g: { old: 4, sec: 3 }, money: -20 }], ["검토 약속", "고령층 +1", { g: { old: 1 } }]]],
-  ["price", "물가 급등 보도", "생활 물가가 크게 올랐다는 통계가 발표됐습니다.", [["긴급 민생 공약 발표", "경제 관심층 +4 · 신뢰 −1", { g: { eco: 4 }, trust: -1 }], ["시장 현장 방문", "고령층 +3 · 체력 −10", { g: { old: 3 }, hp: -10 }], ["정부 책임 공세", "경제 관심층 +2 · 중도층 −2", { g: { eco: 2, mid: -2 } }]]],
-];
-
-/* TV 토론 (법정 3회: 경제·사회·정치) */
-const DEBATE_T = ["경제", "사회", "정치·외교안보"];
-const DEBATE_Q = [
-  [["성장률이 둔화되고 있습니다. 첫 1년 경제 정책의 우선순위는?", [["첨단산업 투자 확대", "경제 관심층 +", { g: { eco: 4, youth: 1 } }], ["민생 지원 우선", "고령층·중도층 +", { g: { old: 3, mid: 2 } }], ["재정 건전성 회복", "신뢰 +", { trust: 4 }]]],
-    ["청년 고용률 하락에 대한 대책은?", [["첫 일자리 보장제", "청년층 +", { g: { youth: 5 } }], ["규제 완화로 일자리 창출", "경제 관심층 +", { g: { eco: 3, youth: 1 } }], ["직업 교육 개편", "중도층 +", { g: { mid: 3 } }]]]],
-  [["저출생 문제, 가장 먼저 무엇을 하겠습니까?", [["주거 지원 확대", "청년층 +", { g: { youth: 4, mid: 1 } }], ["돌봄 국가책임", "중도층·고령층 +", { g: { mid: 2, old: 2 } }], ["일·가정 양립 제도", "경제 관심층 +", { g: { eco: 2, mid: 2 } }]]],
-    ["지역 소멸 위기 대책은?", [["공공기관 2차 이전", "지역 +", { rAll: 3 }], ["광역 교통망", "수도권 외 +", { rAll: 2, g: { eco: 1 } }], ["지방 대학 육성", "청년층 +", { g: { youth: 3 } }]]]],
-  [["북한의 도발이 이어집니다. 대북 정책 기조는?", [["억제력 강화가 먼저", "안보 관심층 +", { g: { sec: 5, mid: -1 } }], ["억제와 대화 병행", "중도층 +", { g: { mid: 4 } }], ["대화 채널 복원 우선", "중도층 +·안보층 −", { g: { mid: 3, sec: -2 } }]]],
-    ["군 복무 여건 개선 방안은?", [["병사 처우 단계적 인상", "청년층 +", { g: { youth: 4 } }], ["간부 처우 우선", "안보 관심층 +", { g: { sec: 4 } }], ["복무 제도 개편 공론화", "중도층 +", { g: { mid: 3 } }]]]],
-];
-/* 장관 시절 결재 → 토론 '과거 발언 검증' */
-const PAST = { opcon: ["전작권 전환", ["조기 건의", "조건부", "시기상조"]], gmsa: ["9·19 군사합의 효력 정지", ["전부 정지", "일부 정지", "유지"]], speaker: ["대북 확성기 방송", ["재개", "중지"]], ssn: ["핵잠 사업", ["착수", "연구 단계", "보류"]], sma: ["방위비분담금 협상", ["대폭 인상 수용", "소폭 인상", "장기화"]], gsomia: ["한·일 군사정보 공유", ["확대", "현행 유지", "축소"]] };
+import { presidentContent } from "./content/kr.js";
+const { PARTIES, GROUPS, REG, AREA, PLEDGE, PLEDGE_LV, PRIMARY, THIRD, PROLOGUE, DOCKET, DEBATE_T, DEBATE_Q, PAST } = presidentContent();
+export { PARTIES };
 
 export const presState = () => rd(PK, null);
 const save = (P) => wr(PK, P);
@@ -183,7 +141,7 @@ export function presHTML() {
     const names = [P.name, ...P.opp.map((o) => o.n)], pnames = [party.n, ...P.opp.map((o) => (PARTIES[o.p] || { n: THIRD[1] }).n)];
     const pollBox = `<div class="mn-card pr-pollc"><div class="mn-h">여론조사 <small>${blackout(P) ? "선거일 6일 전부터 공표 금지 — 깜깜이 구간" : "오차 범위 ±2%p (게임용)"}</small></div>${blackout(P) ? `<div class="pr-black">공표 금지 기간입니다. 마지막 공표 조사: ${fmtPct(P.lastPub?.[0] ?? sh[0])}</div>` : names.map((n, i) => `<div class="pr-g"><span>${n} <small>${pnames[i]}</small></span>${bar(sh[i] * 140, i ? "" : "y")}<b>${fmtPct(sh[i])}</b></div>`).join("")}${blackout(P) ? "" : pollSVG(P)}</div>`;
     const left = `<div class="mn-col"><div class="mn-h">선거 결재판 <small>${dk.length ? `${dk.length}건 대기` : "처리 완료"}</small></div>${deb ? `<div class="mn-card mn-dk mn-nsc"><b>📺 제${[1, 3, 5].indexOf(P.turn) + 1}차 법정 TV 토론 — ${DEBATE_T[[1, 3, 5].indexOf(P.turn)]}</b><p>중앙선거방송토론위원회 주관 토론회입니다. 질문 4개에 답합니다.</p><button class="mn-sc" data-pres="debate"><b>토론 스튜디오로 ›</b><small>장관 시절 결재가 검증 질문으로 나옵니다</small></button></div>` : ""}
-      ${dk.map(([id, t, d, o]) => `<div class="mn-card mn-dk mn-paper"><div class="dh"><div class="dt"><small>선 거 캠 프</small><b>${t}</b><span>D-${dday(P)} · 선대위 보고</span></div></div><p>${d}</p>${o.map(([n, e], i) => `<button data-pres="dk:${id}:${i}"><b>${n}</b><small>${e}</small></button>`).join("")}</div>`).join("")}
+      ${dk.map(([id, t, d, o]) => docketPaper("선 거 캠 프", t, `D-${dday(P)} · 선대위 보고`, d, o.map(([n, e], i) => `<button data-pres="dk:${id}:${i}"><b>${n}</b><small>${e}</small></button>`).join(""))).join("")}
       <div class="mn-h">이번 턴 활동 <small>3일</small></div><div class="mn-card"><small>유세지 ${P.act.tours.length}/2 — 지도에서 권역을 누르세요 (권역 +4, 체력 −8)</small>
       <div class="pr-row"><button class="pr-btn ${P.act.ad ? "on" : ""}" data-pres="ad:tv" ${P.act.ad || P.money < 40 ? "disabled" : ""}>TV 광고 (−40억 · 인지도 +4)</button><button class="pr-btn" data-pres="ad:web" ${P.act.ad || P.money < 15 ? "disabled" : ""}>온라인 (−15억 · 청년층 +4)</button><button class="pr-btn" data-pres="ad:org" ${P.act.ad || P.money < 25 ? "disabled" : ""}>현장 조직 (−25억 · 조직 +6)</button><button class="pr-btn" data-pres="ad:rest" ${P.act.ad ? "disabled" : ""}>휴식 (체력 +20)</button></div></div>
       <button class="mn-next" data-pres="next" ${dk.length || deb ? "disabled" : ""}>${dk.length ? `결재 ${dk.length}건 남음` : deb ? "TV 토론을 먼저 마치십시오" : P.turn >= 6 ? "선거일 ›" : "다음 3일 ›"}</button></div>`;
