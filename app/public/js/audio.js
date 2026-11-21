@@ -273,11 +273,12 @@ export function playPotusAnthem() {
 }
 let promoEl = null;
 export function stopFanfare() { const el = promoEl; if (!el) return; promoEl = null; const v0 = el.volume, t0 = performance.now(); const step = () => { const k = 1 - (performance.now() - t0) / 700; if (k <= 0) { el.pause(); el.onended?.(); return; } el.volume = v0 * k; requestAnimationFrame(step); }; step(); }
-const US_HONORS = { 6: [0, 17], 7: [17, 37], 8: [38, 58], 9: [59, null], 10: [59, null] };
+const US_HONORS = { 3: [0, 17], 4: [0, 17], 5: [0, 17], 6: [0, 17], 7: [17, 37], 8: [38, 58], 9: [59, null], 10: [59, null] };
 export function fanfare(grade = 3, branch = "") {
   if (A.muted) return; stopFanfare();
   const isUsMode = typeof document !== "undefined" && document.body?.classList.contains("us-nat");
-  if (isUsMode && US_HONORS[grade]) {
+  if (isUsMode) {
+    if (!US_HONORS[grade]) { radioBlip(1.4); return; } /* 위관: 한국어 무전 음성 대신 무전 신호음 */
     const [t0, t1] = US_HONORS[grade], el = new Audio("sfx/promo/us_honors.m4a");
     el.volume = Math.min(1, A.vol.sfx * 1.05); promoEl = el;
     const bg = A.bgmEl, v0 = bg ? bg.volume : 0; if (bg) bg.volume = v0 * 0.15;
