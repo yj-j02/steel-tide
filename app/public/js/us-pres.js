@@ -160,6 +160,36 @@ export function usPresHTML() {
   </div>`;
 }
 
+function usElectionCuts(kind, s) {
+  const nm = esc(s.name || "Commander");
+  const ev = s.results ? Object.values(s.results).reduce((a, b) => a + b, 0) : 270;
+  if (kind === "win") return {
+    cutTitle: "U.S. Presidential Inauguration",
+    cutPlace: "Washington, D.C. · Capitol & White House",
+    cuts: [
+      { img: "us_rally", flash: 3, who: "ELECTION NIGHT · BREAKING", text: `선거인단 ${ev} / 538석 확보! ${nm} 후보가 미합중국 대통령으로 당선되었습니다!` },
+      { img: "us_inauguration", flash: 2, card: `<img src="img/us_potus_mark.png" alt="POTUS Seal" style="height:76px;display:block;margin:0 auto 8px"><b style="color:#ffd166;letter-spacing:.12em">PRESIDENT OF THE UNITED STATES</b>`, who: `${nm} · 취임 선서`, text: "“나는 미합중국 대통령의 직무를 성실히 수행하고, 최선을 다해 미합중국 헌법을 보존·보호·수호할 것을 엄숙히 선서합니다.”" },
+      { img: "us_oval_office", who: "THE WHITE HOUSE · OVAL OFFICE", text: `Hail to the Chief가 울려 퍼집니다. 이제 미합중국 제${s.term}기 대통령 겸 국군통수권자(Commander-in-Chief)로서 백악관 집무를 시작합니다.` },
+    ],
+  };
+  if (kind === "loss") return {
+    cutTitle: "U.S. Presidential Election",
+    cutPlace: "Campaign Headquarters · Election Night",
+    cuts: [
+      { img: "us_rally", who: "ELECTION NIGHT", text: `최종 선거인단 ${ev}석으로 과반(270석) 달성에 실패했습니다. ${nm} 후보는 지지자들 앞에서 품위 있는 승복 연설을 전합니다.` },
+      { img: "us_capitol_hearing", who: "WASHINGTON, D.C.", text: "백악관 입성은 다음을 기약하게 되었지만, 군과 공직에서 쌓아 올린 명예와 경륜은 미국 안보의 큰 자산으로 남았습니다." },
+    ],
+  };
+  return {
+    cutTitle: "Presidential Farewell",
+    cutPlace: "The White House · End of Term",
+    cuts: [
+      { img: "us_oval_office", who: `${nm} · 퇴임 연설`, text: `제${s.term}기 임기를 마치고 오벌 오피스(Oval Office) 책상 위에 후임 대통령을 위한 편지를 남깁니다.` },
+      { img: "us_inauguration", flash: 1, card: `<img src="img/us_potus_mark.png" alt="POTUS Seal" style="height:68px;display:block;margin:0 auto 8px"><b style="color:#ffd166">FORMER PRESIDENT OF THE UNITED STATES</b>`, who: "THE GENERAL · EPILOGUE", text: "신임 장교(O-1) 임관에서 미합중국 대통령까지 — 위대한 복무의 여정을 명예롭게 마무리했습니다." },
+    ],
+  };
+}
+
 export function usPresClick(act) {
   const s = rd();
   if (!s) return {};
@@ -247,10 +277,14 @@ export function usPresClick(act) {
     s.journal = s.journal.slice(0, 30);
     wr(s);
     const inaugurated = before === "inauguration";
+    const lostElection = before !== "end" && s.phase === "end" && s.term === 0;
+    const retiredPres = before !== "end" && s.phase === "end" && s.term > 0;
     if (inaugurated) unlockEnding("us_potus");
+    const cutPack = inaugurated ? usElectionCuts("win", s) : lostElection ? usElectionCuts("loss", s) : retiredPres ? usElectionCuts("end", s) : {};
     return {
       redraw: true,
       inaugurated,
+      ...cutPack,
       toast: inaugurated
         ? "🇺🇸 미합중국 대통령(POTUS)에 취임했습니다! (Hail to the Chief)"
         : "",
@@ -262,7 +296,7 @@ export function usPresClick(act) {
 export function usPresAdmin(id) {
   const s = rd();
   if (!s) return {};
-  const prevTerm = s.term;
+  const prevTerm = s.term, prevPhase = s.phase;
   if (id === "pri") {
     if (!s.party) s.party = "blue";
     s.delegates = 75;
@@ -297,10 +331,14 @@ export function usPresAdmin(id) {
   }
   wr(s);
   const inaugurated = prevTerm === 0 && s.term === 1;
+  const lostElection = prevPhase !== "end" && s.phase === "end" && s.term === 0;
+  const retiredPres = prevPhase !== "end" && s.phase === "end" && s.term > 0;
   if (inaugurated) unlockEnding("us_potus");
+  const cutPack = inaugurated ? usElectionCuts("win", s) : lostElection ? usElectionCuts("loss", s) : retiredPres ? usElectionCuts("end", s) : {};
   return {
     redraw: true,
     inaugurated,
+    ...cutPack,
     toast: inaugurated ? "🇺🇸 [관리자] 미합중국 대통령 취임!" : "",
   };
 }
