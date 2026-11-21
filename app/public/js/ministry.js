@@ -3,6 +3,7 @@ import { KOREA, kxy } from "./korea.js";
 import { ministryContent } from "./content/kr.js";
 import { staff, normBranch, serviceOf, isUS } from "./staff.js";
 import { usNpcName } from "./us-ranks.js";
+import { unlockEnding } from "./endings.js";
 // 모든 수치는 게임용 값이다 (실제 국방 예산·제원이 아님).
 const MK = "steeltide:mod", HK = "steeltide:hall", LK = "steeltide:legacy";
 export const TERM = 36;
@@ -175,6 +176,7 @@ function termEnd(m) {
   const H = hall();
   H.unshift({ name: m.name, nat: isUS() ? "us" : "kr", gen: (legacy()?.gen || 1), at: new Date().toISOString().slice(0, 10), avg, l5, rate, ok, doctrine: m.doctrine ? DOCTRINES[m.doctrine].n : "—", prog: { ...m.prog }, face: globalThis.__myFace?.() || null, start: m.started || null });
   wr(hallKey(), H.slice(0, 40));
+  if (ok && !isUS()) unlockEnding("kr_min");
 }
 
 // ── 화면 (1280×720 3열 6탭 국방 경영 레이아웃) ──
@@ -354,7 +356,7 @@ function retiredHTML(m) {
     <div class="kv"><span>평균 국정 지지율</span><b class="${T.avg >= 60 ? "g" : "r"}">${T.avg} / 60</b></div><div class="kv"><span>LV5 방위력 개선 사업</span><b class="${T.l5 >= 2 ? "g" : "r"}">${T.l5} / 2</b></div><div class="kv"><span>다영역 위기 방어율</span><b class="${T.rate >= 80 ? "g" : "r"}">${T.rate}% / 80%</b></div>
     <p>${T.ok ? "임기 목표를 모두 달성했습니다. 2회차를 시작하면 특전이 주어집니다: 명예 약장(화력 +10%·초반 봉급 +50%), 완성 사업 1개 LV3 계승, 원수 승진 30% 단축." : "임기 목표를 다 이루지 못했습니다. 2회차를 시작할 수 있지만 특전은 없습니다."}</p>
     ${T.ok ? `<div class="mn-h">계승할 사업 (LV3로 시작)</div><div class="rf">${Object.entries(PROGS).filter(([k]) => (m.prog[k] || 0) >= 5).map(([k, P]) => `<button data-min="inh:${k}" class="${m.inh === k ? "on" : ""}">${P.n}</button>`).join("")}</div>` : ""}
-    ${us ? `<div class="mn-card" style="font-size:12px;color:#9ec2d4">🇺🇸 미국 대통령 선거(538 선거인단) 챕터는 추후 별도 업데이트 예정입니다.</div>` : `<button class="mn-pres" data-pres="start"><b>다음 장 · 대통령 출마 ›</b><small>민간인이 된 당신에게 정당들이 접촉해 오기 시작했습니다.</small></button>`}<button data-min="replay" class="mn-rp">🎬 이임식 다시 보기</button>
+    ${us ? `<button class="mn-pres" data-uspres="start"><b>🇺🇸 다음 장 · 미국 대통령 선거 출마 (538 선거인단) ›</b><small>펜타곤 국방장관 경력을 바탕으로 백악관에 도전합니다.</small></button>` : `<button class="mn-pres" data-pres="start"><b>다음 장 · 대통령 출마 ›</b><small>민간인이 된 당신에게 정당들이 접촉해 오기 시작했습니다.</small></button>`}<button data-min="replay" class="mn-rp">🎬 이임식 다시 보기</button>
     <button class="mn-ng ${ngArm ? "arm" : ""}" data-min="ng">${ngArm ? "한 번 더 누르면 커리어·함정·기록이 초기화되고 소위로 다시 시작합니다" : "2회차 시작 (소위부터)"}</button><small>명예의 전당·설정·지휘관 이름은 그대로 남습니다. 이 버튼을 누르지 않으면 지금 커리어로 계속 플레이할 수 있습니다.</small></div>
     <div class="mn-card"><div class="mn-h">${us ? "🇺🇸 역대 미 국방장관 명예의 전당" : "🇰🇷 역대 대한민국 국방부장관 명예의 전당"} <button class="mn-tg on" data-min="gal">🖼 초상 갤러리</button></div>${H.map((h) => `<div class="hl ${h.ok ? "ok" : ""}"><b>${h.ok ? "★ " : ""}${h.name}</b><span>${h.gen}회차 · ${h.at}</span><small>지지율 ${h.avg} · LV5 ${h.l5}개 · 방어율 ${h.rate}% · 교리 ${h.doctrine}</small></div>`).join("") || "<small>기록 없음</small>"}</div></div></div>`;
 }

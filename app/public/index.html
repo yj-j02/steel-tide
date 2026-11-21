@@ -996,6 +996,12 @@ body.us-nat .mn-war>.mn-h:first-child { background:linear-gradient(rgba(6,12,20,
 .nat-sw button { border:0; background:transparent; color:#9db8c7; padding:5px 10px; border-radius:5px; font:700 12px "Noto Sans KR",sans-serif; cursor:pointer; transition:all .14s; white-space:nowrap; }
 .nat-sw button:hover { color:#fff; background:rgba(255,255,255,.06); }
 .nat-sw button.on { background:rgba(242,202,92,.22); color:#ffe79e; box-shadow:inset 0 0 0 1px rgba(242,202,92,.55); }
+.us-tiles { display:grid; grid-template-columns:repeat(11,minmax(0,1fr)); gap:3px; margin-top:6px; }
+.us-st { border:1px solid rgba(160,195,220,.28); border-radius:4px; padding:4px 2px; color:#eef5fb; cursor:pointer; display:flex; flex-direction:column; align-items:center; font:700 10.5px/1.15 "Noto Sans KR",sans-serif; transition:transform .1s,border-color .12s; }
+.us-st:hover:not(:disabled) { transform:scale(1.06); border-color:#ffd166; z-index:2; }
+.us-st.on { border-color:#ffd166; box-shadow:0 0 0 2px rgba(255,209,102,.55); }
+.us-st small { font-size:9px; font-weight:400; color:#d2e3f0; }
+.us-st:disabled { cursor:default; opacity:.9; }
 @media (max-width:1240px) { .dm-grid { grid-template-columns:148px minmax(0,1fr) 204px; } .dm-wargrid { grid-template-columns:1fr; } }
 </style>
   </head>
