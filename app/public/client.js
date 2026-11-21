@@ -499,7 +499,13 @@ G.onSunk = (ship) => {
 const RADIO_TXT = { battle: "Battle stations! — 전투 배치", sunk: "Enemy sunk! — 적함 격침", torp_warn: "Torpedoes! — 어뢰 접근", ally_sunk: "Ship lost! — 아군 침몰", launch: "Fighters up! — 전투기 출격", return: "Fighters home! — 전투기 귀환", fire: "Fire! — 화재 발생", flood: "Flooding! — 침수", hull: "Hull critical! — 선체 손상 심각", torp_launch: "Torps away! — 어뢰 발사", fleet: "Fleet destroyed! — 적 함대 전멸", abandon: "Abandon ship! — 총원 퇴함" };
 const radioLast = {}; let radioSub = null;
 const RADIO_KO = { battle: "전투 배치 완료!", sunk: "적함 격침 확인!", torp_warn: "어뢰 접근 중입니다!", ally_sunk: "아군 함정 침몰!", launch: "전투기 출격합니다!", return: "전투기 귀환했습니다!", fire: "화재 발생!", flood: "침수 발생!", hull: "선체 손상 심각합니다!", torp_launch: "어뢰 발사 완료!", fleet: "적 함대 전멸했습니다!", abandon: "총원 퇴함!" };
-const radioAddr = (g) => (g >= 8 ? "사령관님" : g >= 6 ? "제독님" : g === 5 ? "전대장님" : g >= 3 ? "함장님" : "사관님"); /* how the crew address you, by rank */
+const radioAddr = (g) => {
+  const sv = serviceOf(staff.branch);
+  if (isUS()) return g >= 6 ? (sv === "navy" ? "Admiral" : "General") : g >= 5 ? (sv === "navy" ? "Captain" : "Colonel") : g >= 3 ? (sv === "navy" ? "Commander" : "Major") : "Sir";
+  if (sv === "army") return g >= 8 ? "사령관님" : g >= 6 ? "장군님" : g === 5 ? "여단장님" : g >= 3 ? "대대장님" : "소대장님";
+  if (sv === "air") return g >= 8 ? "사령관님" : g >= 6 ? "장군님" : g === 5 ? "전대장님" : g >= 3 ? "대대장님" : "편대장님";
+  return g >= 8 ? "사령관님" : g >= 6 ? "제독님" : g === 5 ? "전대장님" : g >= 3 ? "함장님" : "사관님";
+}; /* how the crew address you, by nation, service, and rank */
 G.radio = (k) => { if (G.time - (radioLast[k] ?? -99) < 6) return; radioLast[k] = G.time; radio(k); radioSub = { text: `${RADIO_TXT[k].split(" — ")[0]} — ${radioAddr(hqGrade())}, ${RADIO_KO[k] || RADIO_TXT[k].split(" — ")[1] || ""}`, t: 3.2 }; };
 
 // ── computer captains, fog of war, mission rules ────────────────────────────
@@ -664,7 +670,7 @@ function finish() {
       if (career.seen == null && staff.branch) careerInit(before, careerTitle(before), BRANCHES[staff.branch].n); career.picks += after - before; logPromotion({ g: after, t: postOf(after), b: BRANCHES[staff.branch]?.n || "", why: res.why }); pmOpts = null;
       const handover = buildPromo(before, after, unl);
       setTimeout(() => { if (G.state !== "ended") return; $("#promoM").style.display = "flex"; fanfare(after, staff.branch); }, 2600);
-      if (handover) log(`지휘권 이양 — ${ECON_RANKS[after]} ${cmdr.name} 해군작전사령부 지휘`, "hit"); }
+      if (handover) log(`지휘권 이양 — ${rankLabel(after)} ${cmdr.name} ${(curServices()[serviceOf(staff.branch)] || curServices().navy).n} 작전사령부 지휘`, "hit"); }
     else $("#endPromo").innerHTML = `<span class="k">RANK</span><div class="ib new">${insignia(after, 64)}</div><div class="big" style="font-size:30px">${ECON_RANKS[after]}</div><div class="sub">${postOf(after)}<br>${rl.next ? `${rl.next}까지 ${fmt(rl.need - profile.xp)} XP` : "최고 계급"}</div><div class="rk"><div class="hbar"><i style="width:${rl.pct * 100}%;background:var(--gold)"></i></div></div>`;
     const P0 = G.player, got = awardMedals({ won, modern: !!G.modern, wins: profile.wins, sunk: G.enemies.filter((e) => !e.alive).length, hp: P0 ? P0.hp / P0.maxHp : 0, lowHp: (G.minHp ?? 1) <= 0.5, grade: after });
     pmMedals = got;
@@ -758,17 +764,39 @@ function waveMastFlag() {
 }
 function buildPromo(before, after, unl = "", preview = false) {
   pmPreview = preview; pmTook = 0; pmPage = 1; pmAfter = after; pmTakenL = [];
-  const newRole = echOf(after) !== echOf(before) ? [`${ECH[echOf(after)].u} 지휘 — ${ECH[echOf(after)].rk}급 참모진 편성 (${Object.values(ECH[echOf(after)].t).slice(0, 3).join(" · ")} 등)`] : [], yr = new Date().getFullYear(), no = String(((profile.xp * 7) % 97) + 1).padStart(2, "0");
+  const svk = serviceOf(staff.branch), sv0 = curServices()[svk] || curServices().navy;
+  const echUnit = isUS()
+    ? (US_SVC_ORG[svk] || US_SVC_ORG.navy).ech[echOf(after)]
+    : ({ army: ["대대·중대 부서", "연대·여단 참모부", "사단·군단 참모부", "지상작전사령부"], navy: ["함정 부서", "함정·전대 참모부", "전투단·기동부대 참모부", "해군작전사령부"], air: ["비행대대 부서", "전대 참모부", "비행단 참모부", "공군작전사령부"] }[svk] || ECH.map((x) => x.u))[echOf(after)];
+  const newRole = echOf(after) !== echOf(before) ? [`${echUnit} 지휘 — ${ECH[echOf(after)].rk}급 참모진 편성 (${Object.values(ECH[echOf(after)].t).slice(0, 3).join(" · ")} 등)`] : [], yr = new Date().getFullYear(), no = String(((profile.xp * 7) % 97) + 1).padStart(2, "0");
   const opens = [newRole.join(""), unl ? `함선 ${unl}` : ""].filter(Boolean).join(" · ");
-  const handover = after >= 8 && before < 8 ? `<div class="po-cc">중장 ${FLEET_CDR.nm} 제독이 귀관에게 작전 지휘권을 이양합니다. 이제부터 귀관이 사령부 전 참모진과 기동함대를 직접 지휘합니다.</div>` : "";
+  const handover = after >= 8 && before < 8 ? `<div class="po-cc">${
+    isUS()
+      ? (svk === "army" ? `미 육군전력사령관(FORSCOM) 중장(LTG)이 귀관에게 전구 작전 지휘권을 이양합니다. 이제부터 귀관이 사령부 전 참모진과 예하 군단·사단을 직접 지휘합니다.`
+        : svk === "air" ? `미 태평양공군사령관(PACAF) 중장(Lt Gen)이 귀관에게 전구 항공 지휘권을 이양합니다. 이제부터 귀관이 사령부 전 참모진과 전투비행단을 직접 지휘합니다.`
+        : `미 태평양함대사령관(USPACFLT) 중장(VADM)이 귀관에게 함대 작전 지휘권을 이양합니다. 이제부터 귀관이 사령부 전 참모진과 항모타격단을 직접 지휘합니다.`)
+      : (svk === "army" ? `지상작전사령관 중장이 귀관에게 전구 작전 지휘권을 이양합니다. 이제부터 귀관이 사령부 전 참모진과 예하 군단을 직접 지휘합니다.`
+        : svk === "air" ? `공군작전사령관 중장이 귀관에게 영공 작전 지휘권을 이양합니다. 이제부터 귀관이 사령부 전 참모진과 전투비행단을 직접 지휘합니다.`
+        : `중장 ${FLEET_CDR.nm} 제독이 귀관에게 작전 지휘권을 이양합니다. 이제부터 귀관이 사령부 전 참모진과 기동함대를 직접 지휘합니다.`)
+  }</div>` : "";
   const josa = (w) => { const j = (w.charCodeAt(w.length - 1) - 0xac00) % 28; return j === 0 || j === 8 ? "로" : "으로"; };
-  const sv0 = curServices()[serviceOf(staff.branch)] || curServices().navy;
   const pmHead = isUS() ? `U.S. Department of Defense · ${sv0.en}` : `대한민국 ${sv0.n}본부`;
-$("#promoM").innerHTML = `<div class="pm-doc"><div class="pm-pg on" data-pg="1"><div class="pm-h">${pmHead}</div><div class="pm-no">${isUS() ? `SPECIAL ORDERS NO. ${yr}-${no}` : `인사명령 제${yr}-${no}호`}</div>${after >= 6 ? flagHTML(after, before) : `<div class="pm-ins">${insignia(after, 120)}</div>`}<div class="pm-rank">${rankLabel(after)} 진급</div><div class="pm-name">${cmdr.name}</div><div class="pm-txt">위 사람을 ${rankLabel(before)}에서 ${rankLabel(after)}${josa(ECON_RANKS[after])} 진급시키고<br><b id="pmPostT">${postOf(after)}</b>에 보함</div><div class="pm-u">${opens}</div>${handover}${after < 3 ? `<div class="pm-radio"><b>무전</b> ${radioAddr(after)}, 진급을 축하드립니다!</div>` : ""}${ministerSign()}<button class="pm-next" data-pmgo="2">다음 ›</button></div><div class="pm-pg" data-pg="2"><div class="pm-h2">훈장 수여</div><div id="pmMed"></div><button class="pm-next" data-pmgo="3">다음 ›</button></div><div class="pm-pg" data-pg="3"><div class="pm-h2">보직 선택</div><div id="pmPost"></div><button class="pm-next" data-pmgo="4">다음 ›</button></div><div class="pm-pg" data-pg="4"><div class="pm-h2">진급 특기 부여</div><div id="pmPk"></div><button id="promoOk">명 받았습니다</button></div><div class="pm-dots">${[1, 2, 3, 4].map((n) => `<i data-d="${n}"${n === 1 ? ' class="on"' : ""}></i>`).join("")}</div></div>`; if (preview) { pmOpts = rollPerks(after, staff.branch); $("#pmPk").innerHTML = `<div class="pk-h">진급 특기 부여 (택 1) · 미리보기</div><div class="pk-row">${pmOpts.map((k, i) => `<div class="pk${PERKS[k].tier ? " sp" : ""}">${i === 0 ? "<i>병과 추천</i>" : PERKS[k].tier ? `<i>${PERKS[k].c}</i>` : ""}<b>${PERKS[k].n}</b><small>${PERKS[k].c}</small><span>${PERKS[k].d}</span></div>`).join("")}</div>`; pmOpts = null; } else renderPerkPick("#pmPk", after);
+  const pmTxt = isUS()
+    ? `By direction of the President, ${rankLabel(before, svk)} <b>${cmdr.name}</b> is promoted to <b>${usRankFull(after, svk)} (${US_PAY[after]})</b><br>미합중국 대통령 명에 따라 ${rankLabel(after, svk)} 진급 및 <b id="pmPostT">${postOf(after)}</b> 보직을 명함`
+    : `위 사람을 ${rankLabel(before)}에서 ${rankLabel(after)}${josa(ECON_RANKS[after])} 진급시키고<br><b id="pmPostT">${postOf(after)}</b>에 보함`;
+  const pmRadio = after < 3 ? `<div class="pm-radio"><b>${isUS() ? "RADIO" : "무전"}</b> ${isUS() ? `Congratulations on your promotion to ${usRankFull(after, svk)}, ${radioAddr(after)}! All hands standing by.` : `${radioAddr(after)}, 진급을 축하드립니다!`}</div>` : "";
+$("#promoM").innerHTML = `<div class="pm-doc"><div class="pm-pg on" data-pg="1"><div class="pm-h">${pmHead}</div><div class="pm-no">${isUS() ? `SPECIAL ORDERS NO. ${yr}-${no}` : `인사명령 제${yr}-${no}호`}</div>${after >= 6 ? flagHTML(after, before) : `<div class="pm-ins">${insignia(after, 120)}</div>`}<div class="pm-rank">${rankLabel(after, svk)} 진급</div><div class="pm-name">${cmdr.name}</div><div class="pm-txt">${pmTxt}</div><div class="pm-u">${opens}</div>${handover}${pmRadio}${ministerSign()}<button class="pm-next" data-pmgo="2">다음 ›</button></div><div class="pm-pg" data-pg="2"><div class="pm-h2">${isUS() ? "미군 훈장 수여 (Decorations)" : "훈장 수여"}</div><div id="pmMed"></div><button class="pm-next" data-pmgo="3">다음 ›</button></div><div class="pm-pg" data-pg="3"><div class="pm-h2">보직 선택</div><div id="pmPost"></div><button class="pm-next" data-pmgo="4">다음 ›</button></div><div class="pm-pg" data-pg="4"><div class="pm-h2">진급 특기 부여</div><div id="pmPk"></div><button id="promoOk">${isUS() ? "Yes, Sir! (명 받았습니다)" : "명 받았습니다"}</button></div><div class="pm-dots">${[1, 2, 3, 4].map((n) => `<i data-d="${n}"${n === 1 ? ' class="on"' : ""}></i>`).join("")}</div></div>`; if (preview) { pmOpts = rollPerks(after, staff.branch); $("#pmPk").innerHTML = `<div class="pk-h">진급 특기 부여 (택 1) · 미리보기</div><div class="pk-row">${pmOpts.map((k, i) => `<div class="pk${PERKS[k].tier ? " sp" : ""}">${i === 0 ? "<i>병과 추천</i>" : PERKS[k].tier ? `<i>${PERKS[k].c}</i>` : ""}<b>${PERKS[k].n}</b><small>${PERKS[k].c}</small><span>${PERKS[k].d}</span></div>`).join("")}</div>`; pmOpts = null; } else renderPerkPick("#pmPk", after);
   renderPostPick(after);
   return handover;
 }
-const ministerSign = () => `<div class="pm-sign"><div class="pm-date">${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월 ${new Date().getDate()}일</div><div class="pm-sg"><span>${isUS() ? "Secretary of Defense" : "국방부장관"}</span><svg viewBox="0 0 150 54" width="150" height="54"><path d="M8 38 C18 10 30 12 26 30 C22 46 34 40 42 22 C46 14 50 18 48 30 C46 40 56 34 64 20 C68 30 70 36 80 28 C88 22 92 16 98 24 C104 32 112 30 120 18 M60 44 C80 40 110 40 142 34" stroke="#1d2340" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><i>${isUS() ? "U.S. DoD SEAL" : "國防部長官印"}</i></div></div>`; /* fictional signature, no real person's name */
+const ministerSign = () => {
+  const dt = new Date();
+  if (isUS()) {
+    const mon = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"][dt.getMonth()];
+    return `<div class="pm-sign"><div class="pm-date">${dt.getDate()} ${mon} ${dt.getFullYear()} · PENTAGON</div><div class="pm-sg"><span>Secretary of Defense</span><svg viewBox="0 0 160 54" width="160" height="54"><path d="M10 38 C16 14 28 12 24 30 C22 40 34 22 44 26 C50 28 46 38 56 32 C66 26 74 14 82 28 C88 38 98 20 110 26 C118 30 128 18 144 24 M28 42 C64 38 106 39 148 35" stroke="#182a4a" stroke-width="2.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8.5px">U.S. DoD<br>SEAL</i></div></div>`;
+  }
+  return `<div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>국방부장관</span><svg viewBox="0 0 150 54" width="150" height="54"><path d="M8 38 C18 10 30 12 26 30 C22 46 34 40 42 22 C46 14 50 18 48 30 C46 40 56 34 64 20 C68 30 70 36 80 28 C88 22 92 16 98 24 C104 32 112 30 120 18 M60 44 C80 40 110 40 142 34" stroke="#1d2340" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><i>國防部長官印</i></div></div>`;
+}; /* fictional signature, no real person's name */
 let pmMedals = [], pmPage = 1;
 function pmGo(n) {
   if (n === 2 && !pmMedals.length && !pmPreview) n = 3; /* no medal this time: straight to the posting */
@@ -918,7 +946,10 @@ function ministerHTML(rl) {
 }
 function ministerOrder() {
   career.minister = true; saveCareer(); logPromotion({ g: myGrade(), t: "국방부장관", b: "", why: "국방부장관 임명" }); minStart(cmdr.name);
-  $("#promoM").innerHTML = `<div class="pm-doc"><div class="pm-pg on" data-pg="1"><div class="pm-h">대한민국 정부</div><div class="pm-no">임명장</div><div class="pm-rank">국방부장관</div><div class="pm-name">${cmdr.name}</div><div class="pm-txt">위 사람을 국방부장관에 임명함<br><b>예비역 ${ECON_RANKS[myGrade()]}</b></div><div class="pm-sign"><div class="pm-date">${new Date().getFullYear()}년 ${new Date().getMonth() + 1}월 ${new Date().getDate()}일</div><div class="pm-sg"><span>대통령</span><svg viewBox="0 0 150 54" width="150" height="54"><path d="M10 34 C22 12 34 14 30 32 C26 46 40 38 50 22 C58 12 62 30 70 28 C80 24 84 14 92 22 C100 30 110 26 122 16 M56 44 C84 40 112 40 140 36" stroke="#1d2340" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg><i>大統領印</i></div></div><button id="promoOk">명 받았습니다</button></div></div>`;
+  const dt = new Date(), mon = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"][dt.getMonth()];
+  $("#promoM").innerHTML = isUS()
+    ? `<div class="pm-doc"><div class="pm-pg on" data-pg="1"><div class="pm-h">THE WHITE HOUSE · WASHINGTON</div><div class="pm-no">COMMISSION OF APPOINTMENT</div><div class="pm-rank">Secretary of Defense</div><div class="pm-name">${cmdr.name}</div><div class="pm-txt">By and with the advice and consent of the Senate, hereby appointed Secretary of Defense of the United States<br><b>미 국방장관 임명 · 예비역 ${rankLabel(myGrade())}</b></div><div class="pm-sign"><div class="pm-date">${dt.getDate()} ${mon} ${dt.getFullYear()}</div><div class="pm-sg"><span>President of the United States</span><svg viewBox="0 0 160 54" width="160" height="54"><path d="M12 36 C22 10 34 14 28 32 C26 42 40 20 52 24 C60 28 62 36 74 28 C84 20 96 14 104 26 C112 36 124 20 146 22 M36 44 C72 40 112 40 148 36" stroke="#182a4a" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">POTUS<br>SEAL</i></div></div><button id="promoOk">I So Swear (취임 선서)</button></div></div>`
+    : `<div class="pm-doc"><div class="pm-pg on" data-pg="1"><div class="pm-h">대한민국 정부</div><div class="pm-no">임명장</div><div class="pm-rank">국방부장관</div><div class="pm-name">${cmdr.name}</div><div class="pm-txt">위 사람을 국방부장관에 임명함<br><b>예비역 ${ECON_RANKS[myGrade()]}</b></div><div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>대통령</span><svg viewBox="0 0 150 54" width="150" height="54"><path d="M10 34 C22 12 34 14 30 32 C26 46 40 38 50 22 C58 12 62 30 70 28 C80 24 84 14 92 22 C100 30 110 26 122 16 M56 44 C84 40 112 40 140 36" stroke="#1d2340" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg><i>大統領印</i></div></div><button id="promoOk">명 받았습니다</button></div></div>`;
   pmPreview = true; $("#promoM").style.display = "flex"; fanfare(10, staff.branch); refreshMenus();
 }
 /** 내 정보: current posting, this rank's evaluations and the promotion board checklist. */
@@ -947,7 +978,7 @@ function renderRecord() { /* 내 정보: profile card, perks, record, service re
     + `<h3>내 참모진 · ${ECH[echOf(rl.r)].u}</h3><div class="mi-st">${STAFF_ROLES.map((r) => `<span>${roleTitle(r.k, rl.r)}</span><b>${of(r.k).rk} ${of(r.k).nm}</b>`).join("")}</div>`
     + (profile.admin ? `<div class="mi-adm">관리자 · 실제 계급 변경 <select id="setRank">${ECON_RANKS.map((n, i) => `<option value="${i}"${i === rl.r ? " selected" : ""}>${n}</option>`).join("")}</select><button data-act="setrank">변경</button><small>경험치가 그 계급 기준으로 바뀌어 해금·직함·사령부·견장·특기가 모두 실제로 바뀝니다. 올리면 진급식·특기·훈장도 실제로 받습니다.</small></div><div class="mi-adm">관리자 모드 · 진급 연출 미리보기 <select id="pvRank">${ECON_RANKS.slice(1).map((n, i) => `<option value="${i + 1}"${i + 1 === 6 ? " selected" : ""}>${n}</option>`).join("")}</select><button data-act="pvpromo">보기</button><small>실제 계급·경험치·특기는 바뀌지 않습니다</small></div>` : `<div class="hq-adm in"><input id="miAdmin" type="password" maxlength="32" placeholder="관리자 코드" autocomplete="off"><button data-act="miadmin">적용</button></div>`)
     + `</div><div class="mi-r"><h3>전투 기록</h3><div class="rstats"><div><span>출격</span><b>${profile.battles}</b></div><div><span>승리</span><b>${profile.wins}</b></div><div><span>승률</span><b>${profile.battles ? Math.round((profile.wins / profile.battles) * 100) : 0}%</b></div><div><span>누적 명중률</span><b>${acc}%</b></div><div><span>최단 승리</span><b>${best}</b></div></div>`
-    + `<h3>해군 장교 인사기록 · 약력</h3><div class="mi-log">${log}</div>`
+    + `<h3>${(curServices()[serviceOf(staff.branch)] || curServices().navy).n} 장교 인사기록 · 약력</h3><div class="mi-log">${log}</div>`
     + `<details class="mi-lad"><summary>전체 계급·직함표 보기</summary>`;
   h += `<h3>계급 — 경험치 ${fmt(profile.xp)}</h3><div class="ladder">`;
   ECON_RANKS.forEach((n, r) => { h += `<div class="${r === rl.r ? "cur" : r < rl.r ? "done" : ""}"><span>${insignia(r, 22)}</span><b class="bh">${n}</b><span>${postOf(r)}</span><span class="xp">${fmt(ECON_RANK_XP[r])} XP</span><span>호위함 ${escortsFor(r)}척${unlock(r) ? ` · ${unlock(r)} 해금` : ""}</span></div>`; });
@@ -1278,7 +1309,7 @@ $("#hqP").addEventListener("click", (e) => {
     if (a === "tomin") { if (g < 9 && profile.admin) { profile.xp = Math.max(profile.xp, ECON_RANK_XP[9]); setCap(9); saveProfile(); } career.minister = true; saveCareer(); minStart(cmdr.name); hqView = "min"; renderMin(); refreshMenus(); playMinisterAnthem(); toast("국방부장관으로 취임했습니다 — 36주 국방 경영 시작", 4); return; } }
   if (e.target.closest('[data-act="hqadmin"]')) { if (act({ kind: "admin", code: $("#hqAdmin").value })) { sfx.coin(); toast("관리자 모드 — 사령부 모든 자리 선택 가능"); refreshMenus(); renderHQ(); } return; }
   const tk = e.target.closest("[data-take]");
-  if (tk && !profile.admin && tk.dataset.take !== "reset") { const [, g, t] = tk.dataset.take.split(":"); sfx.click(); toast(+g > myGrade() ? `${t} — ${ECON_RANKS[+g]} 보직입니다. 그 계급으로 진급할 때 인사명령의 보직 선택에서 고를 수 있습니다` : `${t} — 상부에서 임명하는 보직입니다`, 4); return; }
+  if (tk && !profile.admin && tk.dataset.take !== "reset") { const [, g, t] = tk.dataset.take.split(":"); sfx.click(); toast(+g > myGrade() ? `${t} — ${rankLabel(+g)} 보직입니다. 그 계급으로 진급할 때 인사명령의 보직 선택에서 고를 수 있습니다` : `${t} — 상부에서 임명하는 보직입니다`, 4); return; }
   if (tk && profile.admin) { sfx.click(); if (tk.dataset.take === "reset") staff.adminPost = null; else { const [k, g, t] = tk.dataset.take.split(":"), fp = FLAG_POSTS.find((p) => p.t === t && p.g === +g); staff.adminPost = { b: fp ? fp.b : BRANCHES[k] ? k : staff.branch, g: +g, t: fp ? t : null }; } saveStaff(); renderHQ(); return; }
   const br = e.target.closest("[data-branch]"); if (br) { sfx.click(); const had = career.seen != null; setBranch(br.dataset.branch); svcDraft = null; showcase(flagshipId()); if (had) logPromotion({ g: myGrade(), t: careerTitle(myGrade()), b: BRANCHES[br.dataset.branch].n, why: "보직 변경" }); else careerInit(myGrade(), careerTitle(myGrade()), BRANCHES[br.dataset.branch].n); refreshMenus(); renderHQ(); toast(`${BRANCHES[br.dataset.branch].n} 보직 — ${careerTitle(myGrade())}`); return; } if (e.target.closest("[data-rebranch]")) { sfx.click(); staff.branch = null; renderHQ(); return; } const r = e.target.closest("[data-role]"); if (r) { sfx.click(); hqRole = r.dataset.role; renderHQ(); return; } const a = e.target.closest("[data-appoint]"); if (a) { sfx.click(); appoint(hqRole, a.dataset.appoint); renderHQ(); toast(`${STAFF_ROLES.find((x) => x.k === hqRole).n} 임명 — ${officer(a.dataset.appoint).rk} ${officer(a.dataset.appoint).nm}`); } });
 $("#tabPort").addEventListener("click", () => { sfx.click(); openMenu(); });

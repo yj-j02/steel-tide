@@ -1,6 +1,6 @@
 // Fleet headquarters staff (modern era). Appointments shape every modern battle, auto battles included,
 // through a handful of multipliers the battle code already exposes: hull damage in/out, gun reload, repair crews, jets.
-import { US_SERVICES, US_BRANCHES, US_FLAG_POSTS } from "./us-ranks.js";
+import { US_SERVICES, US_BRANCHES, US_FLAG_POSTS, usNpcName, usRankName } from "./us-ranks.js";
 
 const clamp01 = (v, a, b) => Math.min(b, Math.max(a, v));
 
@@ -115,17 +115,23 @@ export const echOf = (grade) => (grade <= 2 ? 0 : grade <= 5 ? 1 : grade <= 7 ? 
 export const roleTitle = (k, grade) => ECH[echOf(grade)].t[k];
 /* fictional junior candidates for the three smaller echelons (names are made up) */
 const NCO = ["하사", "중사", "상사", "원사"], SUR = "김이박최정강조윤장임한오서신권황안송류홍", GIV = ["태호", "정민", "도현", "승원", "우석", "민혁", "현수", "재석", "기훈", "성택", "동욱", "세훈", "지원", "우진", "혁준", "민규", "성우", "재현", "현철", "상민"];
-const GEN = [];
+const GEN = [], GEN_US = [], US_NCO = ["SGT", "SSG", "SFC", "CSM"];
 { let n = 0; const tr = ["vet", "calm", "bold", "fast", "green"];
   for (let e = 0; e < 3; e++) for (const R of ["cos", "ops", "int", "log", "air"]) for (let i = 0; i < 4; i++) {
     const h = (e * 131 + R.charCodeAt(0) * 17 + R.charCodeAt(1) * 7 + i * 29) >>> 0, sk = 3 + ((h >> 2) % 6), nm = SUR[n % 20] + GIV[(3 * n + Math.floor(n / 20)) % 20]; /* unique per candidate */
     const ri = e === 0 ? -1 : e === 1 ? 1 + (i % 2) : (R === "cos" ? 5 : 3 + (i % 3));
-    GEN.push({ id: `g${e}${R}${i}`, r: R, e, nm, nat: "kr", ri, rk: e === 0 ? NCO[1 + (i % 3)] : RANKS[ri], sk, tr: tr[(h >> 4) % 5], f: [3 + (i % 2), i % 2 ? 0 : 1, 1 + (e > 0 ? 1 : 0) + (i === 3 ? 1 : 0) > 3 ? 3 : 1 + (e > 0 ? 1 : 0), e === 2 && i === 0 ? "trim" : null, i === 2, 0.96 + (i % 3) * 0.05] }); n++;
+    const age = 1 + (e > 0 ? 1 : 0) + (i === 3 ? 1 : 0) > 3 ? 3 : 1 + (e > 0 ? 1 : 0);
+    GEN.push({ id: `g${e}${R}${i}`, r: R, e, nm, nat: "kr", ri, rk: e === 0 ? NCO[1 + (i % 3)] : RANKS[ri], sk, tr: tr[(h >> 4) % 5], f: [3 + (i % 2), i % 2 ? 0 : 1, age, e === 2 && i === 0 ? "trim" : null, i === 2, 0.96 + (i % 3) * 0.05] });
+    GEN_US.push({ id: `u${e}${R}${i}`, r: R, e, nm: usNpcName(`us_${e}_${R}_${i}`), nat: "us", ri, rk: e === 0 ? US_NCO[1 + (i % 3)] : usRankName(ri, "army"), sk, tr: tr[(h >> 4) % 5], f: [i % 3, 1 + (i % 4), age, e === 2 && i === 0 ? "trim" : null, i === 2, 0.96 + (i % 3) * 0.05] }); n++;
   } }
 export const canFill = () => true;
 export const POST_RANK = { cos: 7, ops: 5, int: 5, log: 5, air: 5 };
 /** Candidates for your own staff at this grade: always junior to you. */
-export const candidates = (role, grade) => { const e = echOf(grade); return e === 3 ? STAFF.filter((o) => o.r === role && o.ri < grade) : GEN.filter((o) => o.r === role && o.e === e && o.ri < grade); };
+export const candidates = (role, grade) => {
+  const e = echOf(grade);
+  if (isUS()) return e === 3 ? STAFF.filter((o) => o.r === role && o.ri < grade && o.nat === "us") : GEN_US.filter((o) => o.r === role && o.e === e && o.ri < grade);
+  return e === 3 ? STAFF.filter((o) => o.r === role && o.ri < grade) : GEN.filter((o) => o.r === role && o.e === e && o.ri < grade);
+};
 export const canAppoint = (o, grade) => candidates(o.r, grade).includes(o); /* admin too: the rank rule is never waived */
 /** You yourself hold a department head post when your branch and rank match it. */
 export const holds = () => false; /* your own staff is always a smaller unit's juniors, so you never fill one of its seats yourself */
@@ -138,7 +144,7 @@ export const staff = (() => {
   return s;
 })();
 export const saveStaff = () => { try { localStorage.setItem(KEY, JSON.stringify(staff)); } catch {} };
-export const officer = (id) => STAFF.find((o) => o.id === id) || GEN.find((o) => o.id === id);
+export const officer = (id) => STAFF.find((o) => o.id === id) || GEN.find((o) => o.id === id) || GEN_US.find((o) => o.id === id);
 /** Switch the appointment set to the echelon of this grade (each echelon keeps its own staff); empty posts get the least able candidate. */
 export function staffFor(grade) {
   const e = echOf(grade);

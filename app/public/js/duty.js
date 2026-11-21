@@ -144,7 +144,7 @@ function mkRivals(svc) {
 }
 export function dutyState() {
   let d = rd(DK, null);
-  if (!d) { d = { week: 1, morale: 72, rep: 55, tension: 32, headlines: ["신임 소위 임관 — 대한민국 국군 장교 커리어 시작"], pending: [], crisis: null, report: null, rivals: null, last: null }; wr(DK, d); }
+  if (!d) { d = { week: 1, morale: 72, rep: 55, tension: 32, headlines: [isUS() ? "O-1 소위 임관 — 미합중국 군(U.S. Armed Forces) 장교 커리어 시작" : "신임 소위 임관 — 대한민국 국군 장교 커리어 시작"], pending: [], crisis: null, report: null, rivals: null, last: null }; wr(DK, d); }
   return d;
 }
 export function saveDuty(d) { wr(DK, d); }
