@@ -234,7 +234,7 @@ export function resolveDuty(id, optIdx, grade) {
     sc = clamp(sc + (((Math.random() * 11) | 0) - 3), 50, 68);
     dm = Math.max(dm, 5); /* 보수·안전 선택은 부대 사기를 크게 회복 */
   }
-  const xpGain = Math.round(xpBase * (1 + grade * 0.22));
+  const xpGain = Math.round(xpBase * (1 + grade * 0.12));
   d.morale = clamp(d.morale + dm, 10, 100);
   d.rep = clamp(d.rep + dr, 0, 100);
   d.tension = clamp(d.tension + (backfired ? 5 : optIdx === 2 ? -3 : sc >= 85 ? -2 : 0), 5, 95);

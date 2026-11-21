@@ -7,7 +7,7 @@
 import { G, clamp } from "./core.js";
 
 const FILES = ["gun_near", "gun_far", "hit", "explode", "flak", "mg1", "mg2", "engine", "splash"];
-export const A = { ctx: null, master: null, buf: {}, muted: false, noise: null, brown: null, hum: null, eng: null, later: [], amb: {}, radio: {}, rBusy: 0, bgmOn: true, bgmWant: null, bgmEl: null };
+export const A = { ctx: null, master: null, buf: {}, muted: false, noise: null, brown: null, hum: null, eng: null, later: [], amb: {}, radio: {}, radioEn: {}, rBusy: 0, bgmOn: true, bgmWant: null, bgmEl: null };
 A.vol = { sfx: 0.85, music: 0.5 };
 try { A.bgmOn = localStorage.getItem("steeltide:bgm") !== "0"; const v = JSON.parse(localStorage.getItem("steeltide:vol")); if (v && v.sfx >= 0 && v.music >= 0) A.vol = { sfx: +v.sfx, music: +v.music }; } catch {}
 export const RADIO_KEYS = ["battle", "sunk", "torp_warn", "ally_sunk", "launch", "return", "fire", "flood", "hull", "torp_launch", "fleet", "abandon"];
@@ -45,9 +45,10 @@ export function initAudio() {
   // open-sea ambience removed (multi-service 3군 UI에서는 바다 파도소리 미재생)
   A.amb = { swell: null, crest: null, wind: null, hull: null, rush: loopNoise(A.noise, "bandpass", 900, 0.7, 0) };
   for (const f of FILES) fetch(`sfx/${f}.mp3`).then((r) => r.arrayBuffer()).then((x) => c.decodeAudioData(x)).then((buf) => { A.buf[f] = buf; }).catch(() => {});
-  const loadR = (k, url) => fetch(url).then((r) => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then((x) => c.decodeAudioData(x)).then((buf) => { A.radio[k] = buf; }).catch(() => {});
-  /* Korean lines (Typecast, tools/typecast_tts.py) win when present; the English set fills the rest */
-  fetch("sfx/radio_ko/index.json").then((r) => (r.ok ? r.json() : [])).catch(() => []).then((ko) => { for (const k of RADIO_KEYS) if (!ko.includes(k)) loadR(k, `sfx/radio/${k}.mp3`); for (const k of ko) loadR(k, `sfx/radio_ko/${k}.mp3`); });
+  const loadR = (k, url, dst = A.radio) => fetch(url).then((r) => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then((x) => c.decodeAudioData(x)).then((buf) => { dst[k] = buf; }).catch(() => {});
+  /* Load English radio bank for US mode + Korean radio bank for KR mode */
+  for (const k of RADIO_KEYS) loadR(k, `sfx/radio/${k}.mp3`, A.radioEn);
+  fetch("sfx/radio_ko/index.json").then((r) => (r.ok ? r.json() : [])).catch(() => []).then((ko) => { for (const k of RADIO_KEYS) if (!ko.includes(k)) loadR(k, `sfx/radio/${k}.mp3`, A.radio); for (const k of ko) loadR(k, `sfx/radio_ko/${k}.mp3`, A.radio); });
   // radio voice chain: 300–3000 Hz band-pass + soft clipping
   const hp = c.createBiquadFilter(); hp.type = "highpass"; hp.frequency.value = 300; hp.Q.value = 0.8;
   const lp2 = c.createBiquadFilter(); lp2.type = "lowpass"; lp2.frequency.value = 3000; lp2.Q.value = 0.8;
@@ -516,7 +517,8 @@ export function updateAudio(dt, ctx = {}) {
 
 /** Radio message: squelch noise + click, the voice through the radio chain, tail noise + click. Queued so calls never overlap. */
 export function radio(key) {
-  const c = A.ctx, b = A.radio[key]; if (!c || !b || !A.rIn) return false;
+  const isUsMode = typeof document !== "undefined" && document.body?.classList.contains("us-nat");
+  const c = A.ctx, b = (isUsMode ? A.radioEn[key] : A.radio[key]) || (!isUsMode ? A.radioEn[key] : null); if (!c || !b || !A.rIn) return false;
   const now = c.currentTime, t0 = Math.max(now + 0.02, A.rBusy), te = t0 + 0.12 + b.duration;
   A.rBusy = te + 0.4;
   const burst = (t, d, v) => { const s = c.createBufferSource(); s.buffer = A.noise; const g = c.createGain(); g.gain.setValueAtTime(0.0001, t); g.gain.linearRampToValueAtTime(v, t + 0.012); g.gain.linearRampToValueAtTime(0.0001, t + d); s.connect(g).connect(A.rIn); s.start(t, Math.random() * 3); s.stop(t + d + 0.03); };

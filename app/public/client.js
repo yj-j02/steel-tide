@@ -515,7 +515,7 @@ const radioAddr = (g) => {
   if (sv === "air") return g >= 8 ? "사령관님" : g >= 6 ? "장군님" : g === 5 ? "전대장님" : g >= 3 ? "대대장님" : "편대장님";
   return g >= 8 ? "사령관님" : g >= 6 ? "제독님" : g === 5 ? "전대장님" : g >= 3 ? "함장님" : "사관님";
 }; /* how the crew address you, by nation, service, and rank */
-G.radio = (k) => { if (G.time - (radioLast[k] ?? -99) < 6) return; radioLast[k] = G.time; if (!isUS()) radio(k); radioSub = { text: isUS() ? `${RADIO_TXT[k].split(" — ")[0]} — ${radioAddr(hqGrade())}, ${RADIO_TXT[k].split(" — ")[1] || "Standing by."}` : `${RADIO_TXT[k].split(" — ")[0]} — ${radioAddr(hqGrade())}, ${RADIO_KO[k] || RADIO_TXT[k].split(" — ")[1] || ""}`, t: 3.2 }; };
+G.radio = (k) => { if (G.time - (radioLast[k] ?? -99) < 6) return; radioLast[k] = G.time; radio(k); radioSub = { text: isUS() ? `${RADIO_TXT[k].split(" — ")[0]} — ${radioAddr(hqGrade())}, ${RADIO_TXT[k].split(" — ")[1] || "Standing by."}` : `${RADIO_TXT[k].split(" — ")[0]} — ${radioAddr(hqGrade())}, ${RADIO_KO[k] || RADIO_TXT[k].split(" — ")[1] || ""}`, t: 3.2 }; };
 
 // ── computer captains, fog of war, mission rules ────────────────────────────
 const nearestOf = (S, list) => { let b = null, d = Infinity; for (const o of list) if (o && o.alive) { const dd = o.pos.distanceToSquared(S.pos); if (dd < d) { d = dd; b = o; } } return b; };
@@ -1127,7 +1127,7 @@ function renderTrackView() {
   const g = myGrade(), br = normBranch(staff.branch), SV = curServices(), BR = curBranches(), sv = SV[serviceOf(br)] || SV.navy;
   $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="duty">‹ 주간 직무</button><b>계급 성장 로드맵</b><small>${sv.icon} ${sv.n} · ${BR[br].n}</small></div><div class="mn dm-shell">${globalThis.__careerTrackHTML()}</div>`;
 }
-function renderMin() { if (!minState()) minStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="org">‹ 지휘 계통도</button><b>국방부 집무실</b><small>${cmdr.name} ${civil() ? "전 장관" : "장관"}</small><button data-min="gal" class="hq-tg2">🖼 역대 장관</button>${presState() ? `<button data-hqv="pres">대선 캠프 ›</button>` : ""}</div>${admBar("min")}${minHTML()}`; }
+function renderMin() { if (!minState()) minStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="org">‹ 지휘 계통도</button><b>${isUS() ? "펜타곤 집무실 (Pentagon)" : "국방부 집무실"}</b><small>${isUS() ? `SecDef ${cmdr.name}` : `${cmdr.name} ${civil() ? "전 장관" : "장관"}`}</small><button data-min="gal" class="hq-tg2">🖼 역대 장관</button>${!isUS() && presState() ? `<button data-hqv="pres">대선 캠프 ›</button>` : ""}</div>${admBar("min")}${minHTML()}`; }
 /** 관리자 시험 바 (국방부·대선·대통령실 공통) */
 const ADM = { min: [["minok", "장관 명예 퇴임 즉시"], ["minbad", "장관 임기 종료(목표 미달)"], ["topres", "→ 대선 바로 시작"], ["topotus", "→ 대통령 바로 취임"], ["reset0", "↺ 소위부터 다시 시작"]],
   pres: [["pboost", "능력치 +15"], ["pskip", "프롤로그 건너뛰기"], ["ppri", "경선 승리"], ["pdday", "D-3으로"], ["pwin", "당선 처리"], ["plose", "낙선 처리"], ["topotus", "→ 대통령 취임"], ["reset0", "↺ 소위부터 다시 시작"]],

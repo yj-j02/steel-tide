@@ -10,7 +10,7 @@ const ECON_SHIPS = {
 };
 /** The commander's rank (US Navy officer grades), earned with experience. */
 const ECON_RANKS = ["소위", "중위", "대위", "소령", "중령", "대령", "준장", "소장", "중장", "대장", "원수"];
-const ECON_RANK_XP = [0, 350, 900, 1700, 3000, 5000, 8000, 12500, 19000, 28000, 40000]; /* 소위 → 원수; ship and nation gates still count from 소령 (index 3) */
+const ECON_RANK_XP = [0, 750, 1800, 3400, 5800, 9200, 14000, 20500, 29000, 40000, 56000]; /* 소위 → 원수: 위관 ~2주 · 영관 ~3-4주 · 장성 ~5-6주 페이싱 */
 function econRank(xp) { let r = 0; for (let i = 0; i < ECON_RANK_XP.length; i++) if (xp >= ECON_RANK_XP[i]) r = i; return r; }
 const ECON_MISSIONS = ["fleet", "convoy", "raid", "modern"];
 const ECON_PARTS = ["engine", "fc", "gun", "armor"];

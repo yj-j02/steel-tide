@@ -20,7 +20,7 @@ export const FOCUS = {
   pol: { n: "정보·외교·정책", f: "임무 완수 · 전략적 안정", k: { win: 1.3, hp: 1.2, loss: 1.2, eff: 0.85 } },
 };
 export const PASS = 55; /* B or better */
-export const minBattles = (g) => (g <= 2 ? 1 : g <= 5 ? 2 : 3);
+export const minBattles = (g) => (g <= 1 ? 2 : g === 2 ? 3 : g <= 4 ? 4 : g === 5 ? 5 : 6);
 export const letter = (s) => (s >= 85 ? "S" : s >= 70 ? "A" : s >= PASS ? "B" : s >= 40 ? "C" : "D");
 
 /** m: { won, hp (0–1), sunk, foes, lost, allies, secs, jetsOut }. Returns { s, parts }. */

@@ -2,6 +2,7 @@
 import { KOREA, kxy } from "./korea.js";
 import { ministryContent } from "./content/kr.js";
 import { staff, normBranch, serviceOf, isUS } from "./staff.js";
+import { usNpcName } from "./us-ranks.js";
 // 모든 수치는 게임용 값이다 (실제 국방 예산·제원이 아님).
 const MK = "steeltide:mod", HK = "steeltide:hall", LK = "steeltide:legacy";
 export const TERM = 36;
@@ -9,7 +10,24 @@ const BASE = 4350, UPKEEP = 2000;
 const rd = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const wr = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage blocked */ } };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-const won = (n) => (Math.abs(n) >= 10000 ? `${(n / 10000).toFixed(2)}조` : `${Math.round(n).toLocaleString("ko-KR")}억`);
+const won = (n) => {
+  if (isUS()) { const b = Math.abs(n) / 1000; return `${n < 0 ? "−" : ""}$${b.toFixed(b >= 10 ? 1 : 2)}B`; }
+  return Math.abs(n) >= 10000 ? `${(n / 10000).toFixed(2)}조` : `${Math.round(n).toLocaleString("ko-KR")}억`;
+};
+const US_AREAS_N = { dmz: "동유럽 NATO 전선", west: "대만해협 · 남중국해", east: "북태평양 · 알래스카", kadiz: "북미·태평양 영공 (NORAD)" };
+const US_FLEETS_N = { army1: "미 유럽·육군전력사 (FORSCOM)", f2: "미 제7함대 (INDOPACOM)", f1: "미 태평양함대 (USPACFLT)", air1: "미 태평양공군 (PACAF)" };
+const US_REINF_N = { mob: "항모타격단(CSG)", sub: "버지니아급 SSN", airc: "F-22/B-21 비행단", art: "HIMARS·THAAD" };
+const US_PROGS_N = { ship: "포드급 항모 · DDG(X) 함대", air: "NGAD 6세대기 · B-21 레이더", kamd: "골든 돔 · THAAD/SM-3 방공", log: "콜럼비아급 SSBN · 글로벌 군수" };
+const US_DOC_N = {
+  off: ["글로벌 투사 교리 (Global Strike)", "항모·B-21 선제 타격으로 전구 억제력 극대화"],
+  aad: ["통합 미사일 방어 (IAMD)", "NORAD·이지스·THAAD 다층 방공망 최우선"],
+  joint: ["합동 전영역 지휘통제 (JADC2)", "육·해·공·우주 통합 데이터링크 증원 극대화"],
+};
+const areaName = (k) => (isUS() ? US_AREAS_N[k] || AREAS[k]?.n : AREAS[k]?.n);
+const fleetName = (k) => (isUS() ? US_FLEETS_N[k] || FLEETS[k] : FLEETS[k]);
+const reinfName = (k) => (isUS() ? US_REINF_N[k] || REINF[k]?.[0] : REINF[k]?.[0]);
+const progName = (k) => (isUS() ? US_PROGS_N[k] || PROGS[k]?.n : PROGS[k]?.n);
+const cmdrDisp = (c, k) => (isUS() ? usNpcName(c.name + k) : c.name);
 const pick = (a) => a[(Math.random() * a.length) | 0];
 
 const { DOCTRINES, PROGS, AREAS, FLEETS, LVN, SUR, DOCKET, REINF, LVK, THREAT, GIV } = ministryContent(fx, chain, note);
@@ -196,8 +214,10 @@ export function minHTML() {
   const l5 = Object.values(m.prog).filter((v) => v >= 5).length;
   const rate = m.fights ? Math.round((m.wins / m.fights) * 100) : 0;
 
+  const us = isUS();
+  const TABS_CUR = us ? [["desk", "📋", "펜타곤 집무실"], ["war", "⚔️", "NMCC 워룸"], ["prog", "🏗️", "NDAA 전력획득"], ["staff", "👥", "전투사령부 인사"], ["pol", "🏛️", "미 의회·여론"], ["career", "🎖️", "커리어트랙"]] : TABS;
   // Left navigation rail (6 tabs)
-  const nav = `<nav class="dm-nav">${TABS.map(([k, ic, n]) => {
+  const nav = `<nav class="dm-nav">${TABS_CUR.map(([k, ic, n]) => {
     const badge = k === "desk" && pend ? `<em>${pend}</em>` : k === "war" && hotN ? `<em class="r">${hotN}</em>` : "";
     return `<button class="dm-tab${tab === k ? " on" : ""}" data-min="tab:${k}"><span>${ic} ${n}</span>${badge}</button>`;
   }).join("")}<div class="dm-goals"><b>임기 목표 (${TERM}주)</b><small class="${avg >= 60 ? "g" : ""}">평균 지지율 ${avg}/60</small><small class="${l5 >= 2 ? "g" : ""}">LV5 사업 ${l5}/2</small><small class="${rate >= 80 ? "g" : ""}">위기 방어 ${rate}%/80%</small></div></nav>`;
@@ -205,41 +225,44 @@ export function minHTML() {
   // Center main panel based on selected tab
   let center = "";
   if (tab === "desk") {
-    const nscC = m.nsc && m.war.areas[m.nsc] ? `<div class="mn-card mn-dk mn-nsc"><b>긴급 NSC — ${AREAS[m.nsc].n} 위협 '높음'</b><p>적 도발 징후가 급증했습니다. 이번 주 대응 방침을 정하십시오.</p>${scenesOn() ? `<button class="mn-sc" data-min="nscview"><b>🎬 회의 장면으로 ›</b><small>장면을 건너뛰었다면 여기서 다시 열 수 있습니다</small></button>` : ""}${NSC_OPT.map(([n, e], i) => `<button data-min="nsc:${i}"><b>${n}</b><small>${e}</small></button>`).join("")}</div>` : "";
-    center = `<div class="dm-main"><div class="mn-h">국방부 결재판 <small>${pend ? `${pend}건 대기` : "처리 완료"}</small><button class="mn-tg ${scenesOn() ? "on" : ""}" data-min="scenes">🎬 결재 연출 ${scenesOn() ? "ON" : "OFF"}</button></div>${nscC}${dk.length ? dk.map(([id, t, d, opts, meta]) => docHTML(m, id, t, d, opts, meta || {})).join("") : `<div class="mn-card"><small>이번 주 결재 안건을 모두 처리했습니다. 합동워룸에서 위기를 점검하거나 '다음 주 진행'을 누르십시오.</small></div>`}
-      <div class="mn-h">전군 작전 교리 <small>언제든 변경 가능</small></div><div class="dm-docs">${Object.entries(DOCTRINES).map(([k, d]) => `<button class="mn-doc ${m.doctrine === k ? "on" : ""}" data-min="doc:${k}"><b>${d.n}</b><small>${d.d}</small><span>${d.up.map((x) => `<em class="g">${x}</em>`).join("")}${d.dn.map((x) => `<em class="r">${x}</em>`).join("")}</span></button>`).join("")}</div></div>`;
+    const nscLbl = us ? [["DEFCON 3 격상 · 전구 대비태세 강화", "해당 구역 위임 승률 +10% · 지지율 −1 · 긴장도 +4"], ["NATO·인태 동맹 공조 · 외교 채널 가동", "위협 한 단계 낮춤 · 예산 −$0.30B · 긴장도 −6"], ["전투사령관 재량 존중 · 정례 대응", "지지율 +1 (침착한 대응)"]] : NSC_OPT;
+    const nscC = m.nsc && m.war.areas[m.nsc] ? `<div class="mn-card mn-dk mn-nsc"><b>${us ? "긴급 백악관 NSC" : "긴급 NSC"} — ${areaName(m.nsc)} 위협 '높음'</b><p>적 도발 징후가 급증했습니다. 이번 주 대응 방침을 정하십시오.</p>${scenesOn() ? `<button class="mn-sc" data-min="nscview"><b>🎬 회의 장면으로 ›</b><small>장면을 건너뛰었다면 여기서 다시 열 수 있습니다</small></button>` : ""}${nscLbl.map(([n, e], i) => `<button data-min="nsc:${i}"><b>${n}</b><small>${e}</small></button>`).join("")}</div>` : "";
+    center = `<div class="dm-main"><div class="mn-h">${us ? "펜타곤 결재판 (DoD Docket)" : "국방부 결재판"} <small>${pend ? `${pend}건 대기` : "처리 완료"}</small><button class="mn-tg ${scenesOn() ? "on" : ""}" data-min="scenes">🎬 결재 연출 ${scenesOn() ? "ON" : "OFF"}</button></div>${nscC}${dk.length ? dk.map(([id, t, d, opts, meta]) => docHTML(m, id, t, d, opts, meta || {})).join("") : `<div class="mn-card"><small>이번 주 결재 안건을 모두 처리했습니다. 합동워룸에서 위기를 점검하거나 '다음 주 진행'을 누르십시오.</small></div>`}
+      <div class="mn-h">${us ? "미군 통합 작전 교리 (Joint Doctrine)" : "전군 작전 교리"} <small>언제든 변경 가능</small></div><div class="dm-docs">${Object.entries(DOCTRINES).map(([k, d]) => { const dn = us && US_DOC_N[k] ? US_DOC_N[k] : [d.n, d.d]; return `<button class="mn-doc ${m.doctrine === k ? "on" : ""}" data-min="doc:${k}"><b>${dn[0]}</b><small>${dn[1]}</small><span>${d.up.map((x) => `<em class="g">${x}</em>`).join("")}${d.dn.map((x) => `<em class="r">${x}</em>`).join("")}</span></button>`; }).join("")}</div></div>`;
   } else if (tab === "war") {
     const domTag = { army: "⛨ 육군", navy: "⚓ 해군", air: "✈️ 공군" };
     const direct3dLbl = { army: "3D 합동 화력개입", navy: "3D 해전 직접개입", air: "3D 전투기 직접출격" };
-    center = `<div class="dm-main"><div class="mn-h">합동 워룸 · 한반도 3군 전술 상황도 <small>${m.week}주차 — 각 구역별 [자동 위임 / FM 작전 / 3D 직접 개입] 선택</small></div>
+    center = `<div class="dm-main"><div class="mn-h">${us ? "펜타곤 NMCC 합동 워룸 · 글로벌 전구 상황도" : "합동 워룸 · 한반도 3군 전술 상황도"} <small>${m.week}주차 — 각 구역별 [자동 위임 / FM 작전 / 3D 직접 개입] 선택</small></div>
       <div class="dm-wargrid">${warMap(m)}<div class="mn-map">${Object.entries(AREAS).map(([k, a]) => {
         const W = A[k], p = areaP(m, k), c = m.cmdr[a.fleet] || mkCmdr(), o = W.res;
-        return `<div class="mn-area ${k} t${W.lvl}"><div class="ah"><b>${domTag[a.domain] || ""} · ${a.n}</b><span class="lv l${W.lvl}">위협 ${LVN[W.lvl]}</span></div>
-          <small>담당 <b>${FLEETS[a.fleet]}</b> · ${c.name} 사령관 (지휘 ${c.st}${fxv(m, "cmd", 0) ? ` ${fxv(m, "cmd", 0) > 0 ? "+" : ""}${fxv(m, "cmd", 0)}` : ""})</small>
-          <div class="rf">증원 ${Object.entries(REINF).map(([r, [n]]) => `<button data-min="rf:${k}:${r}" class="${W.reinf === r ? "on" : ""}" ${used.includes(r) && W.reinf !== r ? "disabled" : ""}>${n.replace("사령부", "")}</button>`).join("")}</div>
+        return `<div class="mn-area ${k} t${W.lvl}"><div class="ah"><b>${domTag[a.domain] || ""} · ${areaName(k)}</b><span class="lv l${W.lvl}">위협 ${LVN[W.lvl]}</span></div>
+          <small>담당 <b>${fleetName(a.fleet)}</b> · ${cmdrDisp(c, a.fleet)} 사령관 (지휘 ${c.st}${fxv(m, "cmd", 0) ? ` ${fxv(m, "cmd", 0) > 0 ? "+" : ""}${fxv(m, "cmd", 0)}` : ""})</small>
+          <div class="rf">증원 ${Object.keys(REINF).map((r) => `<button data-min="rf:${k}:${r}" class="${W.reinf === r ? "on" : ""}" ${used.includes(r) && W.reinf !== r ? "disabled" : ""}>${reinfName(r).replace("사령부", "")}</button>`).join("")}</div>
           <div class="pw">위임 예상 ${bar(p, p >= 74 ? "g" : p >= 50 ? "y" : "r")}<b class="${p >= 74 ? "g" : p >= 50 ? "y" : "r"}">${p}% · ${outcomeOf(p)[0]}</b></div>
           ${o ? `<div class="dr ${o[1]}">${o[4] || "대응"} 결과: <b>${o[0]}</b></div>`
             : W.lvl === 0 ? `<div class="dr g">정상 경계 — 특이 도발 없음 (자동 안정)</div>`
             : `<div class="dm-ops"><button class="dm-op" data-min="del:${k}">① 자동 위임</button><button class="dm-op fm" data-min="fm:${k}">② FM 작전</button><button class="dm-op d3" data-min="3d:${k}">③ ${direct3dLbl[a.domain] || "3D 개입"}</button></div>`}</div>`;
       }).join("")}</div></div></div>`;
   } else if (tab === "prog") {
-    center = `<div class="dm-main"><div class="mn-h">3군 방위력 개선 사업 <small>각 5단계 · 현재 전투 보정 화력 ×${F.outK.toFixed(2)} · 피해 ×${F.inK.toFixed(2)} · 요격 ×${F.icptK.toFixed(2)} · 탐지 ×${F.detK.toFixed(2)}</small></div>
+    center = `<div class="dm-main"><div class="mn-h">${us ? "미 국방부 NDAA 차세대 전력획득 사업" : "3군 방위력 개선 사업"} <small>각 5단계 · 현재 전투 보정 화력 ×${F.outK.toFixed(2)} · 피해 ×${F.inK.toFixed(2)} · 요격 ×${F.icptK.toFixed(2)} · 탐지 ×${F.detK.toFixed(2)}</small></div>
       <div class="dm-pgrid">${Object.entries(PROGS).map(([k, P]) => {
         const L = m.prog[k] || 0, nx = L < 5 ? progCost(m, k, L) : 0;
-        return `<div class="mn-card mn-pg"><div class="ph"><b>${P.ic} ${P.n}</b><span>LV ${L}/5</span></div><div class="lvs">${P.lv.map(([, d], i) => `<div class="${i < L ? "done" : i === L ? "next" : ""}"><i>${i + 1}</i>${d}</div>`).join("")}</div>${L < 5 ? `<button data-min="pg:${k}" ${m.budget < nx ? "disabled" : ""}>LV ${L + 1} 투자 — ${won(nx)}</button>` : `<em class="g">완성</em>`}</div>`;
+        return `<div class="mn-card mn-pg"><div class="ph"><b>${P.ic} ${progName(k)}</b><span>LV ${L}/5</span></div><div class="lvs">${P.lv.map(([, d], i) => `<div class="${i < L ? "done" : i === L ? "next" : ""}"><i>${i + 1}</i>${d}</div>`).join("")}</div>${L < 5 ? `<button data-min="pg:${k}" ${m.budget < nx ? "disabled" : ""}>LV ${L + 1} 투자 — ${won(nx)}</button>` : `<em class="g">완성</em>`}</div>`;
       }).join("")}</div></div>`;
   } else if (tab === "staff") {
-    const posts = [["army1", "⛨ 지상작전사령관"], ["f2", "⚓ 제2함대사령관 (서해)"], ["f1", "⚓ 제1함대사령관 (동해)"], ["air1", "✈️ 공군작전사령관"], ["mob", "⚓ 기동함대사령관 (증원)"], ["sub", "⚓ 잠수함사령관 (증원)"], ["airc", "✈️ 전투비행단장 (증원)"], ["art", "⛨ 화력여단장 (증원)"]];
-    center = `<div class="dm-main"><div class="mn-h">3군 통합 사령부 인사 <small>지휘관 능력치가 합동 워룸 위임 승률에 직접 반영됩니다 · 교체 비용 1,200억</small></div>
+    const posts = us
+      ? [["army1", "⛨ 미 육군전력사령관 (FORSCOM)"], ["f2", "⚓ 미 제7함대사령관 (인태)"], ["f1", "⚓ 미 태평양함대사령관 (USPACFLT)"], ["air1", "✈️ 미 태평양공군사령관 (PACAF)"], ["mob", "⚓ 항모타격단장 (CSG 증원)"], ["sub", "⚓ 태평양잠수함사령관 (SUBPAC)"], ["airc", "✈️ 제1전투비행단장 (F-22 증원)"], ["art", "⛨ THAAD 방공여단장 (증원)"]]
+      : [["army1", "⛨ 지상작전사령관"], ["f2", "⚓ 제2함대사령관 (서해)"], ["f1", "⚓ 제1함대사령관 (동해)"], ["air1", "✈️ 공군작전사령관"], ["mob", "⚓ 기동함대사령관 (증원)"], ["sub", "⚓ 잠수함사령관 (증원)"], ["airc", "✈️ 전투비행단장 (증원)"], ["art", "⛨ 화력여단장 (증원)"]];
+    center = `<div class="dm-main"><div class="mn-h">${us ? "미군 통합 전투사령부 인사" : "3군 통합 사령부 인사"} <small>지휘관 능력치가 합동 워룸 위임 승률에 직접 반영됩니다 · 교체 비용 ${won(1200)}</small></div>
       <div class="dm-sgrid">${posts.map(([k, title]) => {
-        const c = m.cmdr[k] || mkCmdr();
-        return `<div class="mn-card dm-scard"><div class="dm-sf">${face(c.name + k, 52, { age: 3 })}<div><b>${title}</b><small>${c.name} 중장</small></div></div><div class="pw">지휘력 ${bar(c.st, c.st >= 75 ? "g" : c.st >= 58 ? "y" : "r")}<b>${c.st}</b></div><button class="pr-btn" data-min="swap:${k}" ${m.budget < 1200 ? "disabled" : ""}>인사 교체 (1,200억)</button></div>`;
+        const c = m.cmdr[k] || mkCmdr(), nm = cmdrDisp(c, k);
+        return `<div class="mn-card dm-scard"><div class="dm-sf">${face(nm + k, 52, { age: 3 })}<div><b>${title}</b><small>${nm} ${us ? "LTG/VADM" : "중장"}</small></div></div><div class="pw">지휘력 ${bar(c.st, c.st >= 75 ? "g" : c.st >= 58 ? "y" : "r")}<b>${c.st}</b></div><button class="pr-btn" data-min="swap:${k}" ${m.budget < 1200 ? "disabled" : ""}>인사 교체 (${won(1200)})</button></div>`;
       }).join("")}</div></div>`;
   } else if (tab === "pol") {
-    center = `<div class="dm-main"><div class="mn-h">국회 국방위 · 정계 동향 <button class="mn-tg on" data-min="gal">🖼 역대 장관 갤러리</button></div>
+    center = `<div class="dm-main"><div class="mn-h">${us ? "미 상원 군사위(SASC) · 워싱턴 정계 동향" : "국회 국방위 · 정계 동향"} <button class="mn-tg on" data-min="gal">🖼 역대 장관 갤러리</button></div>
       ${trendSVG(m)}
       <div class="mn-card mn-log"><div class="mn-h">지난 주 종합 결산</div>${(m.last || ["취임 첫 주입니다. 집무실 결재와 합동워룸 대응을 마친 뒤 '다음 주 진행'을 누르십시오."]).map((t) => `<small>${t}</small>`).join("")}</div>
-      <div class="mn-card"><div class="mn-h">임기 평가 기준</div><small>36주 종료 시 평균 지지율 60 이상 · LV5 사업 2개 이상 · 위기 방어율 80% 이상 달성 시 <b>명예 퇴임</b> 및 대선 출마 시 강력한 안보 실적 보너스를 얻습니다.</small></div></div>`;
+      <div class="mn-card"><div class="mn-h">임기 평가 기준</div><small>36주 종료 시 평균 지지율 60 이상 · LV5 사업 2개 이상 · 위기 방어율 80% 이상 달성 시 <b>명예 퇴임</b> 및 2회차 특전을 얻습니다.</small></div></div>`;
   } else {
     center = `<div class="dm-main">${globalThis.__careerTrackHTML ? globalThis.__careerTrackHTML() : `<div class="mn-card"><small>커리어 정보를 불러오는 중입니다.</small></div>`}</div>`;
   }
