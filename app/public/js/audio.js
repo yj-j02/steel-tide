@@ -267,8 +267,21 @@ export function playMinisterAnthem() {
 }
 let promoEl = null;
 export function stopFanfare() { const el = promoEl; if (!el) return; promoEl = null; const v0 = el.volume, t0 = performance.now(); const step = () => { const k = 1 - (performance.now() - t0) / 700; if (k <= 0) { el.pause(); el.onended?.(); return; } el.volume = v0 * k; requestAnimationFrame(step); }; step(); }
+const US_HONORS = { 6: [0, 17], 7: [17, 37], 8: [38, 58], 9: [59, null], 10: [59, null] };
 export function fanfare(grade = 3, branch = "") {
-  if (!A.ctx || A.muted) return; stopFanfare(); const f = PROMO(grade); if (!f) { if (!radio("promo")) radioBlip(1.6); return; }
+  if (A.muted) return; stopFanfare();
+  const isUsMode = typeof document !== "undefined" && document.body?.classList.contains("us-nat");
+  if (isUsMode && US_HONORS[grade]) {
+    const [t0, t1] = US_HONORS[grade], el = new Audio("sfx/promo/us_honors.m4a");
+    el.volume = Math.min(1, A.vol.sfx * 1.05); promoEl = el;
+    const bg = A.bgmEl, v0 = bg ? bg.volume : 0; if (bg) bg.volume = v0 * 0.15;
+    el.onended = () => { if (bg && A.bgmEl === bg) bg.volume = v0; if (promoEl === el) promoEl = null; el.onended = null; };
+    if (t1 != null) el.ontimeupdate = () => { if (el.currentTime >= t1) { el.ontimeupdate = null; if (promoEl === el) stopFanfare(); else { el.pause(); el.onended?.(); } } };
+    const go = () => { try { el.currentTime = t0; } catch {} el.play().catch(() => { el.onended?.(); synthFanfare(grade); }); };
+    if (el.readyState >= 1) go(); else { el.addEventListener("loadedmetadata", go, { once: true }); el.load(); }
+    return;
+  }
+  if (!A.ctx) return; const f = PROMO(grade); if (!f) { if (!radio("promo")) radioBlip(1.6); return; }
   const el = new Audio(`sfx/promo/${f}.mp3`); el.volume = Math.min(1, A.vol.sfx * 1.05); promoEl = el;
   const bg = A.bgmEl, v0 = bg ? bg.volume : 0; if (bg) bg.volume = v0 * 0.15;
   el.onended = () => { if (bg && A.bgmEl === bg) bg.volume = v0; if (promoEl === el) promoEl = null; el.onended = null; };
