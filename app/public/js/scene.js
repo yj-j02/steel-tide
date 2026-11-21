@@ -1,7 +1,7 @@
 // 실사 이미지 연출 장면: 국방부 브리핑룸 기자회견 · 국회 국방위원회 · 긴급 NSC.
 // 정지 이미지 위에 카메라 패닝·줌(컷 전환), 플래시, 자막, 답변 선택지를 얹는다. 이미지 속 인물은 모두 AI로 만든 가상 인물이다.
 /* 정당 색 테마 (blue = 민주함께당, red = 한누리당, null = 무소속/공통) */
-let THEME = null; const THEMED = ["declaration", "primary_hall", "rally", "election_night", "victory"];
+let THEME = null; const THEMED = ["declaration", "primary_hall", "rally", "election_night", "victory", "president_office", "address"];
 export const setTheme = (t) => { THEME = t || null; };
 const IMG = (n) => `img/bg/${THEMED.includes(n) && THEME ? `${n}_${THEME}` : n}.jpg`;
 /* 아직 없는 배경은 비슷한 기존 사진으로 대신한다 */

@@ -229,30 +229,51 @@ let trailsOn = true; try { trailsOn = localStorage.getItem("steeltide:trails") !
 let theater = "west"; try { const m = localStorage.getItem("steeltide:map"); if (MAPS[m]) theater = m; } catch {}
 // ── commander (사령관): name + one of four portraits, kept in this browser ──
 const CMDR_FACES = [
-  { n: "노장 제독", skin: ["#e3b896", "#b98463", "#8a5a40"], hair: "#dcdcd6", brow: "#cfcfc8", age: 3, must: "full", glass: false, fem: false, jaw: 1.06, bg: "#2b3640" },
-  { n: "강골 지휘관", skin: ["#dba882", "#a87252", "#6e452e"], hair: "#3b3029", brow: "#2a211b", age: 1, must: "trim", glass: false, fem: false, jaw: 1.1, bg: "#2f3a33" },
-  { n: "냉철한 참모", skin: ["#e9c3a3", "#b98b6c", "#7d5640"], hair: "#6b6560", brow: "#4a4440", age: 2, must: null, glass: true, fem: false, jaw: 0.98, bg: "#3a3430" },
-  { n: "여성 사령관", skin: ["#efcdb2", "#c39478", "#8c6450"], hair: "#2e211b", brow: "#2a1e18", age: 1, must: null, glass: false, fem: true, jaw: 0.92, bg: "#34303c" },
+  { n: "정통 소위", skin: ["#ebc3a3", "#c49270", "#8e5f44"], hair: "#26201c", brow: "#221c18", age: 0, must: null, glass: false, fem: false, jaw: 1.0, chin: 1.0, eye: 0.94, browStyle: "flat", nose: "straight", mouthW: 1.0, hairStyle: "neat", agePath: "dignified", bg: "#2b3640" },
+  { n: "강골 소위", skin: ["#dfaa84", "#ae7856", "#754931"], hair: "#1e1a18", brow: "#1a1614", age: 0, must: null, glass: false, fem: false, jaw: 1.13, chin: 1.18, eye: 0.8, browStyle: "thick", nose: "broad", mouthW: 1.1, hairStyle: "short", agePath: "rugged", bg: "#2f3a33" },
+  { n: "지략 소위", skin: ["#f0d2ba", "#c5997b", "#8a624a"], hair: "#2b2623", brow: "#282320", age: 0, must: null, glass: "thin", fem: false, jaw: 0.92, chin: 0.84, eye: 1.0, browStyle: "arched", nose: "slim", mouthW: 0.92, hairStyle: "parted", agePath: "scholar", bg: "#3a3430" },
+  { n: "여성 소위", skin: ["#f3d6c0", "#ca9c81", "#926752"], hair: "#2a1e19", brow: "#2b1f1a", age: 0, must: null, glass: false, fem: true, jaw: 0.87, chin: 0.78, eye: 1.1, browStyle: "fem", nose: "delicate", mouthW: 0.9, hairStyle: "bob", agePath: "poised", bg: "#34303c" },
 ];
 let faceN = 0;
 const mixHex = (a, b, t) => "#" + [1, 3, 5].map((i) => Math.round(parseInt(a.slice(i, i + 2), 16) * (1 - t) + parseInt(b.slice(i, i + 2), 16) * t).toString(16).padStart(2, "0")).join("");
-/** The commander's face aged to the rank: 위관 young and clean, 영관 first lines, 장성 grey, 원수 white. */
+/** The commander's face aged to the rank: 4 distinct young ensigns aging along unique paths (dignified / rugged / scholar / poised). */
 function agedFace(i, grade) {
   const f = { ...((typeof i === "object" ? i : CMDR_FACES[i]) || CMDR_FACES[0]) }, g = clamp(grade | 0, 0, 10);
-  const young = f.fem ? "#2e211b" : "#3b3029", grey = Math.max(0, Math.min(1, (g - 3) / 7)) ** 1.15;
-  f.age = g <= 2 ? 0 : g <= 4 ? 1 : g <= 6 ? 2 : 3;
-  f.hair = mixHex(young, "#dedcd4", grey); f.brow = mixHex(f.fem ? "#2a1e18" : "#2a211b", "#cfcdc6", grey * 0.85);
-  if (f.must === "full") f.must = g < 3 ? null : g < 6 ? "trim" : "full";
-  f.skin = f.skin.map((s) => mixHex(s, "#f2d2b6", g <= 2 ? 0.12 : 0));
+  const baseHair = f.hair || (f.fem ? "#2a1e19" : "#26201c"), baseBrow = f.brow || "#221c18";
+  const path = f.agePath || (f.fem ? "poised" : "dignified");
+  f.age = g <= 2 ? 0 : g <= 4 ? 1 : g <= 7 ? 2 : 3;
+  f.templeGrey = g >= 3 ? Math.min(1, (g - 2) / 5) : 0;
+  if (path === "dignified") {
+    const gr = Math.max(0, Math.min(1, (g - 3) / 6.5)) ** 1.05;
+    f.hair = mixHex(baseHair, "#e4e3dc", gr); f.brow = mixHex(baseBrow, "#cfcec6", gr * 0.82);
+    f.must = g >= 8 ? "full" : g >= 5 ? "trim" : null;
+    f.jaw = f.jaw + (g >= 6 ? 0.04 : 0);
+  } else if (path === "rugged") {
+    const gr = Math.max(0, Math.min(1, (g - 4) / 6.5)) ** 1.25;
+    f.hair = mixHex(baseHair, "#96928b", gr); f.brow = mixHex(baseBrow, "#76726c", gr * 0.65);
+    f.must = g >= 4 ? "trim" : null; f.beard = g >= 7; f.furrow = g >= 4;
+    f.skin = f.skin.map((s) => mixHex(s, "#b47b56", g >= 5 ? 0.14 : g >= 3 ? 0.06 : 0));
+  } else if (path === "scholar") {
+    const gr = Math.max(0, Math.min(1, (g - 3) / 7)) ** 1.1;
+    f.hair = mixHex(baseHair, "#c2c0ba", gr * 0.85); f.brow = mixHex(baseBrow, "#9b9892", gr * 0.7);
+    f.glass = g >= 6 ? "bold" : "thin"; f.recede = g >= 5;
+    f.skin = f.skin.map((s) => mixHex(s, "#e7ccb5", g >= 6 ? 0.08 : 0));
+  } else {
+    const gr = Math.max(0, Math.min(1, (g - 4) / 6.5)) ** 1.2;
+    f.hair = mixHex(baseHair, "#9d9791", gr * 0.72); f.brow = mixHex(baseBrow, "#68615b", gr * 0.55);
+    f.glass = g >= 7 ? "slim" : false;
+  }
+  if (g <= 2) f.skin = f.skin.map((s) => mixHex(s, "#f6dcc6", 0.08));
   return f;
 }
 const myFace = () => agedFace(cmdr.face, myGrade());
 function face(i, s = 64) {
-  const f = (typeof i === "object" ? i : CMDR_FACES[i]) || CMDR_FACES[0], u = `fc${typeof i === "object" ? "s" : i}_${faceN++}`, [sk, sh, dk] = f.skin, j = f.jaw;
-  const jx = 50 - 17 * j, jx2 = 50 + 17 * j;
+  const f = (typeof i === "object" ? i : CMDR_FACES[i]) || CMDR_FACES[0], u = `fc${typeof i === "object" ? "s" : i}_${faceN++}`, [sk, sh, dk] = f.skin, j = f.jaw || 1, ch = f.chin || 1;
+  const jx = 50 - 16.5 * j, jx2 = 50 + 16.5 * j, cx1 = 50 - 8.5 * ch, cx2 = 50 + 8.5 * ch;
+  const hi = mixHex(sk, "#fff6ee", 0.36), mw = f.mouthW || 1, ey = 41, my = ey + 18;
   let o = `<svg role="img" aria-label="${f.n} 초상" width="${s}" height="${s}"${f.bare ? ' overflow="visible"' : ""} viewBox="${f.zoom ? "16 8 68 68" : "0 0 100 100"}"><defs>`
     + `<radialGradient id="${u}b" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="${f.bg}"/><stop offset="1" stop-color="#0d1114"/></radialGradient>`
-    + `<radialGradient id="${u}s" cx=".38" cy=".38" r=".75"><stop offset="0" stop-color="${sk}"/><stop offset=".7" stop-color="${sh}"/><stop offset="1" stop-color="${dk}"/></radialGradient>`
+    + `<radialGradient id="${u}s" cx=".4" cy=".34" r=".72"><stop offset="0" stop-color="${hi}"/><stop offset=".28" stop-color="${sk}"/><stop offset=".76" stop-color="${sh}"/><stop offset="1" stop-color="${dk}"/></radialGradient>`
     + `<linearGradient id="${u}u" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1c2638"/><stop offset="1" stop-color="#0b0f18"/></linearGradient>`
     + `<linearGradient id="${u}c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffffff"/><stop offset="1" stop-color="#c9ccc8"/></linearGradient>`
     + `</defs>${f.bare ? "" : `<rect width="100" height="100" rx="6" fill="url(#${u}b)"/>`}`;
@@ -262,40 +283,73 @@ function face(i, s = 64) {
     + `<path d="M34 72 L46 90 L44 100 M66 72 L54 90 L56 100" stroke="#05080d" stroke-width="1.2" fill="none"/>`
     + (f.civ ? "" : `<g transform="translate(60 84)"><rect width="5" height="2.6" fill="#b03a2e"/><rect x="5" width="5" height="2.6" fill="#2a5aa0"/><rect x="10" width="5" height="2.6" fill="#d8b23a"/><rect y="2.8" width="5" height="2.6" fill="#3b7a3e"/><rect x="5" y="2.8" width="5" height="2.6" fill="#c9c9c9"/><rect x="10" y="2.8" width="5" height="2.6" fill="#8a1f1f"/></g>`
     + `<rect x="10" y="88" width="18" height="2.2" fill="#c9a23a"/><rect x="10" y="91.5" width="18" height="2.2" fill="#c9a23a"/>`);
-  // long hair behind (female)
-  if (f.fem) o += `<path d="M29 34 C25 48 27 62 32 68 L40 66 C35 58 34 46 35 36Z M71 34 C75 48 73 62 68 68 L60 66 C65 58 66 46 65 36Z" fill="${f.hair}"/>`;
-  // neck + ears + head
-  o += `<path d="M41 58 L41 72 Q50 78 59 72 L59 58Z" fill="${sh}"/><path d="M41 66 Q50 72 59 66 L59 70 Q50 75 41 70Z" fill="${dk}" opacity=".45"/>`
-    + `<ellipse cx="${jx - 1}" cy="45" rx="3.6" ry="6" fill="${sh}"/><ellipse cx="${jx2 + 1}" cy="45" rx="3.6" ry="6" fill="${sh}"/>`
-    + `<path d="M${jx} 34 C${jx} 24 40 19 50 19 C60 19 ${jx2} 24 ${jx2} 34 L${jx2} 46 C${jx2} 56 ${50 + 9 * j} 64 50 66 C${50 - 9 * j} 64 ${jx} 56 ${jx} 46Z" fill="url(#${u}s)"/>`;
-  // side hair / temples
-  o += `<path d="M${jx} 30 L${jx + 3} 30 L${jx + 2.5} 44 L${jx} 40Z M${jx2} 30 L${jx2 - 3} 30 L${jx2 - 2.5} 44 L${jx2} 40Z" fill="${f.hair}"/>`;
-  // brow ridge shadow, eyes, brows
-  const ey = 41;
-  o += `<path d="M38 ${ey - 3} Q43 ${ey - 5.5} 47 ${ey - 3} M53 ${ey - 3} Q57 ${ey - 5.5} 62 ${ey - 3}" stroke="${dk}" stroke-width="2.6" opacity=".35" fill="none"/>`;
-  for (const x of [42.5, 57.5]) o += `<g transform="translate(${x} ${ey}) scale(1 ${f.eye || 1}) translate(${-x} ${-ey})"><path d="M${x - 4.4} ${ey} Q${x} ${ey - 2.8} ${x + 4.4} ${ey} Q${x} ${ey + 2} ${x - 4.4} ${ey}Z" fill="#ece6de"/><circle cx="${x}" cy="${ey - 0.2}" r="1.9" fill="#3b2d24"/><circle cx="${x}" cy="${ey - 0.2}" r="0.9" fill="#0d0a08"/><path d="M${x - 4.6} ${ey - 0.2} Q${x} ${ey - 3.4} ${x + 4.6} ${ey - 0.2}" stroke="#2a1d16" stroke-width="1.1" fill="none"/>`
-    + `<path d="M${x - 3.6} ${ey + 2.4} Q${x} ${ey + 3.6} ${x + 3.6} ${ey + 2.4}" stroke="${dk}" stroke-width=".7" opacity=".6" fill="none"/></g>`;
-  o += `<path d="M36.5 ${ey - 5.2} L47.5 ${ey - 4.6} L47.5 ${ey - 3.2} L37 ${ey - 3.4}Z M52.5 ${ey - 4.6} L63.5 ${ey - 5.2} L63 ${ey - 3.4} L52.5 ${ey - 3.2}Z" fill="${f.brow}"/>`;
-  // nose
-  o += `<path d="M50 ${ey + 1} L48 ${ey + 11} Q50 ${ey + 13} 53 ${ey + 11.5}" stroke="${dk}" stroke-width="1.1" fill="none" opacity=".75"/><path d="M46.5 ${ey + 12.2} Q48 ${ey + 13.6} 49.5 ${ey + 12.6} M50.5 ${ey + 12.6} Q52 ${ey + 13.6} 53.5 ${ey + 12.2}" stroke="${dk}" stroke-width=".9" fill="none"/>`
-    + `<path d="M51.5 ${ey + 2} L52.6 ${ey + 10}" stroke="${sk}" stroke-width="1.2" opacity=".7"/>`;
-  // age lines
-  if (f.age >= 2) o += `<path d="M44 ${ey + 10} Q41 ${ey + 15} 42 ${ey + 19} M56 ${ey + 10} Q59 ${ey + 15} 58 ${ey + 19}" stroke="${dk}" stroke-width=".9" fill="none" opacity=".7"/><path d="M41 28 Q50 26.5 59 28 M42 31 Q50 29.8 58 31" stroke="${dk}" stroke-width=".7" fill="none" opacity=".5"/>`;
-  if (f.age >= 3) o += `<path d="M35 ${ey + 1} L33 ${ey + 3} M65 ${ey + 1} L67 ${ey + 3} M40 ${ey + 5} Q42.5 ${ey + 6.5} 45 ${ey + 5} M55 ${ey + 5} Q57.5 ${ey + 6.5} 60 ${ey + 5}" stroke="${dk}" stroke-width=".7" fill="none" opacity=".7"/>`;
-  // mouth: firm, unsmiling
-  const my = ey + 18;
-  o += `<path d="M44.5 ${my} Q50 ${my + 0.6} 55.5 ${my}" stroke="#5a3226" stroke-width="1.4" fill="none"/><path d="M46 ${my + 2.2} Q50 ${my + 3.6} 54 ${my + 2.2}" stroke="${dk}" stroke-width="1" opacity=".55" fill="none"/>`;
-  if (f.fem) o += `<path d="M45 ${my} Q50 ${my - 1.6} 55 ${my} Q50 ${my + 2.4} 45 ${my}Z" fill="#9c4a44" opacity=".75"/>`;
-  if (f.must === "full") o += `<path d="M42 ${my - 2} Q46 ${my - 5.5} 50 ${my - 3.6} Q54 ${my - 5.5} 58 ${my - 2} Q54 ${my - 0.4} 50 ${my - 1.6} Q46 ${my - 0.4} 42 ${my - 2}Z" fill="${f.hair}"/>`;
-  if (f.must === "trim") o += `<path d="M44.5 ${my - 2.2} Q50 ${my - 4.4} 55.5 ${my - 2.2} L55 ${my - 1} Q50 ${my - 2.4} 45 ${my - 1}Z" fill="${f.hair}"/><path d="M${jx + 3} 50 Q50 ${my + 9} ${jx2 - 3} 50" stroke="${f.hair}" stroke-width="1.2" opacity=".25" fill="none"/>`;
-  if (f.beard) o += `<path d="M${jx + 1.5} 47 C${jx + 2} 60 43 68.5 50 68.5 C57 68.5 ${jx2 - 2} 60 ${jx2 - 1.5} 47 L${jx2 - 4} 50 C${jx2 - 6} 59 56 ${my + 4} 50 ${my + 4} C44 ${my + 4} ${jx + 6} 59 ${jx + 4} 50Z" fill="${f.hair}" opacity=".92"/>`;
-  if (f.glass) o += `<rect x="37" y="${ey - 3.6}" width="11" height="7.2" rx="2.4" fill="#ffffff" fill-opacity=".06" stroke="#20201e" stroke-width="1.1"/><rect x="52" y="${ey - 3.6}" width="11" height="7.2" rx="2.4" fill="#ffffff" fill-opacity=".06" stroke="#20201e" stroke-width="1.1"/><path d="M48 ${ey - 1} L52 ${ey - 1} M37 ${ey - 1} L${jx} ${ey - 2} M63 ${ey - 1} L${jx2} ${ey - 2}" stroke="#20201e" stroke-width="1"/>`;
-  // combination cap: white crown, black band, gold chin strap, visor with gold oak leaves, badge
-  if (f.civ) o += `<path d="M${jx - 1.5} 36 C${jx - 3} 17 38 11.5 50 11.5 C63 11.5 ${jx2 + 3} 17 ${jx2 + 1.5} 36 L${jx2 - 1} 31 C${jx2 - 3} 23 60 20.5 50 21.5 C44 21 ${jx + 6} 22 ${jx + 1} 31Z" fill="${f.hair}"/><path d="M42 14.5 Q47 19 60 19.5" stroke="#00000033" stroke-width="1" fill="none"/>`;
-  else o += `<path d="M24 25 C26 11 74 11 76 25 L74 28 L26 28Z" fill="url(#${u}c)"/><rect x="${jx - 1}" y="26" width="${(jx2 - jx) + 2}" height="6" fill="#121417"/>`
-    + `<path d="M${jx - 1} 32 L${jx2 + 1} 32 L${jx2 - 3} 37 Q50 39 ${jx + 3} 37Z" fill="#07090b"/><path d="M${jx + 1} 35.5 Q50 37.8 ${jx2 - 1} 35.5" stroke="#c9a23a" stroke-width="1.3" fill="none"/>`
-    + `<path d="M${jx - 1} 31.5 L${jx2 + 1} 31.5" stroke="#c9a23a" stroke-width="1.1"/>`
-    + `<g transform="translate(50 22.5) scale(.82)"><path d="M-7.5 -1 Q-8 6 0 7.5 Q8 6 7.5 -1" stroke="#d6b04a" stroke-width="1.1" fill="none"/>${[-1, 1].map((s) => [0, 1, 2, 3].map((i) => `<ellipse cx="${s * (7.6 - i * 0.3)}" cy="${-1 + i * 2.3}" rx=".9" ry="1.7" transform="rotate(${s * (-20 + i * 18)} ${s * (7.6 - i * 0.3)} ${-1 + i * 2.3})" fill="#d6b04a"/>`).join("")).join("")}<path d="M0 -7 L0 5.5 M-3.2 -4.6 L3.2 -4.6 M-4.6 1.8 Q-4 5.6 0 5.8 Q4 5.6 4.6 1.8" stroke="#d6b04a" stroke-width="1.3" fill="none" stroke-linecap="round"/><circle cy="-7.6" r="1.3" fill="none" stroke="#d6b04a" stroke-width=".9"/><circle cy="-1.2" r="2.3" fill="#c8313e"/><path d="M-2.3 -1.2 A2.3 2.3 0 0 0 2.3 -1.2 A1.15 1.15 0 0 1 0 -1.2 A1.15 1.15 0 0 0 -2.3 -1.2Z" fill="#1f4aa0"/></g>`; /* 해군 모표: 닻 + 태극 + 월계 잎 */
+  // back hair (female neat bob / bun)
+  if (f.fem) o += `<path d="M29 33 C25 46 27 59 33 65 L40 63 C35 55 34 45 35 35Z M71 33 C75 46 73 59 67 65 L60 63 C65 55 66 45 65 35Z" fill="${f.hair}"/>`
+    + `<ellipse cx="50" cy="64" rx="11" ry="4.5" fill="${mixHex(f.hair, "#000000", 0.25)}" opacity=".6"/>`;
+  // neck + ears + head contour
+  const nk = f.fem ? 7.2 : 8.8;
+  o += `<path d="M${50 - nk} 58 L${50 - nk} 72 Q50 78 ${50 + nk} 72 L${50 + nk} 58Z" fill="${sh}"/><path d="M${50 - nk} 64 Q50 71 ${50 + nk} 64 L${50 + nk} 69 Q50 75 ${50 - nk} 69Z" fill="${dk}" opacity=".42"/>`
+    + `<ellipse cx="${jx - 0.8}" cy="45.5" rx="3.2" ry="5.6" fill="${sh}"/><ellipse cx="${jx2 + 0.8}" cy="45.5" rx="3.2" ry="5.6" fill="${sh}"/>`
+    + `<path d="M${jx} 34 C${jx} 23.5 39.5 18.5 50 18.5 C60.5 18.5 ${jx2} 23.5 ${jx2} 34 L${jx2} 46 C${jx2} 55.5 ${cx2} 63.5 50 66 C${cx1} 63.5 ${jx} 55.5 ${jx} 46Z" fill="url(#${u}s)"/>`;
+  // cheekbone & chin light modeling for realistic depth
+  o += `<ellipse cx="40.5" cy="49.5" rx="4.2" ry="2.2" fill="${hi}" opacity=".22"/><ellipse cx="59.5" cy="49.5" rx="4.2" ry="2.2" fill="${hi}" opacity=".18"/>`
+    + `<ellipse cx="50" cy="62.5" rx="4" ry="1.8" fill="${hi}" opacity=".18"/>`
+    + `<path d="M${jx + 2} 50 Q${cx1} 61.5 50 64.8 Q${cx2} 61.5 ${jx2 - 2} 50" stroke="${dk}" stroke-width="1.4" opacity=".22" fill="none"/>`;
+  // side hair / temples (with realistic silver temple streaks as career progresses)
+  const sw = f.hairStyle === "short" ? 2.0 : f.hairStyle === "parted" ? 3.2 : 2.8, tCol = f.templeGrey ? mixHex(f.hair, "#e0dfd8", f.templeGrey * 0.65) : f.hair;
+  o += `<path d="M${jx} 29.5 L${jx + sw} 29.5 L${jx + sw - 0.4} 44.5 L${jx} 40.5Z M${jx2} 29.5 L${jx2 - sw} 29.5 L${jx2 - sw + 0.4} 44.5 L${jx2} 40.5Z" fill="${f.hair}"/>`;
+  if (f.templeGrey > 0.15) o += `<path d="M${jx + 0.2} 36 L${jx + sw - 0.5} 36 L${jx + sw - 0.8} 43.5 L${jx} 40.5Z M${jx2 - 0.2} 36 L${jx2 - sw + 0.5} 36 L${jx2 - sw + 0.8} 43.5 L${jx2} 40.5Z" fill="${tCol}" opacity=".85"/>`;
+  // brow ridge shadow, eyes with iris catchlight & eyelid crease
+  o += `<path d="M37.5 ${ey - 3.2} Q42.5 ${ey - 5.4} 47.2 ${ey - 3} M52.8 ${ey - 3} Q57.5 ${ey - 5.4} 62.5 ${ey - 3.2}" stroke="${dk}" stroke-width="2.2" opacity=".28" fill="none"/>`;
+  const eyeScale = f.eye || 1;
+  for (const x of [42.5, 57.5]) {
+    o += `<g transform="translate(${x} ${ey}) scale(1 ${eyeScale}) translate(${-x} ${-ey})">`
+      + `<path d="M${x - 4.3} ${ey} Q${x} ${ey - 2.7} ${x + 4.3} ${ey} Q${x} ${ey + 1.9} ${x - 4.3} ${ey}Z" fill="#f1ece4"/>`
+      + `<circle cx="${x}" cy="${ey - 0.15}" r="1.95" fill="#3a281d"/><circle cx="${x}" cy="${ey - 0.15}" r="1.0" fill="#100b08"/>`
+      + `<circle cx="${x - 0.65}" cy="${ey - 0.75}" r="0.52" fill="#ffffff" opacity=".88"/>`
+      + `<path d="M${x - 4.6} ${ey - 0.1} Q${x} ${ey - 3.3} ${x + 4.6} ${ey - 0.1}" stroke="#1d140f" stroke-width="${f.fem ? 1.35 : 1.15}" fill="none" stroke-linecap="round"/>`
+      + `<path d="M${x - 3.8} ${ey - 2.4} Q${x} ${ey - 4.2} ${x + 3.8} ${ey - 2.4}" stroke="${dk}" stroke-width=".6" opacity=".48" fill="none"/>`
+      + `<path d="M${x - 3.4} ${ey + 2.3} Q${x} ${ey + 3.4} ${x + 3.4} ${ey + 2.3}" stroke="${dk}" stroke-width=".65" opacity=".45" fill="none"/></g>`;
+  }
+  // distinct eyebrow styles
+  const bs = f.browStyle || (f.fem ? "fem" : "flat");
+  if (bs === "thick") o += `<path d="M36 ${ey - 4.6} L47.8 ${ey - 3.5} L47.5 ${ey - 1.7} L36.4 ${ey - 2.4}Z M52.2 ${ey - 3.5} L64 ${ey - 4.6} L63.6 ${ey - 2.4} L52.5 ${ey - 1.7}Z" fill="${f.brow}"/>`;
+  else if (bs === "arched") o += `<path d="M36.8 ${ey - 4.2} Q42 ${ey - 6.2} 47.4 ${ey - 4.5} L47.2 ${ey - 3.4} Q42 ${ey - 4.8} 37 ${ey - 3.2}Z M52.6 ${ey - 4.5} Q58 ${ey - 6.2} 63.2 ${ey - 4.2} L63 ${ey - 3.2} Q58 ${ey - 4.8} 52.8 ${ey - 3.4}Z" fill="${f.brow}"/>`;
+  else if (bs === "fem") o += `<path d="M37 ${ey - 4.4} Q42.5 ${ey - 6.4} 47.4 ${ey - 4.7} Q42.5 ${ey - 5.2} 37.2 ${ey - 3.6}Z M52.6 ${ey - 4.7} Q57.5 ${ey - 6.4} 63 ${ey - 4.4} Q57.5 ${ey - 5.2} 52.8 ${ey - 3.6}Z" fill="${f.brow}"/>`;
+  else o += `<path d="M36.5 ${ey - 4.9} L47.6 ${ey - 4.3} L47.5 ${ey - 3.0} L36.9 ${ey - 3.3}Z M52.4 ${ey - 4.3} L63.5 ${ey - 4.9} L63.1 ${ey - 3.3} L52.5 ${ey - 3.0}Z" fill="${f.brow}"/>`;
+  // distinct nose styles
+  const ns = f.nose || (f.fem ? "delicate" : "straight"), nw = ns === "broad" ? 4.4 : ns === "slim" ? 2.7 : ns === "delicate" ? 2.4 : 3.4;
+  o += `<path d="M50 ${ey + 0.5} L${50 - nw * 0.45} ${ey + 10.6} Q50 ${ey + 12.6} ${50 + nw * 0.72} ${ey + 11.1}" stroke="${dk}" stroke-width="${ns === "delicate" ? 0.85 : 1.05}" fill="none" opacity=".68"/>`
+    + `<path d="M${50 - nw} ${ey + 11.7} Q${50 - nw * 0.45} ${ey + 13.1} ${50 - 0.5} ${ey + 12.2} M${50 + 0.5} ${ey + 12.2} Q${50 + nw * 0.45} ${ey + 13.1} ${50 + nw} ${ey + 11.7}" stroke="${dk}" stroke-width=".85" fill="none" opacity=".72"/>`
+    + `<path d="M50.8 ${ey + 1.5} L51.4 ${ey + 9.8}" stroke="${hi}" stroke-width="${ns === "broad" ? 1.5 : 1.1}" opacity=".55" stroke-linecap="round"/>`;
+  // age lines: realistic gradual progression (1: subtle, 2: mid-career, 3: veteran)
+  if (f.age >= 1) o += `<path d="M44.6 ${ey + 11.5} Q42.5 ${ey + 14.8} 43.2 ${ey + 17.6} M55.4 ${ey + 11.5} Q57.5 ${ey + 14.8} 56.8 ${ey + 17.6}" stroke="${dk}" stroke-width=".65" fill="none" opacity=".36"/>`;
+  if (f.furrow) o += `<path d="M48.8 ${ey - 4.6} L48.8 ${ey - 1.8} M51.2 ${ey - 4.6} L51.2 ${ey - 1.8}" stroke="${dk}" stroke-width=".8" opacity=".55"/>`;
+  if (f.age >= 2) o += `<path d="M44 ${ey + 10.5} Q41.2 ${ey + 15} 42 ${ey + 19.2} M56 ${ey + 10.5} Q58.8 ${ey + 15} 58 ${ey + 19.2}" stroke="${dk}" stroke-width=".9" fill="none" opacity=".65"/><path d="M41.5 28.5 Q50 27.2 58.5 28.5 M42.5 31.2 Q50 30.2 57.5 31.2" stroke="${dk}" stroke-width=".65" fill="none" opacity=".42"/>`;
+  if (f.age >= 3) o += `<path d="M35.5 ${ey + 0.8} L33.2 ${ey + 2.4} M35.5 ${ey + 2.2} L33.8 ${ey + 3.5} M64.5 ${ey + 0.8} L66.8 ${ey + 2.4} M64.5 ${ey + 2.2} L66.2 ${ey + 3.5} M39.8 ${ey + 4.8} Q42.5 ${ey + 6.4} 45.2 ${ey + 4.8} M54.8 ${ey + 4.8} Q57.5 ${ey + 6.4} 60.2 ${ey + 4.8}" stroke="${dk}" stroke-width=".72" fill="none" opacity=".68"/>`;
+  // mouth & lips
+  const mx1 = 50 - 5.4 * mw, mx2 = 50 + 5.4 * mw;
+  o += `<path d="M${mx1} ${my} Q50 ${my + (f.fem ? 0.9 : 0.4)} ${mx2} ${my}" stroke="${f.fem ? "#7a3934" : "#5a3226"}" stroke-width="1.35" fill="none" stroke-linecap="round"/>`
+    + `<path d="M${50 - 3.6 * mw} ${my + 2.1} Q50 ${my + 3.5} ${50 + 3.6 * mw} ${my + 2.1}" stroke="${dk}" stroke-width=".95" opacity=".52" fill="none"/>`;
+  if (f.fem) o += `<path d="M${mx1 + 0.4} ${my} Q50 ${my - 1.5} ${mx2 - 0.4} ${my} Q50 ${my + 2.3} ${mx1 + 0.4} ${my}Z" fill="${f.age >= 2 ? "#9a4541" : "#b35852"}" opacity=".72"/>`;
+  if (f.must === "full") o += `<path d="M42 ${my - 1.8} Q46 ${my - 5.2} 50 ${my - 3.4} Q54 ${my - 5.2} 58 ${my - 1.8} Q54 ${my - 0.3} 50 ${my - 1.5} Q46 ${my - 0.3} 42 ${my - 1.8}Z" fill="${f.hair}"/>`;
+  if (f.must === "trim") o += `<path d="M44.5 ${my - 2.1} Q50 ${my - 4.1} 55.5 ${my - 2.1} L55 ${my - 1} Q50 ${my - 2.3} 45 ${my - 1}Z" fill="${f.hair}"/><path d="M${jx + 3} 50 Q50 ${my + 9} ${jx2 - 3} 50" stroke="${f.hair}" stroke-width="1.2" opacity=".24" fill="none"/>`;
+  if (f.beard) o += `<path d="M${jx + 1.5} 47 C${jx + 2} 60 43 68.5 50 68.5 C57 68.5 ${jx2 - 2} 60 ${jx2 - 1.5} 47 L${jx2 - 4} 50 C${jx2 - 6} 59 56 ${my + 4} 50 ${my + 4} C44 ${my + 4} ${jx + 6} 59 ${jx + 4} 50Z" fill="${f.hair}" opacity=".9"/>`;
+  // distinct glasses styles: thin (silver modern), bold (dark executive), slim (half-rim)
+  if (f.glass) {
+    const gc = f.glass === "thin" ? "#7e8a94" : f.glass === "slim" ? "#5b5552" : "#1d1d1b", gw = f.glass === "bold" ? 1.35 : 0.95, gh = f.glass === "slim" ? 5.8 : 7.0;
+    o += `<rect x="37" y="${ey - 3.4}" width="11" height="${gh}" rx="2.2" fill="#ffffff" fill-opacity=".07" stroke="${gc}" stroke-width="${gw}"/><rect x="52" y="${ey - 3.4}" width="11" height="${gh}" rx="2.2" fill="#ffffff" fill-opacity=".07" stroke="${gc}" stroke-width="${gw}"/><path d="M48 ${ey - 1} L52 ${ey - 1} M37 ${ey - 1} L${jx} ${ey - 2} M63 ${ey - 1} L${jx2} ${ey - 2}" stroke="${gc}" stroke-width="${gw * 0.9}"/>`;
+  }
+  // civilian hair vs combination cap
+  if (f.civ) {
+    const rc = f.recede ? 2.4 : 0;
+    o += `<path d="M${jx - 1.5} 36 C${jx - 3} 17 38 11.5 50 11.5 C63 11.5 ${jx2 + 3} 17 ${jx2 + 1.5} 36 L${jx2 - 1} 31 C${jx2 - 3} ${22.5 + rc} 60 ${20.2 + rc} 50 ${21.4 + rc * 0.5} C44 ${21 + rc * 0.5} ${jx + 6} ${22 + rc} ${jx + 1} 31Z" fill="${f.hair}"/><path d="M42 14.5 Q47 19 60 19.5" stroke="#00000033" stroke-width="1" fill="none"/>`;
+  } else {
+    o += `<path d="M24 25 C26 11 74 11 76 25 L74 28 L26 28Z" fill="url(#${u}c)"/><rect x="${jx - 1}" y="26" width="${(jx2 - jx) + 2}" height="6" fill="#121417"/>`
+      + `<path d="M${jx - 1} 32 L${jx2 + 1} 32 L${jx2 - 3} 37 Q50 39 ${jx + 3} 37Z" fill="#07090b"/><path d="M${jx + 1} 35.5 Q50 37.8 ${jx2 - 1} 35.5" stroke="#c9a23a" stroke-width="1.3" fill="none"/>`
+      + `<path d="M${jx - 1} 31.5 L${jx2 + 1} 31.5" stroke="#c9a23a" stroke-width="1.1"/>`
+      + `<g transform="translate(50 22.5) scale(.82)"><path d="M-7.5 -1 Q-8 6 0 7.5 Q8 6 7.5 -1" stroke="#d6b04a" stroke-width="1.1" fill="none"/>${[-1, 1].map((s) => [0, 1, 2, 3].map((i) => `<ellipse cx="${s * (7.6 - i * 0.3)}" cy="${-1 + i * 2.3}" rx=".9" ry="1.7" transform="rotate(${s * (-20 + i * 18)} ${s * (7.6 - i * 0.3)} ${-1 + i * 2.3})" fill="#d6b04a"/>`).join("")).join("")}<path d="M0 -7 L0 5.5 M-3.2 -4.6 L3.2 -4.6 M-4.6 1.8 Q-4 5.6 0 5.8 Q4 5.6 4.6 1.8" stroke="#d6b04a" stroke-width="1.3" fill="none" stroke-linecap="round"/><circle cy="-7.6" r="1.3" fill="none" stroke="#d6b04a" stroke-width=".9"/><circle cy="-1.2" r="2.3" fill="#c8313e"/><path d="M-2.3 -1.2 A2.3 2.3 0 0 0 2.3 -1.2 A1.15 1.15 0 0 1 0 -1.2 A1.15 1.15 0 0 0 -2.3 -1.2Z" fill="#1f4aa0"/></g>`; /* 해군 모표: 닻 + 태극 + 월계 잎 */
+  }
   return o + `</svg>`;
 }
 let goalMk = null; /* destination beacon (see goalBeacon) */
@@ -303,7 +357,7 @@ let cmdr = { name: "", face: 0 }; try { const c = JSON.parse(localStorage.getIte
 const cmdrSet = !!cmdr.name; if (!cmdr.name) cmdr.name = "무명";
 let cmdrDraft = cmdr.face;
 function renderCmdr() {
-  $("#cmdrFaces").innerHTML = CMDR_FACES.map((f, i) => `<button class="fc${i === cmdrDraft ? " on" : ""}" data-face="${i}">${face(i, 84)}<small>${f.n}</small></button>`).join("");
+  $("#cmdrFaces").innerHTML = CMDR_FACES.map((f, i) => `<button class="fc${i === cmdrDraft ? " on" : ""}" data-face="${i}">${face(agedFace(i, 0), 84)}<small>${f.n}</small></button>`).join("");
 }
 function openCmdr() { cmdrDraft = cmdr.face; $("#cmdrInput").value = cmdrSet || cmdr.name !== "무명" ? cmdr.name : ""; renderCmdr(); $("#cmdrErr").textContent = ""; $("#cmdrM").style.display = "grid"; setTimeout(() => $("#cmdrInput").focus(), 30); }
 function saveCmdr() {
@@ -814,7 +868,7 @@ const hqBranch = () => (hqAdm() && BRANCHES[staff.adminPost.b] ? staff.adminPost
 function hqNode(r, o, me, fixed) {
   const sk = o && !fixed ? skillOf(o) : 0, g = hqGrade(), lock = !me && !fixed && !profile.admin && !canFill(r.k, g);
   const who = me ? `${ECON_RANKS[g]} ${cmdr.name}` : `${o.rk} ${o.nm}`, sub = me ? `<small>${careerTitle(g, hqBranch())} (나)</small>` : fixed ? "<small>상부 임명</small>" : `<div class="hq-skr"><div class="hq-sk"><i style="width:${sk * 10}%"></i></div><small>${sk}</small></div><em>${TRAITS[o.tr].n}</em>`;
-  return `<button class="hq-node${!me && !fixed && r.k === hqRole ? " on" : ""}${me ? " me" : ""}${fixed ? " fx" : ""}${lock ? " lk" : ""}" ${me || fixed ? "" : `data-role="${r.k}"`}><div class="hq-f">${me ? face(cmdr.face, 44) : staffFace(o, 44)}</div><div class="hq-i"><div class="hq-nm">${me || o.ri >= 0 ? insignia(me ? g : o.ri, 13) : `<i class="nco">${o.rk}</i>`}<b>${who}</b></div>${sub}</div></button>`;
+  return `<button class="hq-node${!me && !fixed && r.k === hqRole ? " on" : ""}${me ? " me" : ""}${fixed ? " fx" : ""}${lock ? " lk" : ""}" ${me || fixed ? "" : `data-role="${r.k}"`}><div class="hq-f">${me ? face(agedFace(cmdr.face, g), 44) : staffFace(o, 44)}</div><div class="hq-i"><div class="hq-nm">${me || o.ri >= 0 ? insignia(me ? g : o.ri, 13) : `<i class="nco">${o.rk}</i>`}<b>${who}</b></div>${sub}</div></button>`;
 }
 function hqEff(k, m) { /* what each department contributes, shown in the grey boxes under it */
   const p = (v, inv) => pctTxt(v, inv);
