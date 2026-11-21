@@ -20,9 +20,10 @@ const DK = (id) => DOCKET.find((d) => d[0] === id);
 function fx(m, k, v, weeks) { (m.fx ??= []).push({ k, v, until: m.week + weeks }); }
 function note(m, t) { (m.notes ??= []).unshift(`${m.week}주차 · ${t}`); m.notes = m.notes.slice(0, 30); (m.headlines ??= []).unshift(`${m.week}주차 · ${t}`); m.headlines = m.headlines.slice(0, 14); }
 
+const hallKey = () => (isUS() ? "steeltide:hall:us" : HK);
 export const minState = () => rd(MK, null);
 const save = (m) => wr(MK, m);
-export const hall = () => rd(HK, []);
+export const hall = () => rd(hallKey(), []);
 export const legacy = () => rd(LK, null);
 
 const mkCmdr = () => ({ name: `${pick(SUR)}${pick(GIV)}`, st: 54 + ((Math.random() * 34) | 0) });
@@ -37,7 +38,7 @@ export function minStart(name) {
   let m = minState();
   if (m && !m.retired) { ensureCmdrs(m); save(m); return m; }
   const L = legacy();
-  m = { week: 1, budget: 16500, support: 60, tension: 34, morale: 72, doctrine: null, prog: { ship: 0, air: 0, kamd: 0, log: 0 }, fx: [], notes: [], headlines: [`${name} 국방부장관 취임 — 36주 임기 시작`], sup: [], bud: [], war: null, wins: 0, fights: 0, docket: [], name, cmdr: {}, retired: false };
+  m = { nat: isUS() ? "us" : "kr", week: 1, budget: 16500, support: 60, tension: 34, morale: 72, doctrine: null, prog: { ship: 0, air: 0, kamd: 0, log: 0 }, fx: [], notes: [], headlines: [isUS() ? `SecDef ${name} 미 국방장관 취임 — 36주 펜타곤 임기 시작` : `${name} 국방부장관 취임 — 36주 임기 시작`], sup: [], bud: [], war: null, wins: 0, fights: 0, docket: [], name, cmdr: {}, retired: false };
   ensureCmdrs(m);
   if (L?.prog) m.prog[L.prog] = 3;
   newWeek(m, true); save(m); return m;
@@ -154,8 +155,8 @@ function termEnd(m) {
   const ok = avg >= 60 && l5 >= 2 && rate >= 80;
   m.retired = true; m.term = { avg, l5, rate, ok };
   const H = hall();
-  H.unshift({ name: m.name, gen: (legacy()?.gen || 1), at: new Date().toISOString().slice(0, 10), avg, l5, rate, ok, doctrine: m.doctrine ? DOCTRINES[m.doctrine].n : "—", prog: { ...m.prog }, face: globalThis.__myFace?.() || null, start: m.started || null });
-  wr(HK, H.slice(0, 40));
+  H.unshift({ name: m.name, nat: isUS() ? "us" : "kr", gen: (legacy()?.gen || 1), at: new Date().toISOString().slice(0, 10), avg, l5, rate, ok, doctrine: m.doctrine ? DOCTRINES[m.doctrine].n : "—", prog: { ...m.prog }, face: globalThis.__myFace?.() || null, start: m.started || null });
+  wr(hallKey(), H.slice(0, 40));
 }
 
 // ── 화면 (1280×720 3열 6탭 국방 경영 레이아웃) ──
@@ -168,7 +169,7 @@ function docHTML(m, id, t, d, opts, meta) {
   const sc = scenesOn() && meta.sc, who = DRAFTER[id] || "기획조정실장", no = `국방정책-${String(2026 * 7 + m.week * 13 + id.length * 97).slice(-4)}`;
   return `<div class="mn-card mn-dk mn-paper" data-dk="${id}"><div class="dh"><div class="dt"><small>국 방 부</small><b>${t}</b><span>문서번호 ${no} · ${m.week}주차 · 보고 ${who}</span></div>
     <table class="kj"><tr><th>기안</th><th>검토</th><th>결재</th></tr><tr><td>${face(who + id, 30, { age: 2 })}<i>${who.replace(/(실장|관)$/, "")}</i></td><td><em class="ok">차관</em></td><td class="me"><em>장관</em></td></tr></table></div>
-    ${meta.mo ? `<span class="mo">실제 사례 모티브 · ${meta.mo}</span>` : ""}<p>${d}</p>${sc ? `<button class="mn-sc" data-min="scene:${id}"><b>${sc === "press" ? "🎤 기자회견장으로 ›" : "🏛 국회 국방위원회 출석 ›"}</b><small>${opts.length}개 답변 중 하나를 고르면 결재됩니다</small></button>` : opts.map(([n, e], i) => `<button data-min="dk:${id}:${i}"><b>${n}</b><small>${e}</small></button>`).join("")}</div>`;
+    ${meta.mo ? `<span class="mo">실제 사례 모티브 · ${meta.mo}</span>` : ""}<p>${d}</p>${sc ? `<button class="mn-sc" data-min="scene:${id}"><b>${sc === "press" ? (isUS() ? "🎤 펜타곤 브리핑룸으로 ›" : "🎤 기자회견장으로 ›") : (isUS() ? "🏛 미 상원 군사위원회 출석 ›" : "🏛 국회 국방위원회 출석 ›")}</b><small>${opts.length}개 답변 중 하나를 고르면 결재됩니다</small></button>` : opts.map(([n, e], i) => `<button data-min="dk:${id}:${i}"><b>${n}</b><small>${e}</small></button>`).join("")}</div>`;
 }
 
 let tab = "desk", ngArm = false;
@@ -302,36 +303,37 @@ export function minAdminEnd(good = true) {
 }
 
 export function galleryHTML() {
-  const m = minState(), H = hall(), F = (h, s) => (globalThis.__faceOf ? globalThis.__faceOf(h.face, s, h.name) : "");
-  const cur = m && !m.retired ? [{ name: m.name, cur: true, face: globalThis.__myFace?.() || null, week: m.week }] : [];
+  const m = minState(), us = isUS(), H = hall(), F = (h, s) => (globalThis.__faceOf ? globalThis.__faceOf(h.face, s, h.name) : "");
+  const sameNat = m && (m.nat ? m.nat === (us ? "us" : "kr") : !us);
+  const cur = sameNat && !m.retired ? [{ name: m.name, cur: true, face: globalThis.__myFace?.() || null, week: m.week }] : [];
   const all = [...cur, ...H], N = H.length;
-  return `<div class="gal"><div class="gal-h"><b>역대 국방부장관</b><small>이 브라우저에서 임기를 마친 장관 ${N}명${cur.length ? " + 현직" : ""} · 게임 속 기록입니다</small><button data-min="galx">닫기 ✕</button></div>
+  return `<div class="gal"><div class="gal-h"><b>${us ? "🇺🇸 역대 미 국방장관 (SecDef)" : "🇰🇷 역대 대한민국 국방부장관"}</b><small>이 브라우저에서 임기를 마친 ${us ? "미 국방장관" : "국방부장관"} ${N}명${cur.length ? " + 현직" : ""} · 게임 속 기록입니다</small><button data-min="galx">닫기 ✕</button></div>
     <div class="gal-g">${all.map((h, i) => { const no = h.cur ? N + 1 : N - (i - cur.length); return `<div class="gal-c ${h.cur ? "cur" : h.ok ? "ok" : ""}"><div class="gal-f">${F(h, 132)}</div><em>제${no}대${h.cur ? " · 현직" : ""}</em><b>${h.name}</b>
       <small>${h.cur ? `재임 ${h.week}주차` : `${h.gen}회차 · ${h.at} 퇴임`}</small>${h.cur ? "" : `<small>${h.ok ? "★ 명예 퇴임" : "임기 종료"} · 지지율 ${h.avg} · 방어율 ${h.rate}%</small><small>교리 ${h.doctrine}</small>`}</div>`; }).join("") || "<small>아직 기록이 없습니다.</small>"}</div></div>`;
 }
 
 export function retireCuts(m) {
-  const T = m.term || {}, ok = T.ok, best = Object.entries(PROGS).filter(([k]) => (m.prog[k] || 0) >= 5).map(([, P]) => P.n);
+  const T = m.term || {}, ok = T.ok, us = isUS(), best = Object.entries(PROGS).filter(([k]) => (m.prog[k] || 0) >= 5).map(([, P]) => P.n);
   const stat = `<h4>${ok ? "명예 퇴임" : "임기 종료"}</h4><div><span>평균 국정 지지율</span><b class="${T.avg >= 60 ? "g" : "r"}">${T.avg}</b></div><div><span>LV5 방위력 개선 사업</span><b class="${T.l5 >= 2 ? "g" : "r"}">${T.l5}개</b></div><div><span>다영역 위기 방어율</span><b class="${T.rate >= 80 ? "g" : "r"}">${T.rate}%</b></div><div><span>남긴 국방 예산</span><b>${won(m.budget)}</b></div>`;
   return [
-    { img: "office", f: [0.55, 0.62, 1.1], to: [0.5, 0.5, 1.02], who: "", text: `${TERM}주의 임기가 끝났습니다. 결재판에는 더 이상 올라올 서류가 없습니다.` },
-    { img: "war_room", f: [0.5, 0.42, 1.12], who: "합참의장", text: `장관님, 마지막 상황 보고입니다. 임기 중 3군 통합 위기 방어율은 ${T.rate}%였습니다.` },
-    { img: "press_minister", f: [0.53, 0.36, 1.7], flash: 4, who: `장관 ${m.name}`, text: ok ? "국민 여러분이 보내 주신 신뢰 덕분에 맡은 임무를 마칠 수 있었습니다. 육·해·공 장병들에게 감사드립니다." : "부족한 점이 많았습니다. 남은 과제는 후임 장관이 잘 이어 갈 것이라 믿습니다." },
-    { img: "ceremony", f: [0.36, 0.68, 1.6], to: [0.5, 0.55, 1.05], who: "사회자", text: `지금부터 ${m.name} 국방부장관 이임식을 거행하겠습니다.${best.length ? ` 재임 중 ${best.join("·")} 사업을 완성했습니다.` : ""}`, card: stat },
-    { img: "ceremony", f: [0.62, 0.62, 1.15], to: [0.5, 0.45, 1.02], flash: 2, who: "", text: ok ? "예포가 울리고, 도열한 장병들이 마지막 경례를 올립니다. 당신의 이름이 명예의 전당에 올랐습니다." : "도열한 장병들이 마지막 경례를 올립니다. 당신의 이름이 역대 장관 기록에 남았습니다." },
+    { img: "office", f: [0.55, 0.62, 1.1], to: [0.5, 0.5, 1.02], who: "", text: `${TERM}주의 ${us ? "펜타곤 " : ""}임기가 끝났습니다. 결재판에는 더 이상 올라올 서류가 없습니다.` },
+    { img: "war_room", f: [0.5, 0.42, 1.12], who: us ? "미 합참의장 (CJCS)" : "합참의장", text: `장관님, 마지막 상황 보고입니다. 임기 중 3군 통합 위기 방어율은 ${T.rate}%였습니다.` },
+    { img: "press_minister", f: [0.53, 0.36, 1.7], flash: 4, who: us ? `SecDef ${m.name}` : `장관 ${m.name}`, text: ok ? "국민 여러분이 보내 주신 신뢰 덕분에 맡은 임무를 마칠 수 있었습니다. 육·해·공 장병들에게 감사드립니다." : "부족한 점이 많았습니다. 남은 과제는 후임 장관이 잘 이어 갈 것이라 믿습니다." },
+    { img: "ceremony", f: [0.36, 0.68, 1.6], to: [0.5, 0.55, 1.05], who: us ? "의전관 (Pentagon)" : "사회자", text: `지금부터 ${m.name} ${us ? "미 국방장관(SecDef)" : "국방부장관"} 이임식을 거행하겠습니다.${best.length ? ` 재임 중 ${best.join("·")} 사업을 완성했습니다.` : ""}`, card: stat },
+    { img: "ceremony", f: [0.62, 0.62, 1.15], to: [0.5, 0.45, 1.02], flash: 2, who: "", text: ok ? "19발의 예포가 울리고, 도열한 3군 의장대가 마지막 경례를 올립니다. 당신의 이름이 명예의 전당에 올랐습니다." : "도열한 장병들이 마지막 경례를 올립니다. 당신의 이름이 역대 장관 기록에 남았습니다." },
     { img: "office", f: [0.3, 0.45, 1.2], to: [0.5, 0.5, 1.02], who: "", text: "제복도, 직함도 내려놓았습니다. 이제 당신은 민간인입니다.", cls: "a" },
   ];
 }
 
 function retiredHTML(m) {
-  const T = m.term, H = hall();
-  return `<div class="mn"><div class="mn-ret"><div class="mn-card big"><h3>${T.ok ? "명예 퇴임" : "임기 종료"}</h3><p>${m.name} 장관 · ${TERM}주 임기</p>
+  const T = m.term, H = hall(), us = isUS();
+  return `<div class="mn"><div class="mn-ret"><div class="mn-card big"><h3>${T.ok ? "명예 퇴임" : "임기 종료"}</h3><p>${us ? `SecDef ${m.name}` : `${m.name} 장관`} · ${TERM}주 임기</p>
     <div class="kv"><span>평균 국정 지지율</span><b class="${T.avg >= 60 ? "g" : "r"}">${T.avg} / 60</b></div><div class="kv"><span>LV5 방위력 개선 사업</span><b class="${T.l5 >= 2 ? "g" : "r"}">${T.l5} / 2</b></div><div class="kv"><span>다영역 위기 방어율</span><b class="${T.rate >= 80 ? "g" : "r"}">${T.rate}% / 80%</b></div>
     <p>${T.ok ? "임기 목표를 모두 달성했습니다. 2회차를 시작하면 특전이 주어집니다: 명예 약장(화력 +10%·초반 봉급 +50%), 완성 사업 1개 LV3 계승, 원수 승진 30% 단축." : "임기 목표를 다 이루지 못했습니다. 2회차를 시작할 수 있지만 특전은 없습니다."}</p>
     ${T.ok ? `<div class="mn-h">계승할 사업 (LV3로 시작)</div><div class="rf">${Object.entries(PROGS).filter(([k]) => (m.prog[k] || 0) >= 5).map(([k, P]) => `<button data-min="inh:${k}" class="${m.inh === k ? "on" : ""}">${P.n}</button>`).join("")}</div>` : ""}
-    ${isUS() ? `<div class="mn-card" style="font-size:12px;color:#9ec2d4">🇺🇸 미국 대통령 선거(538 선거인단) 챕터는 추후 별도 업데이트 예정입니다.</div>` : `<button class="mn-pres" data-pres="start"><b>다음 장 · 대통령 출마 ›</b><small>민간인이 된 당신에게 정당들이 접촉해 오기 시작했습니다.</small></button>`}<button data-min="replay" class="mn-rp">🎬 이임식 다시 보기</button>
+    ${us ? `<div class="mn-card" style="font-size:12px;color:#9ec2d4">🇺🇸 미국 대통령 선거(538 선거인단) 챕터는 추후 별도 업데이트 예정입니다.</div>` : `<button class="mn-pres" data-pres="start"><b>다음 장 · 대통령 출마 ›</b><small>민간인이 된 당신에게 정당들이 접촉해 오기 시작했습니다.</small></button>`}<button data-min="replay" class="mn-rp">🎬 이임식 다시 보기</button>
     <button class="mn-ng ${ngArm ? "arm" : ""}" data-min="ng">${ngArm ? "한 번 더 누르면 커리어·함정·기록이 초기화되고 소위로 다시 시작합니다" : "2회차 시작 (소위부터)"}</button><small>명예의 전당·설정·지휘관 이름은 그대로 남습니다. 이 버튼을 누르지 않으면 지금 커리어로 계속 플레이할 수 있습니다.</small></div>
-    <div class="mn-card"><div class="mn-h">역대 국방부장관 명예의 전당 <button class="mn-tg on" data-min="gal">🖼 초상 갤러리</button></div>${H.map((h) => `<div class="hl ${h.ok ? "ok" : ""}"><b>${h.ok ? "★ " : ""}${h.name}</b><span>${h.gen}회차 · ${h.at}</span><small>지지율 ${h.avg} · LV5 ${h.l5}개 · 방어율 ${h.rate}% · 교리 ${h.doctrine}</small></div>`).join("") || "<small>기록 없음</small>"}</div></div></div>`;
+    <div class="mn-card"><div class="mn-h">${us ? "🇺🇸 역대 미 국방장관 명예의 전당" : "🇰🇷 역대 대한민국 국방부장관 명예의 전당"} <button class="mn-tg on" data-min="gal">🖼 초상 갤러리</button></div>${H.map((h) => `<div class="hl ${h.ok ? "ok" : ""}"><b>${h.ok ? "★ " : ""}${h.name}</b><span>${h.gen}회차 · ${h.at}</span><small>지지율 ${h.avg} · LV5 ${h.l5}개 · 방어율 ${h.rate}% · 교리 ${h.doctrine}</small></div>`).join("") || "<small>기록 없음</small>"}</div></div></div>`;
 }
 
 /** 클릭 처리: 결과 { redraw, direct, directAir, direct3d, reset } */
