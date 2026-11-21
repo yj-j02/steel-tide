@@ -1467,7 +1467,7 @@ function renderDutyDesk() {
     bd.wk && review.waitWeeks > 0 && `재심사까지 안건 진행 ${review.waitWeeks}회`,
   ].filter(Boolean);
   const promotionSummary = g === 9 ? "원수 특별진급 조건 보기" : g > 9 ? "최고 계급 도달" :
-    needs.length ? `남은 조건 · ${needs.join(" · ")}` : automaticCaptain(g) ? "대위 자동진급 조건 충족" : review.seats ? "심사 신청 조건 충족" : "상위 보직 공석 대기";
+    needs.length ? `남은 조건 · ${needs.join(" · ")}` : automaticCaptain(g) ? `${g === 0 ? "중위" : "대위"} 자동진급 조건 충족` : review.seats ? "심사 신청 조건 충족" : "상위 보직 공석 대기";
   $("#hqP").innerHTML = `<div class="hq-tog"><b>${sv.icon} ${sv.n} 장교 커리어 · ${rankLabel(g, svk)} ${cmdr.name}</b><small>${postLabel(B.n)} · ${postLabel(postOf(g))}</small><button data-hqv="org" class="hq-tg2">지휘 계통도 · 참모 ›</button>${career.minister ? `<button data-hqv="min" class="hq-tg2">국방부 집무실 ›</button>` : ""}</div>${admDuty}
     <div class="mn dm-shell">
       <div class="mn-top dm-top">
@@ -1483,7 +1483,7 @@ function renderDutyDesk() {
           ${agenda.length ? `<ul>${agenda.map(([id, title]) => `<li><a href="#${id}">${title}</a></li>`).join("")}</ul>` : "<p>이번 단계 안건을 모두 처리했습니다.</p>"}
         </section>
         <section class="mn-card"><h3>다음 진급</h3><p>${promotionSummary}</p>
-          ${automaticCaptain(g) ? "<p>조건 충족 시 대위 자동진급</p>" : g < 9 ? `<p>예상 심사 ${review.score} / ${review.cutoff}점</p>` : ""}
+          ${automaticCaptain(g) ? `<p>조건 충족 시 ${g === 0 ? "중위" : "대위"} 자동진급</p>` : g < 9 ? `<p>예상 심사 ${review.score} / ${review.cutoff}점</p>` : ""}
           ${g < 10 ? `<a href="#duty-promotion">진급심사 상세 보기</a>` : ""}
         </section>
       </div>

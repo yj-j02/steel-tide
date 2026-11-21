@@ -29,8 +29,8 @@ export function hint(title) {
     back: "지원·교육 경험을 쌓는 자리입니다.",
   }[postTier(title)];
 }
-export const automaticCaptain = (grade) => grade === 1;
-const boardCutoffs = [55, 0, 73, 75, 77, 78, 79, 81, 83];
+export const automaticCaptain = (grade) => grade <= 1;
+const boardCutoffs = [0, 0, 69, 71, 73, 74, 75, 77, 79];
 
 /** Korean commissioning-source promotion modifier (g >= 2): 사관학교 우대, 3사·학사 난이도 상향. */
 export function commissionMod(g) {
@@ -163,7 +163,7 @@ export function settle(g, xp, title, br, svc, preferred) {
     passed = selected.some((r) => r.index === -1);
   const reason = passed
     ? automaticCaptain(g)
-      ? "대위 자동진급"
+      ? (g === 0 ? "중위 자동진급" : "대위 자동진급")
       : "진급 선발"
     : v.score < v.cutoff
       ? "기준 미달 · " +

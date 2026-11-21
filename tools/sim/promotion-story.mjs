@@ -196,11 +196,11 @@ for (const nation of ["kr", "us"]) {
   );
   assert.equal(career.cap, 2);
   assert.equal(settle(1, 2, "시설복구장교", "eng", "army"), null);
-  fixture(2, 35, 75);
+  fixture(2, 35, 68);
   career.medals = { commend: true, service: true, chungmu: true };
   saveDuty({ ...dutyState(), morale:100, rep:100 });
   const routine = preview(...args(2));
-  assert.equal(routine.cutoff, 73);
+  assert.equal(routine.cutoff, 69);
   assert.ok(routine.score < routine.cutoff);
   assert.equal(settle(...args(2)).passed, false);
   fixture(2, 35, 85);
