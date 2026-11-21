@@ -171,160 +171,160 @@ export const MARSHAL_WARS = {
   us: {
     code: "OPERATION PACIFIC VANGUARD",
     title: "인도태평양 전면전 · Operation Pacific Vanguard",
-    subtitle: "DEFCON 1 · U.S. Wartime Supreme Theater Commander Appointed",
+    subtitle: "DEFCON 1 · 전시 연합사령관 임명",
     bg: "img/bg/warroom_us.jpg",
-    medal: "Medal of Honor",
-    marshalTitle: "U.S. 5-Star Marshal (★★★★★ · O-11)",
+    medal: "명예훈장 (Medal of Honor)",
+    marshalTitle: "미군 원수 (★★★★★)",
     nodes: [
-      { id: "strait", x: 76, y: 124, label: "First Island Chain" },
-      { id: "guam", x: 184, y: 132, label: "Okinawa · Guam" },
-      { id: "scs", x: 158, y: 66, label: "South China Sea" },
-      { id: "break", x: 288, y: 88, label: "Fleet Decisive" },
-      { id: "peace", x: 386, y: 74, label: "Pacific Armistice" },
+      { id: "strait", x: 76, y: 124, label: "서태평양" },
+      { id: "guam", x: 184, y: 132, label: "괌 지원본부" },
+      { id: "scs", x: 158, y: 66, label: "남중국해" },
+      { id: "break", x: 288, y: 88, label: "연합회의" },
+      { id: "peace", x: 386, y: 74, label: "태평양 정전" },
     ],
     phases: [
       {
         day: "D+0 · 04:15Z",
         node: 0,
-        title: "Phase 1 · Opening Salvo & First Island Chain Defense",
-        brief: "Simultaneous anti-ship ballistic missile salvos target forward bases in Okinawa and Guam while hostile naval task forces attempt to blockade key Indo-Pacific sea lanes. As newly appointed Supreme Theater Commander under DEFCON 1, set your opening war doctrine.",
+        title: "제1국면 · 괌 지원본부 개설",
+        brief: "태평양 곳곳에서 지원 요청이 도착했습니다. 괌의 연락장교가 오늘 첫 수송편에 무엇을 실을지 묻습니다.",
         choices: [
           {
-            label: "🛡️ Integrated Missile Defense + Distributed Maritime Operations (DMO)",
-            tag: "Balanced Doctrine",
-            desc: "Disperse carrier strike groups beyond A2/AD choke points, activate Aegis Ashore & THAAD shields, and counter-strike launch grids.",
+            label: "공동 배정표 승인",
+            tag: "연합조율",
+            desc: "동맹과 수송 좌석을 나눕니다.",
             dFront: 14, dForce: -6, dCoal: 10, score: 84,
-            sitrep: "Distributed fleet positioning denied enemy targeting satellites. Integrated missile shields intercepted 84% of incoming salvos while preserving core carrier aviation."
+            sitrep: "공동 명단이 완성돼 가족들이 출발 시간을 확인했습니다."
           },
           {
-            label: "⚡ Immediate B-21 & Tomahawk Deep Counter-Strike on Launch Complexes",
-            tag: "High Risk · High Tempo",
-            desc: "Accept early forward damage to shatter enemy C4ISR and coastal missile batteries within 12 hours.",
+            label: "긴급 수송 확대",
+            tag: "일정우선",
+            desc: "예비 인력을 불러 대기열을 줄입니다.",
             dFront: 20, dForce: -14, dCoal: 4, score: 88,
-            sitrep: "Long-range stealth strikes blinded hostile over-the-horizon radar networks, seizing early initiative at the cost of heavy forward airbase repairs."
+            sitrep: "대기열은 짧아졌지만 교대 인력이 줄었습니다."
           },
           {
-            label: "⚓ Allied Naval Escort First · Secure Japan-Korea-Australia Sea Lanes",
-            tag: "Coalition Focus",
-            desc: "Prioritize allied maritime defense and submarine screens to keep Pacific supply arteries unbroken.",
+            label: "필수 서비스 유지",
+            tag: "인력보존",
+            desc: "의무실과 통신실 인력부터 확보합니다.",
             dFront: 10, dForce: -4, dCoal: 12, score: 76,
-            sitrep: "Allied navies held the maritime lifeline intact and coalition unity surged, though forward island garrisons came under intense pressure."
+            sitrep: "현장 진료와 가족 연락망이 밤새 유지됐습니다."
           }
         ]
       },
       {
         day: "D+9 · 16:00Z",
         node: 1,
-        title: "Phase 2 · Battle for Air & Undersea Supremacy",
-        brief: "Enemy nuclear attack submarines threaten Pacific logistics convoys while dense SAM belts contest the skies over the First Island Chain. Three U.S. Carrier Strike Groups and Allied air wings await your campaign order.",
+        title: "제2국면 · 교대 인력과 수송 일정",
+        brief: "현장 인력이 지쳤습니다. 미 본토와 동맹에서 서로 다른 지원안을 보내왔습니다.",
         choices: [
           {
-            label: "✈️ Joint Multi-Domain Air-Sea Dominance (F-35 · Virginia SSN · Cyber)",
-            tag: "Joint Masterstroke",
-            desc: "Synchronize submarine torpedo ambushes, stealth SEAD sorties, and satellite cyber disruption in a single 72-hour blitz.",
+            label: "교대 일정 통합",
+            tag: "공동편성",
+            desc: "동맹 연락관과 근무표를 맞춥니다.",
             dFront: 16, dForce: -5, dCoal: 12, score: 88,
-            sitrep: "In the largest multi-domain battle since 1944, hostile surface action groups lost air cover and withdrew behind coastal waters."
+            sitrep: "교대가 겹치던 시간이 사라졌습니다."
           },
           {
-            label: "🚢 Submarine Wolfpack Blockade · Strangle Hostile Energy & Munitions",
-            tag: "Force Preservation",
-            desc: "Deploy Virginia-class SSNs and P-8A Poseidons to sever enemy maritime resupply while rebuilding forward air wings.",
+            label: "휴식 보장",
+            tag: "회복우선",
+            desc: "대체 인력이 올 때까지 일정을 늦춥니다.",
             dFront: 10, dForce: 6, dCoal: 8, score: 78,
-            sitrep: "Hostile maritime logistics collapsed by 65%, and American forward readiness rebounded with fresh CONUS airlift reinforcements."
+            sitrep: "휴식을 마친 팀이 다음 근무에 복귀했습니다."
           },
           {
-            label: "🔥 Direct Carrier Push into Contested Strait",
-            tag: "Aggressive Gamble",
-            desc: "Drive three Carrier Strike Groups straight into the contested strait to force an immediate decisive fleet engagement.",
+            label: "추가 근무 요청",
+            tag: "처리속도",
+            desc: "밀린 수송 접수를 오늘 마칩니다.",
             dFront: 19, dForce: -16, dCoal: 2, score: 76,
-            sitrep: "U.S. naval aviators sank two hostile capital ships, but dense anti-ship missile volleys heavily damaged two escort destroyers."
+            sitrep: "접수는 끝났지만 다음 근무조가 피로를 호소합니다."
           }
         ]
       },
       {
         day: "D+21 · 06:00Z",
         node: 2,
-        title: "Phase 3 · Grand Counteroffensive — Breaking the Blockade",
-        brief: "Hostile air and naval reserves are stretched thin. The Joint Chiefs and Allied capitals endorse a decisive counteroffensive to reopen the Western Pacific.",
+        title: "제3국면 · 고립 지역 지원 재개",
+        brief: "고립됐던 항구가 열렸습니다. 부두에는 주민과 구호 인력이 함께 기다리고 있습니다.",
         choices: [
           {
-            label: "⚔️ Twin-Axis Allied Amphibious & Carrier Breakthrough",
-            tag: "5-Star Maneuver",
-            desc: "Pair a Marine Littoral Regiment island-hopping thrust with a flanking Allied carrier-amphibious pincer to collapse the blockade.",
+            label: "합동 접수소 개설",
+            tag: "민간지원",
+            desc: "현지 당국과 지원 창구를 합칩니다.",
             dFront: 18, dForce: -7, dCoal: 12, score: 92,
-            sitrep: "The twin-axis pincer shattered the blockade in 96 hours. Allied forces retook key chokepoints and captured intact radar installations."
+            sitrep: "가족들이 한 번의 신청으로 식수와 숙소를 배정받습니다."
           },
           {
-            label: "🎯 Stand-Off Attrition · Long-Range Precision Fires Before Advance",
-            tag: "Low Casualty",
-            desc: "Expend JASSM-ER and LRASM stockpiles over five days to neutralize coastal defenses before committing amphibious forces.",
+            label: "시설 점검 우선",
+            tag: "시설안전",
+            desc: "부두를 검사한 뒤 일정을 공개합니다.",
             dFront: 11, dForce: -2, dCoal: 10, score: 80,
-            sitrep: "Casualties stayed remarkably low and public support remained firm, though hostile fleet remnants escaped to fortified ports."
+            sitrep: "점검을 마친 부두에 구호 물자가 들어왔습니다."
           },
           {
-            label: "🚀 High-Speed Task Force Raid on Enemy Fleet Headquarters",
-            tag: "Bold Strike",
-            desc: "Launch a daring high-speed naval and airborne raid straight toward enemy theater command nodes.",
+            label: "임시편 증편",
+            tag: "긴급수송",
+            desc: "예비 인력을 모아 운항 횟수를 늘립니다.",
             dFront: 21, dForce: -15, dCoal: -4, score: 82,
-            sitrep: "The raid stunned enemy leadership and disrupted their chain of command, though extended tanker and escort lines suffered heavy strain."
+            sitrep: "당일 수송량이 늘고 정비 시간이 줄었습니다."
           }
         ]
       },
       {
         day: "D+34 · 22:30Z",
         node: 3,
-        title: "Phase 4 · Strategic Escalation & Nuclear Deterrence Crisis",
-        brief: "Facing decisive conventional defeat, hostile strategic forces raise nuclear readiness levels. The President convenes the National Security Council and asks for your theater assessment.",
+        title: "제4국면 · 백악관 위기 협의",
+        brief: "국가안보회의(NSC)가 소집됐습니다. 대통령은 현장의 민간인 보호 상황과 동맹의 입장을 함께 보고받길 원합니다.",
         choices: [
           {
-            label: "🛰️ Ironclad Strategic Triad Alert + Controlled Conventional De-escalation Corridor",
-            tag: "Masterful Deterrence",
-            desc: "Demonstrate unmistakable nuclear deterrence via SSBN/B-2 posture while signaling strict limits on mainland strikes to prevent miscalculation.",
+            label: "공동 브리핑",
+            tag: "동맹협의",
+            desc: "동맹 대표와 함께 상황을 설명합니다.",
             dFront: 12, dForce: -3, dCoal: 14, score: 92,
-            sitrep: "Your calibrated deterrence held the line: hostile strategic forces stood down from launch alert while U.S. conventional dominance remained intact."
+            sitrep: "서로 달랐던 집계 기준이 정리됐습니다."
           },
           {
-            label: "📡 Backchannel Military-to-Military Hotline with Allied Diplomatic Backing",
-            tag: "Diplomatic Leverage",
-            desc: "Open an urgent theater hotline alongside Allied capitals to lock in red lines and isolate hardliners.",
+            label: "연락망 복구",
+            tag: "사실확인",
+            desc: "현장 연락관에게 확인 시간을 줍니다.",
             dFront: 9, dForce: 2, dCoal: 12, score: 82,
-            sitrep: "Direct military-to-military communication defused the nuclear flashpoint and rallied neutral nations behind the Allied peace framework."
+            sitrep: "흩어졌던 신고 기록이 한 명단으로 모였습니다."
           },
           {
-            label: "💣 Expand Deep Strikes Against Strategic Infrastructure",
-            tag: "Escalatory Risk",
-            desc: "Press total military pressure by striking inland dual-use command and power networks.",
+            label: "독자 발표",
+            tag: "신속발표",
+            desc: "확인된 미국 측 수치부터 공개합니다.",
             dFront: 14, dForce: -9, dCoal: -14, score: 68,
-            sitrep: "Enemy resistance fractured further, but severe escalation fears fractured coalition support in Europe and Asia."
+            sitrep: "발표는 빨랐지만 동맹 측 집계와 차이가 생겼습니다."
           }
         ]
       },
       {
         day: "D+48 · 10:00Z",
         node: 4,
-        title: "Phase 5 · Decisive Victory & Pacific Armistice",
-        brief: "Hostile naval and air power in the Western Pacific is effectively neutralized. One final command decision will define the postwar order and your place in military history.",
+        title: "제5국면 · 태평양 정전 협정",
+        brief: "정전 문안이 도착했습니다. 대표단은 서명 직후 무엇부터 이행할지 결정을 기다립니다.",
         choices: [
           {
-            label: "🏛️ Formal Surrender of Theater Forces & Allied Freedom-of-Navigation Charter",
-            tag: "Decisive Victory · 5-Star Legacy",
-            desc: "Enforce verifiable demilitarization of contested chokepoints aboard the flagship and establish a permanent Allied security charter.",
+            label: "공동 이행위 출범",
+            tag: "공동감독",
+            desc: "동맹과 정전 이행 일정을 정합니다.",
             dFront: 12, dForce: -2, dCoal: 14, score: 94,
-            sitrep: "Aboard the flagship, theater armistice terms were signed under Allied terms. Congress prepares a joint resolution conferring the historic 5-star rank."
+            sitrep: "첫 회의에서 귀환 일정과 조사 절차가 확정됐습니다."
           },
           {
-            label: "🤝 Immediate Ceasefire & Rapid Force Demobilization",
-            tag: "Pragmatic Peace",
-            desc: "Halt operations immediately on favorable lines to bring American service members home swiftly.",
+            label: "단계별 귀환",
+            tag: "순차복귀",
+            desc: "의료 지원을 유지하며 순차 귀환합니다.",
             dFront: 6, dForce: 5, dCoal: 8, score: 76,
-            sitrep: "The guns fell silent across the Pacific and troops returned home safely, though critics debate leaving disputed waters unresolved."
+            sitrep: "첫 귀환편이 도착했고 현장 진료소도 업무를 이어갑니다."
           },
           {
-            label: "⚔️ Continue Naval Blockade Until Total Unconditional Capitulation",
-            tag: "Hardline Finish",
-            desc: "Maintain full wartime blockade until every hostile port surrenders unconditionally.",
+            label: "조기 인계",
+            tag: "현지이관",
+            desc: "현장 업무를 지역 당국에 일괄 인계합니다.",
             dFront: 14, dForce: -13, dCoal: -6, score: 78,
-            sitrep: "Total capitulation was achieved, yet weeks of prolonged blockade strained global trade and cost additional Allied lives."
+            sitrep: "인계는 끝났지만 미결 지원 요청이 남았습니다."
           }
         ]
       }
@@ -413,7 +413,7 @@ function theaterSVG(war, curIdx) {
   </svg>`;
 }
 
-export function openMarshalWar({ nation = "kr", rankName = "대장", cmdrName = "지휘관", onComplete }) {
+export function openMarshalWar({ nation = "kr", marshalWins = 0, marshalTitle, rankName = "대장", cmdrName = "지휘관", onComplete }) {
   injectStyles();
   const war = nation === "us" ? MARSHAL_WARS.us : MARSHAL_WARS.kr;
   let el = document.getElementById("marshalWarM");
@@ -423,14 +423,15 @@ export function openMarshalWar({ nation = "kr", rankName = "대장", cmdrName = 
     document.body.appendChild(el);
   }
 
+  const wins = Math.min(3, Math.max(0, Math.trunc(Number(marshalWins) || 0)));
   const state = {
     idx: 0,
     front: 42,
-    force: 85,
+    force: 85 + 4 * wins,
     coal: 80,
-    score: 0,
+    score: 10 * wins,
     sitrep: null,
-    logs: [`[개전] ${rankName} ${cmdrName}, 전시 총사령관 취임 · DEFCON 1 발령`],
+    logs: [`[개전] ${rankName} ${cmdrName}, 전시 총사령관 취임 · DEFCON 1 발령`, `전시 대비 공적 ${wins}회 반영 · 초기 전력 +${4*wins}%p · 전공 +${10*wins}점`],
     finished: false,
   };
 
@@ -445,7 +446,7 @@ export function openMarshalWar({ nation = "kr", rankName = "대장", cmdrName = 
     let rightHTML = "";
     if (state.finished) {
       const verdictTitle = won
-        ? `🏆 완전 승전! ${war.marshalTitle} 추대 의결`
+        ? `🏆 완전 승전! ${marshalTitle || war.marshalTitle} 추대 의결`
         : stalemate
           ? "⚔️ 전선 방어 성공 · 원수 추대 기준 미달"
           : "⚠️ 작전 고전 · 전구 재정비 필요";
@@ -482,7 +483,7 @@ export function openMarshalWar({ nation = "kr", rankName = "대장", cmdrName = 
     el.innerHTML = `<div class="mw-shell">
       <div class="mw-top">
         <div>
-          <div class="mw-code">🚨 ${war.code} · 5-STAR MARSHAL CAMPAIGN</div>
+          <div class="mw-code">🚨 ${war.code} · 원수 전시 총력전</div>
           <div class="mw-title">${war.title}</div>
           <div class="mw-sub">${war.subtitle}</div>
         </div>
@@ -492,7 +493,7 @@ export function openMarshalWar({ nation = "kr", rankName = "대장", cmdrName = 
         <div class="mw-stat"><small>전선 우세도 (목표 70%+)</small><b>${state.front}%</b><div class="mw-bar"><i style="width:${state.front}%"></i></div></div>
         <div class="mw-stat"><small>전력 보존율 (목표 40%+)</small><b>${state.force}%</b><div class="mw-bar"><i style="width:${state.force}%"></i></div></div>
         <div class="mw-stat"><small>동맹·국민 결속</small><b>${state.coal}%</b><div class="mw-bar"><i style="width:${state.coal}%"></i></div></div>
-        <div class="mw-stat"><small>전공 점수 (원수 380+)</small><b>${state.score} / 460</b><div class="mw-bar"><i style="width:${Math.min(100, Math.round(state.score / 4.6))}%"></i></div></div>
+        <div class="mw-stat"><small>전공 점수 (원수 380+)</small><b>${state.score}점</b><div class="mw-bar"><i style="width:${Math.min(100, Math.round(state.score / 4.6))}%"></i></div></div>
       </div>
       <div class="mw-body">
         <div class="mw-map">

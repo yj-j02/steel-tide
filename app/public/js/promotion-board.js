@@ -88,8 +88,10 @@ export function preview(g, xp, title, br, svc, d = dutyState()) {
   const moraleBonus =
     senior ? Math.round(bound(((d.morale ?? 70) - 70) / 15, 2)) : 0;
   const routeMod = commissionMod(g);
+  const jointBonus = cmd && joint ? 5 : 0;
+  const educationBonus = tours.edu && g >= 3 ? (g >= 5 ? 6 : 3) : 0;
   const bonus =
-    (cmd && joint ? 5 : 0) + (tours.edu && g >= 3 ? (g >= 5 ? 6 : 3) : 0) + moraleBonus + Math.max(0, routeMod.delta);
+    jointBonus + educationBonus + moraleBonus + Math.max(0, routeMod.delta);
   const penalty =
     bound(
       (d.auditByGrade?.[g] || 0) * 4 + ((d.lowMoraleWeeks || 0) >= 2 ? 4 : 0),
@@ -134,7 +136,7 @@ export function preview(g, xp, title, br, svc, d = dutyState()) {
     cutoff,
     score,
     bonus,
-    moraleBonus,
+    moraleBonus, jointBonus, educationBonus,
     penalty,
     season,
     seats,

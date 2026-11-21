@@ -180,7 +180,7 @@ export function usPresHTML() {
       <div class="mn-col">
         <div class="mn-h">${inWH ? "🏛️ 백악관 오벌 오피스 결재판" : "🗳️ 대선 캠프 결재판"}</div>
         <div class="mn-card mn-dk mn-paper" style="border-color:${s.party === "red" ? "#e06464" : "#5da8e8"}">
-          <div class="dh"><div class="dt"><small>${inWH ? "THE WHITE HOUSE · EXECUTIVE ACTION" : "U.S. PRESIDENTIAL CAMPAIGN"}</small><b>${esc(title)}</b></div></div>
+          <div class="dh"><div class="dt"><small>${inWH ? "백악관 · 대통령 결재" : "미국 대통령 선거"}</small><b>${esc(title)}</b></div></div>
           <p>${esc(desc)}</p>${inWH ? followUp(s,quarterIndex,s.phase+":"+s.quarter) : ""}
           ${s.serviceDecision && (s.phase === "declare" || (s.phase === "debate" && s.turn === 3)) ? `<p class="campaign-service-record"><b>인사기록 · ${esc(s.serviceDecision.date)}</b><br>${esc(s.serviceDecision.outcome)}</p>` : ""}
           <div style="display:flex;flex-direction:column;gap:6px;margin-top:8px">${btns || `<button class="mn-go" data-uspres="reset">↺ 새 대선 캠페인 시작</button>`}${replayableElection(s) ? `<button data-uspres="replay-election">개표 결과 연출 다시 보기</button>` : ""}</div>
@@ -205,11 +205,11 @@ function usElectionCuts(kind, s) {
   const nm = esc(s.name || "Commander");
   const ev = s.results ? Object.values(s.results).reduce((a, b) => a + b, 0) : 270;
   if (kind === "win") return {
-    cutTitle: "U.S. Presidential Inauguration",
-    cutPlace: "Washington, D.C. · Capitol & White House",
+    cutTitle: "미국 대통령 취임식",
+    cutPlace: "워싱턴 D.C. · 연방의회 의사당과 백악관",
     cuts: [
       { img: "us_inauguration", flash: 2, card: `<img src="img/us_potus_mark.png" alt="POTUS Seal" style="height:76px;display:block;margin:0 auto 8px"><b style="color:#ffd166;letter-spacing:.12em">PRESIDENT OF THE UNITED STATES</b>`, who: `${nm} · 취임 선서`, text: "“나는 미합중국 대통령의 직무를 성실히 수행하고, 최선을 다해 미합중국 헌법을 보존·보호·수호할 것을 엄숙히 선서합니다.”" },
-      { img: "us_oval_office", who: "THE WHITE HOUSE · OVAL OFFICE", text: `Hail to the Chief가 울려 퍼집니다. 이제 미합중국 제${s.term}기 대통령 겸 국군통수권자(Commander-in-Chief)로서 백악관 집무를 시작합니다.` },
+      { img: "us_oval_office", who: "백악관 대통령 집무실 (Oval Office)", text: `Hail to the Chief가 울려 퍼집니다. 이제 미합중국 제${s.term}기 대통령 겸 국군통수권자(Commander-in-Chief)로서 백악관 집무를 시작합니다.` },
     ],
   };
   if (kind === "elected" || kind === "loss") {
@@ -232,7 +232,7 @@ function usElectionCuts(kind, s) {
   }
   return {
     cutTitle: "Presidential Farewell",
-    cutPlace: "The White House · End of Term",
+    cutPlace: "백악관 · 임기 종료",
     cuts: [
       { img: "us_oval_office", who: `${nm} · 퇴임 연설`, text: `제${s.term}기 임기를 마치고 오벌 오피스(Oval Office) 책상 위에 후임 대통령을 위한 편지를 남깁니다.` },
       { img: "us_inauguration", flash: 1, card: `<img src="img/us_potus_mark.png" alt="POTUS Seal" style="height:68px;display:block;margin:0 auto 8px"><b style="color:#ffd166">FORMER PRESIDENT OF THE UNITED STATES</b>`, who: "THE GENERAL · EPILOGUE", text: "신임 장교(O-1) 임관에서 미합중국 대통령까지 — 위대한 복무의 여정을 명예롭게 마무리했습니다." },

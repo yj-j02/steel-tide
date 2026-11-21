@@ -391,13 +391,13 @@ export function resolveWarroom(choiceIdx, grade) {
   const total = d.warroom.score, ng = ngBonuses();
   let evalSc = 58, xpGain = Math.round(260 * ng.xpMult), gradeTxt = "대응 차질", hl = `[워룸 결산] ${scObj.tag} — 대응 차질 (통제력 ${total}점)`;
   if (total >= 250) {
-    evalSc = 95; xpGain = Math.round(900 * ng.xpMult); gradeTxt = "🏆 완벽 제압 (원수 특별진급 공적 +1)";
+    evalSc = 95; xpGain = Math.round(900 * ng.xpMult); gradeTxt = "🏆 완벽 제압 (원수 전시 대비 공적 +1 (전면전 초기 보너스))";
     d.rep = clamp(d.rep + 6, 0, 100); d.morale = clamp(d.morale + 5, 10, 100); d.tension = clamp(d.tension - 8, 5, 95);
     career.marshalWins = (career.marshalWins || 0) + 1;
     career.warHero = (career.warHero || 0) + 1;
     (career.crisisWins ??= {})[grade] = (career.crisisWins[grade] || 0) + 1;
     saveCareer();
-    hl = `[워룸 대승] ${scObj.tag} 완벽 제압! (통제력 ${total}점 · 원수 특별진급 공적 획득)`;
+    hl = `[워룸 대승] ${scObj.tag} 완벽 제압! (통제력 ${total}점 · 원수 전시 대비 공적 +1 (전면전 초기 보너스))`;
   } else if (total >= 180) {
     evalSc = 84; xpGain = Math.round(550 * ng.xpMult); gradeTxt = "✅ 위기 안정화";
     d.rep = clamp(d.rep + 3, 0, 100); d.tension = clamp(d.tension - 5, 5, 95);

@@ -74,10 +74,10 @@ export function ensureGlobalState(s) {
   if (s.world == null) s.world = 68;
   if (s.econ == null) s.econ = 66;
   if (s.sec == null) s.sec = 72;
-  if (!s.theaters) {
-    s.theaters = { indopac: 62, europe: 66, mideast: 54, americas: 74, econ: 68, space: 72 };
-  }
-  if (!s.selTheater) s.selTheater = "indopac";
+  const defaults = { indopac: 62, europe: 66, mideast: 54, americas: 74, econ: 68, space: 72 };
+  if (!s.theaters || typeof s.theaters !== "object" || Array.isArray(s.theaters)) s.theaters = {};
+  for (const [id, value] of Object.entries(defaults)) if (!Number.isFinite(s.theaters[id])) s.theaters[id] = value;
+  if (!Object.hasOwn(defaults, s.selTheater)) s.selTheater = "indopac";
   return s;
 }
 

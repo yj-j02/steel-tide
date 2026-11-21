@@ -1,7 +1,7 @@
 import { careerStorage } from "./characters.js";
 // Fleet headquarters staff (modern era). Appointments shape every modern battle, auto battles included,
 // through a handful of multipliers the battle code already exposes: hull damage in/out, gun reload, repair crews, jets.
-import { US_SERVICES, US_BRANCHES, US_FLAG_POSTS, usNpcName, koreanUsRanks, usRankName } from "./us-ranks.js";
+import { US_SVC_ORG, US_SERVICES, US_BRANCHES, US_FLAG_POSTS, usNpcName, koreanUsRanks, usRankName } from "./us-ranks.js";
 
 const clamp01 = (v, a, b) => Math.min(b, Math.max(a, v));
 
@@ -125,7 +125,28 @@ export const ECH = [
   { u: "해군작전사령부", g: [8, 10], rk: "장성·영관", t: { cos: "참모장", ops: "작전처장", int: "정보처장", log: "군수처장", air: "항공처장" } },
 ];
 export const echOf = (grade) => (grade <= 2 ? 0 : grade <= 5 ? 1 : grade <= 7 ? 2 : 3);
-export const roleTitle = (k, grade) => ECH[echOf(grade)].t[k];
+const units = {
+  army: ["대대", "여단 참모부", "사단 참모부", "지상작전사령부"],
+  navy: ECH.map(e => e.u),
+  air: ["비행대대", "전대 참모부", "비행단 참모부", "공군작전사령부"],
+};
+export function echelonName(grade) {
+  const svc = serviceOf(staff.branch), tier = echOf(grade);
+  if (!isUS()) return units[svc][tier];
+  const en = tier === 3 ? "Pentagon" : US_SVC_ORG[svc].ech[tier];
+  return koreanUsRanks() ? (tier === 3 ? "미 국방부 (Pentagon)" : units[svc][tier] + " (" + en + ")") : en;
+}
+export function roleTitle(k, grade) {
+  const tier = echOf(grade), svc = serviceOf(staff.branch);
+  const ko = svc === "navy" ? ECH[tier].t[k] :
+    ({ cos: ["선임부사관","부지휘관","참모장","참모장"], ops: ["작전 부사관","작전장교","작전참모","작전처장"],
+       int: ["정보 부사관","정보장교","정보참모","정보처장"], log: ["군수 부사관","군수장교","군수참모","군수처장"],
+       air: svc === "army" ? ["지원 부사관","지원장교","지원참모","지원처장"] : ["정비 부사관","정비장교","정비참모","정비처장"] })[k][tier];
+  if (!isUS() || koreanUsRanks()) return ko;
+  if (k === "cos") return ["Senior Enlisted Advisor","Executive Officer","Chief of Staff","Chief of Staff"][tier];
+  const field = { ops: "Operations", int: "Intelligence", log: "Logistics", air: svc === "army" ? "Support" : svc === "air" ? "Maintenance" : "Aviation" }[k];
+  return field + " " + ["NCO","Officer","Chief","Director"][tier];
+}
 /* fictional junior candidates for the three smaller echelons (names are made up) */
 const NCO = ["하사", "중사", "상사", "원사"], SUR = "김이박최정강조윤장임한오서신권황안송류홍", GIV = ["태호", "정민", "도현", "승원", "우석", "민혁", "현수", "재석", "기훈", "성택", "동욱", "세훈", "지원", "우진", "혁준", "민규", "성우", "재현", "현철", "상민"];
 const GEN = [], GEN_US = [], US_NCO = ["SGT", "SSG", "SFC", "CSM"];

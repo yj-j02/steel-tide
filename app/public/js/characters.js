@@ -1,3 +1,4 @@
+import { ensureGlobalState } from "./us-global.js";
 const manifestKey = "steeltide:characters";
 const prefix = "steeltide:character:";
 const scoped = new Set([
@@ -40,12 +41,38 @@ function resolveKey(key) {
     : key;
 }
 
+const versioned = new Set(["steeltide:career", "steeltide:duty", "steeltide:uspres"]);
+function migrate(key, value) {
+  if (!value || !versioned.has(key)) return value;
+  let data;
+  try { data = JSON.parse(value); } catch { return value; }
+  if (!data || typeof data !== "object" || Array.isArray(data) || data.saveVersion >= 1) return value;
+  if (key === "steeltide:career") data.marshalWins = Math.max(0, Math.floor(Number(data.marshalWins) || 0));
+  if (key === "steeltide:duty") {
+    if (!data.arcChoices || typeof data.arcChoices !== "object" || Array.isArray(data.arcChoices)) data.arcChoices = {};
+    for (const grade of Object.keys(data.arcChoices)) if (!Array.isArray(data.arcChoices[grade])) delete data.arcChoices[grade];
+    if (Array.isArray(data.rivals)) {
+      data.rivals = data.rivals.filter(r => r && typeof r === "object");
+      for (const rival of data.rivals) if (!Number.isFinite(rival.rel)) rival.rel = 50;
+    } else delete data.rivals;
+    data.rivalEvent ??= null;
+  }
+  if (key === "steeltide:uspres" && data.term > 0) ensureGlobalState(data);
+  data.saveVersion = 1;
+  return JSON.stringify(data);
+}
 export const careerStorage = {
-  getItem: key => raw().getItem(resolveKey(key)),
+  getItem(key) {
+    const target = resolveKey(key), value = raw().getItem(target), updated = migrate(key, value);
+    if (updated !== value) {
+      try { raw().setItem(target, updated); } catch { /* Read the migrated record even when storage is full. */ }
+    }
+    return updated;
+  },
   setItem(key, value) {
     const target = resolveKey(key);
     if (target !== key && active && !manifest().slots.some(s => s.id === active && !s.archived)) return;
-    raw().setItem(target, value);
+    raw().setItem(target, migrate(key, value));
   },
   removeItem(key) {
     const target = resolveKey(key);
