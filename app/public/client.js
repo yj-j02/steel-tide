@@ -1101,6 +1101,49 @@ function tierAuthHTML(g) {
   if (g <= 5) return `<div class="mn-card" style="padding:8px 12px;border-left:3px solid #f2ca5c"><b>📋 영관 권한 해금 (소령~대령)</b><small style="display:block;color:#e4d9b5">부대 운영 · 공통 융합 트랙 전과 가능 · 진급 심사에서 주요 보직 경력과 평정이 크게 작용합니다.</small></div>`;
   return `<div class="mn-card" style="padding:8px 12px;border-left:3px solid #ff9b5e"><b>⭐ 장성 권한 해금 (준장~대장)</b><small style="display:block;color:#f0cbb4">사령부 참모 인사권 · 합동 워룸 개입 · 대장 도달 시 국방부장관 임명 및 원수 특별진급 도전 가능.</small></div>`;
 }
+let lastShownReview = null;
+function openPromotionBoard(g, br, svk, automatic = false) {
+  const title = postOf(g), v = boardPreview(g, xpGrade(), title, br, svk);
+  if (!v.ready || !v.seats || $(".bd-modal[open]") || $("#promoM").style.display === "flex") return;
+  const reviewKey = `${isUS() ? "us" : "kr"}:${g}:${v.season}`;
+  if (automatic && reviewKey === lastShownReview) return;
+  lastShownReview = reviewKey;
+  const dialog=document.createElement("dialog"); dialog.className="bd-modal";
+  const vacantTitles=new Set(v.vacant.map(p=>p.t));
+  dialog.innerHTML=`<h2>제${v.season}차 정기 진급심사</h2>${v.parts.map(([n,s])=>`<p>${n}<b>${s}점</b></p>`).join("")}<p>경력 가점 +${v.bonus} / 감점 −${v.penalty}</p><p>합계 ${v.score}점 · 기준 ${v.cutoff}점</p><p>정원 ${v.seats} · 동점 시 현 차수 플레이어 우선</p>${v.rivals.map(r=>`<p>${r.name} · ${r.score}점</p>`).join("")}${g===8?`<label>희망 4성 보직 <select>${v.posts.map(p=>`<option ${vacantTitles.has(p.t)?"":"disabled"} value="${p.t}">${p.t}${vacantTitles.has(p.t)?"":" · 동기 재임 중"}</option>`).join("")}</select></label>`:""}<button data-submit>심사 결과 확정</button><button data-dismiss>나중에</button>`;
+  document.body.append(dialog);dialog.showModal();dialog.onclose=()=>dialog.remove();
+  dialog.querySelector("[data-dismiss]").onclick=()=>dialog.close();
+  const preferred=()=>dialog.querySelector("select")?.value;
+  const confirmBoard=()=>{
+    const result=settle(g,xpGrade(),title,br,svk,preferred());
+    if(!result){dialog.close();renderDutyDesk();return;}
+    if(result.passed)logPromotion({g:g+1,t:postOf(g+1),b:curBranches()[br].n,why:result.reason});
+    const finish=()=>{ dialog.close();refreshMenus();
+      if(result.passed){pmOpts=null;buildPromo(g,g+1);$("#promoM").style.display="flex";fanfare(g+1,br);}
+      if(career.discharged)renderHQ();else renderDutyDesk();
+    };
+    dialog.innerHTML=`<h2>${result.reason}</h2><p>${result.score}점 · ${result.passed?(g===2?"영관 보직 트랙 선택":g===5?(isUS()?"미 상원 인준 · 게임용 절차":"국방부 장성인사심사 통과"):"진급 인사명령"):"다음 심사에서 다시 평가합니다."}</p><button>확인</button>`;
+    dialog.querySelector("button").onclick=()=>{
+      if(result.passed&&g===5&&!isUS()){
+        dialog.innerHTML="<h2>삼정검 수여식</h2><p>가족과 동료들이 지켜보는 가운데 이름이 호명됩니다. 삼정검을 받아 들고 새 지휘 책임을 인수합니다.</p><button>장성 인사명령서 열기</button>";
+        dialog.querySelector("button").onclick=finish;
+      }else finish();
+    };
+    dialog.oncancel=e=>e.preventDefault();
+  };
+  const hearing=[
+    ["문민 통제", "위원장이 의회의 자료 요구에 어떻게 대응할지 묻습니다.", "공개 가능한 자료와 제출 기한을 명시한다", "비공개 회의에서 감독위원에게 설명한다"],
+    ["국방 예산", "지역구 일자리와 장비 정비 예산이 충돌합니다.", "사업별 비용 추계를 제출한다", "현장 노동자 증언을 청취한다"],
+    ["장병 가족", "장기 대기 중인 관사 보수 요청이 증언대에 올랐습니다.", "처리 현황 공개를 약속한다", "가족 대표와 분기별로 면담한다"]
+  ];
+  function question(step, record){
+    if(step===hearing.length){career.hearing=record;confirmBoard();return;}
+    const [topic,prompt,...answers]=hearing[step];
+    dialog.innerHTML=`<h2>상원 군사위원회 · 인준 청문회</h2><p>${step+1}/3 · ${topic}</p><p>${prompt}</p>${answers.map((a,i)=>`<button data-answer="${i}">${a}</button>`).join("")}`;
+    for(const b of dialog.querySelectorAll("button"))b.onclick=()=>question(step+1,[...record,answers[Number(b.dataset.answer)]]);
+  }
+  dialog.querySelector("[data-submit]").onclick=()=>g===5&&isUS()?question(0,[]):confirmBoard();
+}
 function renderDutyDesk() {
   const g = myGrade(), br = normBranch(staff.branch), BR = curBranches(), SV = curServices(), B = BR[br], svk = serviceOf(br), sv = SV[svk] || SV.navy;
   const d = ensureDuty(svk, g, postOf(g)), rl = rankLine(), ev = evalOf(g), bd = board(g, xpGrade());
@@ -1146,6 +1189,7 @@ function renderDutyDesk() {
         <aside class="dm-side">${globalThis.__careerProfileHTML()}${rivalsHTML}<div class="mn-card dm-news"><div class="mn-h">📰 군 내부 · 언론 헤드라인</div>${(d.headlines || []).slice(0, 7).map((h) => `<small>• ${h}</small>`).join("")}</div></aside>
       </div>
     </div>`;
+  openPromotionBoard(g, br, svk, true);
 }
 function renderTrackView() {
   const g = myGrade(), br = normBranch(staff.branch), SV = curServices(), BR = curBranches(), sv = SV[serviceOf(br)] || SV.navy;
@@ -1354,46 +1398,7 @@ $("#hqP").addEventListener("click", (e) => {
   const svb = e.target.closest("[data-svc]"); if (svb) { sfx.click(); svcDraft = svb.dataset.svc; setService(svcDraft); showcase(flagshipId()); renderBranchPick(); return; }
   const dy = e.target.closest("[data-duty]"); if (dy) { if (dy.disabled) return; sfx.click(); const a = dy.dataset.duty, g = myGrade(), br = normBranch(staff.branch), svk = serviceOf(br);
     if (a.startsWith("deputy-") || ["study","share","solo"].includes(a)) { interact(a,g); renderDutyDesk(); return; }
-    if (a === "review") {
-      const title=postOf(g), v=boardPreview(g,xpGrade(),title,br,svk);
-      if (!v.ready || !v.seats) return;
-      const dialog=document.createElement("dialog"); dialog.className="bd-modal";
-      const vacantTitles=new Set(v.vacant.map(p=>p.t));
-      dialog.innerHTML=`<h2>제${v.season}차 정기 진급심사</h2>${v.parts.map(([n,s])=>`<p>${n}<b>${s}점</b></p>`).join("")}<p>경력 가점 +${v.bonus} / 감점 −${v.penalty}</p><p>합계 ${v.score}점 · 기준 ${v.cutoff}점</p><p>정원 ${v.seats} · 동점 시 현 차수 플레이어 우선</p>${v.rivals.map(r=>`<p>${r.name} · ${r.score}점</p>`).join("")}${g===8?`<label>희망 4성 보직 <select>${v.posts.map(p=>`<option ${vacantTitles.has(p.t)?"":"disabled"} value="${p.t}">${p.t}${vacantTitles.has(p.t)?"":" · 동기 재임 중"}</option>`).join("")}</select></label>`:""}<button data-submit>심사 결과 확정</button><button data-dismiss>나중에</button>`;
-      document.body.append(dialog);dialog.showModal();dialog.onclose=()=>dialog.remove();
-      dialog.querySelector("[data-dismiss]").onclick=()=>dialog.close();
-      const preferred=()=>dialog.querySelector("select")?.value;
-      const confirmBoard=()=>{
-        const result=settle(g,xpGrade(),title,br,svk,preferred());
-        if(!result){dialog.close();renderDutyDesk();return;}
-        if(result.passed)logPromotion({g:g+1,t:postOf(g+1),b:curBranches()[br].n,why:result.reason});
-        const finish=()=>{ dialog.close();refreshMenus();
-          if(result.passed){pmOpts=null;buildPromo(g,g+1);$("#promoM").style.display="flex";fanfare(g+1,br);}
-          if(career.discharged)renderHQ();else renderDutyDesk();
-        };
-        dialog.innerHTML=`<h2>${result.reason}</h2><p>${result.score}점 · ${result.passed?(g===2?"영관 보직 트랙 선택":g===5?(isUS()?"미 상원 인준 · 게임용 절차":"국방부 장성인사심사 통과"):"진급 인사명령"):"다음 심사에서 다시 평가합니다."}</p><button>확인</button>`;
-        dialog.querySelector("button").onclick=()=>{
-          if(result.passed&&g===5&&!isUS()){
-            dialog.innerHTML="<h2>삼정검 수여식</h2><p>가족과 동료들이 지켜보는 가운데 이름이 호명됩니다. 삼정검을 받아 들고 새 지휘 책임을 인수합니다.</p><button>장성 인사명령서 열기</button>";
-            dialog.querySelector("button").onclick=finish;
-          }else finish();
-        };
-        dialog.oncancel=e=>e.preventDefault();
-      };
-      const hearing=[
-        ["문민 통제", "위원장이 의회의 자료 요구에 어떻게 대응할지 묻습니다.", "공개 가능한 자료와 제출 기한을 명시한다", "비공개 회의에서 감독위원에게 설명한다"],
-        ["국방 예산", "지역구 일자리와 장비 정비 예산이 충돌합니다.", "사업별 비용 추계를 제출한다", "현장 노동자 증언을 청취한다"],
-        ["장병 가족", "장기 대기 중인 관사 보수 요청이 증언대에 올랐습니다.", "처리 현황 공개를 약속한다", "가족 대표와 분기별로 면담한다"]
-      ];
-      function question(step, record){
-        if(step===hearing.length){career.hearing=record;confirmBoard();return;}
-        const [topic,prompt,...answers]=hearing[step];
-        dialog.innerHTML=`<h2>상원 군사위원회 · 인준 청문회</h2><p>${step+1}/3 · ${topic}</p><p>${prompt}</p>${answers.map((a,i)=>`<button data-answer="${i}">${a}</button>`).join("")}`;
-        for(const b of dialog.querySelectorAll("button"))b.onclick=()=>question(step+1,[...record,answers[Number(b.dataset.answer)]]);
-      }
-      dialog.querySelector("[data-submit]").onclick=()=>g===5&&isUS()?question(0,[]):confirmBoard();
-      return;
-    }
+    if (a === "review") { openPromotionBoard(g, br, svk); return; }
     if (a === "restart") { for (const k of NG_RESET) localStorage.removeItem(k); location.reload(); return; }
     if (a === "retire_now") { if (!retireArm) { retireArm = true; toast("한 번 더 누르면 현재 계급으로 명예 전역합니다", 3); renderDutyDesk(); return; } retireArm = false; career.discharged = { g, title: postOf(g), avg: evalOf(g).avg, at: new Date().toISOString().slice(0, 10), voluntary: true }; saveCareer(); renderHQ(); return; }
     if (a.startsWith("rep:")) { const res = resolveReport(+a.slice(4), g); if (res) { toast(res.msg, 4); renderDutyDesk(); } return; }
