@@ -993,6 +993,55 @@ body.us-nat .mn-war>.mn-h:first-child { background:linear-gradient(rgba(6,12,20,
 #start, #recordP, #hqP { z-index:2; }
 .nat-sw { display:inline-flex; gap:3px; padding:3px; margin-left:10px; background:rgba(10,18,24,.75); border:1px solid rgba(120,165,185,.32); border-radius:7px; }
 .nat-sw button { border:0; background:transparent; color:#9db8c7; padding:5px 10px; border-radius:5px; font:700 12px "Noto Sans KR",sans-serif; cursor:pointer; transition:all .14s; white-space:nowrap; }
+/* Cinematic Title / Enlistment Hub */
+#titleHub { position:fixed; inset:0; z-index:8; display:none; align-items:center; justify-content:center; padding:28px; box-sizing:border-box; background:radial-gradient(ellipse at center, rgba(8,14,22,.32) 0%, rgba(4,8,14,.78) 100%); }
+#titleHub.on { display:flex; }
+.th-card { width:680px; max-width:96vw; max-height:90vh; overflow:auto; padding:28px 32px; border-radius:14px; background:rgba(12,18,24,.86); border:1px solid rgba(242,202,92,.38); box-shadow:0 24px 64px rgba(0,0,0,.68); backdrop-filter:blur(10px); text-align:center; color:#eef4f8; }
+body.us-nat .th-card { background:rgba(10,17,28,.88); border-color:rgba(93,168,232,.48); }
+.th-kicker { font:700 11px "Noto Sans KR",sans-serif; letter-spacing:.26em; color:#f2ca5c; text-transform:uppercase; margin-bottom:6px; }
+body.us-nat .th-kicker { color:#7ec2f8; }
+.th-title { font:700 44px "Stardos Stencil",serif; letter-spacing:.14em; color:#fff8e6; margin:0 0 6px; text-shadow:0 4px 18px rgba(0,0,0,.6); }
+.th-sub { font:13px "Noto Sans KR",sans-serif; color:#b8cbd8; margin:0 0 18px; }
+.th-nat { display:inline-flex; gap:6px; padding:4px; background:rgba(0,0,0,.42); border:1px solid rgba(255,255,255,.14); border-radius:9px; margin-bottom:18px; }
+.th-nat button { border:0; background:transparent; color:#9db8c7; padding:8px 18px; border-radius:6px; font:700 13px "Noto Sans KR",sans-serif; cursor:pointer; transition:all .15s; }
+.th-nat button.on { background:rgba(242,202,92,.22); color:#fff4d0; box-shadow:inset 0 0 0 1px rgba(242,202,92,.6); }
+body.us-nat .th-nat button.on { background:rgba(93,168,232,.25); color:#e8f5ff; box-shadow:inset 0 0 0 1px rgba(93,168,232,.7); }
+.th-prof { display:flex; align-items:center; gap:14px; text-align:left; padding:14px 16px; border-radius:10px; background:rgba(255,255,255,.05); border:1px solid rgba(242,202,92,.28); margin-bottom:16px; }
+body.us-nat .th-prof { border-color:rgba(93,168,232,.35); }
+.th-prof .th-pi { flex:1; min-width:0; }
+.th-prof .th-pi b { display:block; font:700 16px "Noto Sans KR",sans-serif; color:#fff; }
+.th-prof .th-pi small { display:block; font:12px "Noto Sans KR",sans-serif; color:#a8c2d4; margin-top:2px; }
+.th-acts { display:flex; flex-direction:column; gap:8px; }
+.th-go { width:100%; padding:13px 18px; border:0; border-radius:9px; background:linear-gradient(135deg,#e2b646,#c79222); color:#141108; font:700 15px "Noto Sans KR",sans-serif; cursor:pointer; letter-spacing:.04em; transition:transform .12s,filter .12s; }
+body.us-nat .th-go { background:linear-gradient(135deg,#3e88d4,#1f5aa6); color:#f4f9ff; }
+.th-go:hover { filter:brightness(1.08); transform:translateY(-1px); }
+.th-row { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.th-sec { padding:10px 10px; border-radius:8px; border:1px solid rgba(180,205,220,.26); background:rgba(255,255,255,.05); color:#d8e6f0; font:700 12.5px "Noto Sans KR",sans-serif; cursor:pointer; transition:background .12s,border-color .12s; }
+.th-sec:hover { background:rgba(255,255,255,.11); border-color:rgba(242,202,92,.55); }
+.th-sec.dng { color:#f2b4ac; border-color:rgba(240,120,105,.32); }
+.th-svcs { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:14px; }
+.th-svc { padding:10px 8px; border-radius:8px; border:1px solid rgba(170,195,210,.25); background:rgba(255,255,255,.04); color:#cbdbe6; cursor:pointer; font:700 13px "Noto Sans KR",sans-serif; transition:all .14s; }
+.th-svc small { display:block; font:400 10.5px "Noto Sans KR",sans-serif; color:#8fa8ba; margin-top:3px; }
+.th-svc.on { border-color:#f2ca5c; background:rgba(242,202,92,.16); color:#fff6d6; }
+body.us-nat .th-svc.on { border-color:#6cb6f5; background:rgba(93,168,232,.2); color:#eaf5ff; }
+.th-brs { display:grid; grid-template-columns:repeat(3,1fr); gap:7px; margin-bottom:14px; text-align:left; }
+.th-br { padding:9px 10px; border-radius:8px; border:1px solid rgba(170,195,210,.22); background:rgba(0,0,0,.32); color:#d8e6f0; cursor:pointer; transition:all .14s; }
+.th-br b { display:block; font:700 12px "Noto Sans KR",sans-serif; color:#fff; }
+.th-br small { display:block; font:10.5px "Noto Sans KR",sans-serif; color:#93aebf; margin-top:2px; line-height:1.35; }
+.th-br.on { border-color:#f2ca5c; background:rgba(242,202,92,.16); }
+body.us-nat .th-br.on { border-color:#6cb6f5; background:rgba(93,168,232,.2); }
+.th-id { display:flex; align-items:center; gap:10px; justify-content:center; margin-bottom:14px; flex-wrap:wrap; }
+.th-id input { padding:9px 12px; border-radius:7px; border:1px solid rgba(180,205,220,.32); background:rgba(0,0,0,.45); color:#fff; font:700 13px "Noto Sans KR",sans-serif; width:190px; }
+.th-faces { display:flex; gap:6px; }
+.th-face { padding:2px; border-radius:8px; border:2px solid transparent; background:rgba(255,255,255,.04); cursor:pointer; }
+.th-face.on { border-color:#f2ca5c; }
+body.us-nat .th-face.on { border-color:#6cb6f5; }
+/* Record sub-tabs */
+.rec-tabs { display:flex; gap:6px; margin-bottom:12px; border-bottom:1px solid rgba(255,255,255,.12); padding-bottom:8px; flex-wrap:wrap; }
+.rec-tab { padding:7px 14px; border-radius:7px; border:1px solid rgba(180,205,220,.22); background:rgba(255,255,255,.04); color:#b4cad8; font:700 12px "Noto Sans KR",sans-serif; cursor:pointer; transition:all .14s; }
+.rec-tab.on { background:rgba(242,202,92,.2); border-color:#f2ca5c; color:#fff4d0; }
+body.us-nat .rec-tab.on { background:rgba(93,168,232,.22); border-color:#6cb6f5; color:#eaf5ff; }
+#topbar .logo { cursor:pointer; }
 .nat-sw button:hover { color:#fff; background:rgba(255,255,255,.06); }
 .nat-sw button.on { background:rgba(242,202,92,.22); color:#ffe79e; box-shadow:inset 0 0 0 1px rgba(242,202,92,.55); }
 .us-tiles { display:grid; grid-template-columns:repeat(11,minmax(0,1fr)); gap:3px; margin-top:6px; }
@@ -1025,12 +1074,13 @@ body.us-nat .mn-war>.mn-h:first-child { background:linear-gradient(rgba(6,12,20,
     <div id="toast"></div>
 
     <header id="topbar" class="g">
-      <div class="logo">THE GENERAL</div>
+      <div class="logo" id="logoHome" title="타이틀 화면으로">THE GENERAL</div>
       <nav aria-label="메뉴">
-        <button id="tabPort" class="tab on">기지</button>
+        <button id="tabHQ" class="tab on">집무실</button>
+        <button id="tabOrg" class="tab">지휘 계통</button>
+        <button id="tabRecord" class="tab">인사기록</button>
+        <button id="tabPort" class="tab">전술 훈련</button>
         <button id="yardBtn" class="tab" style="display:none">조선소</button>
-        <button id="tabRecord" class="tab">내 정보</button>
-        <button id="tabHQ" class="tab">사령부</button>
         <button id="setBtn" class="tab">설정</button>
       </nav>
       <div id="natSw" class="nat-sw" role="group" aria-label="국가 선택">
@@ -1042,6 +1092,8 @@ body.us-nat .mn-war>.mn-h:first-child { background:linear-gradient(rgba(6,12,20,
         <div class="tb-rank"><div class="ins" id="tbIns"></div><div><b id="tbRank"></b><div class="rk"><div id="rankBar"></div></div></div></div>
       </div>
     </header>
+
+    <div id="titleHub"></div>
 
     <div id="start">
       <section id="opsP" class="g"><div class="wz-nav"><button class="wz-back" type="button">‹ 이전</button><div class="wz-crumb"></div></div>

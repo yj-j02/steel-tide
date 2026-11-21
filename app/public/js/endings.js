@@ -33,6 +33,6 @@ export function endingsHTML() {
   const got = unlockedEndings(), cnt = Object.keys(got).filter((k) => ENDINGS.some((e) => e.id === k)).length;
   return `<h3>🏆 엔딩 컬렉션 도감 (${cnt} / ${ENDINGS.length})</h3><div class="mi-md">${ENDINGS.map((e) => {
     const dt = got[e.id];
-    return `<div class="md${dt ? "" : " no"}" title="${e.sub}"><span style="font-size:15px">${e.ic}</span><span>${e.n}</span><small>${dt ? `${dt} 달성` : e.sub}</small></div>`;
+    return `<div class="md${dt ? "" : " no"}" title="${e.sub}"><i style="font-style:normal;font-size:15px;display:flex;align-items:center;justify-content:center;background:none;border:0">${e.ic}</i><span>${e.n}</span><small>${dt ? `${dt} 달성` : e.sub}</small></div>`;
   }).join("")}</div>`;
 }
