@@ -8,6 +8,7 @@ import { recordEval, evalOf, board, FOCUS, letter, addRankWeek, weeksOf, minWeek
 import { career, saveCareer, awardMedals } from "./career.js";
 import { ngBonuses } from "./endings.js";
 import { bossMod, RIVAL_EVENTS, allyBonus } from "./relations.js";
+import { currentRankArc } from "./rank-arcs.js";
 
 export const STANCES = {
   hard: { n: "🔥 실전 강훈", d: "XP +15% · 평정 +3 / 매 안건 사기 −4 · 차질 위험↑" },
@@ -363,6 +364,45 @@ function drawEvents(d, svc, grade) {
     d.rivalEvent = { evId: ev.id, ri };
   }
   saveDuty(d);
+}
+
+export function activeRankArc(d, grade) {
+  if (!d || d.arcWeek === d.week) return null;
+  return currentRankArc(d, grade);
+}
+
+export function resolveRankArc(choiceIdx, grade) {
+  const d = dutyState();
+  const arc = activeRankArc(d, grade);
+  if (!arc) return null;
+  const opt = arc.ep.opts[choiceIdx];
+  if (!opt) return null;
+  const ng = ngBonuses();
+  const carryPts = arc.carryover?.pts || 0;
+  const sc = clamp(opt.sc + carryPts, 40, 99);
+  const completed = arc.step === arc.total - 1;
+  const xpGain = Math.round((opt.xp + (completed ? 300 : 0)) * ng.xpMult);
+  d.morale = clamp(d.morale + opt.mor, 10, 100);
+  d.rep = clamp(d.rep + opt.rep + (completed ? 3 : 0), 0, 100);
+  (d.arcChoices ??= {})[grade] = [...(d.arcChoices[grade] || []), choiceIdx];
+  d.arcWeek = d.week;
+  d.headlines.unshift(`${careerDate(d.week)} · ${opt.hl}`);
+  d.headlines = d.headlines.slice(0, 12);
+  (d.timeline ??= []).push({
+    id: `${d.week}:arc:${grade}:${arc.step}`,
+    turn: d.week,
+    date: careerDate(d.week),
+    title: `[${arc.tag}] ${arc.ep.title}`,
+    choice: opt.l,
+    outcome: opt.hl,
+    score: sc,
+  });
+  d.last = `${arc.ep.title} → ${opt.l} (평정 ${letter(sc)} · ${sc}점 · +${xpGain} XP${completed ? " · 아크 완결 보너스!" : ""})`;
+  recordEval(grade, sc);
+  if (sc >= 70) { career.goodEvals = (career.goodEvals || 0) + 1; saveCareer(); }
+  awardMedals({ source: arc.ep.title, turn: d.week, score: sc, morale: d.morale, goodEvals: career.goodEvals || 0, grade });
+  saveDuty(d);
+  return { xpGain, score: sc, completed, msg: `${arc.ep.title} 완료 — 평정 ${letter(sc)}(${sc}점) · +${xpGain} XP${completed ? " · 🏆 시그니처 아크 완결!" : ""}` };
 }
 
 export function resolveRivalEvent(choiceIdx) {

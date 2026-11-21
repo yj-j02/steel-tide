@@ -24,7 +24,7 @@ import { aaGun, updateAAGun, jetPit, updateJetPit } from "./js/interior.js";
 import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, updateMG } from "./js/infantry.js";
 import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, candidates, roleTitle, ECH, echOf, staffFor, FLAG_POSTS, FLEET_CDR, SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, setService, setBranch, POST_RANK, holds, saveStaff, isUS, setNation, curServices, curBranches, curFlagPosts, flagPostsForTrack } from "./js/staff.js";
 import { koreanUsRanks, toggleUsRankLanguage, insigniaUS, US_PAY, US_BRANCHES, US_SERVICES, usRankName, usRankFull, US_SVC_ORG, usNpcName, usDischargeEndingOf } from "./js/us-ranks.js";
-import { openingCarryover, dutyState, ensureDuty, dutyEventById, dutyCrisisById, dutyOptionHint, resolveDuty, resolveReport, resolveCrisisDelegate, resolveCrisisDirect, nextDutyWeek, STANCES, setStance, resolveRivalEvent } from "./js/duty.js";
+import { openingCarryover, dutyState, ensureDuty, dutyEventById, dutyCrisisById, dutyOptionHint, resolveDuty, resolveReport, resolveCrisisDelegate, resolveCrisisDirect, nextDutyWeek, STANCES, setStance, resolveRivalEvent, activeRankArc, resolveRankArc } from "./js/duty.js";
 import { bossFor, RIVAL_EVENTS, relLabel, allyBonus, chronicleHTML, downloadChroniclePNG } from "./js/relations.js";
 import { career, saveCareer, careerInit, logPromotion, perkMods, payStep, MEDALS, US_MEDALS, awardMedals } from "./js/career.js";
 const curMedals = () => (isUS() ? US_MEDALS : MEDALS);
@@ -1422,6 +1422,8 @@ function renderDutyDesk() {
   const crCard = cr ? `<div id="duty-crisis" class="mn-card mn-dk mn-nsc"><b>🚨 ${cr.tag} — ${cr.title}</b><p>${cr.desc}</p><div class="dm-ops"><button class="dm-op" data-duty="del">① 자동 위임</button><button class="dm-op fm" data-duty="fm">② FM 합동 작전 지휘${crFmRec ? " ★추천" : ""}</button><button class="dm-op d3" data-duty="3d">③ 3D 직접 개입${!crFmRec ? " ★추천" : ""}</button></div></div>` : "";
   const minBtn = g >= 9 && (ministerOk(g) || profile.admin) ? `<div class="mn-card" style="border-color:#ffd166"><b>🏛️ ${isUS() ? "미 국방장관 (SecDef) 지명 가능" : "국방부장관 임명 가능"}</b><p>대장 계급과 우수 평정을 달성했습니다. ${isUS() ? "펜타곤 국방장관으로 취임해 36주 3군 국방 경영을 시작하십시오." : "국방부장관으로 취임해 36주 3군 국방 경영을 시작하십시오."}</p><button class="mn-go" data-duty="tomin">${isUS() ? "미 국방장관 취임 ›" : "국방부장관 취임 ›"}</button></div>` : "";
   const admDuty = profile.admin ? `<div class="adm-bar"><b>관리자 시험</b><button data-duty="admrank">+1계급 진급</button><button data-duty="tomin">→ ${isUS() ? "미 국방장관 취임" : "국방부장관 취임"}</button>${isUS() ? `<button data-uspres="preview">→ 미국 대선 시험 (538)</button>` : `<button data-adm="topres">→ 대선 시작</button><button data-adm="topotus">→ 대통령 취임</button>`}<button data-adm="reset0">↺ 소위부터 다시 시작</button></div>` : "";
+  const arc = activeRankArc(d, g);
+  const arcCard = arc ? `<div id="duty-arc" class="mn-card mn-dk mn-paper" style="border-color:#ffd166;box-shadow:0 0 18px rgba(255,209,102,.14)"><div class="dh"><div class="dt"><small style="color:#ffd166;font-weight:700">📖 ${arc.tag} · ${arc.name} (${arc.step + 1}/${arc.total}화)</small><b>${arc.ep.title}</b><span>계급 전용 연속 스토리 · 선택이 다음 화와 복무 연표에 반영됩니다</span></div></div><p>${arc.ep.desc}</p>${arc.carryover ? `<p style="color:#d8ecff;font-size:11.5px;background:rgba(40,80,120,.28);padding:6px 9px;border-radius:6px"><b>이전 화 결과 이어받기</b> · ${arc.carryover.text} <strong>(평정 ${arc.carryover.pts >= 0 ? "+" : ""}${arc.carryover.pts}점)</strong></p>` : ""}${arc.ep.opts.map((o, oi) => `<button data-duty="arc:${oi}"><b>${o.l}</b><small>${o.d}</small></button>`).join("")}</div>` : "";
   const boss = bossFor(g, svk);
   const bossCard = `<div class="mn-card dm-news" style="border-left:3px solid ${boss.style.color}"><div class="mn-h">🎖️ 직속 상관 · 평정권자</div><div style="font-size:11.5px;display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><b>${boss.name}</b><span style="padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:rgba(255,255,255,.08);color:${boss.style.color}">${isUS() ? `${boss.style.n} (${boss.style.en})` : boss.style.n}</span></div><small style="border:0;padding:0;color:#9bb6c6">${boss.title}</small><small style="border:0;padding:2px 0 0;color:#b8d4e4">${boss.style.hint}</small></div>`;
   const rvEvObj = d.rivalEvent ? RIVAL_EVENTS.find((x) => x.id === d.rivalEvent.evId) : null;
@@ -1478,7 +1480,7 @@ function renderDutyDesk() {
           }).join("")}</div>
           <button class="dm-tab" data-duty="retire_now" ${serviceTerms.obligationLeft ? "disabled" : ""} style="margin-top:6px;border-color:rgba(255,140,120,.35);color:#f2b8b0"><span>${serviceTerms.obligationLeft ? "의무복무 이행 중" : retireArm ? "⚠ 한 번 더 클릭: 전역" : "🚪 전역 신청"}</span></button>
         </nav>
-        <div class="dm-main">${crCard}${rvEvCard}${evCards}${repCard}<div id="duty-promotion">${g < 9 ? reviewCard : marshalCardHTML(g)}</div>${g >= 9 ? reviewCard : ""}${minBtn}${tierAuthHTML(g)}${d.last ? `<div class="mn-card"><small>최근 결과: ${d.last}</small></div>` : ""}</div>
+        <div class="dm-main">${crCard}${arcCard}${rvEvCard}${evCards}${repCard}<div id="duty-promotion">${g < 9 ? reviewCard : marshalCardHTML(g)}</div>${g >= 9 ? reviewCard : ""}${minBtn}${tierAuthHTML(g)}${d.last ? `<div class="mn-card"><small>최근 결과: ${d.last}</small></div>` : ""}</div>
         <aside class="dm-side">${globalThis.__careerProfileHTML()}${bossCard}${rivalsHTML}<div class="mn-card dm-news"><div class="mn-h">📰 군 내부 · 언론 헤드라인</div>${(d.headlines || []).slice(0, 7).map((h) => `<small>• ${h.replace(/^(\d+)주차 ·/, "안건 $1 ·")}</small>`).join("")}</div></aside>
       </div>
     </div>`;
@@ -1897,6 +1899,7 @@ $("#hqP").addEventListener("click", (e) => {
     return;
   }
   const dy = e.target.closest("[data-duty]"); if (dy) { if (dy.disabled) return; sfx.click(); const a = dy.dataset.duty, g = myGrade(), br = normBranch(staff.branch), svk = serviceOf(br);
+    if (a.startsWith("arc:")) { const res = resolveRankArc(+a.slice(4), g); if (res) { profile.xp += res.xpGain; saveProfile(); toast(res.msg, 4); refreshMenus(); renderDutyDesk(); } return; }
     if (a.startsWith("rvev:")) { const res = resolveRivalEvent(+a.slice(5)); if (res) { if (res.xpGain) { profile.xp += res.xpGain; saveProfile(); } toast(res.msg, 4); refreshMenus(); renderDutyDesk(); } return; }
     if (a.startsWith("deputy-") || ["study","share","solo"].includes(a)) { interact(a,g); renderDutyDesk(); return; }
     if (a === "review") { openPromotionBoard(g, br, svk); return; }
