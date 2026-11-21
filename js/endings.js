@@ -1,0 +1,67 @@
+import { careerStorage } from "./characters.js";
+// 엔딩 컬렉션 도감 (한국·미국 12종 영구 수집, 2회차 초기화에도 보존)
+const EK = "steeltide:endings";
+
+export const ENDINGS = [
+  { id: "kr_civil", nat: "kr", ic: "🏛️", n: "국방부 군무원 임용", sub: "KR 위관(소위~대위) 전역" },
+  { id: "kr_corp", nat: "kr", ic: "🏢", n: "태극디펜스 임원 스카우트", sub: "KR 소령~중령 전역" },
+  { id: "kr_prof", nat: "kr", ic: "🎓", n: "국방안보연구원 석좌위원", sub: "KR 대령 전역" },
+  { id: "kr_gen", nat: "kr", ic: "⭐", n: "예비역 장성 · 방산협회장", sub: "KR 준장~중장 전역" },
+  { id: "kr_marshal", nat: "kr", ic: "★", n: "대한민국 국군 원수 (5성)", sub: "KR 원수 특별진급 퀘스트 달성" },
+  { id: "kr_min", nat: "kr", ic: "🎖️", n: "대한민국 국방부장관 명예 퇴임", sub: "KR 국방부 36주 목표 달성" },
+  { id: "kr_pres", nat: "kr", ic: "🇰🇷", n: "대한민국 대통령 당선", sub: "KR 대통령 선거 승리" },
+  { id: "us_civil", nat: "us", ic: "🏛️", n: "DoD GS-13 연방 문관", sub: "US O-1~O-3 전역" },
+  { id: "us_corp", nat: "us", ic: "🏢", n: "Aegis Dynamics 부사장", sub: "US O-4~O-5 전역" },
+  { id: "us_prof", nat: "us", ic: "🎓", n: "National War College 교수", sub: "US O-6 대령 전역" },
+  { id: "us_marshal", nat: "us", ic: "★", n: "미합중국 5성 원수 (O-11)", sub: "US 5성 원수 특별진급 달성" },
+  { id: "us_potus", nat: "us", ic: "🇺🇸", n: "미합중국 대통령 (POTUS)", sub: "US 538 선거인단 대선 승리" },
+];
+
+export function unlockedEndings() {
+  try { return JSON.parse(careerStorage.getItem(EK) || "{}"); } catch { return {}; }
+}
+
+export function unlockEnding(id) {
+  if (!ENDINGS.some((e) => e.id === id)) return false;
+  const map = unlockedEndings();
+  if (map[id]) return false;
+  map[id] = new Date().toISOString().slice(0, 10);
+  try { careerStorage.setItem(EK, JSON.stringify(map)); } catch {}
+  return true;
+}
+
+export function ngBonuses() {
+  const got = unlockedEndings();
+  const cnt = Object.keys(got).filter((k) => ENDINGS.some((e) => e.id === k)).length;
+  return {
+    cnt,
+    initRep: cnt >= 1 ? 5 : 0,
+    xpMult: cnt >= 3 ? 1.1 : 1,
+    crisisBonus: cnt >= 6 ? 8 : 0,
+  };
+}
+
+export function trophyShelfHTML(grade, careerState = {}, us = false, isPres = false) {
+  const items = [
+    { ic: "🎖️", n: us ? "Command Pin (O-4+)" : "지휘관 휘장", sub: us ? "영관(O-4) 진급" : "영관(소령) 진급", ok: grade >= 3 },
+    { ic: "🗡️", n: us ? "General Officer Pistol" : "삼정검 (三精劍)", sub: us ? "장성(O-7) 진급" : "장성(준장) 진급", ok: grade >= 6 },
+    { ic: "🚩", n: us ? "Four-Star Personal Flag" : "4성 장성기", sub: us ? "4성(O-10) 대장 진급" : "대장(4성) 진급", ok: grade >= 9 },
+    { ic: "🏛️", n: us ? "SecDef Commission Plaque" : "국방부장관 임명패", sub: us ? "펜타곤 국방장관 취임" : "국방부장관 취임", ok: !!careerState.minister },
+    { ic: "🦅", n: us ? "POTUS Inaugural Seal" : "대통령 취임 기념패", sub: us ? "미국 대통령 당선" : "대한민국 대통령 당선", ok: !!isPres },
+  ];
+  const gotN = items.filter((x) => x.ok).length;
+  return `<h3>🏛️ 지휘관 기념관 (${gotN} / ${items.length})</h3><div class="mi-md">${items.map((x) => `<div class="md${x.ok ? "" : " no"}" title="${x.sub}"><i style="font-style:normal;font-size:16px;display:flex;align-items:center;justify-content:center;background:none;border:0">${x.ic}</i><span>${x.n}</span><small>${x.ok ? "획득 완료" : x.sub}</small></div>`).join("")}</div>`;
+}
+
+export function endingsHTML() {
+  const got = unlockedEndings(), ng = ngBonuses();
+  const ngStrip = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px;font-size:11px">`
+    + `<span style="padding:4px 8px;border-radius:6px;border:1px solid ${ng.cnt >= 1 ? "#8ef07a" : "rgba(180,200,210,.25)"};color:${ng.cnt >= 1 ? "#b8f7a8" : "#88a0b0"}">${ng.cnt >= 1 ? "✔" : "🔒"} 1종 달성: 초기 평판 +5</span>`
+    + `<span style="padding:4px 8px;border-radius:6px;border:1px solid ${ng.cnt >= 3 ? "#8ef07a" : "rgba(180,200,210,.25)"};color:${ng.cnt >= 3 ? "#b8f7a8" : "#88a0b0"}">${ng.cnt >= 3 ? "✔" : "🔒"} 3종 달성: 직무 XP +10%</span>`
+    + `<span style="padding:4px 8px;border-radius:6px;border:1px solid ${ng.cnt >= 6 ? "#8ef07a" : "rgba(180,200,210,.25)"};color:${ng.cnt >= 6 ? "#b8f7a8" : "#88a0b0"}">${ng.cnt >= 6 ? "✔" : "🔒"} 6종 달성: 위기 위임 승률 +8%</span>`
+    + `</div>`;
+  return `<h3>🏆 엔딩 컬렉션 도감 (${ng.cnt} / ${ENDINGS.length})</h3>${ngStrip}<div class="mi-md">${ENDINGS.map((e) => {
+    const dt = got[e.id];
+    return `<div class="md${dt ? "" : " no"}" title="${e.sub}"><i style="font-style:normal;font-size:15px;display:flex;align-items:center;justify-content:center;background:none;border:0">${e.ic}</i><span>${e.n}</span><small>${dt ? `${dt} 달성` : e.sub}</small></div>`;
+  }).join("")}</div>`;
+}
