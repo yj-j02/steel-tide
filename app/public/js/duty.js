@@ -1,5 +1,6 @@
+import { openingDuty, openingEvent } from "./army-opening.js";
 // 3군 장교 커리어 성장기 (소위 → 대장): 주간 직무·훈련 결재, 계급장 성장 시각화, 위기 3대 대응(위임 / FM 작전 / 3D 직접 개입).
-import { SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, isUS, curFlagPosts, curBranches } from "./staff.js";
+import { SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, staff, isUS, curFlagPosts, curBranches } from "./staff.js";
 import { usNpcName } from "./us-ranks.js";
 import { recordEval, evalOf, board, FOCUS, letter, addRankWeek, weeksOf, minWeeks } from "./service.js";
 import { career, saveCareer, awardMedals } from "./career.js";
@@ -234,6 +235,19 @@ export const dutyOptionHint = (optIdx) => (
 );
 
 const rankTier = (g) => (g <= 2 ? 0 : g <= 5 ? 1 : 2);
+const currentOpening = (d, svc, grade) =>
+  svc === "army" && grade === 0 ? openingDuty(staff.branch, d.week) : null;
+
+export function openingCarryover(d, event) {
+  const previous = d.openingChoices?.[event.track]?.[event.week - 1];
+  if (previous == null) return null;
+  return {
+    text: openingDuty(event.track, event.week - 1).outcomes[previous],
+    points: previous === 0 ? 4 : -4,
+    followup: previous === 0 ? "확보한 시간으로 이번 주 안건을 시작합니다." : "밀린 일정을 정리한 뒤 이번 주 안건을 시작합니다.",
+  };
+}
+
 function drawEvents(d, svc, grade) {
   if (!d.rivals) d.rivals = mkRivals(svc);
   const us = isUS(), evSrc = us ? US_EVENTS : EVENTS, crSrc = us ? US_CRISES : CRISES;
@@ -243,7 +257,10 @@ function drawEvents(d, svc, grade) {
   const src = pool.length >= 2 ? pool : tierFallback.length >= 2 ? tierFallback : evSrc;
   const out = [], copy = src.slice();
   while (out.length < 2 && copy.length) out.push(copy.splice((Math.random() * copy.length) | 0, 1)[0][0]);
-  d.pending = out;
+  const opening = currentOpening(d, svc, grade);
+  d.openingId = opening?.id ?? null;
+  d.pending = opening ? (d.openingChoices?.[opening.track]?.[opening.week] == null ? [opening.id] : []) : out;
+  if (opening && !d.pending.length) d.doneWeek = true;
   d.optOrder = Object.fromEntries(out.map((id) => [id, shuffle3()]));
   d.nat = us ? "us" : "kr";
   d.tier = rankTier(gClamped);
@@ -324,6 +341,11 @@ export function ensureDuty(svc, grade, playerPost = "") {
   }
   if (syncRivalPosts(d, svc, playerPost)) dirty = true;
   if ((d.nat && d.nat !== wantNat) || (d.tier != null && d.tier !== wantTier)) { d.pending = []; d.crisis = null; d.report = null; d.doneWeek = false; drawEvents(d, svc, grade); syncRivalPosts(d, svc, playerPost); saveDuty(d); return d; }
+  const openingId = currentOpening(d, svc, grade)?.id ?? null;
+  if ((d.openingId ?? null) !== openingId && !d.doneWeek && !d.report && !d.crisis) {
+    drawEvents(d, svc, grade);
+    return d;
+  }
   if (!d.pending || (!d.pending.length && !d.crisis && !d.report && !d.doneWeek)) { drawEvents(d, svc, grade); syncRivalPosts(d, svc, playerPost); saveDuty(d); return d; }
   if (dirty) saveDuty(d);
   return d;
@@ -359,9 +381,36 @@ function tickRivals(d, playerGrade, svc = "navy", playerPost = "") {
   }
 }
 
+function resolveOpening(d, event, choice, grade) {
+  const label = event.options[choice];
+  if (!label || grade !== 0 || currentOpening(d, "army", grade)?.id !== event.id) return null;
+  const previous = openingCarryover(d, event);
+  const score = (choice === 0 ? 93 : 86) + (previous?.points ?? 0);
+  const track = ((d.openingChoices ??= {})[event.track] ??= {});
+  track[event.week] = choice;
+  const xpGain = 450;
+  d.rep = clamp(d.rep + (choice === 0 ? 3 : 1), 0, 100);
+  d.morale = clamp(d.morale + (choice === 0 ? 2 : 0), 10, 100);
+  d.last = `${event.outcomes[choice]} · 평정 ${score}점 · +${xpGain} XP`;
+  d.headlines = [`${d.week}주차 · ${event.title} · ${event.outcomes[choice]}`, ...d.headlines].slice(0, 12);
+  d.pending = d.pending.filter(id => id !== event.id);
+  d.doneWeek = !d.pending.length && !d.report && !d.crisis;
+  recordEval(grade, score);
+  career.goodEvals = (career.goodEvals || 0) + 1;
+  saveCareer();
+  awardMedals({score, morale: d.morale, goodEvals: career.goodEvals, grade});
+  saveDuty(d);
+  return {xpGain, score, label};
+}
+
 /** Resolve a weekly duty choice with genuine risk/morale tradeoffs (no guaranteed best pick). */
 export function resolveDuty(id, optIdx, grade) {
-  const d = dutyState(), ev = dutyEventById(id); if (!ev || !d.pending.includes(id)) return null;
+  const d = dutyState();
+  if (!d.pending.includes(id)) return null;
+  const opening = openingEvent(id);
+  if (opening) return resolveOpening(d, opening, optIdx, grade);
+  const ev = dutyEventById(id);
+  if (!ev) return null;
   const o = ev[6][optIdx]; if (!o) return null;
   let [label, , xpBase, sc, dm, dr, headline] = o;
   let backfired = false;

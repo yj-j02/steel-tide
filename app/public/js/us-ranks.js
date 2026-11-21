@@ -98,6 +98,8 @@ export const US_BRANCHES = {
   art: { svc: "army", n: "Field Artillery / ADA", d: "HIMARS · THAAD 장거리 정밀타격 및 방공", bonus: "화력 + · 요격률 + · 원거리 화력 억제력 상향",
     t: ["Fire Direction Officer (HIMARS)", "Fire Support Officer (FSO)", "Artillery Battery Commander", "Artillery Battalion S-3", "THAAD Battalion Commander", "Field Artillery Bde Commander", "Deputy CG, 32nd AAMDC", "CG, U.S. Army Pacific (USARPAC)", "Commander, U.S. Central Command", "Chief of Staff of the Army (CSA)", "General of the Army"] },
   // U.S. Navy
+  eng: { svc: "army", n: "공병 (Engineers)", d: "시설 점검과 재난 복구 사업 관리", bonus: "첫 10주 시설 복구 연속 사건",
+    t: ["Engineer Platoon Leader", "Facilities Project Officer", "Engineer Company Commander", "Engineer Battalion Plans Officer", "Engineer Battalion Commander", "Engineer Group Commander", "Engineer Brigade Deputy Commander", "Army Facilities Director", "Army Engineer Staff Director", "Chief of Staff of the Army (CSA)", "General of the Army"] },
   sea: { svc: "navy", n: "Surface Warfare (SWO)", d: "Arleigh Burke급 이지스 구축함·항모타격단 수상 지휘", bonus: "수리반 +1 (O-3부터) · 함대함/함대공 효율 +",
     t: ["Division Officer (DDG)", "Navigator (DDG)", "Combat Systems Officer (Aegis)", "Executive Officer (DDG)", "CO, Arleigh Burke-class DDG", "Commander, DESRON", "Commander, Carrier Strike Group", "Commander, U.S. 7th Fleet", "Commander, U.S. Pacific Fleet", "Chief of Naval Operations (CNO)", "Fleet Admiral"] },
   sub: { svc: "navy", n: "Submarine Force", d: "Virginia-class SSN · Ohio-class SSBN 전략 수중작전", bonus: "은밀 정찰↑ · 받는 피해 − · 미사일·뇌격 돌파율 +",

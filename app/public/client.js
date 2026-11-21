@@ -1,3 +1,4 @@
+import { openingEvent } from "./js/army-opening.js";
 import { boardCard, preview as boardPreview, settle, hint, interact } from "./js/promotion-board.js";
 /**
  * Steel Tide — game flow: missions and battles, the shipyard and the commander's rank,
@@ -18,7 +19,7 @@ import { aaGun, updateAAGun, jetPit, updateJetPit } from "./js/interior.js";
 import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, updateMG } from "./js/infantry.js";
 import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, candidates, roleTitle, ECH, echOf, staffFor, FLAG_POSTS, FLEET_CDR, SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, setService, setBranch, POST_RANK, holds, saveStaff, isUS, setNation, curServices, curBranches, curFlagPosts } from "./js/staff.js";
 import { koreanUsRanks, toggleUsRankLanguage, insigniaUS, US_PAY, usRankName, usRankFull, US_SVC_ORG, usNpcName, usDischargeEndingOf } from "./js/us-ranks.js";
-import { dutyState, ensureDuty, dutyEventById, dutyCrisisById, dutyOptionHint, resolveDuty, resolveReport, resolveCrisisDelegate, resolveCrisisDirect, nextDutyWeek } from "./js/duty.js";
+import { openingCarryover, dutyState, ensureDuty, dutyEventById, dutyCrisisById, dutyOptionHint, resolveDuty, resolveReport, resolveCrisisDelegate, resolveCrisisDirect, nextDutyWeek } from "./js/duty.js";
 import { career, saveCareer, careerInit, logPromotion, perkMods, payStep, MEDALS, US_MEDALS, awardMedals } from "./js/career.js";
 const curMedals = () => (isUS() ? US_MEDALS : MEDALS);
 import { openOpMap, opMapAdvance, opMapState, opMapAir } from "./js/opmap.js";
@@ -1097,7 +1098,7 @@ function marshalCardHTML(g) {
 }
 let retireArm = false;
 function tierAuthHTML(g) {
-  if (g <= 2) return `<div class="mn-card" style="padding:8px 12px;border-left:3px solid #72ace8"><b>⚡ 위관 권한 (소위~대위)</b><small style="display:block;color:#b8d4e6">현장 실무 지휘 및 직접 전투 · 대위까지는 진급이 보장되며, 소령부터 치열한 진급 심사가 시작됩니다.</small></div>`;
+  if (g <= 2) return `<div class="mn-card" style="padding:8px 12px;border-left:3px solid #72ace8"><b>⚡ 위관 권한 (소위~대위)</b><small style="display:block;color:#b8d4e6">현장 실무 지휘 · 현 계급 복무 10주와 경험치·평정 횟수 조건을 채우면 진급심사를 받습니다.</small></div>`;
   if (g <= 5) return `<div class="mn-card" style="padding:8px 12px;border-left:3px solid #f2ca5c"><b>📋 영관 권한 해금 (소령~대령)</b><small style="display:block;color:#e4d9b5">부대 운영 · 공통 융합 트랙 전과 가능 · 진급 심사에서 주요 보직 경력과 평정이 크게 작용합니다.</small></div>`;
   return `<div class="mn-card" style="padding:8px 12px;border-left:3px solid #ff9b5e"><b>⭐ 장성 권한 해금 (준장~대장)</b><small style="display:block;color:#f0cbb4">사령부 참모 인사권 · 합동 워룸 개입 · 대장 도달 시 국방부장관 임명 및 원수 특별진급 도전 가능.</small></div>`;
 }
@@ -1153,6 +1154,13 @@ function renderDutyDesk() {
     <button data-duty="rep:1"><b>② 성과 강조 · 미흡점 축소 보고</b><small>단기 고평가 기대 · 상급부대 감찰 적발 시 치명적 감점</small></button>
     <button data-duty="rep:2"><b>③ 현장 실무자 책임으로 선 긋기</b><small>단기 평정 방어 · 부하 신뢰 및 부대 사기 하락</small></button></div>` : "";
   const evCards = (d.pending || []).map((id) => {
+    const event = openingEvent(id);
+    if (event) {
+      const previous = openingCarryover(d, event);
+      return `<div class="mn-card mn-dk mn-paper"><div class="dh"><div class="dt"><small>${B.n} · 첫 10주 · ${event.week}/10</small><b>${event.title}</b></div></div>
+        <p>${event.description}</p>${previous ? `<p><b>지난주 결정</b> · ${previous.text} ${previous.followup} <strong>이번 주 평정 ${previous.points > 0 ? "+" : ""}${previous.points}점</strong></p>` : ""}
+        ${event.options.map((option, index) => `<button data-duty="ev:${id}:${index}"><b>${option}</b></button>`).join("")}</div>`;
+    }
     const E = dutyEventById(id); if (!E) return "";
     const order = d.optOrder?.[id] || [0, 1, 2];
     return `<div class="mn-card mn-dk mn-paper"><div class="dh"><div class="dt"><small>${sv.icon} ${sv.n} ${B.n} · ${d.week}주차 직무</small><b>${E[4]}</b><span>부대 사기·긴장도에 따라 결과와 평정이 달라집니다 (선택 후 결과 공개)</span></div></div><p>${E[5]}</p>${order.map((origIdx) => { const opt = E[6][origIdx]; return opt ? `<button data-duty="ev:${id}:${origIdx}"><b>${opt[0]}</b><small>${dutyOptionHint(origIdx)}</small></button>` : ""; }).join("")}</div>`;

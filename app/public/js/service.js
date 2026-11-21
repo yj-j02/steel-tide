@@ -9,6 +9,7 @@ export const FOCUS = {
   inf: { n: "보병·특수전", f: "위기 방어 · 부대 생존", k: { win: 1.2, hp: 1.3, loss: 1.2, eff: 0.9 } },
   arm: { n: "기갑·기동", f: "기동 돌파 · 격멸 전과", k: { win: 1.25, hp: 0.95, loss: 1, eff: 1.3 }, fast: true },
   art: { n: "포병·방공", f: "화력 투사 · 즉각 응징", k: { win: 1.1, hp: 1, loss: 1, eff: 1.4 } },
+  eng: { n: "공병", f: "시설 복구 · 자재 및 일정 관리", k: { win: 1, hp: 1, loss: 1, eff: 1 } },
   sea: { n: "수상함", f: "격침 전과 · 함 생존", k: { win: 1, hp: 1.2, loss: 1, eff: 1.35 } },
   sub: { n: "잠수함", f: "은밀 기습 · 피해 최소화", k: { win: 1.1, hp: 1.45, loss: 1.1, eff: 1.05 } },
   mar: { n: "해상항공·해병", f: "항공 정찰 · 도서 방어", k: { win: 1.05, hp: 0.95, loss: 1, eff: 1.15 }, jets: true },
