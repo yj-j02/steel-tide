@@ -1,9 +1,12 @@
+import { additionalPosts } from "./management-assignments.js";
 import { services } from "./management-stories.js";
 
 export const posts = {
   army: {
+    ...additionalPosts("army", "육군"),
     facilities: services.army,
     personnel: {
+      field: "인사",
       name: "육군",
       post: "인사장교",
       unit: "신병교육대",
@@ -33,8 +36,10 @@ export const posts = {
     },
   },
   navy: {
+    ...additionalPosts("navy", "해군"),
     logistics: services.navy,
     welfare: {
+      field: "복지",
       name: "해군",
       post: "복지장교",
       unit: "항만 지원대",
@@ -64,10 +69,12 @@ export const posts = {
     },
   },
   air: {
+    ...additionalPosts("air", "공군"),
     education: services.air,
     infrastructure: {
+      field: "시설",
       name: "공군",
-      post: "시설관리장교",
+      post: "기지시설관리장교",
       unit: "기지 시설대",
       title: "장마 전 마지막 달",
       target: "기지 생활구역 침수 대비",

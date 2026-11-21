@@ -80,9 +80,8 @@ export function openManagement(panel) {
               '"><h2>' +
               services[code].name +
               "</h2><small>" +
-              Object.values(roles)
-                .map((r) => r.post)
-                .join(" · ") +
+              Object.keys(roles).length +
+              "개 보직" +
               "</small></a>",
           )
           .join("") +
@@ -93,7 +92,7 @@ export function openManagement(panel) {
       panel.innerHTML =
         '<div class="pick"><a href="?mode=management">‹ 군 선택</a><h1>' +
         services[id].name +
-        ' 보직 선택</h1><p>제1장 · 부임 후 첫 4주</p><div class="mg-services">' +
+        ' 보직 선택</h1><p>제1장 · 부임 후 첫 4주</p><div class="mg-services mg-posts">' +
         Object.entries(posts[id])
           .map(([code, r]) => {
             const week = read(id + ":" + code).picks.length;
@@ -103,6 +102,8 @@ export function openManagement(panel) {
               "&post=" +
               code +
               '"><small>' +
+              r.field +
+              " · " +
               r.unit +
               "</small><h2>" +
               r.post +

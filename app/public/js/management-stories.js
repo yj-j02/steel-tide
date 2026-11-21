@@ -1,6 +1,7 @@
 /* Fictional administrative assignments. Each initial policy opens its own follow-up. */
 export const services = {
   army: {
+    field: "시설",
     name: "육군",
     post: "시설관리장교",
     title: "겨울이 오기 전에",
@@ -29,6 +30,7 @@ export const services = {
     target: "생활관 겨울나기",
   },
   navy: {
+    field: "군수",
     name: "해군",
     post: "군수관리장교",
     title: "부두의 빈자리",
@@ -57,6 +59,7 @@ export const services = {
     target: "정비창 통근 정상화",
   },
   air: {
+    field: "교육",
     name: "공군",
     post: "기지운영장교",
     title: "다시 열리는 교실",
