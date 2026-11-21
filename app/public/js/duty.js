@@ -98,7 +98,7 @@ function drawEvents(d, svc, grade) {
   const out = [], copy = src.slice();
   while (out.length < 2 && copy.length) out.push(copy.splice((Math.random() * copy.length) | 0, 1)[0][0]);
   d.pending = out;
-  d.crisis = d.week % 2 === 0 || Math.random() < 0.45 ? pick(CRISES).id : null;
+  d.crisis = d.week >= 3 && (d.week % 4 === 0 || Math.random() < 0.2) ? pick(CRISES).id : null; /* 합동 위기 빈도 완화 */
   saveDuty(d);
 }
 

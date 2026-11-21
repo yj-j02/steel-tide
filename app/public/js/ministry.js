@@ -5,7 +5,7 @@ import { staff, normBranch, serviceOf } from "./staff.js";
 // 모든 수치는 게임용 값이다 (실제 국방 예산·제원이 아님).
 const MK = "steeltide:mod", HK = "steeltide:hall", LK = "steeltide:legacy";
 export const TERM = 36;
-const BASE = 4850, UPKEEP = 2000;
+const BASE = 4350, UPKEEP = 2000;
 const rd = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
 const wr = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* storage blocked */ } };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -218,6 +218,7 @@ export function minHTML() {
           <div class="rf">증원 ${Object.entries(REINF).map(([r, [n]]) => `<button data-min="rf:${k}:${r}" class="${W.reinf === r ? "on" : ""}" ${used.includes(r) && W.reinf !== r ? "disabled" : ""}>${n.replace("사령부", "")}</button>`).join("")}</div>
           <div class="pw">위임 예상 ${bar(p, p >= 74 ? "g" : p >= 50 ? "y" : "r")}<b class="${p >= 74 ? "g" : p >= 50 ? "y" : "r"}">${p}% · ${outcomeOf(p)[0]}</b></div>
           ${o ? `<div class="dr ${o[1]}">${o[4] || "대응"} 결과: <b>${o[0]}</b></div>`
+            : W.lvl === 0 ? `<div class="dr g">정상 경계 — 특이 도발 없음 (자동 안정)</div>`
             : `<div class="dm-ops"><button class="dm-op" data-min="del:${k}">① 자동 위임</button><button class="dm-op fm" data-min="fm:${k}">② FM 작전</button><button class="dm-op d3" data-min="3d:${k}">③ ${direct3dLbl[a.domain] || "3D 개입"}</button></div>`}</div>`;
       }).join("")}</div></div></div>`;
   } else if (tab === "prog") {
@@ -358,7 +359,8 @@ export function minClick(a) {
   if (a === "next") {
     if (m.docket.length) return { toast: "결재 안건을 먼저 처리하십시오" };
     endWeek(m); m.support = clamp(m.support, 0, 100);
-    const hot = !m.retired && Object.keys(AREAS).find((k) => m.war.areas[k].lvl === 2); m.nsc = hot || null; save(m);
+    const hot = !m.retired && (m.week - (m.lastNsc || -9) >= 3) ? Object.keys(AREAS).find((k) => m.war.areas[k].lvl === 2) : null;
+    m.nsc = hot || null; if (hot) m.lastNsc = m.week; save(m);
     return { redraw: true, retire: m.retired ? retireCuts(m) : null, toast: m.retired ? "" : `${m.week}주차 — 새 위기와 결재 안건`, nsc: hot && scenesOn() ? { kind: "nsc", title: `${AREAS[hot].n} 위협 '높음'`, id: hot, questions: [{ who: "국가안보실장", q: `${AREAS[hot].n}에서 적 도발 징후가 급증했습니다. 이번 주 위기 대응 방침을 정해 주십시오.`, opts: NSC_OPT.map(([n, e, l]) => [n, e, l]) }] } : null };
   }
   if (a === "scenes") { const on = !scenesOn(); try { localStorage.setItem(SCK, on ? "on" : "off"); } catch { /* 저장 불가 */ } return { redraw: true, toast: on ? "결재 연출 켜짐 — 기자회견·국회·NSC 장면이 나옵니다" : "결재 연출 꺼짐 — 결재판에서 바로 고릅니다" }; }

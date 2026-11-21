@@ -45,14 +45,22 @@ export function evalOf(g) { const L = st().evals[g] || [], avg = L.length ? Math
 /** The promotion board for the next rank. xpGrade: the rank your XP alone would give. */
 export function board(g, xpGrade) {
   const e = evalOf(g), need = minBattles(g);
+  if (g >= 9) return { ok: false, xp: false, cnt: false, score: false, need: 5, e, special: true }; /* 원수(10)는 특별진급 퀘스트로만 진급 */
   const xp = xpGrade > g, cnt = e.n >= need, score = e.n > 0 && e.avg >= PASS;
   return { ok: xp && cnt && score, xp, cnt, score, need, e };
 }
-/** Run the board after a battle: on a pass the approved grade (cap) goes up one step. */
+/** 원수(5성) 특별진급 퀘스트 조건 (매우 어려움): 대장 평정 S(85+)·5회 + 직접 지휘 대승 3회 + 누적 10전·승률 85%+ */
+export function marshalQuest(profile, grade) {
+  const e9 = evalOf(9), wins = career.marshalWins || 0, b = profile?.battles || 0, wr = b ? Math.round(((profile?.wins || 0) / b) * 100) : 0;
+  const c1 = grade >= 9 && e9.n >= 5 && e9.avg >= 85, c2 = wins >= 3, c3 = b >= 10 && wr >= 85;
+  return { ok: c1 && c2 && c3, c1, c2, c3, e9, wins, b, wr };
+}
+/** Run the board after a battle: on a pass the approved grade (cap) goes up one step (capped at 대장 9). */
 export function runBoard(g, xpGrade) {
+  if (g >= 9) return { ...board(g, xpGrade), promoted: false };
   const b = board(g, xpGrade), c = st();
   if (!b.xp) return { ...b, promoted: false };
-  if (b.ok) { c.cap = g + 1; c.defer = 0; saveCareer(); return { ...b, promoted: true }; }
+  if (b.ok) { c.cap = Math.min(9, g + 1); c.defer = 0; saveCareer(); return { ...b, promoted: true }; }
   c.defer++; saveCareer(); return { ...b, promoted: false };
 }
 export function setCap(g) { st().cap = g; career.defer = 0; saveCareer(); }
