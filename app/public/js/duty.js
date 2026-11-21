@@ -1,5 +1,5 @@
 // 3군 장교 커리어 성장기 (소위 → 대장): 주간 직무·훈련 결재, 계급장 성장 시각화, 위기 3대 대응(위임 / FM 작전 / 3D 직접 개입).
-import { SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, isUS } from "./staff.js";
+import { SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, isUS, curFlagPosts, curBranches } from "./staff.js";
 import { usNpcName } from "./us-ranks.js";
 import { recordEval, evalOf, board, runBoard, FOCUS, letter } from "./service.js";
 import { career, saveCareer } from "./career.js";
@@ -172,12 +172,70 @@ function drawEvents(d, svc, grade) {
   saveDuty(d);
 }
 
-export function ensureDuty(svc, grade) {
+/** Ensure every rival classmate holds a real, unique billet that never collides with the player or another rival. */
+export function syncRivalPosts(d, svc, playerPost = "") {
+  if (!d?.rivals?.length) return false;
+  const BR = curBranches(), FP = curFlagPosts();
+  const svcBrs = Object.keys(BR).filter((k) => BR[k].svc === svc);
+  const jointBrs = Object.keys(BR).filter((k) => BR[k].svc === "joint");
+  const allBrs = [...svcBrs, ...jointBrs];
+  const used = new Set();
+  if (playerPost) used.add(playerPost);
+  let changed = false;
+  d.rivals.forEach((r, ri) => {
+    if (!BR[r.br] || (BR[r.br].svc !== svc && BR[r.br].svc !== "joint")) {
+      r.br = svcBrs[ri % svcBrs.length] || allBrs[0] || "sea";
+      r.post = null;
+      changed = true;
+    }
+    const validCur = () => {
+      if (!r.post || used.has(r.post)) return false;
+      if (r.g >= 6) return FP.some((p) => p.g === r.g && (p.svc === svc || p.svc === "joint") && p.t === r.post);
+      return allBrs.some((bk) => BR[bk]?.t?.[r.g] === r.post);
+    };
+    if (!validCur()) {
+      let picked = null;
+      if (r.g >= 6) {
+        for (let tryG = Math.min(9, r.g); tryG >= 6; tryG--) {
+          const cands = FP.filter((p) => p.g === tryG && (p.svc === svc || p.svc === "joint") && !used.has(p.t));
+          if (cands.length) {
+            picked = cands.find((p) => p.svc === svc && p.b === r.br)
+              || cands.find((p) => p.svc === svc)
+              || cands[0];
+            if (r.g !== tryG) r.g = tryG;
+            break;
+          }
+        }
+      }
+      if (picked) {
+        r.post = picked.t;
+      } else {
+        if (r.g >= 6) r.g = 5;
+        const pref = BR[r.br]?.t?.[r.g];
+        if (pref && !used.has(pref)) {
+          r.post = pref;
+        } else {
+          const altBr = allBrs.find((bk) => BR[bk]?.t?.[r.g] && !used.has(BR[bk].t[r.g]));
+          r.post = altBr ? BR[altBr].t[r.g] : careerTitle(r.g, r.br);
+          if (altBr) r.br = altBr;
+        }
+      }
+      changed = true;
+    }
+    if (r.post) used.add(r.post);
+  });
+  return changed;
+}
+
+export function ensureDuty(svc, grade, playerPost = "") {
   const d = dutyState(), wantNat = isUS() ? "us" : "kr";
-  if (!d.rivals) { d.rivals = mkRivals(svc); saveDuty(d); }
-  if (d.rivals.some((r) => r.g <= grade - 2)) { tickRivals(d, grade); saveDuty(d); }
-  if (d.nat && d.nat !== wantNat) { d.pending = []; d.crisis = null; d.report = null; d.doneWeek = false; drawEvents(d, svc, grade); return d; }
-  if (!d.pending || (!d.pending.length && !d.crisis && !d.report && !d.doneWeek)) drawEvents(d, svc, grade);
+  let dirty = false;
+  if (!d.rivals) { d.rivals = mkRivals(svc); dirty = true; }
+  if (d.rivals.some((r) => r.g <= grade - 2)) { tickRivals(d, grade, svc, playerPost); dirty = true; }
+  if (syncRivalPosts(d, svc, playerPost)) dirty = true;
+  if (d.nat && d.nat !== wantNat) { d.pending = []; d.crisis = null; d.report = null; d.doneWeek = false; drawEvents(d, svc, grade); syncRivalPosts(d, svc, playerPost); saveDuty(d); return d; }
+  if (!d.pending || (!d.pending.length && !d.crisis && !d.report && !d.doneWeek)) { drawEvents(d, svc, grade); syncRivalPosts(d, svc, playerPost); saveDuty(d); return d; }
+  if (dirty) saveDuty(d);
   return d;
 }
 
@@ -185,9 +243,10 @@ export function dutyEventById(id) { return EVENTS.find((e) => e[0] === id) || US
 export function dutyCrisisById(id) { return CRISES.find((c) => c.id === id) || US_CRISES.find((c) => c.id === id); }
 
 /** Advance rival classmates alongside player progress so they stay neck-and-neck (playerGrade - 1 to +1). */
-function tickRivals(d, playerGrade) {
+function tickRivals(d, playerGrade, svc = "navy", playerPost = "") {
   if (!d.rivals) return;
   const cap = Math.min(9, playerGrade + 1);
+  const promoted = [];
   d.rivals.forEach((r, ri) => {
     if (r.g >= 9) return;
     const elite = r.style === "야전 엘리트";
@@ -200,13 +259,21 @@ function tickRivals(d, playerGrade) {
       if (Math.random() < (elite ? 0.32 : 0.18)) nextG = Math.min(cap, r.g + 1);
     }
     if (nextG > r.g) {
+      const prevG = r.g;
       r.g = nextG;
-      const t = careerTitle(r.g, r.br);
+      r.post = null;
+      promoted.push([r, ri, prevG]);
+    }
+  });
+  syncRivalPosts(d, svc, playerPost);
+  for (const [r, ri, prevG] of promoted) {
+    if (r.g > prevG) {
+      const t = r.post || careerTitle(r.g, r.br);
       const rNm = isUS() ? usNpcName(r.name + ri) : r.name;
       d.headlines.unshift(`${d.week}주차 · [동기 동향] ${isUS() ? "사관학교 동기" : "임관 동기"} ${rNm}, ${t} 보직으로 진급!`);
       d.headlines = d.headlines.slice(0, 12);
     }
-  });
+  }
 }
 
 /** Resolve a weekly duty choice with genuine risk/morale tradeoffs (no guaranteed best pick). */
@@ -319,12 +386,14 @@ export function resolveCrisisDirect(win, grade, modeLabel = "3D 직접 개입") 
   return { win, xpGain, score: sc, msg: hl };
 }
 
-export function nextDutyWeek(svc, grade) {
+export function nextDutyWeek(svc, grade, playerPost = "") {
   const d = dutyState();
   d.week++; d.doneWeek = false;
   d.tension = clamp(d.tension + (Math.random() < 0.45 ? 3 : -1), 5, 95);
-  tickRivals(d, grade);
+  tickRivals(d, grade, svc, playerPost);
   drawEvents(d, svc, grade);
+  syncRivalPosts(d, svc, playerPost);
+  saveDuty(d);
   return d;
 }
 

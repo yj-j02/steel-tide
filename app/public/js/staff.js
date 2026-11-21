@@ -184,8 +184,10 @@ export function staffServe(won) { for (const R of STAFF_ROLES) { const o = offic
  *  evaluation weights it uses (public reporting; ranks and names shift with reorganisations). */
 export const FLAG_POSTS = [
   { g: 9, t: "합동참모의장", c: "jcs", b: "pol", svc: "joint" },
-  { g: 9, t: "육군참모총장", c: "cmd", b: "inf", svc: "army" }, { g: 9, t: "해군참모총장", c: "cmd", b: "sea", svc: "navy" }, { g: 9, t: "공군참모총장", c: "cmd", b: "plt", svc: "air" },
-  { g: 8, t: "지상작전사령관", c: "sea", b: "arm", svc: "army" }, { g: 8, t: "육군참모차장", c: "cmd", b: "inf", svc: "army" }, { g: 8, t: "육군교육사령관", c: "cmd", b: "art", svc: "army" },
+  { g: 9, t: "한미연합사 부사령관", c: "jcs", b: "pol", svc: "joint" },
+  { g: 9, t: "육군참모총장", c: "cmd", b: "inf", svc: "army" }, { g: 9, t: "지상작전사령관", c: "sea", b: "arm", svc: "army" }, { g: 9, t: "제2작전사령관", c: "ops", b: "art", svc: "army" },
+  { g: 9, t: "해군참모총장", c: "cmd", b: "sea", svc: "navy" }, { g: 9, t: "공군참모총장", c: "cmd", b: "plt", svc: "air" },
+  { g: 8, t: "군단장", c: "sea", b: "arm", svc: "army" }, { g: 8, t: "육군참모차장", c: "cmd", b: "inf", svc: "army" }, { g: 8, t: "육군교육사령관", c: "cmd", b: "art", svc: "army" },
   { g: 8, t: "해군작전사령관", c: "sea", b: "sea", svc: "navy" }, { g: 8, t: "해군참모차장", c: "cmd", b: "acq", svc: "navy" }, { g: 8, t: "해군사관학교장", c: "cmd", b: "sea", svc: "navy" },
   { g: 8, t: "공군작전사령관", c: "sea", b: "plt", svc: "air" }, { g: 8, t: "공군참모차장", c: "cmd", b: "tac", svc: "air" }, { g: 8, t: "공군교육사령관", c: "cmd", b: "sam", svc: "air" },
   { g: 8, t: "합동참모차장", c: "jcs", b: "pol", svc: "joint" }, { g: 8, t: "합참 전략기획본부장", c: "jcs", b: "acq", svc: "joint" }, { g: 8, t: "합참 군사지원본부장", c: "jcs", b: "mar", svc: "joint" }, { g: 8, t: "국방정보본부장", c: "int", b: "tac", svc: "joint" },
