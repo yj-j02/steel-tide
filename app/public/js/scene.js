@@ -6,10 +6,8 @@ export const setTheme = (t) => { THEME = t || null; };
 const IMG = (n) => `img/bg/${THEMED.includes(n) && THEME ? `${n}_${THEME}` : n}.jpg`;
 /* 아직 없는 배경은 비슷한 기존 사진으로 대신한다 */
 const FB = { declaration: "press_minister", election_night: "nsc", victory: "press_minister", rally: "ceremony", primary_hall: "press_minister", debate: "press_minister", primary_hall: "press_minister", poll_booth: "office", camp_room: "war_room", election_night: "nsc", victory: "press_minister", inauguration: "ceremony", study: "office", rally: "ceremony", summit: "nsc", president_office: "office", address: "press_minister" };
-/* 정당별 배경 (민주함께당 dm · 한누리당 hn) — 무소속이면 공통 사진 */
-const PV = new Set(["declaration", "primary_hall", "rally", "election_night", "victory"]);
-const party = () => { try { return JSON.parse(localStorage.getItem("steeltide:pres"))?.party; } catch { return null; } };
-const load = (img, n, go) => { const p = party(), tries = [PV.has(n) && (p === "dm" || p === "hn") ? `${n}_${p}` : null, n, FB[n]].filter(Boolean); let i = 0;
+/* 테마 이미지 우선 로드 후 실패 시 대체 사진(FB) 사용 */
+const load = (img, n, go) => { const tries = [n, FB[n]].filter(Boolean); let i = 0;
   img.onload = go; img.onerror = () => { i++; if (i < tries.length) img.src = IMG(tries[i]); else go(); }; img.src = IMG(tries[0]); };
 /* 컷: [이미지, 초점 x, 초점 y (0~1), 확대 배율] */
 const SHOTS = {
