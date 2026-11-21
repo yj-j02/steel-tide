@@ -1045,26 +1045,36 @@ function renderHQ() {
   const SUR = "김이박최정강조윤장임한오서신권황안송류홍", GIV = ["민준", "서준", "도윤", "하준", "지호", "준서", "현우", "지훈", "건우", "우진", "성민", "태현", "재원", "동현", "승우", "영호", "상철", "기훈", "정우", "시우"];
   const npc = (k, g) => { let h = 7; for (const c of k + g) h = (h * 31 + c.charCodeAt(0)) >>> 0; h = Math.imul(h ^ (h >>> 15), 2246822519) >>> 0; return SUR[h % SUR.length] + GIV[(h >>> 13) % GIV.length]; };
   const post = (k, g, title, name, vac) => `<div class="hq-post${vac ? " vac" : ""}" data-take="${k}:${g}:${title}" title="${adm ? "관리자: 이 자리에서 사령부 보기" : "상부 임명 보직"}"><b>${title}</b><span>${insignia(g, 11)}${ECON_RANKS[g]} ${name}</span></div>`;
-  /* rank bands 원수 → 소위. Flag ranks show every navy flag post in its column (작전부대 / 해군본부 / 합참·국방부 /
-     staff lines); below them the branch ladders, with the 해작사 staff (참모장 → 4 처) framed. */
-  const COLS = ["sea", "cmd", "jcs", "ops", "int", "log", "air"], CH = { sea: "작전부대 · 함대", cmd: "해군본부 · 교육", jcs: "합참 · 국방부", ops: "작전 계통", int: "정보 계통", log: "군수 계통", air: "항공 계통" };
+  const svk = serviceOf(br), SVC_ORG = {
+    army: { top: "육군원수", hq: "지작사", box: "지상작전사령부 참모부 · 참모 계통", ech: ["대대·중대 부서", "연대·여단 참모부", "사단·군단 참모부", "지상작전사령부"],
+      ch: { sea: "지상작전사 · 군단", cmd: "육군본부 · 교육", jcs: "합참 · 국방부", ops: "기갑·기동 계통", int: "정보·정책 계통", log: "전력·군수 계통", air: "포병·화력 계통" },
+      map: { sea: "inf", ops: "arm", int: "pol", log: "acq", air: "art" } },
+    navy: { top: "해군원수", hq: "해작사", box: "해군작전사령부 참모부 · 참모 계통", ech: ["함정 부서", "함정·전대 참모부", "전투단·기동부대 참모부", "해군작전사령부"],
+      ch: { sea: "작전부대 · 함대", cmd: "해군본부 · 교육", jcs: "합참 · 국방부", ops: "잠수함 계통", int: "정보·정책 계통", log: "전력·군수 계통", air: "해상항공·해병 계통" },
+      map: { sea: "sea", ops: "sub", int: "pol", log: "acq", air: "mar" } },
+    air:  { top: "공군원수", hq: "공작사", box: "공군작전사령부 참모부 · 참모 계통", ech: ["비행대대 부서", "전대 참모부", "비행단 참모부", "공군작전사령부"],
+      ch: { sea: "전투비행단 · 공작사", cmd: "공군본부 · 교육", jcs: "합참 · 국방부", ops: "방공유도탄 계통", int: "전술통제·정보 계통", log: "전력·군수 계통", air: "외교·정책 계통" },
+      map: { sea: "plt", ops: "sam", int: "tac", log: "acq", air: "pol" } },
+  };
+  const SO = SVC_ORG[svk] || SVC_ORG.navy;
+  const COLS = ["sea", "cmd", "jcs", "ops", "int", "log", "air"], CH = SO.ch;
   const CK = { sea: "cm", cmd: "cm", jcs: "cm", ops: "sf", int: "sf", log: "sf", air: "sf" };
   const size = (g) => (g >= 6 ? " big" : g >= 3 ? " mid" : " sm");
   const myPost = hqAdm() ? staff.adminPost.t || careerTitle(rk, br) : postOf(rk);
-  const flagCell = (k, g) => FLAG_POSTS.filter((p) => p.g === g && p.c === k).map((p) => (rk === g && p.t === myPost ? `<div class="hq-mine">${me}</div>` : post(k, g, p.t, p.t === "해군작전사령관" && rk < 8 ? FLEET_CDR.nm : npc(p.t, String(g))))).join("");
+  const flagCell = (k, g) => FLAG_POSTS.filter((p) => p.g === g && p.c === k && (p.svc === svk || p.svc === "joint")).map((p) => (rk === g && p.t === myPost ? `<div class="hq-mine">${me}</div>` : post(k, g, p.t, p.t === "해군작전사령관" && rk < 8 ? FLEET_CDR.nm : npc(p.t, String(g))))).join("");
   const cell = (k, g) => {
-    const S = STAFF_ROLES.find((x) => x.k === k);
-    if (g === 10) return k === "cmd" ? (rk === 10 ? me : post("cmd", 10, "해군원수", "공석", true)) : "";
-    if (g >= 6) { let h = flagCell(k, g); if (k === "cmd" && g === 7) h = (myUnit ? post("cmd", 7, "해작사 참모장", npc("cos", "7")) : `${hqNode(STAFF_ROLES[0], of("cos"))}<div class="hq-eff">${hqEff("cos", m)[0]}</div>`) + h; return h; }
+    const S = STAFF_ROLES.find((x) => x.k === k), colBr = SO.map[k];
+    if (g === 10) return k === "cmd" ? (rk === 10 ? me : post("cmd", 10, SO.top, "공석", true)) : "";
+    if (g >= 6) { let h = flagCell(k, g); if (k === "cmd" && g === 7) h = (myUnit ? post("cmd", 7, `${SO.hq} 참모장`, npc("cos", "7")) : `${hqNode(STAFF_ROLES[0], of("cos"))}<div class="hq-eff">${hqEff("cos", m)[0]}</div>`) + h; return h; }
     if (k === "cmd" || k === "jcs") return "";
-    if (normBranch(br) === normBranch(k) && rk === g) return `<div class="hq-mine">${me}${S && g === 5 && !myUnit ? `<div class="hq-eff">${hqEff(k, m).join(" · ")}</div>` : ""}</div>`;
-    if (S && g === 5) return myUnit ? post(k, 5, `해작사 ${HQ_DEPT[k]}장`, npc(k, "5")) : `${hqNode(S, of(k))}<div class="hq-eff">${hqEff(k, m).join(" · ")}</div>`;
-    return post(k, g, (BRANCHES[normBranch(k)] || BRANCHES.sea).t[g], npc(k, g));
+    if (colBr && normBranch(br) === colBr && rk === g) return `<div class="hq-mine">${me}${S && g === 5 && !myUnit ? `<div class="hq-eff">${hqEff(k, m).join(" · ")}</div>` : ""}</div>`;
+    if (S && g === 5) return myUnit ? post(k, 5, `${SO.hq} ${HQ_DEPT[k]}장`, npc(k, "5")) : `${hqNode(S, of(k))}<div class="hq-eff">${hqEff(k, m).join(" · ")}</div>`;
+    return post(k, g, (BRANCHES[colBr] || BRANCHES.sea).t[g], npc(k, g));
   };
   const row = (g) => 3 + (10 - g), colOf = (k) => 2 + COLS.indexOf(k);
   let grid = `<svg class="hq-lines"></svg><div class="hq-band hq-hd" style="grid-row:1;grid-column:1"></div>${COLS.map((k) => `<div class="hq-ch ${CK[k]}" style="grid-row:1;grid-column:${colOf(k)}">${CH[k]}</div>`).join("")}`
     + `<div class="hq-band hq-min" style="grid-row:2;grid-column:1"><b>국방부</b></div><div class="hq-cell cm big" data-n="min" style="grid-row:2;grid-column:${colOf("jcs")}"><div class="hq-post min${career.minister ? "" : " vac"}"><b>국방부장관</b><span>${career.minister ? `${cmdr.name} (예비역 ${ECON_RANKS[myGrade()]})` : "예비역 장성 중 대통령 임명 — 대장부터 제청 가능"}</span></div></div>`
-    + `<div class="hq-box" style="grid-row:${row(5)} / ${row(0) + 1};grid-column:${colOf("ops")} / ${colOf("air") + 1}"><span>해군작전사령부 참모부 · 참모 계통</span></div>`;
+    + `<div class="hq-box" style="grid-row:${row(5)} / ${row(0) + 1};grid-column:${colOf("ops")} / ${colOf("air") + 1}"><span>${SO.box}</span></div>`;
   for (let g = 10; g >= 0; g--) {
     grid += `<div class="hq-band${g % 2 ? "" : " alt"}${g === rk ? " mine" : ""}" style="grid-row:${row(g)};grid-column:1">${insignia(g, 11)}<b>${ECON_RANKS[g]}</b></div>`;
     for (const k of COLS) { const inner = cell(k, g); grid += `<div class="hq-cell ${CK[k]}${size(g)}${g % 2 ? "" : " alt"}"${inner ? ` data-n="${k}${g}"` : ""} style="grid-row:${row(g)};grid-column:${colOf(k)}">${inner}</div>`; }
@@ -1079,7 +1089,7 @@ function renderHQ() {
   const admBox = adm ? `<div class="hq-adm">관리자 모드 — 모든 자리 임명 가능 · 조직도의 아무 자리나 누르면 그 자리에서 사령부를 봅니다${staff.adminPost ? ` <button data-take="reset">내 실제 계급으로</button>` : ""}</div>` : `<div class="hq-adm in"><input id="hqAdmin" type="password" maxlength="32" placeholder="관리자 코드" autocomplete="off"><button data-act="hqadmin">적용</button></div>`;
   const brObj = BRANCHES[normBranch(br)] || BRANCHES.sea, svObj = SERVICES[serviceOf(br)] || SERVICES.navy;
   $("#hqP").innerHTML = `<div class="hq-head"><div><h3>${svObj.icon} ${svObj.n} 지휘 계통 · 사령부</h3><p>참모진이 직접 지휘와 자동 전투 결과 모두에 반영됩니다. 언제나 나보다 낮은 계급만 임명합니다.</p><div class="hq-tog"><button data-hqv="duty">‹ 장교 복무 데스크</button><b>지휘 계통도</b>${career.minister ? `<button data-hqv="min" class="go">국방부 집무실 ›</button>` : ""}</div><div class="hq-me">내 보직 <b>${svObj.n} · ${brObj.n}</b> · ${careerTitle(rk, br)} · 보너스 ${brObj.bonus}${myGrade() === 0 || adm ? ` <button data-rebranch="1">군종·병과 변경</button>` : ""}</div>${admBox}</div><div class="hq-sum">${hqSummary(m)}</div></div>`
-    + `<div class="hq-grid">${grid}</div><div class="hq-legend"><span class="l cm">지휘</span><span class="l sf">참모</span><span class="l jt">국방부·합참 계선</span></div>${myUnit ? `<div class="hq-rh"><b>내 참모진 · ${ECH[E].u}</b><span>나보다 낮은 ${ECH[E].rk}급에서 임명 — 전투에 반영되는 참모는 이 다섯 자리입니다</span></div><div class="hq-unit">${STAFF_ROLES.map((r) => `<div>${hqNode({ ...r, n: roleTitle(r.k, rk) }, of(r.k))}<div class="hq-eff">${(hqEff(r.k, m) || []).join(" · ")}</div></div>`).join("")}</div>` : ""}<div class="hq-rh"><b>${roleTitle(hqRole, rk)} 후보 · ${ECH[E].rk}급</b><span>${R.d} · 능력순</span></div><div class="hq-cands">${cands}</div>`;
+    + `<div class="hq-grid">${grid}</div><div class="hq-legend"><span class="l cm">지휘</span><span class="l sf">참모</span><span class="l jt">국방부·합참 계선</span></div>${myUnit ? `<div class="hq-rh"><b>내 참모진 · ${SO.ech[E]}</b><span>나보다 낮은 ${ECH[E].rk}급에서 임명 — 전투에 반영되는 참모는 이 다섯 자리입니다</span></div><div class="hq-unit">${STAFF_ROLES.map((r) => `<div>${hqNode({ ...r, n: roleTitle(r.k, rk) }, of(r.k))}<div class="hq-eff">${(hqEff(r.k, m) || []).join(" · ")}</div></div>`).join("")}</div>` : ""}<div class="hq-rh"><b>${roleTitle(hqRole, rk)} 후보 · ${ECH[E].rk}급</b><span>${R.d} · 능력순</span></div><div class="hq-cands">${cands}</div>`;
   requestAnimationFrame(drawHQLines);
 }
 /** Org chart connectors, drawn over the grid from the laid-out boxes: [from, to, kind]. */
