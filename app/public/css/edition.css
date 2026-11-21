@@ -183,3 +183,7 @@ body:has(#edition)
 #edition[data-party="red"] header {
   border-bottom: 3px solid #ce7275;
 }
+
+#edition .mg-services {display:flex; flex-wrap:wrap; gap:12px; margin:22px 0}
+#edition .mg-services a {flex:1;min-width:190px}
+#edition [data-choice] small {display:block;font-size:13px;margin-top:4px}
