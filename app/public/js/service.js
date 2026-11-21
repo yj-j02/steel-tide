@@ -54,10 +54,10 @@ export function board(g, xpGrade) {
   const xp = xpGrade > g, wk = weeks >= needWk, cnt = e.n >= need, score = e.n > 0 && e.avg >= PASS;
   return { ok: xp && wk && cnt && score, xp, wk, needWk, weeks, cnt, score, need, e };
 }
-/** 원수(5성) 특별진급 퀘스트 조건: 대장 평정 S(85+)·5회 + 위기 직접 지휘 대승 3회 + 군내 평판 85+ & 대장 복무 10주 */
+/** 원수(5성) 전시 총력전 시나리오 해금 조건: 대장 평정 78점+ · 3회 이상 + 군내 평판 75+ + 대장 복무 6주 이상 */
 export function marshalQuest(profile, grade, rep = 0) {
   const e9 = evalOf(9), wins = career.marshalWins || 0, w9 = weeksOf(9);
-  const c1 = grade >= 9 && e9.n >= 5 && e9.avg >= 85, c2 = wins >= 3, c3 = rep >= 85 && w9 >= 10;
+  const c1 = grade >= 9 && e9.n >= 3 && e9.avg >= 78, c2 = rep >= 75, c3 = w9 >= 6;
   return { ok: c1 && c2 && c3, c1, c2, c3, e9, wins, rep, w9 };
 }
 

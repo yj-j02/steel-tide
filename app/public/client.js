@@ -45,6 +45,7 @@ const ngFlags = () => { const L = legacy(); if (!L?.medal) return {}; const g = 
 let usPresPreview = false;
 let hqView = "duty", minDirect = false, minDirect3d = false, dutyDirect = false, returnToHQ = false, svcDraft = null;
 import { FOCUS, PASS, minBattles, scoreBattle, recordEval, evalOf, board, marshalQuest, setCap, deferNote } from "./js/service.js";
+import { openMarshalWar } from "./js/marshal-war.js";
 import { ECON_RANKS, ECON_RANK_XP, econRank, econNewProfile, econReward, econCheck, econApply } from "./js/shop.js";
 
 // ── profile + room connection ───────────────────────────────────────────────
@@ -1311,13 +1312,14 @@ function renderBranchPick() {
 function marshalCardHTML(g) {
   if (g !== 9) return "";
   const q = marshalQuest(profile, g, dutyState().rep || 0);
-  return `<div class="mn-card" style="border-color:#f2ca5c;background:rgba(36,28,12,.72)"><b>★ 원수(5성) 특별진급 퀘스트 · 최고 난이도</b><p style="font-size:11.5px;color:#e6dcc0;margin:4px 0 8px">원수는 일반 진급이 불가하며, 아래 전시 합동작전 최고 공훈 3가지를 모두 달성해야 특별진급할 수 있습니다.</p>
+  const opName = isUS() ? "Operation Pacific Vanguard (인도태평양 전면전)" : "작전명 「철의 여명」 (제2차 한반도 전면전)";
+  return `<div class="mn-card" style="border-color:#e05a47;background:linear-gradient(135deg,rgba(56,18,18,.82),rgba(28,22,12,.86));box-shadow:0 0 18px rgba(224,90,71,.18)"><b style="color:#ffd875">🚨 DEFCON 1 · 원수(5성) 전시 총력전 시나리오</b><p style="font-size:11.5px;color:#eadfd0;margin:4px 0 8px">원수(5성) 계급은 평시 진급이 불가하며, <b>대규모 전면전(${opName})</b>에서 전시 총사령관으로 임명되어 5단계 대전략 작전을 완승해야 특별 추대됩니다.</p>
     <div style="display:flex;flex-direction:column;gap:3px;font-size:11.5px;margin-bottom:8px">
-      <span class="${q.c1 ? "g" : ""}">${q.c1 ? "✔" : "○"} 대장 근무평정 평균 S(85점+) · 5회 이상 (현재 ${q.e9.avg}점 · ${q.e9.n}/5회)</span>
-      <span class="${q.c2 ? "g" : ""}">${q.c2 ? "✔" : "○"} 위기 직접 지휘(3D/FM) 대승 3회 이상 (현재 ${q.wins}/3회)</span>
-      <span class="${q.c3 ? "g" : ""}">${q.c3 ? "✔" : "○"} 군내 평판 85점+ &amp; 대장 복무 ${serviceDuration(rankMonths(9, 10))} 이상 (현재 평판 ${q.rep} · 복무 ${serviceDuration(rankMonths(9, q.w9))})</span>
+      <span class="${q.c1 ? "g" : ""}">${q.c1 ? "✔" : "○"} 대장 근무평정 평균 78점+ · 3회 이상 (현재 ${q.e9.avg}점 · ${q.e9.n}/3회)</span>
+      <span class="${q.c2 ? "g" : ""}">${q.c2 ? "✔" : "○"} 군내 평판 75점 이상 (현재 ${q.rep}점)</span>
+      <span class="${q.c3 ? "g" : ""}">${q.c3 ? "✔" : "○"} 대장 복무 ${serviceDuration(rankMonths(9, 6))} 이상 (현재 ${serviceDuration(rankMonths(9, q.w9))})</span>
     </div>
-    <button class="mn-go" data-duty="marshal" ${q.ok || profile.admin ? "" : "disabled"}>${q.ok ? "★ 원수(5성) 특별진급 심사 상정 ›" : profile.admin ? "★ [관리자] 원수 특별진급 즉시 실행 ›" : "특별진급 조건 미달"}</button></div>`;
+    <button class="mn-go" data-duty="marshal" ${q.ok || profile.admin ? "" : "disabled"}>${q.ok ? "⚔️ 전시 총력전 개전 · 원수(5성) 특별진급 도전 ›" : profile.admin ? "⚔️ [관리자] 전시 총력전 시나리오 즉시 개전 ›" : "전시 총사령관 임명 요건 미달"}</button></div>`;
 }
 let retireArm = false;
 function tierAuthHTML(g) {
@@ -1991,7 +1993,41 @@ $("#hqP").addEventListener("click", (e) => {
       return;
     }
     if (a === "admrank" && profile.admin) { const nx = Math.min(9, g + 1); if (g >= 9) return toast("원수(5성)는 특별진급 퀘스트 버튼으로 시험할 수 있습니다", 3); profile.xp = Math.max(profile.xp, ECON_RANK_XP[nx]); setCap(nx); saveProfile(); career.picks += nx - g; logPromotion({ g: nx, t: postOf(nx), b: BRANCHES[br].n, why: "관리자 진급 시험" }); buildPromo(g, nx); $("#promoM").style.display = "flex"; refreshMenus(); renderDutyDesk(); return; }
-    if (a === "marshal") { const q = marshalQuest(profile, g, dutyState().rep || 0); if (!q.ok && !profile.admin) return toast("원수 특별진급 퀘스트 조건을 모두 달성해야 합니다", 3); profile.xp = Math.max(profile.xp, ECON_RANK_XP[10]); setCap(10); saveProfile(); unlockEnding(isUS() ? "us_marshal" : "kr_marshal"); logPromotion({ g: 10, t: postOf(10), b: (curBranches()[br] || BRANCHES[br]).n, why: "원수(5성) 특별진급" }); buildPromo(g, 10); $("#promoM").style.display = "flex"; fanfare(10, br); refreshMenus(); renderDutyDesk(); return; }
+    if (a === "marshal") {
+      const q = marshalQuest(profile, g, dutyState().rep || 0);
+      if (!q.ok && !profile.admin) return toast("전시 총사령관 임명 요건을 먼저 달성해야 합니다", 3);
+      openMarshalWar({
+        nation: isUS() ? "us" : "kr",
+        rankName: rankLabel(g),
+        cmdrName: cmdr.name,
+        onComplete: (res) => {
+          if (res.won) {
+            profile.xp = Math.max(profile.xp, ECON_RANK_XP[10]);
+            setCap(10);
+            career.medals = career.medals || {};
+            career.medals.taeguk = 1;
+            career.warVictory = res.warTitle;
+            saveCareer();
+            saveProfile();
+            unlockEnding(isUS() ? "us_marshal" : "kr_marshal");
+            logPromotion({ g: 10, t: postOf(10), b: (curBranches()[br] || BRANCHES[br]).n, why: `${res.warTitle} 완전 승전 · 원수(5성) 특별진급` });
+            buildPromo(g, 10);
+            $("#promoM").style.display = "flex";
+            fanfare(10, br);
+          } else {
+            const d = dutyState();
+            d.rep = Math.max(0, Math.min(100, (d.rep || 50) + (res.stalemate ? 2 : -5)));
+            d.morale = Math.max(0, Math.min(100, (d.morale || 70) + (res.stalemate ? 0 : -6)));
+            d.news = d.news || [];
+            d.news.unshift(`[전시 총력전] ${res.warTitle} — ${res.stalemate ? "전선 방어 성공(원수 기준 미달 · 재도전 가능)" : "작전 고전 · 전력 재정비 후 재도전 필요"} (전공 ${res.score}점)`);
+            toast(res.stalemate ? "전선을 방어했으나 원수 특별추대 기준(380점+)에 미달했습니다." : "작전에 고전했습니다. 재정비 후 다시 도전하십시오.", 4);
+          }
+          refreshMenus();
+          renderDutyDesk();
+        },
+      });
+      return;
+    }
     if (a === "tomin") { if (g < 9 && profile.admin) { profile.xp = Math.max(profile.xp, ECON_RANK_XP[9]); setCap(9); saveProfile(); } hqView = "min"; ministerOrder(); renderMin(); toast(isUS() ? "미 국방장관(SecDef)으로 취임했습니다 — 36주 펜타곤 경영 시작" : "국방부장관으로 취임했습니다 — 36주 국방 경영 시작", 4); return; } }
   if (e.target.closest('[data-act="hqadmin"]')) { if (act({ kind: "admin", code: $("#hqAdmin").value })) { sfx.coin(); toast("관리자 모드 — 사령부 모든 자리 선택 가능"); refreshMenus(); renderHQ(); } return; }
   const tk = e.target.closest("[data-take]");
