@@ -324,9 +324,9 @@ function agedFace(i, grade, us = isUS()) {
 }
 const myFace = () => agedFace(cmdr.face, myGrade());
 const SVC_UNI = {
-  army: { u0: "#344730", u1: "#1a2617", sh: "#dcd7c2", tie: "#1b2b18", cap0: "#42573c", cap1: "#293825", band: "#1a2218", strap: "#c9a23a", sleeve: "#c9a23a" },
-  navy: { u0: "#1c2638", u1: "#0b0f18", sh: "#f1f1ee", tie: "#111111", cap0: "#ffffff", cap1: "#c9ccc8", band: "#121417", strap: "#c9a23a", sleeve: "#c9a23a" },
-  air:  { u0: "#1d355a", u1: "#0d1b32", sh: "#dce9f7", tie: "#0f203d", cap0: "#2b4d80", cap1: "#193052", band: "#0f1a2c", strap: "#cfd8e3", sleeve: "#cfd8e3" },
+  army: { u0: "#243d33", u1: "#14261f", sh: "#dce4dd", tie: "#152921", cap0: "#2e4d40", cap1: "#1b3027", band: "#14201b", strap: "#d8b247", sleeve: "#d8b247" },
+  navy: { u0: "#f0f4f8", u1: "#c8d2dc", sh: "#ffffff", tie: "#d8b247", cap0: "#ffffff", cap1: "#cfd5dc", band: "#12161e", strap: "#d8b247", sleeve: "#d8b247" },
+  air:  { u0: "#1c345c", u1: "#0e1d38", sh: "#d8e8f8", tie: "#0e1c36", cap0: "#26467a", cap1: "#162b4d", band: "#0e182a", strap: "#cfd8e4", sleeve: "#cfd8e4" },
 };
 const US_SVC_UNI = {
   army: { u0: "#4b4a34", u1: "#28281a", sh: "#e2d6b6", tie: "#332e22", cap0: "#54523b", cap1: "#353425", band: "#2b251c", strap: "#d6ad42", sleeve: "#d6ad42" }, /* AGSU */
@@ -1010,18 +1010,42 @@ function ceremonialBackdrop(grade, svc) {
 }
 
 function portraitHTML(g, snapshot = null) {
-  const F = { ...agedFace(snapshot?.face ?? cmdr.face, g), bare: true };
   const MD = curMedals(), svk = snapshot?.service || serviceOf(staff.branch);
+  const F = { ...agedFace(snapshot?.face ?? cmdr.face, g), bare: true, svc: svk };
   const awards = snapshot?.medals ?? career.medals;
   const coatId = `portrait-coat-${faceN++}`;
   const meds = Object.keys(MD).filter((k) => awards?.[k]), per = 3, rows = [];
   for (let i = 0; i < meds.length; i += per) rows.push(meds.slice(i, i + per));
   const rack = rows.reverse().map((row, r) => row.map((k, i) => { const rb = MD[k].rb, x = 200 - (row.length * 17) / 2 + i * 17, y = 252 - r * 7; return `<g class="portrait-ribbon" data-medal="${k}" role="button" tabindex="0" aria-label="${MD[k].n} 수여 사유"><title>${MD[k].n}</title>` + rb.map((col, j) => `<rect x="${x + (j * 16) / rb.length}" y="${y}" width="${16 / rb.length + 0.2}" height="6" fill="${col}"/>`).join("") + `<rect x="${x}" y="${y}" width="16" height="6" fill="none" stroke="#333" stroke-width=".4"/></g>`; }).join("")).join("");
-  const coat = isUS() ? (svk === "army" ? ["#54523b", "#313022", "#e2d6b6", "#2c281d"] : svk === "air" ? ["#1f3a68", "#0e1d38", "#dce9f7", "#0f203d"] : ["#162238", "#0a101d", "#f4f5f7", "#11141c"]) : ["#ffffff", "#d9dde2", "#f4f6f8", "#c4c9cf"];
-  return `<svg class="mi-por mi-por-ceremonial" role="group" aria-label="${rankLabel(g, svk)} 정복 초상" viewBox="0 0 300 300" width="300" height="300"><defs><linearGradient id="${coatId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${coat[0]}"/><stop offset="1" stop-color="${coat[1]}"/></linearGradient></defs>`
+  const us = isUS();
+  const uni = us
+    ? (svk === "army"
+        ? { c0: "#4d4f36", c1: "#2c2f1f", sh: "#e4d8b8", tie: "#292e1b", stroke: "#232518", btn: "#d8b247", btnS: "#6e5618", style: "us_army" }
+        : svk === "air"
+          ? { c0: "#1f3f73", c1: "#102447", sh: "#d6e8fb", tie: "#12274a", stroke: "#0c1a33", btn: "#cfd8e4", btnS: "#58687a", style: "us_air" }
+          : { c0: "#121e33", c1: "#080e1a", sh: "#f5f7fa", tie: "#0d1016", stroke: "#060a12", btn: "#e2be52", btnS: "#765d18", style: "us_navy" })
+    : (svk === "army"
+        ? { c0: "#243d33", c1: "#14261f", sh: "#dce4dd", tie: "#152921", stroke: "#0e1d17", btn: "#d8b247", btnS: "#6e5618", style: "kr_army" }
+        : svk === "air"
+          ? { c0: "#1c345c", c1: "#0e1d38", sh: "#d8e8f8", tie: "#0e1c36", stroke: "#091326", btn: "#cfd8e4", btnS: "#58687a", style: "kr_air" }
+          : { c0: "#ffffff", c1: "#dce2e8", sh: "#f6f8fa", tie: null, stroke: "#b8c0c8", btn: "#d8b247", btnS: "#7a6220", style: "kr_navy" });
+  const lapels = uni.style === "kr_navy"
+    ? `<path d="M122 200 L150 218 L178 200 L175 193 L150 207 L125 193Z" fill="${uni.c0}" stroke="#d8b247" stroke-width="1.1"/><path d="M150 218 L150 300" stroke="#c0c7cf" stroke-width="1.2"/>`
+    : uni.style === "us_navy"
+      ? `<path d="M118 202 L150 246 L182 202 L175 196 L150 214 L125 196Z" fill="${uni.sh}" stroke="${uni.stroke}"/><path d="M145 214 L150 209 L155 214 L154 244 L150 250 L146 244Z" fill="${uni.tie}"/><path d="M106 206 L124 202 L150 246 L132 252 L112 224Z" fill="${uni.c0}" stroke="${uni.stroke}" stroke-width=".9"/><path d="M194 206 L176 202 L150 246 L168 252 L188 224Z" fill="${uni.c0}" stroke="${uni.stroke}" stroke-width=".9"/>`
+      : `<path d="M120 202 L150 244 L180 202 L175 196 L150 212 L125 196Z" fill="${uni.sh}" stroke="${uni.stroke}"/><path d="M145 214 L150 209 L155 214 L153 248 L150 254 L147 248Z" fill="${uni.tie}"/><path d="M110 205 L124 202 L148 244 L132 248Z" fill="${uni.c0}" stroke="${uni.stroke}" stroke-width=".8"/><path d="M190 205 L176 202 L152 244 L168 248Z" fill="${uni.c0}" stroke="${uni.stroke}" stroke-width=".8"/>`;
+  const collarPins = uni.style === "kr_navy" ? ""
+    : `<circle cx="122" cy="222" r="3" fill="${uni.btn}" stroke="${uni.btnS}" stroke-width=".6"/><circle cx="178" cy="222" r="3" fill="${uni.btn}" stroke="${uni.btnS}" stroke-width=".6"/>`;
+  const pockets = uni.style === "us_army"
+    ? `<path d="M74 268 H126 V276 L100 282 L74 276Z" fill="none" stroke="#232518" stroke-width="1"/><path d="M174 268 H226 V276 L200 282 L174 276Z" fill="none" stroke="#232518" stroke-width="1"/><rect x="30" y="290" width="240" height="10" fill="#2c2418" opacity=".88"/><rect x="142" y="290" width="16" height="10" rx="1.5" fill="#d8b247"/>`
+    : "";
+  const buttons = uni.style === "us_navy"
+    ? [252, 270, 288].map((y) => `<circle cx="136" cy="${y}" r="3.4" fill="${uni.btn}" stroke="${uni.btnS}" stroke-width=".6"/><circle cx="164" cy="${y}" r="3.4" fill="${uni.btn}" stroke="${uni.btnS}" stroke-width=".6"/>`).join("")
+    : [252, 272, 290].map((y) => `<circle cx="150" cy="${y}" r="3.4" fill="${uni.btn}" stroke="${uni.btnS}" stroke-width=".6"/>`).join("");
+  return `<svg class="mi-por mi-por-ceremonial" role="group" aria-label="${rankLabel(g, svk)} 정복 초상" viewBox="0 0 300 300" width="300" height="300"><defs><linearGradient id="${coatId}" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${uni.c0}"/><stop offset="1" stop-color="${uni.c1}"/></linearGradient></defs>`
     + ceremonialBackdrop(g, svk)
-    + `<path d="M8 300 C10 248 34 216 100 200 L150 222 L200 200 C266 216 290 248 292 300Z" fill="url(#${coatId})" stroke="${coat[3]}" stroke-width="1"/>`
-    + `<path d="M120 204 L150 226 L180 204 L176 196 L150 212 L124 196Z" fill="${coat[2]}" stroke="${coat[3]}"/>${isUS() ? `<path d="M145 215 L150 210 L155 215 L153 265 L150 272 L147 265Z" fill="${coat[3]}"/>` : `<path d="M150 226 L150 300" stroke="#c4c9cf" stroke-width="1.2"/>`}${[240, 262, 284].map((y) => `<circle cx="150" cy="${y}" r="3.4" fill="#d8b247" stroke="#7a6220" stroke-width=".6"/>`).join("")}`
+    + `<path d="M8 300 C10 248 34 216 100 200 L150 222 L200 200 C266 216 290 248 292 300Z" fill="url(#${coatId})" stroke="${uni.stroke}" stroke-width="1"/>`
+    + lapels + collarPins + pockets + buttons
     + `<g transform="translate(34 224) rotate(-17)">${shoulderBoard(g, false, svk)}</g><g transform="translate(266 224) rotate(17) scale(-1 1)">${shoulderBoard(g, false, svk)}</g>`
     + (isUS()
       ? `<g transform="translate(22 262) rotate(-8)"><rect width="34" height="20" rx="1.6" fill="#b22234" stroke="#d8b247" stroke-width="1.1"/>${[2.8, 6.2, 9.6, 13, 16.4].map((y) => `<rect y="${y}" width="34" height="1.7" fill="#fff"/>`).join("")}<rect width="14.5" height="11" fill="#1f3a6e"/>${[2.5, 5.5, 8.5].map((y) => [2.6, 5.8, 9, 12.2].map((x) => `<circle cx="${x}" cy="${y}" r=".65" fill="#fff"/>`).join("")).join("")}</g>`
