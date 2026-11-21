@@ -23,6 +23,8 @@ function fixture(g, week, score = 100) {
     rankWeeks: { [g]: week - 1 },
     evals: { [g]: Array(14).fill(score) },
     tours: {},
+    crisisWins: {},
+    medals: {},
     discharged: null,
   });
   saveDuty({ ...dutyState(), rivals: [], rep: 100, week, doneWeek: true });
@@ -75,7 +77,8 @@ for (const week of [13, 17, 21]) {
   assert.equal(settle(...args(3)).passed, false);
   assert.equal(settle(...args(3)), null);
 }
-assert.equal(career.discharged.g, 3);
+assert.equal(career.discharged, null);
+assert.equal(career.defer, 3);
 fixture(5, 17);
 saveDuty({
   ...dutyState(),
@@ -152,7 +155,7 @@ for (let i = 0; i < 160 && usPresState().phase !== "end"; i++) {
 }
 assert.equal(usPresState().phase, "end");
 console.log(
-  "Board seasons, discharge, vacancies, education, campaign, presidential term passed.",
+  "Board seasons, repeated non-selection, vacancies, education, campaign, presidential term passed.",
 );
 
 const { careerDate, rankMonths } =
@@ -193,13 +196,22 @@ for (const nation of ["kr", "us"]) {
   );
   assert.equal(career.cap, 2);
   assert.equal(settle(1, 2, "시설복구장교", "eng", "army"), null);
-  fixture(5, 41, 82);
+  fixture(2, 35, 75);
+  career.medals = { commend: true, service: true, chungmu: true };
+  saveDuty({ ...dutyState(), morale:100, rep:100 });
+  const routine = preview(...args(2));
+  assert.equal(routine.cutoff, 73);
+  assert.ok(routine.score < routine.cutoff);
+  assert.equal(settle(...args(2)).passed, false);
+  fixture(2, 35, 85);
+  assert.equal(settle(...args(2)).passed, true);
+  fixture(5, 41, 90);
   career.crisisWins = { 5: 1 };
   career.medals = { commend: true, service: true, chungmu: true };
-  career.tours = { edu: true, cmd: 1 };
+  career.tours = { edu: true, cmd: 1, joint: 1 };
   saveDuty({ ...dutyState(), morale: 100, rep: 100 });
   const review = preview(5, 6, curBranches().eng.t[5], "eng", "army");
-  assert.equal(review.moraleBonus, 5);
+  assert.equal(review.moraleBonus, 2);
   assert.ok(review.score >= review.cutoff);
   assert.equal(
     settle(5, 6, curBranches().eng.t[5], "eng", "army").passed,
