@@ -6,7 +6,7 @@ import { curFlagPosts, postTier, isUS } from "./staff.js";
 import { dutyState, saveDuty, rivalEligible, syncRivalPosts } from "./duty.js";
 
 const bound = (n, max) => Math.max(0, Math.min(max, n));
-const termKey = (week) => Math.floor((week - 1) / 4);
+
 function track(title, br) {
   if (
     ["acq", "pol"].includes(br) ||
@@ -30,10 +30,13 @@ export function hint(title) {
 }
 export function preview(g, xp, title, br, svc, d = dutyState()) {
   const b = board(g, xp),
-    season = termKey(d.week),
+    season = (career.boardHistory || []).filter(entry => entry.grade === g).length + 1,
     cutoff = [55, 68, 76, 78][g < 3 ? 0 : g < 5 ? 1 : g === 5 ? 2 : 3];
   const prior = career.boardHistory?.at(-1),
     tours = career.tours || {};
+  // Legacy receipts stored a four-week season number instead of the actual review week.
+  const retryWeek = prior?.grade === g ? (prior.week ?? prior.season * 4 + 1) + 4 : 0;
+  const waitWeeks = Math.max(0, b.needWk - b.weeks, retryWeek - d.week);
   const kind = track(title, br),
     cmd = (tours.cmd || 0) + Number(kind === "cmd"),
     joint = (tours.joint || 0) + Number(kind === "joint");
@@ -94,9 +97,8 @@ export function preview(g, xp, title, br, svc, d = dutyState()) {
     .filter((r) => g >= 3 && r.g === g && rivalEligible(d.rivals[r.index], d.week));
   const ready =
     g < 9 &&
-    season > 0 &&
-    b.weeks - ((d.week - 1) % 4) >= b.needWk &&
-    prior?.season !== season &&
+    waitWeeks === 0 &&
+    !(prior?.grade === g && prior.passed) &&
     b.wk &&
     b.xp &&
     b.cnt &&
@@ -109,6 +111,7 @@ export function preview(g, xp, title, br, svc, d = dutyState()) {
     penalty,
     season,
     seats,
+    waitWeeks,
     rivals,
     posts,
     vacant,
@@ -139,6 +142,7 @@ export function settle(g, xp, title, br, svc, preferred) {
           .sort((a, b) => a[1] - b[1])[0][0]
       : "동기 경쟁에서 정원 밖";
   const receipt = {
+    week: d.week,
     season: v.season,
     grade: g,
     score: v.score,
@@ -237,7 +241,7 @@ export function boardCard(g, xp, title, br, svc, d, experience) {
   }
   prepareRecord(g);
   const v = preview(g, xp, title, br, svc, d),
-    left = (4 - ((d.week - 1) % 4)) % 4;
+    left = v.waitWeeks;
   const peer =
     d.rivals?.[(d.week / 7 - 1) % Math.max(1, d.rivals?.length || 1)];
   const last = career.boardHistory?.at(-1);

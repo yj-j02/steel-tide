@@ -41,8 +41,19 @@ assert.equal(settle(...args(0)),null);
 fixture(3,33);
 saveDuty({...dutyState(),rivals:[{name:"A",g:3,rankSinceWeek:30},{name:"B",g:3,rankSinceWeek:21}]});
 assert.deepEqual(preview(...args(3)).rivals.map(r=>r.name),["B"]);
-fixture(0, 11);
-assert.equal(preview(...args(0)).ready, false);
+for(let g=0;g<9;g++){
+  fixture(g, 42);
+  career.rankWeeks[g]=9;
+  assert.equal(preview(...args(g)).ready,false);
+  career.rankWeeks[g]=10;
+  assert.equal(preview(...args(g)).ready,true);
+}
+fixture(3,30,55);
+assert.equal(settle(...args(3)).passed,false);
+for(const week of [31,32,33,34]){
+  saveDuty({...dutyState(),week});
+  assert.equal(preview(...args(3)).ready,week===34);
+}
 fixture(0, 13);
 assert.equal(preview(0, 0, "Company Commander", "inf", "army").ready, false);
 assert.equal(settle(...args(0)).passed, true);

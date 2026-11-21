@@ -315,8 +315,8 @@ export function ensureDuty(svc, grade, playerPost = "") {
     if (rival.rankSinceWeek != null) continue;
     // Older saves only know total weeks. Correct impossible early officer grades once.
     const elapsed = d.week - 1;
-    if (rival.g > 0 && rival.g <= 3 && elapsed < rival.g * 12 && grade < rival.g) {
-      rival.g = Math.floor(elapsed / 12);
+    if (rival.g > 0 && rival.g <= 3 && elapsed < rival.g * minWeeks() && grade < rival.g) {
+      rival.g = Math.floor(elapsed / minWeeks());
       rival.post = null;
     }
     rival.rankSinceWeek = rival.g === 0 ? 1 : d.week;
@@ -339,7 +339,6 @@ export function rivalEligible(rival, week) {
 /** Advance rival classmates alongside player progress so they stay neck-and-neck (playerGrade - 1 to +1). */
 function tickRivals(d, playerGrade, svc = "navy", playerPost = "") {
   if (!d.rivals) return;
-  if ((d.week - 1) % 4 !== 0) return;
   const promoted = [];
   d.rivals.forEach((r, ri) => {
     if (r.g >= playerGrade || r.g >= 9 || !rivalEligible(r, d.week)) return;

@@ -19,7 +19,7 @@ export const FOCUS = {
   pol: { n: "정보·외교·정책", f: "임무 완수 · 전략적 안정", k: { win: 1.3, hp: 1.2, loss: 1.2, eff: 0.85 } },
 };
 export const PASS = 55; /* B or better */
-export const minWeeks = (g) => (g <= 2 ? 10 : g <= 5 ? 12 : 14); /* 한 계급당 최소 10~14주 복무 */
+export const minWeeks = () => 10;
 export const minBattles = (g) => (g <= 2 ? 10 : g <= 5 ? 12 : 14);
 export const letter = (s) => (s >= 85 ? "S" : s >= 70 ? "A" : s >= PASS ? "B" : s >= 40 ? "C" : "D");
 
