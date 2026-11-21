@@ -10,7 +10,8 @@ const { dutyState, saveDuty, nextDutyWeek } =
   await import("../../app/public/js/duty.js");
 const { boardCard, preview, settle, interact } =
   await import("../../app/public/js/promotion-board.js");
-const { curFlagPosts, staff } = await import("../../app/public/js/staff.js");
+const { curFlagPosts, flagPostsForTrack, curBranches, staff } =
+  await import("../../app/public/js/staff.js");
 const { usPresStart, usPresClick, usPresHTML, usPresState, usPresAdmin } =
   await import("../../app/public/js/us-pres.js");
 function fixture(g, week, score = 100) {
@@ -170,3 +171,42 @@ for (const branch of Object.values(US_BRANCHES)) {
 }
 for (const post of US_FLAG_POSTS)
   assert.notEqual(koreanPostName(post.t), post.t);
+
+for (const nation of ["kr", "us"]) {
+  staff.nation = nation;
+  for (const [branch, track] of Object.entries(curBranches())) {
+    assert.equal(track.t.length, 11);
+    const service = track.svc === "joint" ? "army" : track.svc;
+    for (let grade = 6; grade <= 9; grade++) {
+      const continuation = flagPostsForTrack(grade, branch, service)[0];
+      assert.equal(continuation.t, track.t[grade]);
+      assert.equal(continuation.b, branch);
+    }
+  }
+  fixture(1, 22, 50);
+  career.rankWeeks[1] = 10;
+  career.boardHistory.push({ grade: 1, week: 22, passed: false, season: 1 });
+  assert.equal(preview(1, 1, "시설복구장교", "eng", "army").ready, false);
+  assert.equal(
+    settle(1, 2, "시설복구장교", "eng", "army").reason,
+    "대위 자동진급",
+  );
+  assert.equal(career.cap, 2);
+  assert.equal(settle(1, 2, "시설복구장교", "eng", "army"), null);
+  fixture(5, 41, 82);
+  career.crisisWins = { 5: 1 };
+  career.medals = { commend: true, service: true, chungmu: true };
+  career.tours = { edu: true, cmd: 1 };
+  saveDuty({ ...dutyState(), morale: 100, rep: 100 });
+  const review = preview(5, 6, curBranches().eng.t[5], "eng", "army");
+  assert.equal(review.moraleBonus, 5);
+  assert.ok(review.score >= review.cutoff);
+  assert.equal(
+    settle(5, 6, curBranches().eng.t[5], "eng", "army").passed,
+    true,
+  );
+  assert.equal(career.post.t, curBranches().eng.t[6]);
+}
+console.log(
+  "Both nations: all career tracks, captain eligibility, and high morale promotion verified.",
+);
