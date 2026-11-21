@@ -1,5 +1,5 @@
 // 3군 장교 커리어 성장기 (소위 → 대장): 주간 직무·훈련 결재, 계급장 성장 시각화, 위기 3대 대응(위임 / FM 작전 / 3D 직접 개입).
-import { SERVICES, BRANCHES, normBranch, serviceOf, careerTitle } from "./staff.js";
+import { SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, isUS } from "./staff.js";
 import { recordEval, evalOf, board, runBoard, FOCUS, letter } from "./service.js";
 import { career, saveCareer } from "./career.js";
 
@@ -84,6 +84,55 @@ const CRISES = [
   { id: "land_fire", domain: "army", tag: "접경 위기", title: "서북 도서·접경 해안포 기습 포격 도발", desc: "적 해안포·방사포 진지가 아군 접경 기지와 해상을 겨냥해 포격을 개시했습니다.", map: "west", opAir: false, op3d: "army" },
 ];
 
+const US_EVENTS = [
+  ["us_a_abn", "army", 0, 3, "제82공수사단 18시간 긴급전개 훈련 (EDRE)", "동유럽 NATO 동맹국 전방 증원을 가정한 불시 공수 전개 명령이 하달됐습니다.", [
+    ["야간 강하·실전 화력 전개까지 18시간 내 완수", "평정 S · 경험치 +270 · 평판 +5", 270, 91, 2, 5, "미 82공수, 18시간 내 NATO 전방 긴급전개 완벽 완수"],
+    ["표준 수송 절차 준수 · 안전 최우선 전개", "평정 A · 경험치 +200 · 사기 +2", 200, 78, 2, 2, "미 육군 신속대응여단, 무사고 공수전개 완료"],
+    ["기상 악화 이유로 강하 생략 · 지상 이동 전환", "평정 C+ · 경험치 +110 · 평판 −4", 110, 52, 0, -4, "공수 긴급전개 훈련 축소 — FORSCOM 점검 지시"],
+  ]],
+  ["us_a_m1", "army", 2, 6, "M1A2 에이브람스 기갑여단 동유럽 연합기동", "NATO 동부 전선 연합 기갑훈련 중 드론·대전차 복합 위협 시나리오가 투입됐습니다.", [
+    ["능동방호(APS)·드론대응 통합 돌파 전술 지휘", "평정 S · 경험치 +380 · 평판 +6", 380, 92, 3, 6, "미 제1기갑여단, NATO 연합 기동훈련 최우수 평가"],
+    ["교범 기반 제병협동 돌파 기동 완수", "평정 A · 경험치 +260 · 사기 +1", 260, 79, 1, 2, "미 기갑전투단, 동유럽 연합훈련 안정적 완수"],
+    ["장비 정비 부담으로 기동 거리 축소", "평정 C+ · 경험치 +140 · 평판 −4", 140, 53, 0, -4, "미 육군 전방 기갑부대 가동률 우려 제기"],
+  ]],
+  ["us_n_fonop", "navy", 0, 4, "대만해협 항행의 자유(FONOP) 작전", "알레이버크급 구축함이 대만해협을 통과하는 중 상대 구축함 2척이 근접 압박합니다.", [
+    ["국제법 준수 통보 후 예정 항로 단호히 유지", "평정 S · 경험치 +290 · 평판 +6", 290, 91, 2, 6, "미 제7함대 구축함, 대만해협 항행의 자유 작전 완수"],
+    ["함대사령부 교신 하에 안전거리 확보 기동", "평정 A · 경험치 +210 · 안전 확보", 210, 79, 1, 3, "미 태평양함대, 대만해협 안정적 통과 작전 수행"],
+    ["우발 충돌 우려로 항로 조기 우회", "평정 C · 경험치 +110 · 평판 −5", 110, 47, -2, -5, "항행의 자유 작전 후퇴 논란 — 인도태평양사 질책"],
+  ]],
+  ["us_n_csg", "navy", 4, 9, "항모타격단(CSG) 인도-태평양 다영역 연합훈련", "남중국해·필리핀해에서 동맹국 함대와 대규모 항모타격단 통합방공 훈련을 지휘합니다.", [
+    ["F-35C·이지스 통합 화력망(NIFC-CA) 실증 주도", "평정 S · 경험치 +520 · 평판 +7", 520, 94, 3, 7, "미 항모타격단, 인도-태평양 통합방공 훈련 압도적 성과"],
+    ["전통적 항모 방어 섹터 운용으로 무결점 완료", "평정 A · 경험치 +360 · 사기 +2", 360, 80, 2, 3, "미 태평양함대 연합 해상기동훈련 성공적 종료"],
+    ["연료·정비 절감 위해 함재기 출격 횟수 축소", "평정 C+ · 경험치 +180 · 평판 −4", 180, 52, -1, -4, "항모타격단 출격 축소로 작전 준비태세 지적"],
+  ]],
+  ["us_f_norad", "air", 0, 4, "NORAD 알래스카 ADIZ 긴급 발진(Scramble)", "알래스카 방공식별구역에 장거리 전략폭격기 편대가 접근해 F-22 긴급 발진이 떨어졌습니다.", [
+    ["F-22 랩터 편대 즉각 요격 · 근접 식별 및 퇴거", "평정 S · 경험치 +300 · 평판 +6", 300, 92, 3, 6, "NORAD F-22 편대, 알래스카 ADIZ 접근기 즉각 차단"],
+    ["AWACS 통제 하에 표준 호위 퇴거 절차 수행", "평정 A · 경험치 +220 · 안전 확보", 220, 80, 1, 3, "북미항공우주방위사령부, 영공 접근기 안전 퇴거"],
+    ["지상 레이더 감시만 유지 · 출격 지연", "평정 C · 경험치 +100 · 평판 −5", 100, 45, -2, -5, "NORAD 긴급 발진 지연 — 미 공군성 조사 착수"],
+  ]],
+  ["us_f_redflag", "air", 3, 9, "네바다 레드플래그(Red Flag) 연합 공중전 지휘", "동맹국 공군 80여 기가 참가하는 대규모 적 방공망 제압(SEAD) 임무 편대장을 맡았습니다.", [
+    ["F-35A·전자전기·우주자산 통합 타격 패키지 지휘", "평정 S · 경험치 +500 · 평판 +7", 500, 94, 3, 7, "레드플래그 연합훈련서 미 공군 다영역 SEAD 전술 호평"],
+    ["안정적 단계별 방공망 우회 타격 완수", "평정 A · 경험치 +350 · 사기 +2", 350, 81, 2, 3, "미 공군 전투비행단, 레드플래그 임무 성공적 완수"],
+    ["손실 회피 위주 소극적 원거리 타격", "평정 B · 경험치 +210 · 평판 −1", 210, 63, 0, -1, "레드플래그 작전 보수적 운용 평가"],
+  ]],
+  ["us_c_pentagon", "all", 0, 5, "부대 전투준비태세 불시 검열 (IG Inspection)", "상급 사령부 감찰관(IG)이 불시에 부대 정비·군기·탄약 현황을 점검합니다.", [
+    ["현장 중심 실전 점검 후 우수 장병 즉각 표창", "평정 A+ · 경험치 +250 · 사기 +4", 250, 86, 4, 4, "미군 현장 지휘관, IG 불시 검열 최우수 통과"],
+    ["교범 체크리스트대로 체계적 대응", "평정 A · 경험치 +190 · 사기 +2", 190, 76, 2, 2, "체계적 군기·장비 관리로 IG 검열 무난 통과"],
+    ["서류 보완에 치중해 현장 점검 축소", "평정 C+ · 경험치 +110 · 평판 −3", 110, 53, 0, -3, "IG 감찰서 형식적 행정 대응 지적"],
+  ]],
+  ["us_c_congress", "all", 4, 9, "미 의회 군사위원회(SASC) 국방예산·전력 청문회", "상원 군사위원회에서 차기 무기체계 예산과 인도-태평양 억제 전략을 증언해야 합니다.", [
+    ["정량 데이터와 합동 억제 논리로 초당적 예산 확보", "평정 S · 경험치 +490 · 평판 +7", 490, 93, 2, 7, "상원 군사위 청문회 호평 — 핵심 전력 예산 초당적 통과"],
+    ["의회 요구를 일부 수용한 실용적 타협안 제시", "평정 A · 경험치 +340 · 안정적 통과", 340, 80, 1, 3, "미 국방예산 심의 원만한 합의 도출"],
+    ["원안 고수 발언으로 위원회와 정면 충돌", "평정 C+ · 경험치 +170 · 평판 −4", 170, 54, -1, -4, "의회 군사위 증언 마찰 — 예산안 보류"],
+  ]],
+];
+
+const US_CRISES = [
+  { id: "us_taiwan", domain: "navy", tag: "인도-태평양 위기", title: "대만해협·남중국해 적 수상전단 봉쇄 위협", desc: "적 대형 수상전단이 인도-태평양 핵심 해상교통로에서 봉쇄 기동을 개시했습니다.", map: "west", opAir: false, op3d: "navy" },
+  { id: "us_norad", domain: "air", tag: "영공·방공 위기", title: "태평양·알래스카 장거리 폭격기·순항미사일 위협", desc: "미 식별 전략기 편대와 순항미사일 항적이 태평양 방공망으로 접근 중입니다.", map: "east", opAir: true, op3d: "air" },
+  { id: "us_base", domain: "army", tag: "전방기지 위기", title: "인도-태평양 전방기지 탄도·포격 도발 경보", desc: "전방 주둔 기지와 동맹국 도서를 겨냥한 기습 화력 도발이 탐지됐습니다.", map: "west", opAir: false, op3d: "army" },
+];
+
 const SUR = ["김", "이", "박", "최", "정", "강", "조", "윤", "장", "임", "한", "오"], GIV = ["도현", "준혁", "민재", "서진", "태윤", "성호", "지훈", "현우", "정민", "재원"];
 function mkRivals(svc) {
   const s1 = pick(SUR) + pick(GIV); let s2 = pick(SUR) + pick(GIV); if (s2 === s1) s2 = "한재민";
@@ -102,25 +151,28 @@ export function saveDuty(d) { wr(DK, d); }
 
 function drawEvents(d, svc, grade) {
   if (!d.rivals) d.rivals = mkRivals(svc);
-  const pool = EVENTS.filter((e) => (e[1] === "all" || e[1] === svc) && grade >= e[2] && grade <= e[3]);
-  const fallback = EVENTS.filter((e) => e[1] === "all" || e[1] === svc);
+  const us = isUS(), evSrc = us ? US_EVENTS : EVENTS, crSrc = us ? US_CRISES : CRISES;
+  const pool = evSrc.filter((e) => (e[1] === "all" || e[1] === svc) && grade >= e[2] && grade <= e[3]);
+  const fallback = evSrc.filter((e) => e[1] === "all" || e[1] === svc);
   const src = pool.length >= 2 ? pool : fallback;
   const out = [], copy = src.slice();
   while (out.length < 2 && copy.length) out.push(copy.splice((Math.random() * copy.length) | 0, 1)[0][0]);
   d.pending = out;
-  d.crisis = d.week >= 3 && (d.week % 4 === 0 || Math.random() < 0.2) ? pick(CRISES).id : null; /* 합동 위기 빈도 완화 */
+  d.nat = us ? "us" : "kr";
+  d.crisis = d.week >= 3 && (d.week % 4 === 0 || Math.random() < 0.2) ? pick(crSrc).id : null; /* 합동 위기 빈도 완화 */
   saveDuty(d);
 }
 
 export function ensureDuty(svc, grade) {
-  const d = dutyState();
+  const d = dutyState(), wantNat = isUS() ? "us" : "kr";
   if (!d.rivals) { d.rivals = mkRivals(svc); saveDuty(d); }
+  if (d.nat && d.nat !== wantNat) { d.pending = []; d.crisis = null; d.report = null; d.doneWeek = false; drawEvents(d, svc, grade); return d; }
   if (!d.pending || (!d.pending.length && !d.crisis && !d.report && !d.doneWeek)) drawEvents(d, svc, grade);
   return d;
 }
 
-export function dutyEventById(id) { return EVENTS.find((e) => e[0] === id); }
-export function dutyCrisisById(id) { return CRISES.find((c) => c.id === id); }
+export function dutyEventById(id) { return EVENTS.find((e) => e[0] === id) || US_EVENTS.find((e) => e[0] === id); }
+export function dutyCrisisById(id) { return CRISES.find((c) => c.id === id) || US_CRISES.find((c) => c.id === id); }
 
 /** Advance rival classmates alongside player progress and post news headlines when they promote */
 function tickRivals(d, playerGrade) {

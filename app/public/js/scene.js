@@ -2,12 +2,16 @@
 // 정지 이미지 위에 카메라 패닝·줌(컷 전환), 플래시, 자막, 답변 선택지를 얹는다. 이미지 속 인물은 모두 AI로 만든 가상 인물이다.
 /* 정당 색 테마 (blue = 민주함께당, red = 한누리당, null = 무소속/공통) */
 let THEME = null; const THEMED = ["declaration", "primary_hall", "rally", "election_night", "victory", "president_office", "address"];
-const usBackgrounds = { briefing: "press_spokesperson", hearing: "assembly", indopac: "war_room", situation: "nsc", office: "office", ceremony: "ceremony", study: "study", primary: "primary_hall", rally: "rally", convention: "primary_hall", debate: "debate", poll: "poll_booth", election_night: "election_night", victory: "victory", inauguration: "inauguration", president_office: "office", address: "press_spokesperson", summit: "summit" };
+const usBackgrounds = { briefing: "press_spokesperson", hearing: "us_capitol_hearing", indopac: "us_war_room", situation: "us_war_room", office: "us_pentagon_office", ceremony: "ceremony", study: "us_pentagon_office", primary: "primary_hall", rally: "rally", convention: "primary_hall", debate: "debate", poll: "poll_booth", election_night: "election_night", victory: "victory", inauguration: "inauguration", president_office: "us_oval_office", address: "press_spokesperson", summit: "summit" };
 THEMED.push(...["primary","rally","convention","election_night","victory","address","president_office"].map(n => "us_" + n));
 /* Add delivered US artwork here to enable it ahead of the fallback. */
-const availableUS = new Set();
+const availableUS = new Set(["us_war_room", "us_pentagon_office", "us_oval_office", "us_capitol_hearing"]);
 export const setTheme = (t) => { THEME = t || null; };
-const IMG = (n) => `img/bg/${THEMED.includes(n) && THEME ? `${n}_${THEME}` : n}.jpg`;
+const US_SWAP = { war_room: "us_war_room", nsc: "us_war_room", office: "us_pentagon_office", assembly: "us_capitol_hearing", president_office: "us_oval_office" };
+const IMG = (n) => {
+  if (typeof document !== "undefined" && document.body?.classList.contains("us-nat") && US_SWAP[n]) return `img/bg/${US_SWAP[n]}.jpg`;
+  return `img/bg/${THEMED.includes(n) && THEME ? `${n}_${THEME}` : n}.jpg`;
+};
 /* 아직 없는 배경은 비슷한 기존 사진으로 대신한다 */
 const FB = { declaration: "press_minister", election_night: "nsc", victory: "press_minister", rally: "ceremony", primary_hall: "press_minister", debate: "press_minister", poll_booth: "office", camp_room: "war_room", inauguration: "ceremony", study: "office", summit: "nsc", president_office: "office", address: "press_minister" };
 for (const [id, fallback] of Object.entries(usBackgrounds)) FB["us_" + id] = fallback;
