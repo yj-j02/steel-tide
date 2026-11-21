@@ -308,7 +308,10 @@ function face(i, s = 64) {
     + `<path d="M40 70 L50 86 L60 70 L56 68 L50 76 L44 68Z" fill="${f.civ ? "#f1f1ee" : U.sh}"/><path d="M48 76 L50 74 L52 76 L51.5 92 L50 95 L48.5 92Z" fill="${f.civ ? "#111" : U.tie}"/>`
     + `<path d="M34 72 L46 90 L44 100 M66 72 L54 90 L56 100" stroke="#05080d" stroke-width="1.2" fill="none"/>`
     + (f.civ ? "" : `<g transform="translate(60 84)"><rect width="5" height="2.6" fill="#b03a2e"/><rect x="5" width="5" height="2.6" fill="#2a5aa0"/><rect x="10" width="5" height="2.6" fill="#d8b23a"/><rect y="2.8" width="5" height="2.6" fill="#3b7a3e"/><rect x="5" y="2.8" width="5" height="2.6" fill="#c9c9c9"/><rect x="10" y="2.8" width="5" height="2.6" fill="#8a1f1f"/></g>`
-    + `<rect x="10" y="88" width="18" height="2.2" fill="${U.sleeve}"/><rect x="10" y="91.5" width="18" height="2.2" fill="${U.sleeve}"/>`);
+    + (isUS()
+      ? `<g transform="translate(13 80) rotate(-8)"><rect width="11" height="6.5" rx=".6" fill="#b22234" stroke="#d8b247" stroke-width=".4"/><rect y="1.1" width="11" height=".9" fill="#fff"/><rect y="2.8" width="11" height=".9" fill="#fff"/><rect y="4.5" width="11" height=".9" fill="#fff"/><rect width="4.6" height="3.6" fill="#233b6e"/></g>`
+      : `<g transform="translate(13 80) rotate(-8)"><rect width="11" height="6.5" rx=".6" fill="#fff" stroke="#9aa4b0" stroke-width=".4"/><path d="M3.9 3.25a1.6 1.6 0 0 1 3.2 0z" fill="#cd2e3a"/><path d="M3.9 3.25a1.6 1.6 0 0 0 3.2 0z" fill="#0047a0"/><path d="M1.4 1.3h1.6M8 1.3h1.6M1.4 5.2h1.6M8 5.2h1.6" stroke="#111" stroke-width=".55"/></g>`)
+    + `<rect x="10" y="89" width="18" height="2" fill="${U.sleeve}"/><rect x="10" y="92.2" width="18" height="2" fill="${U.sleeve}"/>`);
   // back hair (female smooth bob silhouette)
   if (f.fem) o += `<path d="M31 24 C25 35 25 54 31.5 66 Q41 70 50 69 Q59 70 68.5 66 C75 54 75 35 69 24 C64 13.5 36 13.5 31 24Z" fill="${f.hair}"/>`
     + `<path d="M33 48 C34 58 39 66 50 67 C61 66 66 58 67 48 L67 65 Q58 69 50 68 Q42 69 33 65Z" fill="${mixHex(f.hair, "#000000", 0.28)}" opacity=".55"/>`;
@@ -381,7 +384,13 @@ function face(i, s = 64) {
       o += `<path d="M${jx - 1.5} 36 C${jx - 3} 17 38 11.5 50 11.5 C63 11.5 ${jx2 + 3} 17 ${jx2 + 1.5} 36 L${jx2 - 1} 31 C${jx2 - 3} ${22.5 + rc} 60 ${20.2 + rc} 50 ${21.4 + rc * 0.5} C44 ${21 + rc * 0.5} ${jx + 6} ${22 + rc} ${jx + 1} 31Z" fill="${f.hair}"/><path d="M42 14.5 Q47 19 60 19.5" stroke="#00000033" stroke-width="1" fill="none"/>`;
     }
   } else {
-    const capEmblem = f.svc === "army"
+    const capEmblem = isUS()
+      ? (f.svc === "air"
+        ? `<g transform="translate(50 22) scale(.82)"><path d="M0 -6 L2.2 -3 L10 -5.5 L7.5 -1 L9 1.5 L3 2 L1.5 5.5 L0 4.2 L-1.5 5.5 L-3 2 L-9 1.5 L-7.5 -1 L-10 -5.5 L-2.2 -3Z" fill="#dce4ee" stroke="#7d8a99" stroke-width=".6"/><path d="M-2 -2 L2 -2 L1.5 2.2 L0 3.2 L-1.5 2.2Z" fill="#b8c4d1"/></g>` /* USAF silver eagle */
+        : f.svc === "navy"
+        ? `<g transform="translate(50 22) scale(.82)"><path d="M-5 -5 L5 5 M5 -5 L-5 5" stroke="#d8b247" stroke-width="1.3" stroke-linecap="round"/><path d="M0 -6.2 L2 -3.4 L8.8 -5 L6.5 -1.2 L2.5 0 L0 1.2 L-2.5 0 L-6.5 -1.2 L-8.8 -5 L-2 -3.4Z" fill="#e4e8ec" stroke="#7d858e" stroke-width=".5"/><path d="M-2.2 -1.6 L2.2 -1.6 L1.8 2.6 L0 3.8 L-1.8 2.6Z" fill="#c8313e" stroke="#e4e8ec" stroke-width=".4"/><rect x="-2.2" y="-1.6" width="4.4" height="1.5" fill="#1d3d78"/></g>` /* USN crossed anchors + eagle & shield */
+        : `<g transform="translate(50 22) scale(.84)"><path d="M0 -6.2 L2.2 -3.2 L9.5 -5.2 L7.2 -1 L8.5 1.5 L2.8 2 L1.4 5.5 L0 4.2 L-1.4 5.5 L-2.8 2 L-8.5 1.5 L-7.2 -1 L-9.5 -5.2 L-2.2 -3.2Z" fill="#e2be52" stroke="#8c6c18" stroke-width=".6"/><path d="M-2 -1.8 L2 -1.8 L1.6 2.2 L0 3.2 L-1.6 2.2Z" fill="#f3dc8c" stroke="#8c6c18" stroke-width=".4"/></g>`) /* US Army Great Seal gold eagle */
+      : f.svc === "army"
       ? `<g transform="translate(50 22) scale(.85)"><circle r="6" fill="none" stroke="#d6b04a" stroke-width="1.2"/><path d="M0 -5 L1.5 -1.4 L5.2 -1.4 L2.2 0.8 L3.3 4.4 L0 2.2 L-3.3 4.4 L-2.2 0.8 L-5.2 -1.4 L-1.5 -1.4Z" fill="#e6c35a"/></g>` /* 육군 모표: 금성·월계 */
       : f.svc === "air"
       ? `<g transform="translate(50 22) scale(.85)"><path d="M-10 0 Q-5 -4 0 -1 Q5 -4 10 0 Q5 3 0 1 Q-5 3 -10 0Z" fill="#dce4ee" stroke="#9aa8b8" stroke-width=".6"/><circle r="2.2" fill="#d6b04a"/></g>` /* 공군 모표: 날개·태극 */
@@ -898,6 +907,9 @@ function portraitHTML(g) {
     + `<path d="M8 300 C10 248 34 216 100 200 L150 222 L200 200 C266 216 290 248 292 300Z" fill="url(#porw)" stroke="${coat[3]}" stroke-width="1"/>`
     + `<path d="M120 204 L150 226 L180 204 L176 196 L150 212 L124 196Z" fill="${coat[2]}" stroke="${coat[3]}"/>${isUS() ? `<path d="M145 215 L150 210 L155 215 L153 265 L150 272 L147 265Z" fill="${coat[3]}"/>` : `<path d="M150 226 L150 300" stroke="#c4c9cf" stroke-width="1.2"/>`}${[240, 262, 284].map((y) => `<circle cx="150" cy="${y}" r="3.4" fill="#d8b247" stroke="#7a6220" stroke-width=".6"/>`).join("")}`
     + `<g transform="translate(34 224) rotate(-17)">${shoulderBoard(g, false)}</g><g transform="translate(266 224) rotate(17) scale(-1 1)">${shoulderBoard(g, false)}</g>`
+    + (isUS()
+      ? `<g transform="translate(22 262) rotate(-8)"><rect width="34" height="20" rx="1.6" fill="#b22234" stroke="#d8b247" stroke-width="1.1"/>${[2.8, 6.2, 9.6, 13, 16.4].map((y) => `<rect y="${y}" width="34" height="1.7" fill="#fff"/>`).join("")}<rect width="14.5" height="11" fill="#1f3a6e"/>${[2.5, 5.5, 8.5].map((y) => [2.6, 5.8, 9, 12.2].map((x) => `<circle cx="${x}" cy="${y}" r=".65" fill="#fff"/>`).join("")).join("")}</g>`
+      : `<g transform="translate(22 262) rotate(-8)"><rect width="34" height="20" rx="1.6" fill="#ffffff" stroke="#b8c0c8" stroke-width="1.1"/><path d="M12 10a5 5 0 0 1 10 0z" fill="#cd2e3a"/><path d="M12 10a5 5 0 0 0 10 0z" fill="#0047a0"/><g stroke="#111" stroke-width="1.1"><path d="M4.5 4.2h4.2M4.5 6.2h4.2M25.3 4.2h4.2M25.3 6.2h4.2M4.5 13.8h4.2M4.5 15.8h4.2M25.3 13.8h4.2M25.3 15.8h4.2"/></g></g>`)
     + rack
     + `<rect x="80" y="250" width="40" height="11" rx="1.5" fill="#1c2430"/><text x="100" y="258.5" font-size="7.5" fill="#fff" text-anchor="middle" font-family="Noto Sans KR, sans-serif">${cmdr.name}</text>`
     + `<g transform="translate(35 30) scale(2.3)">${face(F, 100).replace(/^<svg /, "<svg x=\"0\" y=\"0\" ")}</g></svg>`;
