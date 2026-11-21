@@ -1,5 +1,6 @@
 // Fleet headquarters staff (modern era). Appointments shape every modern battle, auto battles included,
 // through a handful of multipliers the battle code already exposes: hull damage in/out, gun reload, repair crews, jets.
+import { US_SERVICES, US_BRANCHES, US_FLAG_POSTS } from "./us-ranks.js";
 
 const clamp01 = (v, a, b) => Math.min(b, Math.max(a, v));
 
@@ -86,10 +87,19 @@ export const serviceOf = (b = staff.branch) => { const br = BRANCHES[normBranch(
 const KEY_POSTS = new Set(["보병대대장", "K2 전차대대장", "K9 포병대대장", "특전여단장", "기갑여단장", "화력여단장", "보병사단장", "수도방위사령관", "지상작전사령관", "육군참모차장",
   "구축함 함장", "214급 잠수함장", "안창호급 잠수함장", "구축함전대장", "해상전투단장", "잠수함전단장", "제2함대사령관", "잠수함사령관", "해군작전사령관", "해군참모차장",
   "F-35A 비행대대장", "패트리어트 대대장", "항공작전전대장", "전투비행단장", "공중전투사령관", "미사일방어사령관", "공군작전사령관", "공군참모차장",
-  "방위사업청 사업담당", "전력기획처장", "국방부 정책기획과장", "국방정책실 국장", "NSC 안보비서관", "국방정보본부장", "합동참모차장", "합참 전략기획본부장", "합참 군사지원본부장"]);
-const BACK_POSTS = new Set(["육군교육사령관", "해군사관학교장", "공군교육사령관", "방공관제사 부사령관", "군수사 부사령관", "주외무관", "항공정보단 작전과장", "기계화대대 작전과장", "해상항공전대장", "잠수함 부장", "방공유도탄대대 작전과장", "보병사단 부사단장", "기동군단 참모장"]);
+  "방위사업청 사업담당", "전력기획처장", "국방부 정책기획과장", "국방정책실 국장", "NSC 안보비서관", "국방정보본부장", "합동참모차장", "합참 전략기획본부장", "합참 군사지원본부장",
+  "보병대대장 (2사단)", "M1A2 전차대대장", "공수여단장 (82공수)", "제82공수사단장", "제1기갑사단장", "제18공수군단장", "미 육군전력사령관 (FORSCOM)",
+  "알레이버크급 함장", "버지니아급 함장", "오하이오급 SSBN 함장", "항모타격단장 (CSG)", "미 제7함대사령관", "미 태평양함대사령관 (USPACFLT)", "미 인도태평양사령관 (INDOPACOM)",
+  "F-35A 비행대대장", "제1전투비행단장", "미 제7공군사령관", "미 태평양공군사령관 (PACAF)", "미 합동참모차장 (VCJCS)", "백악관 NSC 안보보좌관"]);
+const BACK_POSTS = new Set(["육군교육사령관", "해군사관학교장", "공군교육사령관", "방공관제사 부사령관", "군수사 부사령관", "주외무관", "항공정보단 작전과장", "기계화대대 작전과장", "해상항공전대장", "잠수함 부장", "방공유도탄대대 작전과장", "보병사단 부사단장", "기동군단 참모장",
+  "기갑학교장", "사단 부사단장", "주외 국방무관", "잠수함 부함장 (XO)", "항모비행단 작전관", "정보감시정찰단장"]);
 export const postTier = (title) => (KEY_POSTS.has(title) ? "key" : BACK_POSTS.has(title) ? "back" : "std");
-export const careerTitle = (grade, br = staff.branch) => (BRANCHES[normBranch(br)] || BRANCHES.sea).t[Math.max(0, Math.min(10, grade))];
+export const isUS = () => staff.nation === "us";
+export const curServices = () => (isUS() ? US_SERVICES : SERVICES);
+export const curBranches = () => (isUS() ? US_BRANCHES : BRANCHES);
+export const curFlagPosts = () => (isUS() ? US_FLAG_POSTS : FLAG_POSTS);
+export const careerTitle = (grade, br = staff.branch) => (curBranches()[normBranch(br)] || curBranches().sea).t[Math.max(0, Math.min(10, grade))];
+export function setNation(n) { if (n === "kr" || n === "us") { staff.nation = n; saveStaff(); } }
 export function setService(s) { if (SERVICES[s]) { staff.service = s; saveStaff(); } }
 export function setBranch(k) { const nk = normBranch(k); if (BRANCHES[nk]) { staff.branch = nk; if (BRANCHES[nk].svc !== "joint") staff.service = BRANCHES[nk].svc; saveStaff(); } }
 /** Your own staff follows the size of what you command, and is always junior to you:

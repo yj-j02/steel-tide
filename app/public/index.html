@@ -4,8 +4,8 @@
     <meta charset="utf-8" />
     <link rel="icon" href="data:,">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Steel Tide — 3D 해전 시뮬레이션</title>
-    <meta property="og:title" content="Steel Tide — 3D 해전 지휘" />
+    <title>THE GENERAL — 3군 장교 커리어 & 국방 시뮬레이션</title>
+    <meta property="og:title" content="THE GENERAL — 소위에서 대통령까지" />
     <meta property="og:description" content="대한민국 해군 이지스함으로 미사일 해전을 지휘하는 3D 해전 시뮬레이션. 계급·보직·참모진·합동지원." />
     <meta property="og:image" content="cover.jpg" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -989,6 +989,10 @@ body.modern #wpnBar .slot.main { min-width:210px; }
 #svcBg.on { display:block; }
 #svcBg::after { content:""; position:absolute; inset:0; background-image:linear-gradient(rgba(120,180,110,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(120,180,110,.06) 1px, transparent 1px); background-size:48px 48px; }
 #start, #recordP, #hqP { z-index:2; }
+.nat-sw { display:inline-flex; gap:3px; padding:3px; margin-left:10px; background:rgba(10,18,24,.75); border:1px solid rgba(120,165,185,.32); border-radius:7px; }
+.nat-sw button { border:0; background:transparent; color:#9db8c7; padding:5px 10px; border-radius:5px; font:700 12px "Noto Sans KR",sans-serif; cursor:pointer; transition:all .14s; white-space:nowrap; }
+.nat-sw button:hover { color:#fff; background:rgba(255,255,255,.06); }
+.nat-sw button.on { background:rgba(242,202,92,.22); color:#ffe79e; box-shadow:inset 0 0 0 1px rgba(242,202,92,.55); }
 @media (max-width:1240px) { .dm-grid { grid-template-columns:148px minmax(0,1fr) 204px; } .dm-wargrid { grid-template-columns:1fr; } }
 </style>
   </head>
@@ -1013,7 +1017,7 @@ body.modern #wpnBar .slot.main { min-width:210px; }
     <div id="toast"></div>
 
     <header id="topbar" class="g">
-      <div class="logo">STEEL TIDE</div>
+      <div class="logo">THE GENERAL</div>
       <nav aria-label="메뉴">
         <button id="tabPort" class="tab on">기지</button>
         <button id="yardBtn" class="tab">조선소</button>
@@ -1021,6 +1025,10 @@ body.modern #wpnBar .slot.main { min-width:210px; }
         <button id="tabHQ" class="tab">사령부</button>
         <button id="setBtn" class="tab">설정</button>
       </nav>
+      <div id="natSw" class="nat-sw" role="group" aria-label="국가 선택">
+        <button data-nat="kr" class="on">🇰🇷 한국군</button>
+        <button data-nat="us">🇺🇸 미군</button>
+      </div>
       <div class="tb-right">
         <span id="tbMoney"></span>
         <div class="tb-rank"><div class="ins" id="tbIns"></div><div><b id="tbRank"></b><div class="rk"><div id="rankBar"></div></div></div></div>
