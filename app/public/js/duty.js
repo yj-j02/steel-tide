@@ -6,6 +6,20 @@ import { SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, staff, isUS, cu
 import { usNpcName } from "./us-ranks.js";
 import { recordEval, evalOf, board, FOCUS, letter, addRankWeek, weeksOf, minWeeks } from "./service.js";
 import { career, saveCareer, awardMedals } from "./career.js";
+import { ngBonuses } from "./endings.js";
+
+export const STANCES = {
+  hard: { n: "🔥 실전 강훈", d: "XP +15% · 평정 +3 / 매 안건 사기 −4 · 차질 위험↑" },
+  bal:  { n: "⚖️ 균형 운영", d: "표준 훈련·정비 균형 유지" },
+  rest: { n: "🛡️ 정비·휴식", d: "매 안건 사기 +6 · 차질 위험 대폭↓ / XP −10%" },
+};
+export function setStance(k) {
+  if (!STANCES[k]) return null;
+  const d = dutyState();
+  d.stance = k;
+  saveDuty(d);
+  return d;
+}
 
 const DK = "steeltide:duty";
 const rd = (k, d) => { try { return JSON.parse(careerStorage.getItem(k)) ?? d; } catch { return d; } };
@@ -120,6 +134,42 @@ const EVENTS = [
     ["핵심 항목 중심 타협안 도출", "평정 A · 경험치 +370 · 안정적 통과", 370, 80, 1, 3, "전력증강 예산 합리적 조정안 확정"],
     ["원안 고수로 심의 보류", "평정 C+ · 경험치 +190 · 평판 −4", 190, 54, -1, -4, "국방 전력소요 심의 난항 — 사업 지연 우려"],
   ]],
+  // ── 비전투 지휘 딜레마 · 연간 연합훈련 (대민지원 · 청렴 · 언론 · 연합) ──
+  ["c_disaster", "all", 0, 5, "폭설·집중호우 지역 대민지원 긴급 출동", "관할 지역 인근에 기록적 폭우·폭설 피해가 발생해 지자체가 군 대민지원을 긴급 요청했습니다.", [
+    ["안전장비 완비 후 전 가용 병력·장비 신속 투입", "평정 S · 경험치 +320 · 평판 +7", 320, 92, 2, 7, "군 대민지원 부대, 밤샘 복구 작업으로 주민 찬사"],
+    ["경계 병력 유지 범위 내 지원조 단계적 파견", "평정 A · 경험치 +240 · 사기 +2", 240, 80, 2, 4, "지역 재난 복구 지원 무사고 완료"],
+    ["부대 훈련 일정 우선으로 지원 규모 최소화", "평정 C+ · 경험치 +130 · 평판 −4", 130, 54, 0, -4, "재난 대민지원 소극 대응 지역 여론 악화"],
+  ]],
+  ["c_whistle", "all", 1, 5, "병영 부조리·안전 은폐 제보 접수", "익명 소통함을 통해 부대 내 가혹행위 및 장비 손상 은폐 정황이 제보됐습니다.", [
+    ["즉각 분리 조치·원칙 감찰 의뢰 및 재발 방지 선포", "평정 A+ · 경험치 +290 · 평판 +6", 290, 89, 3, 6, "지휘관의 단호한 원칙 대응으로 투명한 병영 신뢰 회복"],
+    ["자체 사실조사 후 관련자 징계 및 비공개 시정", "평정 A · 경험치 +220 · 안정적 수습", 220, 77, 1, 2, "부대 내부 기강 점검 및 시정 조치 완료"],
+    ["진급 심사 불이익 우려해 주의 조치로 내부 종결", "평정 C · 경험치 +110 · 평판 −6", 110, 46, -4, -6, "병영 부조리 축소 처리 의혹 제기"],
+  ]],
+  ["c_media", "all", 3, 9, "국방 전문지 현장 취재 및 훈련 공개 요청", "주요 언론사가 부대 첨단 장비 운용 및 장병 생활상 동행 취재를 요청했습니다.", [
+    ["보안 지침 준수 하에 실전 훈련 현장 투명 공개", "평정 S · 경험치 +390 · 평판 +6", 390, 91, 3, 6, "언론 현장 보도 호평 — 국군 대비태세 대국민 신뢰 상승"],
+    ["사전 조율된 공식 브리핑과 제한적 촬영 허용", "평정 A · 경험치 +280 · 안전 확보", 280, 79, 1, 2, "부대 홍보 브리핑 무리 없이 마무리"],
+    ["보안 부담을 이유로 취재 전면 거부", "평정 B− · 경험치 +160 · 평판 −2", 160, 60, 0, -2, "폐쇄적 대언론 대응으로 소통 부족 지적"],
+  ]],
+  ["c_defect", "all", 3, 9, "신형 장비 결함 보고 및 전력화 연기 판단", "야전 운용시험 중 신형 무기체계 부품에서 간헐적 오작동이 발견됐습니다.", [
+    ["전력화 일시 보류 · 제작사 합동 정밀 개선 관철", "평정 S · 경험치 +420 · 평판 +6", 420, 92, 2, 6, "지휘관의 원칙적 결함 시정 요구로 무기 신뢰성 확보"],
+    ["운용 제한 조건부 배치 및 순차 보완 합의", "평정 A · 경험치 +300 · 균형 조정", 300, 79, 1, 2, "신형 전력 단계적 보완 배치 결정"],
+    ["일정 준수 압박에 결함 보고 축소 후 강행 배치", "평정 C · 경험치 +150 · 평판 −6", 150, 47, -3, -6, "신형 장비 초기 결함 묵살 논란 — 감사 착수"],
+  ]],
+  ["a_ulchi", "army", 3, 9, "을지·호국 연합 야외기동훈련(FTX) 지휘", "전구급 전시 전환과 대규모 기동·도하 작전을 검증하는 연례 야외기동훈련이 시작됐습니다.", [
+    ["야간 도하·드론 정찰 연계 실전형 기동 완수", "평정 S · 경험치 +440 · 평판 +6", 440, 93, 2, 6, "육군 기동부대, 호국훈련 야간 실전 도하 최우수 평가"],
+    ["표준 작계 절차에 따른 단계별 기동 점검", "평정 A · 경험치 +310 · 사기 +1", 310, 80, 1, 2, "연례 야외기동훈련 무사고 완수"],
+    ["안전사고 우려로 핵심 기동 구간 생략", "평정 C+ · 경험치 +170 · 평판 −3", 170, 55, 1, -3, "호국훈련 실기동 축소로 대비태세 지적"],
+  ]],
+  ["n_rimpac", "navy", 3, 9, "환태평양 연합해상훈련(RIMPAC) 전단 지휘", "다국적 해군 함대가 참가하는 대규모 연합 대함·대공 실사격 훈련에 파견됐습니다.", [
+    ["연합 기동부대 선도 지휘 · 대함유도탄 실사격 명중", "평정 S · 경험치 +450 · 평판 +7", 450, 94, 3, 7, "대한민국 해군 전단, RIMPAC 다국적 연합훈련 최우수 전과"],
+    ["부여된 호위·방공 구역 완벽 사수", "평정 A · 경험치 +320 · 사기 +2", 320, 80, 2, 3, "해군 파견전단, RIMPAC 연합작전 무결점 수행"],
+    ["정비 여건 이유로 핵심 실사격 참가 보류", "평정 C+ · 경험치 +175 · 평판 −4", 175, 53, -1, -4, "국제 연합훈련 소극 참여 지적"],
+  ]],
+  ["f_redflag_kr", "air", 3, 9, "다국적 연합 공중훈련(맥스선더·레드플래그) 편조 지휘", "연합 공군 전력과 대규모 적 방공망 돌파 및 정밀폭격 임무를 합동 수행합니다.", [
+    ["야간 저고도 침투·정밀유도폭탄 전탄 명중 지휘", "평정 S · 경험치 +450 · 평판 +7", 450, 94, 3, 7, "공군 전투비행단, 다국적 연합 공중훈련 최우수 편조 선정"],
+    ["연합 관제 절차 준수 속 안정적 임무 완수", "평정 A · 경험치 +320 · 사기 +2", 320, 81, 2, 3, "한미 연합 공중훈련 무사고 종료"],
+    ["기상·피로 이유로 출격 소티 대폭 축소", "평정 C+ · 경험치 +175 · 평판 −3", 175, 55, 0, -3, "연합 공중훈련 소티 축소 평가 하락"],
+  ]],
 ];
 
 /** Active crisis templates for officer phase (supports 3-way response: delegate / FM / 3D) */
@@ -205,6 +255,37 @@ const US_EVENTS = [
     ["각 군 균형 배분으로 합참 내부 합의 도출", "평정 A · 경험치 +370 · 사기 +2", 370, 80, 2, 3, "합동 전력 소요 심의 원활한 타결"],
     ["소속 군 이익 우선 주장으로 합참 내 갈등", "평정 C · 경험치 +185 · 평판 −5", 185, 49, -2, -5, "펜타곤 합동 소요 심의 군종 갈등 보도"],
   ]],
+  // ── Non-Combat Dilemmas & Joint Exercises (US) ──
+  ["us_c_fema", "all", 0, 5, "Domestic Disaster Relief & Defense Support (DSCA)", "허리케인·산불 피해 지역에 연방 재난구호(DSCA) 병력·수송 지원 요청이 하달됐습니다.", [
+    ["신속 구호팀 편성 및 야간 보급·구조 작전 완수", "평정 S · 경험치 +320 · 평판 +7", 320, 92, 3, 7, "미군 재난구호 지원단, 신속한 대민 구조로 전국적 찬사"],
+    ["표준 DSCA 절차에 따른 단계적 지원 전개", "평정 A · 경험치 +240 · 사기 +2", 240, 80, 2, 4, "연방 재난 복구 군 지원 임무 무사고 완료"],
+    ["본연 훈련 일정 우선으로 지원 범위 최소화", "평정 C+ · 경험치 +130 · 평판 −4", 130, 54, 0, -4, "재난 지원 소극 대응 지역 언론 비판"],
+  ]],
+  ["us_c_ethics", "all", 1, 5, "Command Climate & Safety Compliance Audit", "익명 부대 설문에서 안전 규정 미준수 및 하급자 과로 문제가 공식 제기됐습니다.", [
+    ["즉각 안전 점검 실시 및 투명한 지휘 문화 개선 선포", "평정 A+ · 경험치 +290 · 평판 +6", 290, 89, 4, 6, "미군 지휘관, 투명한 Command Climate 개혁으로 높은 신뢰 확보"],
+    ["부사관단과 비공개 면담 후 단계적 시정", "평정 A · 경험치 +220 · 안정적 수습", 220, 78, 1, 2, "부대 안전·복무 환경 점진적 개선"],
+    ["진급 평정 우려로 문제 제기를 경미 사안 처리", "평정 C · 경험치 +110 · 평판 −6", 110, 46, -4, -6, "부대 안전 제보 묵살 논란 — 상급 감찰 착수"],
+  ]],
+  ["us_c_press", "all", 3, 9, "Pentagon Press Corps Embed & Readiness Briefing", "워싱턴 국방부 출입기자단이 부대 실전 대비태세 동행 취재를 요청했습니다.", [
+    ["작전보안(OPSEC) 준수 하에 실전 훈련 현장 공개", "평정 S · 경험치 +390 · 평판 +6", 390, 91, 3, 6, "펜타곤 출입기자단 동행 보도 호평 — 미군 대비태세 신뢰 상승"],
+    ["공보관 중심 표준 브리핑 및 제한 촬영 허용", "평정 A · 경험치 +280 · 안전 확보", 280, 79, 1, 2, "국방부 공보 브리핑 안정적 마무리"],
+    ["보안 우려로 취재 요청 일괄 거절", "평정 B− · 경험치 +160 · 평판 −2", 160, 60, 0, -2, "대언론 소통 부족 지적"],
+  ]],
+  ["us_a_ntc", "army", 3, 6, "National Training Center (Fort Irwin) Rotation", "모하비 사막 NTC에서 대항군(OPFOR)과 실전형 여단 전투단 종합 기동평가를 치릅니다.", [
+    ["제병협동 야간 기습 돌파로 OPFOR 방어선 격파", "평정 S · 경험치 +430 · 평판 +6", 430, 93, 2, 6, "미 육군 전투단, Fort Irwin NTC 순환훈련 최우수 평가"],
+    ["교범 기반 방어·반격 기동으로 안정적 통과", "평정 A · 경험치 +305 · 사기 +1", 305, 80, 1, 2, "NTC 종합 기동평가 무사고 수료"],
+    ["장비 손실 회피 위주 소극적 기동", "평정 C+ · 경험치 +165 · 평판 −3", 165, 55, 0, -3, "NTC 훈련 소극 전술 보완 지적"],
+  ]],
+  ["us_n_rimpac", "navy", 3, 6, "RIMPAC Multinational Maritime Strike Exercise", "하와이 인근 해역에서 동맹국 20여 개국 함대와 연합 해상타격·대잠 훈련을 지휘합니다.", [
+    ["연합 기동전단 선도 지휘 · 실사격 표적 완벽 격침", "평정 S · 경험치 +440 · 평판 +7", 440, 94, 3, 7, "미 태평양함대, RIMPAC 다국적 해상타격 훈련 압도적 주도"],
+    ["동맹 함대 섹터 조율 및 무결점 방어 완수", "평정 A · 경험치 +315 · 사기 +2", 315, 80, 2, 3, "RIMPAC 다국적 연합훈련 성공적 종료"],
+    ["연료·정비 사유로 핵심 실사격 단계 축소", "평정 C+ · 경험치 +170 · 평판 −4", 170, 53, -1, -4, "RIMPAC 핵심 훈련 축소 지적"],
+  ]],
+  ["us_f_tanker", "air", 3, 6, "Indo-Pacific Agile Combat Employment (ACE) Drill", "서태평양 분산 활주로를 활용한 신속 전개·재무장(ACE) 작전 능력을 검증합니다.", [
+    ["전방 도서 기지 신속 전개 및 무중단 출격 사이클 달성", "평정 S · 경험치 +440 · 평판 +7", 440, 94, 2, 7, "미 공군 비행단, 인도-태평양 ACE 분산전개 훈련 최우수"],
+    ["표준 수송·공중급유 절차로 안전 전개 완료", "평정 A · 경험치 +315 · 사기 +2", 315, 80, 2, 3, "태평양 공군 신속전개 훈련 안정 완료"],
+    ["기상·정비 부담으로 분산 기지 전개 축소", "평정 C+ · 경험치 +170 · 평판 −3", 170, 54, 0, -3, "ACE 분산작전 검증 미흡 지적"],
+  ]],
 ];
 
 const US_CRISES = [
@@ -224,7 +305,11 @@ function mkRivals(svc) {
 }
 export function dutyState() {
   let d = rd(DK, null);
-  if (!d) { d = { week: 1, morale: 72, rep: 55, tension: 32, headlines: [isUS() ? "O-1 소위 임관 — 미합중국 군(U.S. Armed Forces) 장교 커리어 시작" : "신임 소위 임관 — 대한민국 국군 장교 커리어 시작"], pending: [], crisis: null, report: null, rivals: null, last: null }; wr(DK, d); }
+  if (!d) {
+    const ng = ngBonuses();
+    d = { week: 1, morale: 72, rep: clamp(55 + ng.initRep, 0, 100), tension: 32, stance: "bal", recent: [], headlines: [isUS() ? "O-1 소위 임관 — 미합중국 군(U.S. Armed Forces) 장교 커리어 시작" : "신임 소위 임관 — 대한민국 국군 장교 커리어 시작"], pending: [], crisis: null, report: null, rivals: null, last: null };
+    wr(DK, d);
+  }
   return d;
 }
 export function saveDuty(d) { wr(DK, d); }
@@ -256,9 +341,13 @@ function drawEvents(d, svc, grade) {
   const gClamped = Math.min(9, grade);
   const pool = evSrc.filter((e) => (e[1] === "all" || e[1] === svc) && gClamped >= e[2] && gClamped <= e[3]);
   const tierFallback = evSrc.filter((e) => rankTier(e[2]) === rankTier(gClamped));
-  const src = pool.length >= 2 ? pool : tierFallback.length >= 2 ? tierFallback : evSrc;
+  const src0 = pool.length >= 2 ? pool : tierFallback.length >= 2 ? tierFallback : evSrc;
+  const recentSet = new Set((d.recent || []).slice(-4));
+  const fresh = src0.filter((e) => !recentSet.has(e[0]));
+  const src = fresh.length >= 2 ? fresh : src0;
   const out = [], copy = src.slice();
   while (out.length < 2 && copy.length) out.push(copy.splice((Math.random() * copy.length) | 0, 1)[0][0]);
+  d.recent = [...(d.recent || []), ...out].slice(-6);
   const opening = currentOpening(d, svc, grade);
   d.openingId = opening?.id ?? null;
   d.pending = opening ? (d.openingChoices?.[opening.track]?.[opening.week] == null ? [opening.id] : []) : out;
@@ -422,9 +511,11 @@ export function resolveDuty(id, optIdx, grade) {
   if (!ev) return null;
   const o = ev[6][optIdx]; if (!o) return null;
   let [label, , xpBase, sc, dm, dr, headline] = o;
+  const stance = d.stance || "bal", ng = ngBonuses();
   let backfired = false;
   if (optIdx === 0) {
-    const failProb = clamp(0.18 + Math.max(0, 72 - d.morale) * 0.008 + Math.max(0, d.tension - 50) * 0.003, 0.14, 0.58);
+    const stanceRisk = stance === "hard" ? 0.06 : stance === "rest" ? -0.10 : 0;
+    const failProb = clamp(0.18 + stanceRisk + Math.max(0, 72 - d.morale) * 0.008 + Math.max(0, d.tension - 50) * 0.003, 0.08, 0.62);
     if (Math.random() < failProb) {
       backfired = true;
       sc = 42 + ((Math.random() * 12) | 0);
@@ -432,17 +523,18 @@ export function resolveDuty(id, optIdx, grade) {
       dm = -6; dr = -7;
       headline = `[작전 차질] ${ev[4]} 강경 대응 중 장비·안전 차질 발생 — 지휘 책임 추궁`;
     } else {
-      sc = clamp(sc + (((Math.random() * 7) | 0) - 3), 84, 96);
+      sc = clamp(sc + (((Math.random() * 7) | 0) - 3) + (stance === "hard" ? 3 : 0), 84, 98);
       dm = Math.min(dm, -2); /* 고강도 작전은 성공해도 부대 피로가 누적됨 */
     }
   } else if (optIdx === 1) {
-    sc = clamp(sc + (((Math.random() * 9) | 0) - 4), 70, 86);
+    sc = clamp(sc + (((Math.random() * 9) | 0) - 4) + (stance === "hard" ? 2 : 0), 70, 90);
     dm = Math.max(dm, 2);
   } else {
     sc = clamp(sc + (((Math.random() * 11) | 0) - 3), 50, 68);
     dm = Math.max(dm, 5); /* 보수·안전 선택은 부대 사기를 크게 회복 */
   }
-  const xpGain = Math.round(xpBase * (1 + grade * 0.12));
+  const stanceXp = stance === "hard" ? 1.15 : stance === "rest" ? 0.9 : 1;
+  const xpGain = Math.round(xpBase * (1 + grade * 0.12) * stanceXp * ng.xpMult);
   d.morale = clamp(d.morale + dm, 10, 100);
   d.rep = clamp(d.rep + dr, 0, 100);
   d.tension = clamp(d.tension + (backfired ? 5 : optIdx === 2 ? -3 : sc >= 85 ? -2 : 0), 5, 95);
@@ -513,8 +605,8 @@ export function resolveReport(choiceIdx, grade) {
 /** Auto-delegate a crisis based on staff/branch/morale -> returns { win, xpGain, score, msg } */
 export function resolveCrisisDelegate(grade, br, staffPower = 1) {
   const d = dutyState(), cr = dutyCrisisById(d.crisis); if (!cr) return null;
-  const svc = serviceOf(br), match = cr.domain === svc ? 10 : 0;
-  const chance = clamp(Math.round(52 + grade * 3 + (d.morale - 50) * 0.35 + (staffPower - 1) * 45 + match), 20, 95);
+  const svc = serviceOf(br), match = cr.domain === svc ? 10 : 0, ng = ngBonuses();
+  const chance = clamp(Math.round(52 + grade * 3 + (d.morale - 50) * 0.35 + (staffPower - 1) * 45 + match + ng.crisisBonus), 20, 95);
   const win = Math.random() * 100 < chance;
   const sc = win ? 78 + ((Math.random() * 14) | 0) : 42 + ((Math.random() * 14) | 0);
   const xpGain = Math.round((win ? 420 : 160) * (1 + grade * 0.25));
@@ -554,6 +646,8 @@ export function nextDutyWeek(svc, grade, playerPost = "") {
   const d = dutyState();
   d.week++; d.doneWeek = false;
   addRankWeek(grade, 1);
+  if (d.stance === "hard") d.morale = clamp(d.morale - 4, 10, 100);
+  else if (d.stance === "rest") d.morale = clamp(d.morale + 6, 10, 100);
   d.lowMoraleWeeks = d.morale < 35 ? (d.lowMoraleWeeks || 0) + 1 : 0;
   if (d.study) {
     d.study--; recordEval(grade, 80);
