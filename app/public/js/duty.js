@@ -576,12 +576,20 @@ export function rivalEligible(rival, week) {
   return week - (rival.rankSinceWeek ?? (rival.g === 0 ? 1 : week)) >= minWeeks(rival.g);
 }
 
-/** Advance rival classmates alongside player progress so they stay neck-and-neck (playerGrade - 1 to +1). */
+/** Advance rival classmates flexibly: can pull 1-2 ranks ahead or fall 1-3 ranks behind organically. */
 function tickRivals(d, playerGrade, svc = "navy", playerPost = "") {
   if (!d.rivals) return;
+  const maxG = playerGrade === 0 ? 0 : Math.min(9, playerGrade + 2);
   const promoted = [];
   d.rivals.forEach((r, ri) => {
-    if (r.g >= playerGrade || r.g >= 9 || !rivalEligible(r, d.week)) return;
+    if (r.g >= maxG || r.g >= 9 || !rivalEligible(r, d.week)) return;
+    const elite = r.style === "야전 엘리트";
+    const diff = r.g - playerGrade;
+    const prob = diff <= -2 ? (elite ? 0.65 : 0.45)
+      : diff === -1 ? (elite ? 0.60 : 0.40)
+      : diff === 0 ? (elite ? 0.36 : 0.20)
+      : (elite ? 0.18 : 0.08);
+    if (Math.random() >= prob) return;
     const prevG = r.g;
     r.g++;
     r.rankSinceWeek = d.week;

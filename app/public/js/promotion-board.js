@@ -30,7 +30,7 @@ export function hint(title) {
   }[postTier(title)];
 }
 export const automaticCaptain = (grade) => grade === 1;
-const boardCutoffs = [55, 0, 73, 75, 77, 80, 82, 84, 86];
+const boardCutoffs = [55, 0, 73, 75, 77, 78, 79, 81, 83];
 
 /** Korean commissioning-source promotion modifier (g >= 2): 사관학교 우대, 3사·학사 난이도 상향. */
 export function commissionMod(g) {
@@ -79,8 +79,8 @@ export function preview(g, xp, title, br, svc, d = dutyState()) {
     [
       "전공·훈장",
       bound(
-        (career.crisisWins?.[g] || 0) * (senior ? 4 : 5) +
-          Math.min(Object.keys(career.medals || {}).length * 2, senior ? 4 : 15),
+        ((career.crisisWins?.[g] || 0) + (g >= 6 ? (career.warHero || 0) : 0)) * (senior ? 4 : 5) +
+          Math.min(Object.keys(career.medals || {}).length * (senior ? 1 : 2), senior ? 6 : 15),
         partMax[3],
       ),
     ],
@@ -251,7 +251,7 @@ export function interact(id, g) {
   } else if (
     id === "study" &&
     g >= 3 &&
-    g <= 5 &&
+    g <= 6 &&
     !career.tours?.edu &&
     !d.study &&
     d.doneWeek
@@ -338,13 +338,13 @@ export function boardCard(g, xp, title, br, svc, d, experience) {
       : "") +
     (d.study
       ? "<p>고등군사교육 · 남은 세미나 " + d.study + "회</p>"
-      : g >= 3 && g <= 5 && d.doneWeek && !career.tours?.edu
+      : g >= 3 && g <= 6 && d.doneWeek && !career.tours?.edu
         ? '<button data-duty="study">' +
           (isUS()
-            ? g === 5
+            ? g >= 5
               ? "미 국방대학"
               : "미 지휘참모대학"
-            : g === 5
+            : g >= 5
               ? "국방대학교"
               : "합동군사대학교") +
           " 2회 과정 파견</button>"
