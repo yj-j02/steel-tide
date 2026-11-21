@@ -3,6 +3,7 @@
 // and the promotion board (진급 심사) then needs enough battles at this rank and a passing average.
 // Kept in the career store (localStorage) — the economy server still owns XP and money.
 import { career, saveCareer } from "./career.js";
+import { postTier } from "./staff.js";
 
 /** What each branch's evaluation weighs most (shown on the posting cards and in 내 정보). */
 export const FOCUS = {
@@ -55,14 +56,34 @@ export function marshalQuest(profile, grade) {
   const c1 = grade >= 9 && e9.n >= 5 && e9.avg >= 85, c2 = wins >= 3, c3 = b >= 10 && wr >= 85;
   return { ok: c1 && c2 && c3, c1, c2, c3, e9, wins, b, wr };
 }
-/** Run the board after a battle: on a pass the approved grade (cap) goes up one step (capped at 대장 9). */
-export function runBoard(g, xpGrade) {
+/** Run the board after a battle/duty: 위관(소위~대위) guaranteed on pass; 소령+(3~8) uses hidden 요직/한직 odds and discharges after 3 consecutive pass-overs. */
+export function runBoard(g, xpGrade, postTitle = "") {
   if (g >= 9) return { ...board(g, xpGrade), promoted: false };
   const b = board(g, xpGrade), c = st();
   if (!b.xp) return { ...b, promoted: false };
-  if (b.ok) { c.cap = Math.min(9, g + 1); c.defer = 0; saveCareer(); return { ...b, promoted: true }; }
-  c.defer++; saveCareer(); return { ...b, promoted: false };
+  if (g <= 2) {
+    if (b.ok) { c.cap = g + 1; c.defer = 0; saveCareer(); return { ...b, promoted: true }; }
+    c.defer++; saveCareer(); return { ...b, promoted: false };
+  }
+  if (!b.cnt) return { ...b, promoted: false };
+  const tier = postTier(postTitle);
+  const tierMod = tier === "key" ? 28 : tier === "back" ? -30 : 0;
+  const histMod = Math.min(12, (c.keyPosts || 0) * 4);
+  const starPen = g >= 5 ? -8 : 0;
+  const scoreMod = b.score ? (b.e.avg - 65) * 1.4 : -35;
+  const prob = Math.max(8, Math.min(97, Math.round(52 + scoreMod + tierMod + histMod + starPen)));
+  if (b.score && Math.random() * 100 < prob) {
+    c.cap = Math.min(9, g + 1); c.defer = 0;
+    if (tier === "key") c.keyPosts = (c.keyPosts || 0) + 1;
+    saveCareer(); return { ...b, promoted: true };
+  }
+  c.defer = (c.defer || 0) + 1;
+  if (c.defer >= 3) {
+    c.discharged = { g, title: postTitle || "", avg: b.e.avg, at: new Date().toISOString().slice(0, 10) };
+    saveCareer(); return { ...b, promoted: false, discharged: true };
+  }
+  saveCareer(); return { ...b, promoted: false, passedOver: true };
 }
-export function setCap(g) { st().cap = g; career.defer = 0; saveCareer(); }
-/** 7: a light warning when the board keeps passing you over. */
-export const deferNote = () => (st().defer >= 3 ? `진급 심사 ${career.defer}회 연속 보류 — 평정을 끌어올리지 못하면 진급 적체로 분류됩니다` : "");
+export function setCap(g) { st().cap = g; career.defer = 0; career.discharged = null; saveCareer(); }
+/** 7: a light warning when the board keeps passing you over (never reveals hidden posting tier). */
+export const deferNote = () => (st().defer >= 2 ? `진급 심사 ${career.defer}회 연속 누락 — 다음 심사에서도 누락되면 계급정년으로 전역하게 됩니다` : st().defer === 1 ? "진급 심사 1회 누락 — 보직 경력과 근무평정을 끌어올려야 합니다" : "");

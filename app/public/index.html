@@ -985,10 +985,14 @@ body.modern #wpnBar .slot.main { min-width:210px; }
 .rk-step.cur { opacity:1; border-color:#4de8d4; background:rgba(20,52,64,.9); box-shadow:0 0 12px rgba(77,232,212,.22); }
 .rk-step b { font-size:12px; color:#fff; }
 .rk-step small { font-size:10.5px; color:#9db8c7; }
+#svcBg { position:fixed; inset:0; z-index:1; pointer-events:none; display:none; background:linear-gradient(155deg, rgba(16,28,18,.82), rgba(10,18,14,.92)), url(img/bg/war_room.jpg) center/cover; }
+#svcBg.on { display:block; }
+#svcBg::after { content:""; position:absolute; inset:0; background-image:linear-gradient(rgba(120,180,110,.06) 1px, transparent 1px), linear-gradient(90deg, rgba(120,180,110,.06) 1px, transparent 1px); background-size:48px 48px; }
 @media (max-width:1240px) { .dm-grid { grid-template-columns:148px minmax(0,1fr) 204px; } .dm-wargrid { grid-template-columns:1fr; } }
 </style>
   </head>
   <body>
+    <div id="svcBg"></div>
     <canvas id="gl"></canvas>
     <div id="vig"></div>
     <div id="shipCard" class="g hud"></div>

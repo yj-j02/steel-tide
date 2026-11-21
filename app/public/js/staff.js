@@ -82,6 +82,13 @@ export const BRANCHES = {
 const BR_ALIAS = { ops: "sea", int: "tac", log: "acq", air: "mar" };
 export const normBranch = (b) => (BRANCHES[b] ? b : BR_ALIAS[b] || "sea");
 export const serviceOf = (b = staff.branch) => { const br = BRANCHES[normBranch(b)]; return br?.svc && br.svc !== "joint" ? br.svc : staff.service || "navy"; };
+/** Hidden posting tier for promotion board odds (never shown to the player): "key" (요직) / "std" (보통) / "back" (한직). */
+const KEY_POSTS = new Set(["보병대대장", "K2 전차대대장", "K9 포병대대장", "특전여단장", "기갑여단장", "화력여단장", "보병사단장", "수도방위사령관", "지상작전사령관", "육군참모차장",
+  "구축함 함장", "214급 잠수함장", "안창호급 잠수함장", "구축함전대장", "해상전투단장", "잠수함전단장", "제2함대사령관", "잠수함사령관", "해군작전사령관", "해군참모차장",
+  "F-35A 비행대대장", "패트리어트 대대장", "항공작전전대장", "전투비행단장", "공중전투사령관", "미사일방어사령관", "공군작전사령관", "공군참모차장",
+  "방위사업청 사업담당", "전력기획처장", "국방부 정책기획과장", "국방정책실 국장", "NSC 안보비서관", "국방정보본부장", "합동참모차장", "합참 전략기획본부장", "합참 군사지원본부장"]);
+const BACK_POSTS = new Set(["육군교육사령관", "해군사관학교장", "공군교육사령관", "방공관제사 부사령관", "군수사 부사령관", "주외무관", "항공정보단 작전과장", "기계화대대 작전과장", "해상항공전대장", "잠수함 부장", "방공유도탄대대 작전과장", "보병사단 부사단장", "기동군단 참모장"]);
+export const postTier = (title) => (KEY_POSTS.has(title) ? "key" : BACK_POSTS.has(title) ? "back" : "std");
 export const careerTitle = (grade, br = staff.branch) => (BRANCHES[normBranch(br)] || BRANCHES.sea).t[Math.max(0, Math.min(10, grade))];
 export function setService(s) { if (SERVICES[s]) { staff.service = s; saveStaff(); } }
 export function setBranch(k) { const nk = normBranch(k); if (BRANCHES[nk]) { staff.branch = nk; if (BRANCHES[nk].svc !== "joint") staff.service = BRANCHES[nk].svc; saveStaff(); } }

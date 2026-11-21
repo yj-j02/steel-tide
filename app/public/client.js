@@ -11,7 +11,7 @@ import { cicStart, cicBigFeeds, cicStop, cicStep, cicToggle, cicExpand, cicPendi
 import { post, renderFrame, renderPiP, renderToCanvas } from "./js/post.js";
 import { M as MSL, WPN, launch as mLaunch, JET_US, setTrails, stepMissiles, defend, decoy as mDecoy, pickSam, seen as mSeen, clearMissiles, arm as mArm, SENS as SR, jetFlare, jetGun, killMissile, launchHelo as mHelo, stepHelos, launchJet, stepJets, stepFlares, flaresOf } from "./js/modern.js";
 import { landAt, setWeather, setMapLook } from "./js/core.js";
-import { MODERN, TRANSPORT, Ship, solve, leadPoint, brain, escort, mkBrain, updateShells, clearShells, loadModels, fireTorps, updateTorps, clearTorps, intercept, torpMount, TORP_SPREAD, torpPath, tubeBearing, hitFX } from "./js/ships.js";
+import { MODERN, TRANSPORT, Ship, solve, leadPoint, brain, escort, mkBrain, updateShells, clearShells, loadModels, fireTorps, updateTorps, clearTorps, intercept, torpMount, TORP_SPREAD, torpPath, tubeBearing, hitFX, jetMesh } from "./js/ships.js";
 import { air, dirFrom, clearAir, updateAir } from "./js/air.js";
 import { aaGun, updateAAGun, jetPit, updateJetPit } from "./js/interior.js";
 import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, updateMG } from "./js/infantry.js";
@@ -393,23 +393,33 @@ const ACTIVE = ["modern", "modern:convoy"]; /* 2차대전 removed (branch ww2-ar
 let mission = "modern"; try { const m = localStorage.getItem("steeltide:mission"); if (MISSIONS[m] && ACTIVE.includes(m)) mission = m; } catch {}
 
 // ── battle setup ────────────────────────────────────────────────────────────
-let endT = 0, show = null, showId = null, ap = mkBrain(9);
+let endT = 0, show = null, showId = null, showSvc = null, showAir = null, ap = mkBrain(9);
 const STATIONS = [[0, 0], [650, 520], [650, -520], [1300, 0], [1300, 1040], [1300, -1040], [1950, 520], [1950, -520]];
 /** WWII enemy ships get refits one level below the player's ship (refits used to make only our side stronger; full parity was too hard because our AI allies have none). */
 const placeAt = (lx, lz, h, back, side) => [lx - Math.cos(h) * back + Math.sin(h) * side, lz - Math.sin(h) * back - Math.cos(h) * side];
 function disposeAll() {
   for (const s of G.ships) s.dispose(); G.ships = []; G.player = G.enemy = G.carrier = G.foeCarrier = null; G.enemies = []; G.allies = []; G.convoy = []; G.events = []; G.cts.clear();
-  clearMissiles(); opsClear(); jetSound(0); droneSound(0); G.modern = false; if (typeof md !== "undefined") { md.q.length = 0; md.aimPt = null; md.supPt = null; md.jamCd = 0; md.flyFP = false; } clearTorps(); show = null; showId = null; clearShells(); clearAir(); clearFx(); for (const k of markers) { k.t = 0; k.m.visible = false; } lock = null;
+  if (showAir) { scene.remove(showAir); showAir = null; }
+  clearMissiles(); opsClear(); jetSound(0); droneSound(0); G.modern = false; if (typeof md !== "undefined") { md.q.length = 0; md.aimPt = null; md.supPt = null; md.jamCd = 0; md.flyFP = false; } clearTorps(); show = null; showId = null; showSvc = null; clearShells(); clearAir(); clearFx(); for (const k of markers) { k.t = 0; k.m.visible = false; } lock = null;
 }
 function showcase(id) {
-  if (showId === id && show) return;
-  disposeAll(); show = new Ship(MODERN[id], 0, 0, 0, "us", perkMods().upg); show.tele = 3; show.speed = show.vmax * 0.5; G.ships = [show]; G.player = show; showId = id;
+  const sv = svcDraft || (staff.branch ? serviceOf(staff.branch) : staff.service || "navy"), bgEl = $("#svcBg");
+  if (showSvc === sv && (sv !== "navy" || (showId === id && show))) { if (bgEl) bgEl.classList.toggle("on", sv === "army"); return; }
+  disposeAll(); showSvc = sv;
+  if (bgEl) bgEl.classList.toggle("on", sv === "army");
+  if (sv === "army") return;
+  if (sv === "air") {
+    showAir = new THREE.Group(); showAir.position.set(0, 240, 0);
+    for (const [x, y, z] of [[0, 0, 0], [-24, -4, -22], [-24, -4, 22]]) { const jm = jetMesh(false); jm.scale.setScalar(1.9); jm.position.set(x, y, z); showAir.add(jm); }
+    scene.add(showAir); return;
+  }
+  show = new Ship(MODERN[id], 0, 0, 0, "us", perkMods().upg); show.tele = 3; show.speed = show.vmax * 0.5; G.ships = [show]; G.player = show; showId = id;
 }
 const uniq = (list) => { for (const s of list) { const same = list.filter((o) => o.spec === s.spec); if (same.length > 1) s.name = `${s.spec.short} ${same.indexOf(s) + 1}`; } };
 /** An enemy squadron: first ship leads (brain), the rest keep station on it; optional carrier astern. */
 /** Second front: an allied AI task unit and an enemy AI unit that go for each other (they still shoot anything in reach). */
 function newBattle() {
-  disposeAll(); logs.length = 0; renderLog(); const mapId = theater; makeIslands(mapId);
+  $("#svcBg")?.classList.remove("on"); disposeAll(); logs.length = 0; renderLog(); const mapId = theater; makeIslands(mapId);
   const CS = campSel != null ? CAMPS()[campSel] : null; G.camp = campSel; G.campEra = "modern"; G.hard = !!(CS && campSel > 0 && !CS.bonus && kFail[campSel - 1]); G.tod = CS ? CS.tod || "day" : mission === "modern:emcon" ? "night" : todSel; G.wx = CS ? CS.wx || "clear" : wxSel; setWeather(G.tod, G.wx);
   G.visK = (G.tod === "night" ? 0.55 : 1) * (G.wx === "storm" ? 0.7 : 1); G.wxDisp = G.wx === "storm" ? 1.35 : 1; G.kc = null;
   const rk = myRank();
@@ -624,7 +634,7 @@ function finish() {
     const P1 = G.player, al = G.allies.filter((a) => a.spec && !a.isCarrier), ev = scoreBattle({ won, hp: P1 && P1.alive ? P1.hp / P1.maxHp : 0, sunk: G.enemies.filter((e) => !e.alive).length, foes: G.enemies.length, lost: al.filter((a) => !a.alive).length, allies: al.length, secs, jetsOut: G.jetsOut || 0 }, normBranch(staff.branch));
     if (r.press) ev.s = Math.max(0, Math.min(100, ev.s + r.press)); /* 작전 후 기자회견 */
   if (r.c72bonus) { ev.s = Math.max(0, Math.min(100, ev.s + r.c72bonus)); toast(`캠페인 「서해 72시간」 종료 — 근무평정 +${r.c72bonus}`); }
-  recordEval(before, ev.s); const bd = runBoard(before, xpGrade()), eo = evalOf(before);
+  recordEval(before, ev.s); const bd = runBoard(before, xpGrade(), postOf(before)), eo = evalOf(before);
     html += `<span>근무평정</span><span>${ev.s}점 · ${FOCUS[normBranch(staff.branch)].n} 병과 기준 (이번 계급 평균 ${eo.avg}점 ${eo.l} · ${eo.n}회)</span>`;
     if (bd.xp && !bd.promoted) { const why = [!bd.cnt ? `이 계급 근무 ${bd.e.n}/${bd.need}회` : "", !bd.score ? `평정 평균 ${bd.e.avg}점 (기준 ${PASS}점)` : ""].filter(Boolean).join(" · "); html += `<span>진급 심사</span><span style="color:#ff9b8a">보류 — ${why}${deferNote() ? `<br>${deferNote()}` : ""}</span>`; }
     const after = myGrade(), rl = rankLine();
@@ -839,7 +849,7 @@ function opMapDone(r) {
   const rw = econReward(a); act(a);
   const ev = scoreBattle({ won: r.won, hp: r.hp, sunk: r.sunk, foes: r.foes, lost: r.lost, allies: r.allies, secs: r.secs, jetsOut: r.jetsOut }, normBranch(staff.branch));
   if (r.press) ev.s = Math.max(0, Math.min(100, ev.s + r.press)); /* 작전 후 기자회견 */
-  recordEval(before, ev.s); const bd = runBoard(before, xpGrade()), after = myGrade();
+  recordEval(before, ev.s); const bd = runBoard(before, xpGrade(), postOf(before)), after = myGrade();
   const blocked = bd.xp && !bd.promoted ? ` · 진급 심사 보류 (${[!bd.cnt ? `근무 ${bd.e.n}/${bd.need}회` : "", !bd.score ? `평정 ${bd.e.avg}점` : ""].filter(Boolean).join(", ")})` : "";
   toast(`작전 ${r.won ? "성공" : "실패"} — +${fmt(rw.money)} CR · +${fmt(rw.xp)} XP · 근무평정 ${ev.s}점${blocked}`, 6);
   pmMedals = awardMedals({ won: r.won, modern: true, wins: profile.wins, sunk: r.sunk, hp: r.hp, lowHp: r.hp <= 0.5, grade: after });
@@ -1032,8 +1042,23 @@ function presResult(r) {
   if (r.cuts) { renderPres(); playCuts({ title: "대통령 선거", place: "선거일", cuts: r.cuts, onClose: () => { renderPres(); refreshMenus(); } }); return; }
   if (r.redraw) { renderPres(); refreshMenus(); }
 }
+function renderDischarged() {
+  const dc = career.discharged, g = dc.g, br = normBranch(staff.branch), sv = SERVICES[serviceOf(br)] || SERVICES.navy;
+  const admRow = profile.admin ? `<div class="adm-bar"><b>관리자 시험</b><button data-adm="reset0">↺ 소위부터 다시 시작</button></div>` : "";
+  $("#hqP").innerHTML = `${admRow}<div class="mn"><div class="mn-ret"><div class="mn-card big" style="text-align:center">
+    <div style="margin:0 auto 10px">${face({ ...agedFace(cmdr.face, g), civ: true, bg: "#26323d" }, 132)}</div>
+    <h3>계급정년 · 전역</h3>
+    <p>${sv.icon} 예비역 ${ECON_RANKS[g]} ${cmdr.name} · 최종 보직 ${dc.title || postOf(g)}</p>
+    <p style="font-size:12.5px;color:#c8d8e2;line-height:1.6">동일 계급에서 진급 심사에 3회 연속 누락되어 계급정년으로 전역했습니다.<br>주요 지휘·핵심 보직 경력과 높은 근무평정이 진급 심사의 열쇠입니다.</p>
+    <div class="kv"><span>최종 계급</span><b>${insignia(g, 16)} ${ECON_RANKS[g]}</b></div>
+    <div class="kv"><span>최종 계급 평균 평정</span><b>${dc.avg || 0}점</b></div>
+    ${g >= 6 ? `<button class="mn-pres" data-pres="start"><b>예비역 장성 · 대통령 선거 출마 ›</b><small>군복을 벗고 민간인 예비역 장성으로 정계에 도전합니다.</small></button>` : ""}
+    <button class="mn-go" data-duty="restart">↺ 2회차 시작 (소위 재임관)</button>
+  </div></div></div>`;
+}
 function renderHQ() {
   if (!staff.branch) return renderBranchPick();
+  if (career.discharged && !potusState() && !presState()) return renderDischarged();
   if (hqView === "potus" && civil() && potusState()) return renderPotus();
   if (hqView === "pres" && civil()) return renderPres();
   if (hqView === "min" && career.minister) return renderMin();
@@ -1157,10 +1182,11 @@ $("#hqP").addEventListener("click", (e) => {
     if (r.direct) { minDirect = true; startOpMap(!!r.directAir); return; }
     if (r.direct3d) { launchDirect3d(r.direct3d.domain, false); return; }
     if (r.redraw) renderMin(); return; }
-  const svb = e.target.closest("[data-svc]"); if (svb) { sfx.click(); svcDraft = svb.dataset.svc; setService(svcDraft); renderBranchPick(); return; }
+  const svb = e.target.closest("[data-svc]"); if (svb) { sfx.click(); svcDraft = svb.dataset.svc; setService(svcDraft); showcase(flagshipId()); renderBranchPick(); return; }
   const dy = e.target.closest("[data-duty]"); if (dy) { if (dy.disabled) return; sfx.click(); const a = dy.dataset.duty, g = myGrade(), br = normBranch(staff.branch), svk = serviceOf(br);
-    if (a.startsWith("ev:")) { const [, id, idx] = a.split(":"), res = resolveDuty(id, +idx, g); if (res) { profile.xp += res.xpGain; saveProfile(); const bd = runBoard(g, xpGrade()), after = myGrade(); if (after > g) { if (career.seen == null) careerInit(g, careerTitle(g), BRANCHES[br].n); career.picks += after - g; logPromotion({ g: after, t: postOf(after), b: BRANCHES[br].n, why: res.headline }); buildPromo(g, after); $("#promoM").style.display = "flex"; fanfare(after, br); } toast(`${res.label} — 평정 ${res.score}점 · +${fmt(res.xpGain)} XP`, 3.5); refreshMenus(); renderDutyDesk(); } return; }
-    if (a === "del") { const m = staffMods(g, br), res = resolveCrisisDelegate(g, br, m.outK); if (res) { profile.xp += res.xpGain; saveProfile(); const bd = runBoard(g, xpGrade()), after = myGrade(); if (after > g) { career.picks += after - g; logPromotion({ g: after, t: postOf(after), b: BRANCHES[br].n, why: res.msg }); buildPromo(g, after); $("#promoM").style.display = "flex"; fanfare(after, br); } toast(res.msg, 4); refreshMenus(); renderDutyDesk(); } return; }
+    if (a === "restart") { for (const k of NG_RESET) localStorage.removeItem(k); location.reload(); return; }
+    if (a.startsWith("ev:")) { const [, id, idx] = a.split(":"), res = resolveDuty(id, +idx, g); if (res) { profile.xp += res.xpGain; saveProfile(); const bd = runBoard(g, xpGrade(), postOf(g)), after = myGrade(); if (bd.discharged) { toast("진급 심사 3회 연속 누락 — 계급정년으로 전역했습니다", 5); refreshMenus(); renderHQ(); return; } if (after > g) { if (career.seen == null) careerInit(g, careerTitle(g), BRANCHES[br].n); career.picks += after - g; logPromotion({ g: after, t: postOf(after), b: BRANCHES[br].n, why: res.headline }); buildPromo(g, after); $("#promoM").style.display = "flex"; fanfare(after, br); } else if (bd.passedOver) toast(`진급 심사 누락 (${career.defer}/3회) — ${res.label} · 평정 ${res.score}점`, 4); else toast(`${res.label} — 평정 ${res.score}점 · +${fmt(res.xpGain)} XP`, 3.5); refreshMenus(); renderDutyDesk(); } return; }
+    if (a === "del") { const m = staffMods(g, br), res = resolveCrisisDelegate(g, br, m.outK); if (res) { profile.xp += res.xpGain; saveProfile(); const bd = runBoard(g, xpGrade(), postOf(g)), after = myGrade(); if (bd.discharged) { toast("진급 심사 3회 연속 누락 — 계급정년으로 전역했습니다", 5); refreshMenus(); renderHQ(); return; } if (after > g) { career.picks += after - g; logPromotion({ g: after, t: postOf(after), b: BRANCHES[br].n, why: res.msg }); buildPromo(g, after); $("#promoM").style.display = "flex"; fanfare(after, br); } else if (bd.passedOver) toast(`진급 심사 누락 (${career.defer}/3회) · ${res.msg}`, 4); else toast(res.msg, 4); refreshMenus(); renderDutyDesk(); } return; }
     if (a === "fm") { const cr = dutyCrisisById(dutyState().crisis); dutyDirect = true; startOpMap(cr?.opAir); return; }
     if (a === "3d") { const cr = dutyCrisisById(dutyState().crisis); launchDirect3d(cr?.op3d || "navy", true); return; }
     if (a === "next") { nextDutyWeek(svk, g); toast(`${dutyState().week}주차 직무가 도착했습니다`, 2.5); renderDutyDesk(); return; }
@@ -1171,7 +1197,7 @@ $("#hqP").addEventListener("click", (e) => {
   const tk = e.target.closest("[data-take]");
   if (tk && !profile.admin && tk.dataset.take !== "reset") { const [, g, t] = tk.dataset.take.split(":"); sfx.click(); toast(+g > myGrade() ? `${t} — ${ECON_RANKS[+g]} 보직입니다. 그 계급으로 진급할 때 인사명령의 보직 선택에서 고를 수 있습니다` : `${t} — 상부에서 임명하는 보직입니다`, 4); return; }
   if (tk && profile.admin) { sfx.click(); if (tk.dataset.take === "reset") staff.adminPost = null; else { const [k, g, t] = tk.dataset.take.split(":"), fp = FLAG_POSTS.find((p) => p.t === t && p.g === +g); staff.adminPost = { b: fp ? fp.b : BRANCHES[k] ? k : staff.branch, g: +g, t: fp ? t : null }; } saveStaff(); renderHQ(); return; }
-  const br = e.target.closest("[data-branch]"); if (br) { sfx.click(); const had = career.seen != null; setBranch(br.dataset.branch); if (had) logPromotion({ g: myGrade(), t: careerTitle(myGrade()), b: BRANCHES[br.dataset.branch].n, why: "보직 변경" }); else careerInit(myGrade(), careerTitle(myGrade()), BRANCHES[br.dataset.branch].n); refreshMenus(); renderHQ(); toast(`${BRANCHES[br.dataset.branch].n} 보직 — ${careerTitle(myGrade())}`); return; } if (e.target.closest("[data-rebranch]")) { sfx.click(); staff.branch = null; renderHQ(); return; } const r = e.target.closest("[data-role]"); if (r) { sfx.click(); hqRole = r.dataset.role; renderHQ(); return; } const a = e.target.closest("[data-appoint]"); if (a) { sfx.click(); appoint(hqRole, a.dataset.appoint); renderHQ(); toast(`${STAFF_ROLES.find((x) => x.k === hqRole).n} 임명 — ${officer(a.dataset.appoint).rk} ${officer(a.dataset.appoint).nm}`); } });
+  const br = e.target.closest("[data-branch]"); if (br) { sfx.click(); const had = career.seen != null; setBranch(br.dataset.branch); svcDraft = null; showcase(flagshipId()); if (had) logPromotion({ g: myGrade(), t: careerTitle(myGrade()), b: BRANCHES[br.dataset.branch].n, why: "보직 변경" }); else careerInit(myGrade(), careerTitle(myGrade()), BRANCHES[br.dataset.branch].n); refreshMenus(); renderHQ(); toast(`${BRANCHES[br.dataset.branch].n} 보직 — ${careerTitle(myGrade())}`); return; } if (e.target.closest("[data-rebranch]")) { sfx.click(); staff.branch = null; renderHQ(); return; } const r = e.target.closest("[data-role]"); if (r) { sfx.click(); hqRole = r.dataset.role; renderHQ(); return; } const a = e.target.closest("[data-appoint]"); if (a) { sfx.click(); appoint(hqRole, a.dataset.appoint); renderHQ(); toast(`${STAFF_ROLES.find((x) => x.k === hqRole).n} 임명 — ${officer(a.dataset.appoint).rk} ${officer(a.dataset.appoint).nm}`); } });
 $("#tabPort").addEventListener("click", () => { sfx.click(); openMenu(); });
 function openRecord() { initAudio(); bgm("menu"); hideAll(); screen = "record"; G.state = "menu"; setTab("record"); $("#topbar").style.display = "flex"; renderRecord(); $("#recordP").style.display = "block"; showcase(flagshipId()); }
 $("#tabRecord").addEventListener("click", () => { sfx.click(); openRecord(); });
@@ -1947,6 +1973,12 @@ function setNear(n) { if (Math.abs(n - near) > 0.05) { near = n; camera.near = n
 function updateCamera(dt) {
   const P = G.player; jetPit.visible = false; garandVM.visible = mgVM.visible = false;
   if (screen !== "battle" || !P) {
+    if (showAir && screen !== "battle") {
+      showAir.position.y = 240 + Math.sin(G.time * 0.9) * 3.5; showAir.rotation.z = Math.sin(G.time * 0.45) * 0.08;
+      const a = cam.orbYaw + G.time * 0.07, R = 92;
+      camera.position.set(Math.cos(a) * R, 258 + Math.sin(G.time * 0.5) * 6, Math.sin(a) * R);
+      camera.fov = 44; setNear(2); camera.updateProjectionMatrix(); camera.up.set(0, 1, 0); camera.lookAt(showAir.position); return null;
+    }
     const L = P ? P.spec.L : 190, R = cam.orbDist * (L / 190) * 1.05, a = cam.orbYaw + G.time * 0.04;
     camera.position.set(Math.cos(a) * Math.cos(cam.orbPitch) * R, Math.sin(cam.orbPitch) * R + 8, Math.sin(a) * Math.cos(cam.orbPitch) * R).add(P ? P.pos : tmp.set(0, 0, 0));
     camera.fov = 42; setNear(4); camera.updateProjectionMatrix(); camera.up.set(0, 1, 0); camera.lookAt(P ? P.pos.clone().setY(L * 0.06) : tmp.set(0, 0, 0)); return null;
