@@ -24,7 +24,8 @@ import { aaGun, updateAAGun, jetPit, updateJetPit } from "./js/interior.js";
 import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, updateMG } from "./js/infantry.js";
 import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, candidates, roleTitle, ECH, echOf, staffFor, FLAG_POSTS, FLEET_CDR, SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, setService, setBranch, POST_RANK, holds, saveStaff, isUS, setNation, curServices, curBranches, curFlagPosts, flagPostsForTrack } from "./js/staff.js";
 import { koreanUsRanks, toggleUsRankLanguage, insigniaUS, US_PAY, US_BRANCHES, US_SERVICES, usRankName, usRankFull, US_SVC_ORG, usNpcName, usDischargeEndingOf } from "./js/us-ranks.js";
-import { openingCarryover, dutyState, ensureDuty, dutyEventById, dutyCrisisById, dutyOptionHint, resolveDuty, resolveReport, resolveCrisisDelegate, resolveCrisisDirect, nextDutyWeek, STANCES, setStance } from "./js/duty.js";
+import { openingCarryover, dutyState, ensureDuty, dutyEventById, dutyCrisisById, dutyOptionHint, resolveDuty, resolveReport, resolveCrisisDelegate, resolveCrisisDirect, nextDutyWeek, STANCES, setStance, resolveRivalEvent } from "./js/duty.js";
+import { bossFor, RIVAL_EVENTS, relLabel, allyBonus, chronicleHTML, downloadChroniclePNG } from "./js/relations.js";
 import { career, saveCareer, careerInit, logPromotion, perkMods, payStep, MEDALS, US_MEDALS, awardMedals } from "./js/career.js";
 const curMedals = () => (isUS() ? US_MEDALS : MEDALS);
 import { openOpMap, opMapAdvance, opMapState, opMapAir } from "./js/opmap.js";
@@ -1164,15 +1165,26 @@ function renderRecord() { /* 인사기록: 좌측 고정 프로필 + 우측 4개
   const ladderRows = ECON_RANKS.map((_, r) => `<div class="${r === rl.r ? "cur" : r < rl.r ? "done" : ""}"><span>${insignia(r, 22)}</span><b class="bh">${isUS() ? `${US_PAY[r]} · ` : ""}${rankLabel(r, svk)}</b><span>${postLabel(postOf(r))}</span><span class="xp">${fmt(ECON_RANK_XP[r])} XP</span><span>${cmdScale(r)}</span></div>`).join("");
   const medalsHTML = trophyShelfHTML(rl.r, career, isUS(), (!isUS() && isPotus()) || (isUS() && usPresState()?.term > 0))
     + `<h3>훈장 · 표창</h3><div class="mi-md">${Object.entries(curMedals()).map(([k, M]) => `<div class="md${career.medals?.[k] ? "" : " no"}" title="${M.d}"><i>${M.rb.map((col) => `<b style="background:${col}"></b>`).join("")}</i><span>${M.n}</span><small>${career.medals?.[k] ? career.medals[k] : M.d}</small></div>`).join("")}</div>`;
+  const chronCtx = () => {
+    const g0 = career.discharged?.g ?? myGrade(), br0 = normBranch(staff.branch), sv0 = serviceOf(br0), SV0 = curServices(), BR0 = curBranches();
+    const chap = career.discharged ? "예비역 전역" : (!isUS() && potusOn()) ? "대통령 재임" : (isUS() && usPresState()?.term > 0) ? "U.S. President" : career.minister ? (isUS() ? "SecDef" : "국방부장관") : "현역 복무";
+    return {
+      cmdrName: cmdr.name, grade: g0, rankName: rankLabel(g0, sv0), post: postLabel(career.discharged?.title || postOf(g0)),
+      svcName: (SV0[sv0] || SV0.navy).n, branchName: postLabel((BR0[br0] || BR0.sea).n),
+      week: dd.week || 1, medalsCount: Object.keys(career.medals || {}).length,
+      log: career.log || [], rivals: dd.rivals || [], rankLabelFn: (r) => rankLabel(r, sv0), chapterLabel: chap,
+    };
+  };
   const rBody = recTab === "ladder"
     ? `<h3>${(SV[svk] || SV.navy).n} 계급 로드맵 — 누적 ${fmt(profile.xp)} XP</h3><div class="ladder">${ladderRows}</div>`
     : recTab === "timeline" ? `<h3>복무 연표</h3>${renderCareerTimeline(career, dd, isUS(), svk)}`
     : recTab === "medals" ? medalsHTML
     : recTab === "endings" ? endingsHTML()
+    : recTab === "chron" ? chronicleHTML(chronCtx())
     : `<h3>장교 복무 요약</h3><div class="rstats"><div><span>누적 복무</span><b>${careerDate(dd.week)}</b></div><div><span>군내 평판</span><b>${dd.rep ?? 55}</b></div><div><span>부대 사기</span><b>${dd.morale ?? 72}</b></div><div><span>전술전 승률</span><b>${profile.battles ? Math.round((profile.wins / profile.battles) * 100) : 0}%</b></div><div><span>보유 훈장</span><b>${Object.keys(career.medals || {}).length}/10</b></div></div>`
       + `<h3>${(SV[svk] || SV.navy).n} 장교 인사기록 · 약력</h3><div class="mi-log">${log}</div>`
       + `<h3>내 참모진 · ${echUnit}</h3><div class="mi-st">${STAFF_ROLES.map((r) => `<span>${roleTitle(r.k, rl.r)}</span><b>${of(r.k).rk} ${of(r.k).nm}</b>`).join("")}</div>`;
-  const recTabsHTML = `<div class="rec-tabs">${[["log", "📋 요약 · 약력"], ["timeline", "복무 연표"], ["ladder", "🎖 계급 로드맵"], ["medals", "🏅 훈장 · 표창"], ["endings", "🏆 엔딩 도감"]].map(([k, lbl]) => `<button class="rec-tab${recTab === k ? " on" : ""}" data-rectab="${k}">${lbl}</button>`).join("")}</div>`;
+  const recTabsHTML = `<div class="rec-tabs">${[["log", "📋 요약 · 약력"], ["timeline", "복무 연표"], ["ladder", "🎖 계급 로드맵"], ["medals", "🏅 훈장 · 표창"], ["endings", "🏆 엔딩 도감"], ["chron", "📜 회고록"]].map(([k, lbl]) => `<button class="rec-tab${recTab === k ? " on" : ""}" data-rectab="${k}">${lbl}</button>`).join("")}</div>`;
   let h = `<div class="mi"><div class="mi-l">`
     + `<div class="mi-por-w">${civil() ? `<div class="mi-por civp">${face({ ...agedFace(cmdr.face, myGrade()), civ: true, bg: !isUS() && isPotus() ? "#1d3b6e" : "#2b3446" }, 280)}${!isUS() && isPotus() ? `<img src="img/potus_mark.png" alt="" class="pmark-b">` : ""}</div>` : portraitHTML(career.finalUniform?.grade ?? rl.r, career.finalUniform)}</div><p class="uniform-caption">${career.finalUniform ? `${rankLabel(career.finalUniform.grade)} · ${postLabel(career.finalUniform.title)} · ${career.finalUniform.date}` : `${rankLabel(rl.r)} · ${postLabel(postOf(rl.r))} · ${careerDate(dd.week)}`}</p><div class="mi-card"><div><div class="mi-rk">${badge(rl.r, 22)}<b>${civil() ? (!isUS() && potusOn() ? "대한민국 대통령" : !isUS() && isPotus() ? "전 대통령" : "민간인") : career.minister ? `예비역 ${rl.name}` : isUS() ? `${rl.name} · ${US_PAY[rl.r]}` : `${rl.name} ${ps.step}호봉`}</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${career.minister ? (!isUS() && potusOn() ? `국군통수권자 · ${potusTitle().replace("대통령 · ", "")} · 전 국방부장관` : !isUS() && isPotus() ? `${potusTitle()} · 예비역 ${rl.name}` : civil() ? `전 ${mTitle} · 예비역 ${rl.name}` : mTitle) : `${postLabel(postOf(rl.r))}${staff.branch ? ` · ${(BR[br] || BRANCHES.sea).n} 보직` : ""}`}</div></div></div>`
     + (career.minister ? `<p class="mi-note">${!isUS() && potusOn() ? "소위 임관에서 대통령까지 — 집무실 탭에서 국정을 운영합니다" : !isUS() && isPotus() ? "대통령 임기를 마쳤습니다" : civil() ? `${mTitle} 임기를 마치고 민간인이 되었습니다` : `전역 후 ${mTitle}으로 임명되어 호봉·진급이 없습니다`}</p>` : `<div class="mi-bar"><span>다음 호봉</span><div class="hbar"><i style="width:${Math.max(2, stepPct).toFixed(0)}%"></i></div></div><div class="mi-bar"><span>${rl.next ? `${rl.next} 진급` : "최고 계급"}</span><div class="hbar"><i style="width:${(rl.pct * 100).toFixed(0)}%;background:var(--gold)"></i></div><small>${rl.next ? `${fmt(rl.need - profile.xp)} XP 남음` : ""}</small></div>`)
@@ -1391,10 +1403,19 @@ function renderDutyDesk() {
   const crCard = cr ? `<div id="duty-crisis" class="mn-card mn-dk mn-nsc"><b>🚨 ${cr.tag} — ${cr.title}</b><p>${cr.desc}</p><div class="dm-ops"><button class="dm-op" data-duty="del">① 자동 위임</button><button class="dm-op fm" data-duty="fm">② FM 합동 작전 지휘${crFmRec ? " ★추천" : ""}</button><button class="dm-op d3" data-duty="3d">③ 3D 직접 개입${!crFmRec ? " ★추천" : ""}</button></div></div>` : "";
   const minBtn = g >= 9 && (ministerOk(g) || profile.admin) ? `<div class="mn-card" style="border-color:#ffd166"><b>🏛️ ${isUS() ? "미 국방장관 (SecDef) 지명 가능" : "국방부장관 임명 가능"}</b><p>대장 계급과 우수 평정을 달성했습니다. ${isUS() ? "펜타곤 국방장관으로 취임해 36주 3군 국방 경영을 시작하십시오." : "국방부장관으로 취임해 36주 3군 국방 경영을 시작하십시오."}</p><button class="mn-go" data-duty="tomin">${isUS() ? "미 국방장관 취임 ›" : "국방부장관 취임 ›"}</button></div>` : "";
   const admDuty = profile.admin ? `<div class="adm-bar"><b>관리자 시험</b><button data-duty="admrank">+1계급 진급</button><button data-duty="tomin">→ ${isUS() ? "미 국방장관 취임" : "국방부장관 취임"}</button>${isUS() ? `<button data-uspres="preview">→ 미국 대선 시험 (538)</button>` : `<button data-adm="topres">→ 대선 시작</button><button data-adm="topotus">→ 대통령 취임</button>`}<button data-adm="reset0">↺ 소위부터 다시 시작</button></div>` : "";
-  const rivalsHTML = d.rivals?.length ? `<div class="mn-card dm-news"><div class="mn-h">👥 ${isUS() ? "사관학교 동기 동향" : "임관 동기 동향"}</div>${d.rivals.map((r, ri) => {
+  const boss = bossFor(g, svk);
+  const bossCard = `<div class="mn-card dm-news" style="border-left:3px solid ${boss.style.color}"><div class="mn-h">🎖️ 직속 상관 · 평정권자</div><div style="font-size:11.5px;display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><b>${boss.name}</b><span style="padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:rgba(255,255,255,.08);color:${boss.style.color}">${isUS() ? `${boss.style.n} (${boss.style.en})` : boss.style.n}</span></div><small style="border:0;padding:0;color:#9bb6c6">${boss.title}</small><small style="border:0;padding:2px 0 0;color:#b8d4e4">${boss.style.hint}</small></div>`;
+  const rvEvObj = d.rivalEvent ? RIVAL_EVENTS.find((x) => x.id === d.rivalEvent.evId) : null;
+  const rvEvTarget = d.rivalEvent ? d.rivals?.[d.rivalEvent.ri ?? 0] : null;
+  const rvEvNm = rvEvTarget ? (isUS() ? usNpcName(rvEvTarget.name + (d.rivalEvent.ri ?? 0)) : rvEvTarget.name) : "";
+  const rvEvPost = rvEvTarget ? postLabel(rvEvTarget.post || careerTitle(rvEvTarget.g, rvEvTarget.br)) : "";
+  const rvEvCard = rvEvObj && rvEvTarget ? `<div id="duty-rival" class="mn-card mn-dk mn-paper" style="border-color:#72ace8"><div class="dh"><div class="dt"><small>🤝 ${isUS() ? "Academy Classmate Request" : "임관 동기 인맥 이벤트"} · ${rvEvNm} (관계도 ${rvEvTarget.rel ?? 50})</small><b>${rvEvObj.title}</b><span>선택에 따라 동기 관계도·군내 평판·후반 참모 시너지가 달라집니다</span></div></div><p>${rvEvObj.desc(rvEvNm, rvEvPost)}</p>${rvEvObj.opts.map((o, oi) => `<button data-duty="rvev:${oi}"><b>${o.l}</b><small>${o.d}</small></button>`).join("")}</div>` : "";
+  const ab = allyBonus(d.rivals, g);
+  const rivalsHTML = d.rivals?.length ? `<div class="mn-card dm-news"><div class="mn-h">👥 ${isUS() ? "사관학교 동기 동향" : "임관 동기 동향"}${ab.allies ? ` <small style="color:#8ef07a;font-weight:700">우군 시너지 +${ab.crisisWinBonus}%</small>` : ""}</div>${d.rivals.map((r, ri) => {
     const diff = r.g > g ? `<b class="r">선진급</b>` : r.g === g ? `<b class="y">동급</b>` : `<b class="g">추월</b>`;
     const rNm = isUS() ? usNpcName(r.name + ri) : r.name;
-    return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:3px 0;border-bottom:1px dashed rgba(170,200,210,.14)"><span>${insignia(r.g, 12)} <b>${rankLabel(r.g, svk)} ${rNm}</b><br><small style="color:#8fb0c2;border:0;padding:0">${postLabel(r.post || careerTitle(r.g, r.br))}</small></span>${diff}</div>`;
+    const rlInfo = relLabel(r.rel ?? 50);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px 0;border-bottom:1px dashed rgba(170,200,210,.14)"><span>${insignia(r.g, 12)} <b>${rankLabel(r.g, svk)} ${rNm}</b><br><small style="color:#8fb0c2;border:0;padding:0">${postLabel(r.post || careerTitle(r.g, r.br))} · <b class="${rlInfo.cls}">${rlInfo.t} (${r.rel ?? 50})</b></small></span>${diff}</div>`;
   }).join("")}</div>` : "";
   const agenda = items.map(id => [`duty-${id}`, openingEvent(id)?.title ?? dutyEventById(id)?.[4]]).filter(([, title]) => title);
   if (cr) agenda.unshift(["duty-crisis", cr.title]);
@@ -1438,8 +1459,8 @@ function renderDutyDesk() {
           }).join("")}</div>
           <button class="dm-tab" data-duty="retire_now" ${serviceTerms.obligationLeft ? "disabled" : ""} style="margin-top:6px;border-color:rgba(255,140,120,.35);color:#f2b8b0"><span>${serviceTerms.obligationLeft ? "의무복무 이행 중" : retireArm ? "⚠ 한 번 더 클릭: 전역" : "🚪 전역 신청"}</span></button>
         </nav>
-        <div class="dm-main">${crCard}${evCards}${repCard}<div id="duty-promotion">${g < 9 ? reviewCard : marshalCardHTML(g)}</div>${g >= 9 ? reviewCard : ""}${minBtn}${tierAuthHTML(g)}${d.last ? `<div class="mn-card"><small>최근 결과: ${d.last}</small></div>` : ""}</div>
-        <aside class="dm-side">${globalThis.__careerProfileHTML()}${rivalsHTML}<div class="mn-card dm-news"><div class="mn-h">📰 군 내부 · 언론 헤드라인</div>${(d.headlines || []).slice(0, 7).map((h) => `<small>• ${h.replace(/^(\d+)주차 ·/, "안건 $1 ·")}</small>`).join("")}</div></aside>
+        <div class="dm-main">${crCard}${rvEvCard}${evCards}${repCard}<div id="duty-promotion">${g < 9 ? reviewCard : marshalCardHTML(g)}</div>${g >= 9 ? reviewCard : ""}${minBtn}${tierAuthHTML(g)}${d.last ? `<div class="mn-card"><small>최근 결과: ${d.last}</small></div>` : ""}</div>
+        <aside class="dm-side">${globalThis.__careerProfileHTML()}${bossCard}${rivalsHTML}<div class="mn-card dm-news"><div class="mn-h">📰 군 내부 · 언론 헤드라인</div>${(d.headlines || []).slice(0, 7).map((h) => `<small>• ${h.replace(/^(\d+)주차 ·/, "안건 $1 ·")}</small>`).join("")}</div></aside>
       </div>
     </div>`;
   openPromotionBoard(g, br, svk, true);
@@ -1533,7 +1554,7 @@ function renderDischarged() {
     <div class="kv"><span>최종 계급 평균 평정</span><b>${dc.avg || 0}점</b></div>
     ${g >= 6 ? (isUS() ? `<button class="mn-pres" data-uspres="start"><b>🇺🇸 예비역 장성 · 미국 대통령 선거 출마 (538 선거인단) ›</b><small>군복을 벗고 미 합중국 대통령 선거에 도전합니다.</small></button>` : `<button class="mn-pres" data-pres="start"><b>예비역 장성 · 대통령 선거 출마 ›</b><small>군복을 벗고 민간인 예비역 장성으로 정계에 도전합니다.</small></button>`) : ""}
     <button class="mn-go" data-duty="restart">↺ 2회차 시작 (소위 재임관)</button>
-  </div></div></div>`;
+  </div>${chronicleHTML({ cmdrName: cmdr.name, grade: g, rankName: rankLabel(g, svk), post: postLabel(dc.title || postOf(g)), svcName: sv.n, branchName: postLabel((curBranches()[br] || curBranches().sea).n), week: dutyState().week || 1, medalsCount: Object.keys(career.medals || {}).length, log: career.log || [], rivals: dutyState().rivals || [], rankLabelFn: (r) => rankLabel(r, svk), chapterLabel: end.sub })}</div></div>`;
 }
 function renderHQ() {
   if (!staff.branch) return renderBranchPick();
@@ -1796,6 +1817,13 @@ $("#recordP").addEventListener("keydown", e => {
 $("#recordP").addEventListener("click", (e) => {
   const ribbon = e.target.closest("[data-medal]"); if (ribbon) { showMedal(ribbon.dataset.medal); return; }
   const rt = e.target.closest("[data-rectab]"); if (rt) { sfx.click(); recTab = rt.dataset.rectab; renderRecord(); return; }
+  if (e.target.closest('[data-chron="png"]')) {
+    sfx.click();
+    const g0 = career.discharged?.g ?? myGrade(), br0 = normBranch(staff.branch), sv0 = serviceOf(br0), SV0 = curServices(), BR0 = curBranches(), dd0 = dutyState();
+    downloadChroniclePNG({ cmdrName: cmdr.name, rankName: rankLabel(g0, sv0), post: postLabel(career.discharged?.title || postOf(g0)), svcName: (SV0[sv0] || SV0.navy).n, branchName: postLabel((BR0[br0] || BR0.sea).n), week: dd0.week || 1, medalsCount: Object.keys(career.medals || {}).length, log: career.log || [], rivals: dd0.rivals || [], rankLabelFn: (r) => rankLabel(r, sv0), chapterLabel: career.discharged ? "예비역 전역" : career.minister ? "국방부장관" : "현역 복무" });
+    toast("회고록 PNG 이미지를 저장했습니다", 2.5);
+    return;
+  }
   if (e.target.closest('[data-act="setrank"]') && profile.admin) {
     const g = +$("#setRank").value, before = myGrade(); if (g === before) return;
     if (!act({ kind: "setxp", xp: ECON_RANK_XP[g] })) return; setCap(g); if (career.post && career.post.g !== g) { career.post = null; saveCareer(); } if (g < 9 && career.minister) { career.minister = false; saveCareer(); } staff.adminPost = null; saveStaff();
@@ -1842,7 +1870,15 @@ $("#hqP").addEventListener("click", (e) => {
     if (r.direct3d) { launchDirect3d(r.direct3d.domain, false); return; }
     if (r.redraw) renderMin(); return; }
   const svb = e.target.closest("[data-svc]"); if (svb) { sfx.click(); svcDraft = svb.dataset.svc; setService(svcDraft); showcase(flagshipId()); renderBranchPick(); return; }
+  if (e.target.closest('[data-chron="png"]')) {
+    sfx.click();
+    const g0 = career.discharged?.g ?? myGrade(), br0 = normBranch(staff.branch), sv0 = serviceOf(br0), SV0 = curServices(), BR0 = curBranches(), dd0 = dutyState();
+    downloadChroniclePNG({ cmdrName: cmdr.name, rankName: rankLabel(g0, sv0), post: postLabel(career.discharged?.title || postOf(g0)), svcName: (SV0[sv0] || SV0.navy).n, branchName: postLabel((BR0[br0] || BR0.sea).n), week: dd0.week || 1, medalsCount: Object.keys(career.medals || {}).length, log: career.log || [], rivals: dd0.rivals || [], rankLabelFn: (r) => rankLabel(r, sv0), chapterLabel: career.discharged ? "예비역 전역" : career.minister ? "국방부장관" : "현역 복무" });
+    toast("회고록 PNG 이미지를 저장했습니다", 2.5);
+    return;
+  }
   const dy = e.target.closest("[data-duty]"); if (dy) { if (dy.disabled) return; sfx.click(); const a = dy.dataset.duty, g = myGrade(), br = normBranch(staff.branch), svk = serviceOf(br);
+    if (a.startsWith("rvev:")) { const res = resolveRivalEvent(+a.slice(5)); if (res) { if (res.xpGain) { profile.xp += res.xpGain; saveProfile(); } toast(res.msg, 4); refreshMenus(); renderDutyDesk(); } return; }
     if (a.startsWith("deputy-") || ["study","share","solo"].includes(a)) { interact(a,g); renderDutyDesk(); return; }
     if (a === "review") { openPromotionBoard(g, br, svk); return; }
     if (a === "restart") { restartCurrentCareer(); return; }

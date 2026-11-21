@@ -7,6 +7,7 @@ import { usNpcName } from "./us-ranks.js";
 import { recordEval, evalOf, board, FOCUS, letter, addRankWeek, weeksOf, minWeeks } from "./service.js";
 import { career, saveCareer, awardMedals } from "./career.js";
 import { ngBonuses } from "./endings.js";
+import { bossMod, RIVAL_EVENTS, allyBonus } from "./relations.js";
 
 export const STANCES = {
   hard: { n: "🔥 실전 강훈", d: "XP +15% · 평정 +3 / 매 안건 사기 −4 · 차질 위험↑" },
@@ -356,7 +357,33 @@ function drawEvents(d, svc, grade) {
   d.nat = us ? "us" : "kr";
   d.tier = rankTier(gClamped);
   d.crisis = grade >= 2 && d.week >= 3 && (d.week % 4 === 0 || Math.random() < 0.2) ? pick(crSrc).id : null; /* 합동 위기: 대위 이상부터 발생 */
+  if (d.week >= 2 && d.week % 4 === 2 && d.rivals?.length && d.rivalEventWeek !== d.week) {
+    const ri = (Math.floor(d.week / 4)) % d.rivals.length;
+    const ev = RIVAL_EVENTS[Math.floor(d.week / 4) % RIVAL_EVENTS.length];
+    d.rivalEvent = { evId: ev.id, ri };
+  }
   saveDuty(d);
+}
+
+export function resolveRivalEvent(choiceIdx) {
+  const d = dutyState();
+  if (!d.rivalEvent) return null;
+  const ev = RIVAL_EVENTS.find((x) => x.id === d.rivalEvent.evId);
+  const ri = d.rivalEvent.ri ?? 0, r = d.rivals?.[ri];
+  if (!ev || !r) { d.rivalEvent = null; saveDuty(d); return null; }
+  const opt = ev.opts[choiceIdx]; if (!opt) return null;
+  const rNm = isUS() ? usNpcName(r.name + ri) : r.name;
+  r.rel = clamp((r.rel ?? 50) + opt.rel, 0, 100);
+  d.rep = clamp(d.rep + opt.rep, 0, 100);
+  d.morale = clamp(d.morale + opt.mor, 10, 100);
+  const hl = opt.hl(rNm);
+  d.headlines.unshift(`${careerDate(d.week)} · [인맥] ${hl}`);
+  d.headlines = d.headlines.slice(0, 12);
+  d.last = `${ev.title} (${rNm}) → ${opt.l} (관계도 ${opt.rel >= 0 ? "+" : ""}${opt.rel} → ${r.rel})`;
+  d.rivalEvent = null;
+  d.rivalEventWeek = d.week;
+  saveDuty(d);
+  return { xpGain: opt.xp || 0, msg: `${rNm} 관계도 ${opt.rel >= 0 ? "+" : ""}${opt.rel} (현재 ${r.rel}) · ${opt.l}` };
 }
 
 /** Ensure every rival classmate holds a real, unique billet that never collides with the player or another rival. */
@@ -533,6 +560,10 @@ export function resolveDuty(id, optIdx, grade) {
     sc = clamp(sc + (((Math.random() * 11) | 0) - 3), 50, 68);
     dm = Math.max(dm, 5); /* 보수·안전 선택은 부대 사기를 크게 회복 */
   }
+  const bm = bossMod(grade, serviceOf(staff.branch), optIdx, backfired);
+  sc = clamp(sc + bm.dScore, 35, 99);
+  dm += bm.dMorale;
+  dr += bm.dRep;
   const stanceXp = stance === "hard" ? 1.15 : stance === "rest" ? 0.9 : 1;
   const xpGain = Math.round(xpBase * (1 + grade * 0.12) * stanceXp * ng.xpMult);
   d.morale = clamp(d.morale + dm, 10, 100);
@@ -545,7 +576,7 @@ export function resolveDuty(id, optIdx, grade) {
     (d.timeline ??= []).push({id: `${d.week}:${id}`, turn: d.week, date: careerDate(d.week),
       title: ev[4], choice: label, outcome: headline, score: sc});
   }
-  d.last = `${ev[4]} → ${label}${backfired ? " [차질 발생!]" : ""} (평정 ${letter(sc)} · ${sc}점 · +${xpGain} XP)`;
+  d.last = `${ev[4]} → ${label}${backfired ? " [차질 발생!]" : ""}${bm.note ? ` · ${bm.note}` : ""} (평정 ${letter(sc)} · ${sc}점 · +${xpGain} XP)`;
   if ((!d.report || d.report.routine) && (backfired || sc < 80)) {
     d.report = { title: `${ev[4]} — 상부 결과 보고`, items: d.report?.items ?? [], desc: backfired ? "업무 차질과 손실을 상급부대에 어떻게 보고하시겠습니까?" : "수행 중 확인된 미흡점과 장비 소모를 어떻게 보고하시겠습니까?" };
   } else if (sc >= 80 && d.week % 3 === 0 && d.reportFiledWeek !== d.week) {
@@ -605,8 +636,8 @@ export function resolveReport(choiceIdx, grade) {
 /** Auto-delegate a crisis based on staff/branch/morale -> returns { win, xpGain, score, msg } */
 export function resolveCrisisDelegate(grade, br, staffPower = 1) {
   const d = dutyState(), cr = dutyCrisisById(d.crisis); if (!cr) return null;
-  const svc = serviceOf(br), match = cr.domain === svc ? 10 : 0, ng = ngBonuses();
-  const chance = clamp(Math.round(52 + grade * 3 + (d.morale - 50) * 0.35 + (staffPower - 1) * 45 + match + ng.crisisBonus), 20, 95);
+  const svc = serviceOf(br), match = cr.domain === svc ? 10 : 0, ng = ngBonuses(), ab = allyBonus(d.rivals, grade);
+  const chance = clamp(Math.round(52 + grade * 3 + (d.morale - 50) * 0.35 + (staffPower - 1) * 45 + match + ng.crisisBonus + ab.crisisWinBonus), 20, 95);
   const win = Math.random() * 100 < chance;
   const sc = win ? 78 + ((Math.random() * 14) | 0) : 42 + ((Math.random() * 14) | 0);
   const xpGain = Math.round((win ? 420 : 160) * (1 + grade * 0.25));
@@ -648,6 +679,8 @@ export function nextDutyWeek(svc, grade, playerPost = "") {
   addRankWeek(grade, 1);
   if (d.stance === "hard") d.morale = clamp(d.morale - 4, 10, 100);
   else if (d.stance === "rest") d.morale = clamp(d.morale + 6, 10, 100);
+  const ab = allyBonus(d.rivals, grade);
+  if (ab.repBonus) d.rep = clamp(d.rep + ab.repBonus, 0, 100);
   d.lowMoraleWeeks = d.morale < 35 ? (d.lowMoraleWeeks || 0) + 1 : 0;
   if (d.study) {
     d.study--; recordEval(grade, 80);
