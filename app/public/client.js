@@ -43,7 +43,7 @@ const withMin = (m) => { const F = minFx(); return { ...m, outK: m.outK * F.outK
 /** 2회차 특전: 초반(소위~대위) 봉급 +50%, 중장부터 원수 승진 경험치 ×1.43 */
 const ngFlags = () => { const L = legacy(); if (!L?.medal) return {}; const g = myGrade(); return { ...(g <= 2 ? { ngPay: 1 } : {}), ...(L.minister && g >= 8 ? { ngXp: 1 } : {}) }; };
 let usPresPreview = false;
-let hqView = "duty", minDirect = false, minDirect3d = false, dutyDirect = false, svcDraft = null;
+let hqView = "duty", minDirect = false, minDirect3d = false, dutyDirect = false, returnToHQ = false, svcDraft = null;
 import { FOCUS, PASS, minBattles, scoreBattle, recordEval, evalOf, board, marshalQuest, setCap, deferNote } from "./js/service.js";
 import { ECON_RANKS, ECON_RANK_XP, econRank, econNewProfile, econReward, econCheck, econApply } from "./js/shop.js";
 
@@ -715,8 +715,8 @@ function finish() {
     const a = { kind: "result", won, shots: Math.min(s.shots, 5000), hits: Math.min(s.hits, s.shots, 5000), seconds: Math.min(secs, 36000), tier: econTier(), bombs: Math.min(s.bombs, 20), bullets: Math.min(s.bullets, 20000), planes: Math.min(s.planes || 0, 200), caps: Math.min(s.caps || 0, 10), mission: G.mission, ...ngFlags() };
     const r = econReward(a); act(a); sfx.coin();
     html += `<span>보상</span><span style="color:var(--warn)">+${fmt(r.money)} 크레딧 · +${fmt(r.xp)} 경험치</span>`;
-    if (minDirect3d) { minDirect3d = false; minOpResult(won, "3D 직접 개입"); if (won) { career.marshalWins = (career.marshalWins || 0) + 1; saveCareer(); } html += `<span>합동 워룸</span><span style="color:var(--gold)">3D 직접 개입 ${won ? "대승" : "패배"} 반영</span>`; }
-    if (dutyDirect) { dutyDirect = false; const dr = resolveCrisisDirect(won, before, "3D 직접 개입"); if (dr) { profile.xp += dr.xpGain; saveProfile(); if (won) { career.marshalWins = (career.marshalWins || 0) + 1; saveCareer(); } html += `<span>위기 개입</span><span style="color:var(--gold)">${won ? "격퇴 성공" : "고전"} · +${fmt(dr.xpGain)} XP</span>`; } }
+    if (minDirect3d) { minDirect3d = false; returnToHQ = true; minOpResult(won, "3D 직접 개입"); if (won) { career.marshalWins = (career.marshalWins || 0) + 1; saveCareer(); } html += `<span>합동 워룸</span><span style="color:var(--gold)">3D 직접 개입 ${won ? "대승" : "패배"} 반영</span>`; }
+    if (dutyDirect) { dutyDirect = false; returnToHQ = true; const dr = resolveCrisisDirect(won, before, "3D 직접 개입"); if (dr) { profile.xp += dr.xpGain; saveProfile(); if (won) { career.marshalWins = (career.marshalWins || 0) + 1; saveCareer(); } html += `<span>위기 개입</span><span style="color:var(--gold)">${won ? "격퇴 성공" : "고전"} · +${fmt(dr.xpGain)} XP</span>`; } }
     const P1 = G.player, al = G.allies.filter((a) => a.spec && !a.isCarrier), ev = scoreBattle({ won, hp: P1 && P1.alive ? P1.hp / P1.maxHp : 0, sunk: G.enemies.filter((e) => !e.alive).length, foes: G.enemies.length, lost: al.filter((a) => !a.alive).length, allies: al.length, secs, jetsOut: G.jetsOut || 0 }, normBranch(staff.branch));
     if (r.press) ev.s = Math.max(0, Math.min(100, ev.s + r.press)); /* 작전 후 기자회견 */
   if (r.c72bonus) { ev.s = Math.max(0, Math.min(100, ev.s + r.c72bonus)); toast(`캠페인 「서해 72시간」 종료 — 근무평정 +${r.c72bonus}`); }
@@ -1041,7 +1041,18 @@ function storyCard(c) {
 /** 작전 지휘 (operation map): plan and run an operation on the chart; the result pays and is evaluated like a battle. */
 function startOpMap(airMode = false, c72 = false) {
   initAudio(); bgm("battle"); sfx.click(); const g = myGrade(), br = normBranch(staff.branch), m = withMin(staffMods(hqGrade(), hqBranch())), pk = perkMods();
-  openOpMap({ grade: g, branch: br, ops: br === "sea" || br === "arm", air: airMode, c72, scen: storyOp != null ? "intercept" : undefined, onLeave: () => { minDirect = false; dutyDirect = false; bgm("menu"); refreshMenus(); }, mods: { outK: m.outK * (pk.fleetK || 1), inK: m.inK, icptK: m.icptK * (pk.icptK || 1) }, onDone: opMapDone });
+  openOpMap({
+    grade: g, branch: br, ops: br === "sea" || br === "arm", air: airMode, c72, scen: storyOp != null ? "intercept" : undefined,
+    onLeave: () => {
+      const fromHQ = dutyDirect || minDirect;
+      if (dutyDirect) { dutyDirect = false; resolveCrisisDirect(false, myGrade(), "FM 작전 지휘 (중단)"); }
+      if (minDirect) { minDirect = false; minOpResult(false, "FM 작전 지휘 (중단)"); }
+      bgm("menu"); refreshMenus();
+      if (fromHQ || screen === "hq") openHQ("duty");
+    },
+    mods: { outK: m.outK * (pk.fleetK || 1), inK: m.inK, icptK: m.icptK * (pk.icptK || 1) },
+    onDone: opMapDone,
+  });
 }
 function launchDirect3d(domain, fromDuty = false) {
   minDirect3d = !fromDuty; dutyDirect = fromDuty;
@@ -1052,6 +1063,7 @@ function launchDirect3d(domain, fromDuty = false) {
 }
 let storyOp = null;
 function opMapDone(r) {
+  const fromHQ = dutyDirect || minDirect;
   if (minDirect) { minDirect = false; minOpResult(r.won, "FM 작전 지휘"); if (r.won) { career.marshalWins = (career.marshalWins || 0) + 1; saveCareer(); } setTimeout(() => toast(`합동 워룸 — FM 작전 지휘 ${r.won ? "대승" : "패배"} 반영`, 3), 400); }
   if (dutyDirect) { dutyDirect = false; const dr = resolveCrisisDirect(r.won, myGrade(), "FM 작전 지휘"); if (dr) { profile.xp += dr.xpGain; saveProfile(); if (r.won) { career.marshalWins = (career.marshalWins || 0) + 1; saveCareer(); } } }
   if (storyOp != null) { const i = storyOp, c = KCAMP[i]; storyOp = null; const stars = r.won ? r.stars || 1 : 0; if (r.won) { kStars[i] = Math.max(kStars[i] || 0, stars); kFail[i] = false; } else kFail[i] = true; if (i === kProg) kProg = Math.min(K_LAST, i + 1); saveK(); if (r.won && c.epi) setTimeout(() => storyCard(c), 600); }
@@ -1065,6 +1077,7 @@ function opMapDone(r) {
   pmMedals = awardMedals({ won: r.won, modern: true, wins: profile.wins, sunk: r.sunk, hp: r.hp, lowHp: r.hp <= 0.5, grade: after });
   if (after > before) { if (career.seen == null && staff.branch) careerInit(before, careerTitle(before), BRANCHES[staff.branch].n); career.picks += after - before; logPromotion({ g: after, t: postOf(after), b: BRANCHES[staff.branch]?.n || "", why: r.why }); pmOpts = null; buildPromo(before, after); $("#promoM").style.display = "flex"; fanfare(after, staff.branch); }
   refreshMenus();
+  if (fromHQ || screen === "hq") openHQ("duty");
 }
 /** 국방부장관: a 대장 (or 원수) with an excellent record can be nominated; on appointment the title becomes 국방부장관. */
 const ministerOk = (g) => { const e = evalOf(g); return profile.admin || (e.n >= 3 && e.avg >= 70); };
@@ -2591,7 +2604,15 @@ function setPause(on) {
   if (G.state !== "playing" && G.state !== "ending") return; paused = on; $("#pause").style.display = on ? "grid" : "none"; $("#pause").classList.remove("menuset"); $("#pause h1").textContent = "일시정지"; $("#resumeBtn").textContent = "계속 (P)";
   if (on && document.pointerLockElement) document.exitPointerLock();
 }
-function forfeit(dest) { paused = false; if (md.fly) releaseFly(); jetSound(0); droneSound(0); cicStop(); document.body.classList.remove("jetfly", "modern"); G.state = "menu"; toast("전투 포기 — 보상 없음"); if (dest === "yard") openYard(); else openMenu(); }
+function forfeit(dest) {
+  paused = false; if (md.fly) releaseFly(); jetSound(0); droneSound(0); cicStop(); document.body.classList.remove("jetfly", "modern"); G.state = "menu";
+  const fromHQ = dutyDirect || minDirect3d;
+  if (dutyDirect) { dutyDirect = false; resolveCrisisDirect(false, myGrade(), "3D 직접 개입 (철수)"); }
+  if (minDirect3d) { minDirect3d = false; minOpResult(false, "3D 직접 개입 (철수)"); }
+  toast(fromHQ ? "작전 철수 — 위기 대응 결과가 집무실에 반영됐습니다" : "전투 포기 — 보상 없음");
+  if (fromHQ) { openHQ("duty"); return; }
+  if (dest === "yard") openYard(); else openMenu();
+}
 function start(spectate) {
   autoSpeed = 1; $("#spdBtns")?.querySelectorAll("button").forEach((b) => b.classList.toggle("on", b.dataset.spd === "1")); initAudio(); bgm("battle"); G.auto = spectate === true; newBattle(); G.state = "playing"; screen = "battle";
   hideAll(); $("#topbar").style.display = "none"; document.body.classList.add("playing"); document.body.classList.toggle("auto", G.auto); document.body.classList.toggle("modern", !!G.modern); tutStart();
@@ -2714,7 +2735,7 @@ function openSettings() { if (G.state === "playing" || G.state === "ending") { s
 $("#setBtn").addEventListener("click", openSettings);
 $("#quitYardBtn").addEventListener("click", () => forfeit("yard")); $("#quitMenuBtn").addEventListener("click", () => forfeit("menu"));
 $("#goBtn").addEventListener("click", () => { campSel = null; start(false); }); $("#watchBtn").addEventListener("click", () => { campSel = null; start(true); }); $("#yardBtn").addEventListener("click", openYard);
-$("#againBtn").addEventListener("click", () => start(G.auto)); $("#endYardBtn").addEventListener("click", openYard); $("#menuBtn").addEventListener("click", openMenu);
+$("#againBtn").addEventListener("click", () => start(G.auto)); $("#endYardBtn").addEventListener("click", openYard); $("#menuBtn").addEventListener("click", () => { if (returnToHQ) { returnToHQ = false; openHQ("duty"); } else openMenu(); });
 $("#takeBtn").addEventListener("click", takeOver); $("#spdBtns").addEventListener("click", (e) => { const b = e.target.closest("[data-spd]"); if (b) { e.stopPropagation(); setAutoSpeed(+b.dataset.spd); } }); $("#autoModeBtn").addEventListener("click", (e) => { e.stopPropagation(); toAuto(); });
 for (const k of ["sfx", "music"]) { const el = $("#vol_" + k); el.value = A.vol?.[k] ?? el.value; el.addEventListener("input", () => setVolume(k, +el.value)); }
 $("#bgmOn").checked = A.bgmOn; $("#bgmOn").addEventListener("change", (e) => { initAudio(); setBgmOn(e.target.checked); });
