@@ -700,7 +700,7 @@ function refreshMenus() {
   renderRecord();
   document.body.classList.add("modern");
   const brk = normBranch(staff.branch), svcK = serviceOf(brk), svc = curServices()[svcK] || curServices().navy;
-  $("#modeSel").innerHTML = `<button class="er hero" data-mode="career"><b>🎖️ ${isUS() ? "미국 3군 장교 커리어 (U.S. Armed Forces)" : "국방 경영 &amp; 3군 장교 커리어"} (${staff.branch ? `${svc.icon} ${svc.n} ${rankLabel(myGrade(), svcK)}` : isUS() ? "O-1 임관 시작" : "소위 임관 시작"})</b><small>${isUS() ? "미 육·해·공군 O-1 임관 → 계급장·보직 성장 → 펜타곤·합참(JCS) → 국방장관 → 대통령" : "육·해·공 소위 임관 → 주간 직무·위기 결재·계급장 성장 → 장성·국방부장관(36주) → 대선 → 대통령"}</small></button>`
+  $("#modeSel").innerHTML = `<button class="er hero" data-mode="career"><b>🎖️ ${isUS() ? "미국 3군 장교 커리어 (U.S. Armed Forces)" : "국방 경영 &amp; 3군 장교 커리어"} (${staff.branch ? `${svc.icon} ${svc.n} ${rankLabel(myGrade(), svcK)}` : isUS() ? "O-1 임관 시작" : "소위 임관 시작"})</b><small>${isUS() ? "미 육·해·공군 O-1 임관 → 계급장·보직 성장 → 펜타곤·합참(JCS) → 미 국방장관(SecDef · 36주)" : "육·해·공 소위 임관 → 주간 직무·위기 결재·계급장 성장 → 장성·국방부장관(36주) → 대선 → 대통령"}</small></button>`
     + `<div class="mode-sep">전술 시나리오 (3D 전투 · 2D FM 작전)</div>`
     + `<button class="er" data-mode="camp"><b>한반도 시나리오 (3D)</b><small>서해부터 제주 남방까지 5단계 + 보너스 · 브리핑과 별점</small></button>`
     + `<button class="er" data-mode="ops"><b>함정 전투 (3D)</b><small>미사일 해전 · 호송 등 작전을 골라 직접 지휘함·전투기를 조종</small></button>`
@@ -940,9 +940,11 @@ function opMapDone(r) {
 /** 국방부장관: a 대장 (or 원수) with an excellent record can be nominated; on appointment the title becomes 국방부장관. */
 const ministerOk = (g) => { const e = evalOf(g); return profile.admin || (e.n >= 3 && e.avg >= 70); };
 function ministerHTML(rl) {
-  if (rl.r < 9) return ""; if (isPotus()) return `<div class="mi-min on"><b>${potusOn() ? "대통령 재임 중" : "대통령 퇴임"}</b><small>${potusTitle()}</small></div>`; if (career.minister) return civil() ? `<div class="mi-min on"><b>국방부장관 임기 종료 · 민간인</b><small>예비역 ${rl.name} · 다음 장: 대통령 출마 (준비 중)</small></div>` : `<div class="mi-min on"><b>국방부장관 재임 중</b><small>예비역 ${rl.name} · 대통령 임명 · 사령부 탭 → 국방부 집무실</small></div>`;
+  if (rl.r < 9) return ""; if (!isUS() && isPotus()) return `<div class="mi-min on"><b>${potusOn() ? "대통령 재임 중" : "대통령 퇴임"}</b><small>${potusTitle()}</small></div>`;
+  const mTitle = isUS() ? "미 국방장관 (SecDef)" : "국방부장관";
+  if (career.minister) return civil() ? `<div class="mi-min on"><b>${mTitle} 임기 종료 · 민간인</b><small>예비역 ${rl.name} · ${isUS() ? "미 대선 챕터 추후 업데이트 예정" : "다음 장: 대통령 출마 가능"}</small></div>` : `<div class="mi-min on"><b>${mTitle} 재임 중</b><small>예비역 ${rl.name} · 대통령 임명 · 사령부 탭 → ${isUS() ? "펜타곤 집무실" : "국방부 집무실"}</small></div>`;
   const e = evalOf(rl.r), ok = ministerOk(rl.r);
-  return `<div class="mi-min"><b>국방부장관 임명 제청</b><small>대장 이상 · 이 계급 근무 ${e.n}/3회 · 평정 평균 ${e.avg}점 (70점·A 이상 필요)${profile.admin ? " · 관리자" : ""}</small><button data-act="minister"${ok ? "" : " disabled"}>${ok ? "제청 수락 — 전역 후 장관 임명" : "조건 미충족"}</button></div>`;
+  return `<div class="mi-min"><b>${mTitle} 임명 제청</b><small>${isUS() ? "대장(O-10)" : "대장"} 이상 · 이 계급 근무 ${e.n}/3회 · 평정 평균 ${e.avg}점 (70점·A 이상 필요)${profile.admin ? " · 관리자" : ""}</small><button data-act="minister"${ok ? "" : " disabled"}>${ok ? "제청 수락 — 전역 후 장관 임명" : "조건 미충족"}</button></div>`;
 }
 function ministerOrder() {
   career.minister = true; saveCareer(); logPromotion({ g: myGrade(), t: "국방부장관", b: "", why: "국방부장관 임명" }); minStart(cmdr.name);
@@ -954,34 +956,38 @@ function ministerOrder() {
 }
 /** 내 정보: current posting, this rank's evaluations and the promotion board checklist. */
 function evalHTML(rl) {
-  const g = rl.r, br = staff.branch || "sea", e = evalOf(g), b = board(g, xpGrade()), L = (career.evals?.[g] || []).slice(-6);
+  const g = rl.r, br = normBranch(staff.branch), BR = curBranches(), e = evalOf(g), b = board(g, xpGrade()), L = (career.evals?.[g] || []).slice(-6);
   const ck = (ok, t) => `<li class="${ok ? "ok" : "no"}">${ok ? "✓" : "✗"} ${t}</li>`;
-  return `<h3>근무평정 · 진급 심사</h3><div class="mi-ev"><div class="ev-top"><div><span>현 보직</span><b>${postOf(g)}</b><small>${FOCUS[br].n} 병과 · 평정 중점 ${FOCUS[br].f}</small></div><div class="ev-g ${e.l}"><b>${e.l}</b><small>${e.n ? `평균 ${e.avg}점` : "평정 없음"}</small></div></div>`
+  return `<h3>근무평정 · 진급 심사</h3><div class="mi-ev"><div class="ev-top"><div><span>현 보직</span><b>${postOf(g)}</b><small>${(BR[br] || FOCUS[br]).n} 병과 · 평정 중점 ${FOCUS[br].f}</small></div><div class="ev-g ${e.l}"><b>${e.l}</b><small>${e.n ? `평균 ${e.avg}점` : "평정 없음"}</small></div></div>`
     + `<div class="ev-l">${L.length ? L.map((s) => `<i style="height:${Math.max(6, s)}%" title="${s}점"></i>`).join("") : "<em>이 계급에서 아직 출격 기록이 없습니다</em>"}</div>`
     + (rl.next ? `<ul class="ev-ck">${ck(b.xp, `경험치 ${rl.next} 기준 도달`)}${ck(b.cnt, `이 계급 근무 ${e.n}/${b.need}회`)}${ck(b.score, `평정 평균 ${PASS}점 이상 (B)`)}</ul>${deferNote() ? `<div class="ev-warn">${deferNote()}</div>` : ""}` : `<div class="ev-max">최고 계급</div>`) + `</div>`;
 }
 function renderRecord() { /* 내 정보: profile card, perks, record, service record (약력), rank table */
   const rl = rankLine(), acc = profile.shots ? ((profile.hits / profile.shots) * 100).toFixed(1) : "0.0", best = profile.bestSeconds ? `${Math.floor(profile.bestSeconds / 60)}분 ${profile.bestSeconds % 60}초` : "—";
-  const unlock = () => "";
-  if (staff.branch) careerInit(rl.r, postOf(rl.r), BRANCHES[staff.branch].n);
+  const unlock = () => "", br = normBranch(staff.branch), svk = serviceOf(br), BR = curBranches(), SV = curServices();
+  if (staff.branch) careerInit(rl.r, postOf(rl.r), (BR[br] || BRANCHES.sea).n);
   const ps = payStep(profile.xp, rl.r, ECON_RANK_XP), lo = ECON_RANK_XP[rl.r], hi = ECON_RANK_XP[rl.r + 1], stepPct = ps.max ? (((profile.xp - lo) / (hi - lo)) * ps.max % 1) * 100 : ((profile.xp - lo) % 3000) / 30;
   const perks = Object.entries(career.perks).filter(([, v]) => v > 0).map(([k, v]) => `<li><b>${PERKS[k].n}</b>${PERKS[k].max > 1 ? `<em>${v}단계</em>` : ""}<small>${PERKS[k].d}</small></li>`).join("") || `<li class="none">아직 받은 진급 특기가 없습니다</li>`;
   const tierCls = (g) => (g >= 6 ? "gen" : g >= 3 ? "fld" : "co");
-  const log = career.log.slice().reverse().map((e) => `<div class="cr ${tierCls(e.g)}"><span class="d">${e.d}</span><span class="ins">${insignia(e.g, 16)}</span><div><b>${ECON_RANKS[e.g]} ${e.why === "임관" ? "임관" : e.why === "보직 변경" ? "보직 변경" : e.why === "기존 경력 승계" ? "(경력 승계)" : "진급"}</b> · ${e.t}${e.b ? ` <small>(${e.b})</small>` : ""}${e.why && !["임관", "보직 변경", "기존 경력 승계"].includes(e.why) ? `<div class="sub">공적: ${e.why}</div>` : ""}${e.perk ? `<div class="sub pkl">특기: ${e.perk}</div>` : ""}</div></div>`).join("") || `<div class="none">사령부에서 보직을 고르면 약력이 시작됩니다</div>`;
+  const log = career.log.slice().reverse().map((e) => `<div class="cr ${tierCls(e.g)}"><span class="d">${e.d}</span><span class="ins">${insignia(e.g, 16)}</span><div><b>${rankLabel(e.g, svk)} ${e.why === "임관" ? "임관" : e.why === "보직 변경" ? "보직 변경" : e.why === "기존 경력 승계" ? "(경력 승계)" : "진급"}</b> · ${e.t}${e.b ? ` <small>(${e.b})</small>` : ""}${e.why && !["임관", "보직 변경", "기존 경력 승계"].includes(e.why) ? `<div class="sub">공적: ${e.why}</div>` : ""}${e.perk ? `<div class="sub pkl">특기: ${e.perk}</div>` : ""}</div></div>`).join("") || `<div class="none">사령부에서 보직을 고르면 약력이 시작됩니다</div>`;
   staffFor(rl.r); const of = (k) => officer(staff.a[k]);
+  const echUnit = isUS()
+    ? (US_SVC_ORG[svk] || US_SVC_ORG.navy).ech[echOf(rl.r)]
+    : ({ army: ["대대·중대 부서", "연대·여단 참모부", "사단·군단 참모부", "지상작전사령부"], navy: ["함정 부서", "함정·전대 참모부", "전투단·기동부대 참모부", "해군작전사령부"], air: ["비행대대 부서", "전대 참모부", "비행단 참모부", "공군작전사령부"] }[svk] || ECH.map((x) => x.u))[echOf(rl.r)];
+  const mTitle = isUS() ? "미 국방장관 (SecDef)" : "국방부장관";
   let h = `<div class="mi"><div class="mi-l">`
-    + `<div class="mi-por-w">${civil() ? `<div class="mi-por civp">${face({ ...agedFace(cmdr.face, myGrade()), civ: true, bg: isPotus() ? "#1d3b6e" : "#2b3446" }, 280)}${isPotus() ? `<img src="img/potus_mark.png" alt="" class="pmark-b">` : ""}</div>` : portraitHTML(rl.r)}</div><div class="mi-card"><div><div class="mi-rk">${badge(rl.r, 22)}<b>${civil() ? (potusOn() ? "대한민국 대통령" : isPotus() ? "전 대통령" : "민간인") : career.minister ? `예비역 ${rl.name}` : `${rl.name} ${ps.step}호봉`}</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${career.minister ? (potusOn() ? `국군통수권자 · ${potusTitle().replace("대통령 · ", "")} · 전 국방부장관` : isPotus() ? `${potusTitle()} · 예비역 ${rl.name}` : civil() ? `전 국방부장관 · 예비역 ${rl.name}` : "국방부장관") : `${postOf(rl.r)}${staff.branch ? ` · ${BRANCHES[staff.branch].n} 보직` : ""}`}</div></div></div>`
-    + (career.minister ? `<p class="mi-note">${potusOn() ? "소위 임관에서 대통령까지 — 사령부 탭 → 대통령실에서 국정을 운영합니다" : isPotus() ? "대통령 임기를 마쳤습니다" : civil() ? "국방부장관 임기를 마치고 민간인이 되었습니다" : "전역 후 국방부장관으로 임명되어 호봉·진급이 없습니다"}</p>` : `<div class="mi-bar"><span>다음 호봉</span><div class="hbar"><i style="width:${Math.max(2, stepPct).toFixed(0)}%"></i></div></div><div class="mi-bar"><span>${rl.next ? `${rl.next} 진급` : "최고 계급"}</span><div class="hbar"><i style="width:${(rl.pct * 100).toFixed(0)}%;background:var(--gold)"></i></div><small>${rl.next ? `${fmt(rl.need - profile.xp)} XP 남음` : ""}</small></div>`)
+    + `<div class="mi-por-w">${civil() ? `<div class="mi-por civp">${face({ ...agedFace(cmdr.face, myGrade()), civ: true, bg: !isUS() && isPotus() ? "#1d3b6e" : "#2b3446" }, 280)}${!isUS() && isPotus() ? `<img src="img/potus_mark.png" alt="" class="pmark-b">` : ""}</div>` : portraitHTML(rl.r)}</div><div class="mi-card"><div><div class="mi-rk">${badge(rl.r, 22)}<b>${civil() ? (!isUS() && potusOn() ? "대한민국 대통령" : !isUS() && isPotus() ? "전 대통령" : "민간인") : career.minister ? `예비역 ${rl.name}` : isUS() ? `${rl.name} · ${US_PAY[rl.r]}` : `${rl.name} ${ps.step}호봉`}</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${career.minister ? (!isUS() && potusOn() ? `국군통수권자 · ${potusTitle().replace("대통령 · ", "")} · 전 국방부장관` : !isUS() && isPotus() ? `${potusTitle()} · 예비역 ${rl.name}` : civil() ? `전 ${mTitle} · 예비역 ${rl.name}` : mTitle) : `${postOf(rl.r)}${staff.branch ? ` · ${(BR[br] || BRANCHES.sea).n} 보직` : ""}`}</div></div></div>`
+    + (career.minister ? `<p class="mi-note">${!isUS() && potusOn() ? "소위 임관에서 대통령까지 — 사령부 탭 → 대통령실에서 국정을 운영합니다" : !isUS() && isPotus() ? "대통령 임기를 마쳤습니다" : civil() ? `${mTitle} 임기를 마치고 민간인이 되었습니다` : `전역 후 ${mTitle}으로 임명되어 호봉·진급이 없습니다`}</p>` : `<div class="mi-bar"><span>다음 호봉</span><div class="hbar"><i style="width:${Math.max(2, stepPct).toFixed(0)}%"></i></div></div><div class="mi-bar"><span>${rl.next ? `${rl.next} 진급` : "최고 계급"}</span><div class="hbar"><i style="width:${(rl.pct * 100).toFixed(0)}%;background:var(--gold)"></i></div><small>${rl.next ? `${fmt(rl.need - profile.xp)} XP 남음` : ""}</small></div>`)
     + (career.minister ? "" : evalHTML(rl)) + ministerHTML(rl)
     + `<h3>진급 특기</h3>${career.picks > 0 ? `<div id="miPk"></div>` : ""}<ul class="mi-pk">${perks}</ul>`
     + `<h3>훈장 · 표창</h3><div class="mi-md">${Object.entries(curMedals()).map(([k, M]) => `<div class="md${career.medals?.[k] ? "" : " no"}" title="${M.d}"><i>${M.rb.map((col) => `<b style="background:${col}"></b>`).join("")}</i><span>${M.n}</span><small>${career.medals?.[k] ? career.medals[k] : M.d}</small></div>`).join("")}</div>`
-    + `<h3>내 참모진 · ${ECH[echOf(rl.r)].u}</h3><div class="mi-st">${STAFF_ROLES.map((r) => `<span>${roleTitle(r.k, rl.r)}</span><b>${of(r.k).rk} ${of(r.k).nm}</b>`).join("")}</div>`
-    + (profile.admin ? `<div class="mi-adm">관리자 · 실제 계급 변경 <select id="setRank">${ECON_RANKS.map((n, i) => `<option value="${i}"${i === rl.r ? " selected" : ""}>${n}</option>`).join("")}</select><button data-act="setrank">변경</button><small>경험치가 그 계급 기준으로 바뀌어 해금·직함·사령부·견장·특기가 모두 실제로 바뀝니다. 올리면 진급식·특기·훈장도 실제로 받습니다.</small></div><div class="mi-adm">관리자 모드 · 진급 연출 미리보기 <select id="pvRank">${ECON_RANKS.slice(1).map((n, i) => `<option value="${i + 1}"${i + 1 === 6 ? " selected" : ""}>${n}</option>`).join("")}</select><button data-act="pvpromo">보기</button><small>실제 계급·경험치·특기는 바뀌지 않습니다</small></div>` : `<div class="hq-adm in"><input id="miAdmin" type="password" maxlength="32" placeholder="관리자 코드" autocomplete="off"><button data-act="miadmin">적용</button></div>`)
+    + `<h3>내 참모진 · ${echUnit}</h3><div class="mi-st">${STAFF_ROLES.map((r) => `<span>${roleTitle(r.k, rl.r)}</span><b>${of(r.k).rk} ${of(r.k).nm}</b>`).join("")}</div>`
+    + (profile.admin ? `<div class="mi-adm">관리자 · 실제 계급 변경 <select id="setRank">${ECON_RANKS.map((_, i) => `<option value="${i}"${i === rl.r ? " selected" : ""}>${isUS() ? `${US_PAY[i]} · ` : ""}${rankLabel(i, svk)}</option>`).join("")}</select><button data-act="setrank">변경</button><small>경험치가 그 계급 기준으로 바뀌어 해금·직함·사령부·견장·특기가 모두 실제로 바뀝니다. 올리면 진급식·특기·훈장도 실제로 받습니다.</small></div><div class="mi-adm">관리자 모드 · 진급 연출 미리보기 <select id="pvRank">${ECON_RANKS.slice(1).map((_, i) => `<option value="${i + 1}"${i + 1 === 6 ? " selected" : ""}>${isUS() ? `${US_PAY[i + 1]} · ` : ""}${rankLabel(i + 1, svk)}</option>`).join("")}</select><button data-act="pvpromo">보기</button><small>실제 계급·경험치·특기는 바뀌지 않습니다</small></div>` : `<div class="hq-adm in"><input id="miAdmin" type="password" maxlength="32" placeholder="관리자 코드" autocomplete="off"><button data-act="miadmin">적용</button></div>`)
     + `</div><div class="mi-r"><h3>전투 기록</h3><div class="rstats"><div><span>출격</span><b>${profile.battles}</b></div><div><span>승리</span><b>${profile.wins}</b></div><div><span>승률</span><b>${profile.battles ? Math.round((profile.wins / profile.battles) * 100) : 0}%</b></div><div><span>누적 명중률</span><b>${acc}%</b></div><div><span>최단 승리</span><b>${best}</b></div></div>`
-    + `<h3>${(curServices()[serviceOf(staff.branch)] || curServices().navy).n} 장교 인사기록 · 약력</h3><div class="mi-log">${log}</div>`
-    + `<details class="mi-lad"><summary>전체 계급·직함표 보기</summary>`;
-  h += `<h3>계급 — 경험치 ${fmt(profile.xp)}</h3><div class="ladder">`;
-  ECON_RANKS.forEach((n, r) => { h += `<div class="${r === rl.r ? "cur" : r < rl.r ? "done" : ""}"><span>${insignia(r, 22)}</span><b class="bh">${n}</b><span>${postOf(r)}</span><span class="xp">${fmt(ECON_RANK_XP[r])} XP</span><span>호위함 ${escortsFor(r)}척${unlock(r) ? ` · ${unlock(r)} 해금` : ""}</span></div>`; });
+    + `<h3>${(SV[svk] || SV.navy).n} 장교 인사기록 · 약력</h3><div class="mi-log">${log}</div>`
+    + `<details class="mi-lad"><summary>전체 계급·직함표 보기 (${(SV[svk] || SV.navy).n})</summary>`;
+  h += `<h3>${(SV[svk] || SV.navy).n} 계급 — 경험치 ${fmt(profile.xp)}</h3><div class="ladder">`;
+  ECON_RANKS.forEach((_, r) => { h += `<div class="${r === rl.r ? "cur" : r < rl.r ? "done" : ""}"><span>${insignia(r, 22)}</span><b class="bh">${isUS() ? `${US_PAY[r]} · ` : ""}${rankLabel(r, svk)}</b><span>${postOf(r)}</span><span class="xp">${fmt(ECON_RANK_XP[r])} XP</span><span>호위함 ${escortsFor(r)}척${unlock(r) ? ` · ${unlock(r)} 해금` : ""}</span></div>`; });
   $("#recordP").innerHTML = h + "</div></details></div></div>";
   if (career.picks > 0) renderPerkPick("#miPk", rl.r);
 }
@@ -1074,7 +1080,7 @@ function renderDutyDesk() {
   const cr = d.crisis ? dutyCrisisById(d.crisis) : null;
   const crCard = cr ? `<div class="mn-card mn-dk mn-nsc"><b>🚨 ${cr.tag} — ${cr.title}</b><p>${cr.desc}</p><div class="dm-ops"><button class="dm-op" data-duty="del">① 자동 위임</button><button class="dm-op fm" data-duty="fm">② FM 작전 지휘</button><button class="dm-op d3" data-duty="3d">③ 3D 직접 개입</button></div></div>` : "";
   const minBtn = g >= 9 && (ministerOk(g) || profile.admin) ? `<div class="mn-card" style="border-color:#ffd166"><b>🏛️ ${isUS() ? "미 국방장관 (SecDef) 지명 가능" : "국방부장관 임명 가능"}</b><p>대장 계급과 우수 평정을 달성했습니다. ${isUS() ? "펜타곤 국방장관으로 취임해 36주 3군 국방 경영을 시작하십시오." : "국방부장관으로 취임해 36주 3군 국방 경영을 시작하십시오."}</p><button class="mn-go" data-duty="tomin">${isUS() ? "미 국방장관 취임 ›" : "국방부장관 취임 ›"}</button></div>` : "";
-  const admDuty = profile.admin ? `<div class="adm-bar"><b>관리자 시험</b><button data-duty="admrank">+1계급 진급</button><button data-duty="tomin">→ 국방부장관 취임</button><button data-adm="topres">→ 대선 시작</button><button data-adm="topotus">→ 대통령 취임</button><button data-adm="reset0">↺ 소위부터 다시 시작</button></div>` : "";
+  const admDuty = profile.admin ? `<div class="adm-bar"><b>관리자 시험</b><button data-duty="admrank">+1계급 진급</button><button data-duty="tomin">→ ${isUS() ? "미 국방장관 취임" : "국방부장관 취임"}</button>${isUS() ? "" : `<button data-adm="topres">→ 대선 시작</button><button data-adm="topotus">→ 대통령 취임</button>`}<button data-adm="reset0">↺ 소위부터 다시 시작</button></div>` : "";
   const rivalsHTML = d.rivals?.length ? `<div class="mn-card dm-news"><div class="mn-h">👥 ${isUS() ? "사관학교 동기 동향" : "임관 동기 동향"}</div>${d.rivals.map((r, ri) => {
     const diff = r.g > g ? `<b class="r">선진급</b>` : r.g === g ? `<b class="y">동급</b>` : `<b class="g">추월</b>`;
     const rNm = isUS() ? usNpcName(r.name + ri) : r.name;
@@ -1113,12 +1119,12 @@ function renderMin() { if (!minState()) minStart(cmdr.name); $("#hqP").innerHTML
 const ADM = { min: [["minok", "장관 명예 퇴임 즉시"], ["minbad", "장관 임기 종료(목표 미달)"], ["topres", "→ 대선 바로 시작"], ["topotus", "→ 대통령 바로 취임"], ["reset0", "↺ 소위부터 다시 시작"]],
   pres: [["pboost", "능력치 +15"], ["pskip", "프롤로그 건너뛰기"], ["ppri", "경선 승리"], ["pdday", "D-3으로"], ["pwin", "당선 처리"], ["plose", "낙선 처리"], ["topotus", "→ 대통령 취임"], ["reset0", "↺ 소위부터 다시 시작"]],
   potus: [["uap", "지지율 +15"], ["uapd", "지지율 −15"], ["ubud", "예산 +30조"], ["useats", "여당 의석 뒤집기"], ["ucrisis", "위기 발생"], ["usummit", "정상회담 추가"], ["uskip4", "4분기 건너뛰기"], ["uend", "임기 종료 엔딩"], ["uimp", "탄핵 엔딩"], ["ureset", "대통령 기록 초기화"], ["reset0", "↺ 소위부터 다시 시작"]] };
-const admBar = (k) => adminBar(profile.admin, "관리자 시험", ADM[k]);
+const admBar = (k) => adminBar(profile.admin, "관리자 시험", isUS() && k === "min" ? ADM.min.filter(([a]) => a !== "topres" && a !== "topotus") : ADM[k]);
 function admRun(a) {
   setTheme(presTheme());
   if (a === "reset0") { for (const k of NG_RESET) localStorage.removeItem(k); localStorage.setItem(CACHE, JSON.stringify({ ...econNewProfile(), admin: true })); location.reload(); return; } /* 관리자 유지한 채 소위 1호봉부터 초기화 */
   if (a === "minok" || a === "minbad") { if (!minState()) minStart(cmdr.name); if (!minAdminEnd(a === "minok")) return toast("이미 임기를 마쳤습니다", 2); hqView = "min"; renderMin(); const r = minClick("next"); if (r.retire) { playMinisterAnthem(); playCuts({ title: "국방부장관 이임", place: "국방부 · 임기 종료", cuts: r.retire, onClose: () => { stopFanfare(); renderMin(); refreshMenus(); } }); } refreshMenus(); return; }
-  if (a === "topres" || a === "topotus") { if (!minState()) minStart(cmdr.name); if (!minState().retired) { minAdminEnd(true); minClick("next"); }
+  if (a === "topres" || a === "topotus") { if (isUS()) return toast("미국 모드에서는 한국 대통령 선거에 출마할 수 없습니다 (미 대선 추후 업데이트 예정)", 3.5); if (!minState()) minStart(cmdr.name); if (!minState().retired) { minAdminEnd(true); minClick("next"); }
     if (!presState()) presStart(cmdr.name);
     if (a === "topotus") { if (presState().stage !== "won") presAdmin("win"); if (!potusState()) potusStart(cmdr.name); hqView = "potus"; renderPotus(); } else { hqView = "pres"; renderPres(); }
     refreshMenus(); toast(a === "topotus" ? "관리자 · 대통령 취임" : "관리자 · 대선 시작", 3); return; }
@@ -1163,15 +1169,16 @@ function renderDischarged() {
     <p style="font-size:11.5px;color:#8faec0;margin-top:4px">${why}</p>
     <div class="kv"><span>최종 계급</span><b>${insignia(g, 16)} ${rankLabel(g, svk)}</b></div>
     <div class="kv"><span>최종 계급 평균 평정</span><b>${dc.avg || 0}점</b></div>
-    ${g >= 6 ? `<button class="mn-pres" data-pres="start"><b>예비역 장성 · 대통령 선거 출마 ›</b><small>군복을 벗고 민간인 예비역 장성으로 정계에 도전합니다.</small></button>` : ""}
+    ${g >= 6 ? (isUS() ? `<div class="mn-card" style="margin:8px 0;font-size:12px;color:#9ec2d4">🇺🇸 미국 대통령 선거(538 선거인단) 챕터는 추후 별도 업데이트 예정입니다.</div>` : `<button class="mn-pres" data-pres="start"><b>예비역 장성 · 대통령 선거 출마 ›</b><small>군복을 벗고 민간인 예비역 장성으로 정계에 도전합니다.</small></button>`) : ""}
     <button class="mn-go" data-duty="restart">↺ 2회차 시작 (소위 재임관)</button>
   </div></div></div>`;
 }
 function renderHQ() {
   if (!staff.branch) return renderBranchPick();
-  if (career.discharged && !potusState() && !presState()) return renderDischarged();
-  if (hqView === "potus" && civil() && potusState()) return renderPotus();
-  if (hqView === "pres" && civil()) return renderPres();
+  if (isUS() && (hqView === "pres" || hqView === "potus")) hqView = "duty";
+  if (career.discharged && (isUS() || (!potusState() && !presState()))) return renderDischarged();
+  if (!isUS() && hqView === "potus" && civil() && potusState()) return renderPotus();
+  if (!isUS() && hqView === "pres" && civil()) return renderPres();
   if (hqView === "min" && career.minister) return renderMin();
   if (hqView === "track") return renderTrackView();
   if (hqView === "duty" && !career.minister) return renderDutyDesk();
@@ -1281,7 +1288,7 @@ $("#hqP").addEventListener("keydown", (e) => { if (e.target.id === "hqAdmin" && 
 $("#hqP").addEventListener("click", (e) => {
   const ad = e.target.closest("[data-adm]"); if (ad && profile.admin) { sfx.click(); admRun(ad.dataset.adm); return; }
   const pu = e.target.closest("[data-potus]"); if (pu) { if (pu.disabled) return; sfx.click(); if (pu.dataset.potus === "start") { if (!potusState()) potusStart(cmdr.name); hqView = "potus"; renderPotus(); refreshMenus(); return; } potusResult(potusClick(pu.dataset.potus)); return; }
-  const pz = e.target.closest("[data-pres]"); if (pz) { if (pz.disabled) return; sfx.click(); if (pz.dataset.pres === "start") { if (!presState()) presStart(cmdr.name); hqView = "pres"; renderPres(); refreshMenus(); return; } presResult(presClick(pz.dataset.pres)); return; }
+  const pz = e.target.closest("[data-pres]"); if (pz) { if (pz.disabled) return; sfx.click(); if (isUS()) { toast("미국 모드에서는 한국 대통령 선거에 출마할 수 없습니다 (미 대선 추후 업데이트 예정)", 3.5); return; } if (pz.dataset.pres === "start") { if (!presState()) presStart(cmdr.name); hqView = "pres"; renderPres(); refreshMenus(); return; } presResult(presClick(pz.dataset.pres)); return; }
   const hv = e.target.closest("[data-hqv]"); if (hv) { sfx.click(); hqView = hv.dataset.hqv; renderHQ(); return; }
   const mn = e.target.closest("[data-min]"); if (mn) { if (mn.disabled) return; sfx.click();
     const doc = mn.dataset.min.startsWith("dk:") && mn.closest(".mn-paper"); if (doc && !doc.classList.contains("stamped")) { doc.classList.add("stamped"); mn.classList.add("pick"); doc.querySelector(".kj .me")?.insertAdjacentHTML("beforeend", `<span class="seal">결재</span>`); setTimeout(() => mn.click(), 750); return; }
