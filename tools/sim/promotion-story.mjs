@@ -161,9 +161,8 @@ console.log(
 const { careerDate, rankMonths } =
   await import("../../app/public/js/service-calendar.js");
 assert.equal(careerDate(1, {}), careerDate(2, { 0: 1 }));
-assert.equal(careerDate(7, {}), "복무 2년차 (24세) · 겨울");
-assert.equal(careerDate(11, { 0: 10 }), "복무 3년차 (25세) · 겨울");
-assert.equal(rankMonths(2, 10), 48);
+assert.equal(careerDate(11, { 0: 10 }), "복무 2년차 (24세) · 겨울");
+assert.equal(rankMonths(2, 10), 78);
 const { US_BRANCHES, US_FLAG_POSTS } =
   await import("../../app/public/js/us-ranks.js");
 const { koreanPostName } =

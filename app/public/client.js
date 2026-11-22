@@ -49,6 +49,7 @@ import { openMarshalWar } from "./js/marshal-war.js";
 import { availableRetireRoutes, resolveRetireRoute, RETIRE_SCENARIOS, retireScenarioHTML } from "./js/retire-routes.js";
 import { getOverseasTour, overseasCardHTML, HEARING_CASES, hearingCardHTML, FAMILY_STAGES, familyCardHTML } from "./js/phase5-chapters.js";
 import { stampCard, floatStatDeltas, showEventScene, showBreakingPaper, bossReactionQuote, officeAmbienceLabel, showMinisterOfferModal } from "./js/fx-ui.js";
+import { openSignaturePad } from "./js/signature-pad.js";
 import { ECON_RANKS, ECON_RANK_XP, econRank, econNewProfile, econReward, econCheck, econApply } from "./js/shop.js";
 
 // ── profile + room connection ───────────────────────────────────────────────
@@ -881,13 +882,49 @@ $("#promoM").innerHTML = `<div class="pm-doc"><div class="pm-pg on" data-pg="1">
   if (pVo) playVO(pVo, { delayMs: 260 });
   return handover;
 }
+const officialSignSrc = (kind = "min") => {
+  if (kind === "potus") {
+    if (((!isUS() && isPotus()) || usIsPotus()) && career.customSign) return career.customSign;
+    const cam = cameoLeaders();
+    return cam.potus?.sign || "img/sign_pres.png";
+  }
+  if (career.minister && career.customSign) return career.customSign;
+  const cam = cameoLeaders();
+  return cam.minister?.sign || "img/sign_pres.png";
+};
+function promptCustomSignature(onDone) {
+  const isP = (!isUS() && isPotus()) || usIsPotus();
+  const roleTitle = isP
+    ? (isUS() ? "President (POTUS)" : "대한민국 대통령")
+    : (isUS() ? "Secretary of Defense" : "국방부장관");
+  openSignaturePad({
+    roleTitle,
+    signerName: cmdr.name,
+    currentDataUrl: career.customSign || "",
+    onSave: (dataUrl) => {
+      career.customSign = dataUrl;
+      saveCareer();
+      document.querySelectorAll("#promoM .pm-sig-img").forEach((img) => { img.src = dataUrl; });
+      toast("✍️ 공식 친필 서명이 등록되어 임명장·결재 문서에 적용됩니다!", 3.2);
+      if (onDone) onDone();
+    },
+    onReset: () => {
+      delete career.customSign;
+      saveCareer();
+      document.querySelectorAll("#promoM .pm-sig-img").forEach((img) => { img.src = "img/sign_pres.png"; });
+      toast("기본 공식 서명으로 복원했습니다.", 2.4);
+      if (onDone) onDone();
+    },
+  });
+}
 const ministerSign = () => {
   const dt = new Date();
+  const src = officialSignSrc("min");
   if (isUS()) {
     const mon = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"][dt.getMonth()];
-    return `<div class="pm-sign"><div class="pm-date">${dt.getDate()} ${mon} ${dt.getFullYear()} · PENTAGON</div><div class="pm-sg"><span>Secretary of Defense</span><img src="img/sign_pres.png" class="pm-sig-img" alt="Signature"><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8.5px">U.S. DoD<br>SEAL</i></div></div>`;
+    return `<div class="pm-sign"><div class="pm-date">${dt.getDate()} ${mon} ${dt.getFullYear()} · PENTAGON</div><div class="pm-sg"><span>Secretary of Defense</span><img src="${src}" class="pm-sig-img" alt="Signature"><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8.5px">U.S. DoD<br>SEAL</i></div></div>`;
   }
-  return `<div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>국방부장관</span><img src="img/sign_pres.png" class="pm-sig-img" alt="서명"><i>國防部長官印</i></div></div>`;
+  return `<div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>국방부장관</span><img src="${src}" class="pm-sig-img" alt="서명"><i>國防部長官印</i></div></div>`;
 }; /* fictional signature, no real person's name */
 let pmMedals = [], pmPage = 1;
 function pmGo(n) {
@@ -1185,8 +1222,8 @@ function cameoLeaders(nat = isUS() ? "us" : "kr") {
     const nm = s.commander.name;
     const g = s.career?.cap ?? s.career?.log?.at(-1)?.g ?? 0;
     const isP = Boolean(s.potus || s.pres?.stage === "won" || s.uspres?.stage === "term" || s.uspres?.stage === "done");
-    if (isP && !potus) potus = { name: nm, face: s.commander.face, grade: g };
-    if (s.career?.minister && !minister) minister = { name: nm, face: s.commander.face, grade: g };
+    if (isP && !potus) potus = { name: nm, face: s.commander.face, grade: g, sign: s.career?.customSign || "" };
+    if (s.career?.minister && !minister) minister = { name: nm, face: s.commander.face, grade: g, sign: s.career?.customSign || "" };
     if (g >= 9 && !general) general = { name: nm, face: s.commander.face, grade: g };
   }
   return { potus, minister, general };
@@ -1285,8 +1322,8 @@ function ministerOrder(preview = false) {
             </div>
           </div>
         </div>
-        <div class="pm-sign"><div class="pm-date">${dt.getDate()} ${mon} ${dt.getFullYear()}</div><div class="pm-sg"><span>${potusSignUS}</span><img src="img/sign_pres.png" class="pm-sig-img" alt="Signature"><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">POTUS<br>SEAL</i></div></div>
-        <button id="promoOk">${preview ? "Close Preview" : "I So Swear"}</button>
+        <div class="pm-sign"><div class="pm-date">${dt.getDate()} ${mon} ${dt.getFullYear()}</div><div class="pm-sg"><span>${potusSignUS}</span><img src="${officialSignSrc("potus")}" class="pm-sig-img" alt="Signature"><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">POTUS<br>SEAL</i></div></div>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" data-act="opensig" style="background:rgba(138,106,34,.18);border:1px solid #8a6a22;color:#5a4110;padding:8px 14px;border-radius:6px;font-weight:800;cursor:pointer">✍️ Draw Official Signature</button><button id="promoOk">${preview ? "Close Preview" : "I So Swear"}</button></div>
       </div></div>`
     : `<div class="pm-doc pm-min"><div class="pm-pg on" data-pg="1">
         <div class="pm-min-crest">✦ 國 務 委 員 ✦</div>
@@ -1309,8 +1346,8 @@ function ministerOrder(preview = false) {
             </div>
           </div>
         </div>
-        <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>${potusSignKR}</span><img src="img/sign_pres.png" class="pm-sig-img" alt="서명"><i>大統領印</i></div></div>
-        <button id="promoOk">${preview ? "미리보기 닫기" : "명 받았습니다"}</button>
+        <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>${potusSignKR}</span><img src="${officialSignSrc("potus")}" class="pm-sig-img" alt="서명"><i>大統領印</i></div></div>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" data-act="opensig" style="background:rgba(138,106,34,.18);border:1px solid #8a6a22;color:#5a4110;padding:8px 14px;border-radius:6px;font-weight:800;cursor:pointer">✍️ 장관 공식 서명 그리기</button><button id="promoOk">${preview ? "미리보기 닫기" : "명 받았습니다"}</button></div>
       </div></div>`;
   pmCertKind = "min"; pmPreview = true; $("#promoM").style.display = "flex"; initAudio(); playMinisterAnthem();
   playVO(isUS() ? 61 : 41, isUS() ? { delayMs: 260 } : { delayMs: 260, nextVo: 42 });
@@ -1471,8 +1508,8 @@ function presidentOrder(preview = false) {
             </div>
           </div>
         </div>
-        <div class="pm-sign"><div class="pm-date">20 JAN ${dt.getFullYear()}</div><div class="pm-sg"><span>Chief Justice of the United States</span><img src="img/sign_pres.png" class="pm-sig-img" alt="Signature"><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">GREAT<br>SEAL</i></div></div>
-        <button id="promoOk">${preview ? "Close Preview" : "Enter The Oval Office"}</button>
+        <div class="pm-sign"><div class="pm-date">20 JAN ${dt.getFullYear()}</div><div class="pm-sg"><span>Chief Justice of the United States</span><img src="${officialSignSrc("potus")}" class="pm-sig-img" alt="Signature"><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">GREAT<br>SEAL</i></div></div>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" data-act="opensig" style="background:rgba(28,61,110,.16);border:1px solid #1c3d6e;color:#1c3d6e;padding:8px 14px;border-radius:6px;font-weight:800;cursor:pointer">✍️ Draw Presidential Signature</button><button id="promoOk">${preview ? "Close Preview" : "Enter The Oval Office"}</button></div>
       </div></div>`
     : `<div class="pm-doc pm-min" style="border-color:#1c3d6e;box-shadow:0 0 70px rgba(216,178,71,.42)"><div class="pm-pg on" data-pg="1">
         <div class="pm-min-crest">✦ 大 統 領 當 選 證 · 就 任 宣 誓 ✦</div>
@@ -1493,8 +1530,8 @@ function presidentOrder(preview = false) {
             </div>
           </div>
         </div>
-        <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>중앙선거관리위원회 위원장</span><img src="img/sign_pres.png" class="pm-sig-img" alt="서명"><i>選管委印</i></div></div>
-        <button id="promoOk">${preview ? "미리보기 닫기" : "대통령실 국정 운영 시작"}</button>
+        <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>중앙선거관리위원회 위원장</span><img src="${officialSignSrc("potus")}" class="pm-sig-img" alt="서명"><i>選管委印</i></div></div>
+        <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap"><button type="button" data-act="opensig" style="background:rgba(28,61,110,.16);border:1px solid #1c3d6e;color:#1c3d6e;padding:8px 14px;border-radius:6px;font-weight:800;cursor:pointer">✍️ 대통령 공식 서명 그리기</button><button id="promoOk">${preview ? "미리보기 닫기" : "대통령실 국정 운영 시작"}</button></div>
       </div></div>`;
   pmCertKind = "pres"; pmPreview = true; $("#promoM").style.display = "flex"; initAudio(); playPotusAnthem();
   playVO(isUS() ? 64 : 52, { delayMs: 260 });
@@ -2094,7 +2131,7 @@ function renderMin() {
   setAmbienceMood("ministry");
   const mode = isUS() ? "min_us" : "min_kr", svk = serviceOf(normBranch(staff.branch));
   const cab = classmateCabinetHTML({ mode, rivals: dutyState().rivals || [], appointed: career.cabinetAppointments?.[mode] || {}, rankLabelFn: (r) => rankLabel(r, svk) });
-  $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="org">‹ 지휘 계통도</button><b>${isUS() ? "펜타곤 집무실 (Pentagon)" : "국방부 집무실"}</b><small>${isUS() ? `SecDef ${cmdr.name}` : `${cmdr.name} ${civil() ? "전 장관" : "장관"}`}</small><button data-min="gal" class="hq-tg2">🖼 역대 장관</button>${!isUS() && presState() ? `<button data-hqv="pres">대선 캠프 ›</button>` : ""}</div>${admBar("min")}${minHTML()}${cab}`;
+  $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="org">‹ 지휘 계통도</button><b>${isUS() ? "펜타곤 집무실 (Pentagon)" : "국방부 집무실"}</b><small>${isUS() ? `SecDef ${cmdr.name}` : `${cmdr.name} ${civil() ? "전 장관" : "장관"}`}</small><button data-act="opensig" class="hq-tg2">✍️ ${career.customSign ? "공식 서명 수정" : "공식 서명 그리기"}</button><button data-min="gal" class="hq-tg2">🖼 역대 장관</button>${!isUS() && presState() ? `<button data-hqv="pres">대선 캠프 ›</button>` : ""}</div>${admBar("min")}${minHTML()}${cab}`;
 }
 /** 관리자 시험 바 (국방부·대선·대통령실 공통) */
 const ADM = { min: [["minok", "장관 명예 퇴임 즉시"], ["minbad", "장관 임기 종료(목표 미달)"], ["topres", "→ 대선 바로 시작"], ["topotus", "→ 대통령 바로 취임"], ["reset0", "↺ 소위부터 다시 시작"]],
@@ -2117,7 +2154,7 @@ function renderPotus() {
   setAmbienceMood("presidential");
   const svk = serviceOf(normBranch(staff.branch));
   const cab = classmateCabinetHTML({ mode: "potus_kr", rivals: dutyState().rivals || [], appointed: career.cabinetAppointments?.potus_kr || {}, rankLabelFn: (r) => rankLabel(r, svk) });
-  $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="pres">‹ 대선 기록</button><b>대통령실</b><small>${cmdr.name} 대통령</small></div>${admBar("potus")}${potusHTML()}${cab}`;
+  $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="pres">‹ 대선 기록</button><b>대통령실</b><small>${cmdr.name} 대통령</small><button data-act="opensig" class="hq-tg2">✍️ ${career.customSign ? "공식 서명 수정" : "공식 서명 그리기"}</button></div>${admBar("potus")}${potusHTML()}${cab}`;
 }
 function potusResult(r) {
   setTheme(presTheme());
@@ -2180,7 +2217,8 @@ function renderUsPres() {
   const admUs = profile.admin ? `<div class="adm-bar"><b>관리자 시험 (US 대선·백악관)</b><button data-usadm="pri">경선 승리</button><button data-usadm="night">선거일</button><button data-usadm="win">당선(POTUS)</button><button data-usadm="loss">낙선</button><button data-usadm="seats">의석 반전</button><button data-usadm="qtr">분기 스킵</button><button data-usadm="end">임기 종료</button><button data-uspres="reset">초기화</button></div>` : "";
   const svk = serviceOf(normBranch(staff.branch));
   const cab = usPotusOn() ? classmateCabinetHTML({ mode: "potus_us", rivals: dutyState().rivals || [], appointed: career.cabinetAppointments?.potus_us || {}, rankLabelFn: (r) => rankLabel(r, svk) }) : "";
-  $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="${career.minister ? "min" : "duty"}">‹ 복귀</button><b>미국 대통령 선거와 백악관</b><small>${cmdr.name}</small></div>${admUs}${usPresHTML()}${cab}`;
+  const sigBtn = usIsPotus() ? `<button data-act="opensig" class="hq-tg2">✍️ ${career.customSign ? "공식 서명 수정" : "공식 서명 그리기"}</button>` : "";
+  $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="${career.minister ? "min" : "duty"}">‹ 복귀</button><b>미국 대통령 선거와 백악관</b><small>${cmdr.name}</small>${sigBtn}</div>${admUs}${usPresHTML()}${cab}`;
 }
 function renderDischarged() {
   const dc = career.discharged, g = dc.g, br = normBranch(staff.branch), svk = serviceOf(br), sv = curServices()[svk] || curServices().navy;
@@ -2622,6 +2660,7 @@ function launchSpecialHearing(preview = false) {
 }
 $("#shipLine").addEventListener("click", (e) => { const b = e.target.closest("[data-flag]"); if (!b) return; sfx.click(); career.ship = b.dataset.flag; saveCareer(); refreshMenus(); showcase(flagshipId()); });
 $("#promoM").addEventListener("click", (e) => {
+  if (e.target.closest('[data-act="opensig"]')) { sfx.click(); promptCustomSignature(); return; }
   const fp = e.target.closest("[data-fpost]"); if (fp) { const p = pmPostOpts.find((x) => x.t === fp.dataset.fpost && x.g === pmPostG); if (!p) return; pmPostSel = p.t; $("#pmPostT").textContent = postLabel(p.t); if (!pmPreview) { career.post = { g: p.g, t: p.t }; setBranch(p.b); const last = career.log[career.log.length - 1]; if (last && last.g === p.g) { last.t = p.t; last.b = (curBranches()[p.b] || BRANCHES[p.b]).n; } saveCareer(); refreshMenus(); } sfx.click(); renderPostPick(pmPostG); return; }
   const go = e.target.closest("[data-pmgo]"); if (go) { pmGo(+go.dataset.pmgo); return; }
   const ps = e.target.closest("[data-post]"); if (ps) { const k = ps.dataset.post, BR = curBranches(); if (!BR[k]) return; pmPostSel = k; if (pmPreview) { $("#pmPostT").textContent = postLabel(BR[k].t[pmPostG]); sfx.click(); } else { career.post = null; setBranch(k); const g = myGrade(), last = career.log[career.log.length - 1]; if (last && last.g === g) { last.t = postOf(g); last.b = BR[normBranch(staff.branch)].n; } saveCareer(); $("#pmPostT").textContent = postLabel(postOf(g)); refreshMenus(); sfx.click(); } renderPostPick(pmPostG); return; }
@@ -2641,6 +2680,7 @@ addEventListener("keydown", (e) => {
   if (nextBtn) { e.preventDefault(); nextBtn.click(); }
 });
 $("#hqP").addEventListener("click", (e) => {
+  if (e.target.closest('[data-act="opensig"]')) { sfx.click(); promptCustomSignature(() => { renderHQ(); }); return; }
   const ad = e.target.closest("[data-adm]"); if (ad && profile.admin) { sfx.click(); admRun(ad.dataset.adm); return; }
   const pu = e.target.closest("[data-potus]"); if (pu) { if (pu.disabled) return; sfx.click(); if (pu.dataset.potus === "start") { if (!potusState()) potusStart(cmdr.name); hqView = "potus"; renderPotus(); refreshMenus(); presidentOrder(false); return; } potusResult(potusClick(pu.dataset.potus)); return; }
   const pz = e.target.closest("[data-pres]"); if (pz) { if (pz.disabled) return; sfx.click(); if (isUS()) { toast("미국 모드에서는 미국 대통령 선거(538 선거인단)로 출마합니다", 3); return; } if (pz.dataset.pres === "start") { if (!presState()) presStart(cmdr.name); hqView = "pres"; renderPres(); refreshMenus(); return; } const prevStage = presState()?.stage; const prRes = presClick(pz.dataset.pres); if (prevStage === "pri" && presState()?.stage === "nominee") playVO(47); if (presState()?.stage === "won") { unlockEnding("kr_pres"); checkCareerAchievements(); } presResult(prRes); return; }

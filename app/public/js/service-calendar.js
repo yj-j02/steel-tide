@@ -1,7 +1,8 @@
 import { career } from "./career.js";
 
-const monthsPerRank = [24, 24, 48, 36, 36, 36, 24, 24, 24, 24, 24];
-const juniorMonths = [0, 0, 2, 4, 7, 9, 12, 15, 18, 21];
+// Realistic average time-in-grade (months) matched to KR/US officer promotion ages (23 O-1 -> 24 O-2 -> 26 O-3 -> 33 O-4 -> 39 O-5 -> 45 O-6 -> 49 O-7 -> 52 O-8 -> 55 O-9 -> 58 O-10)
+const monthsPerRank = [12, 30, 78, 72, 72, 48, 36, 36, 36, 36, 36];
+const juniorMonths = [0, 0, 1, 2, 3, 5, 6, 7, 9, 10];
 
 export function rankMonths(grade, steps) {
   if (+grade === 0 && steps < juniorMonths.length) return juniorMonths[steps];

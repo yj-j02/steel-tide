@@ -15,7 +15,7 @@ const status = (grade, rankWeeks, record = {}, us = false, service = "army") =>
   });
 
 const short = contractFor(commissionRoutes(false, "eng", "army")[1]);
-const shortEnd = status(1, { 0: 10, 1: 5 }, { serviceContract: short });
+const shortEnd = status(1, { 0: 10, 1: 8 }, { serviceContract: short });
 assert.equal(shortEnd.elapsed, 36);
 assert.equal(shortEnd.due, true);
 assert.equal(shortEnd.extension.until, 48);
@@ -31,15 +31,15 @@ assert.equal(career.serviceContract.obligation, 120);
 const majorShort = status(3, { 0: 10, 1: 10, 2: 10 }, { serviceContract: short });
 assert.equal(majorShort.longTermWindow, false);
 assert.notEqual(majorShort.limit?.title, "단기복무 기간 만료");
-assert.equal(status(1, { 0: 10, 1: 15 }).earlyWindow, true);
-assert.equal(status(1, { 0: 10, 1: 3 }).obligationLeft, 89);
-assert.equal(status(2, { 0: 10, 1: 10, 2: 27 }).due, false);
-const krEnd = status(2, { 0: 10, 1: 10, 2: 28 });
+assert.equal(status(1, { 0: 10, 1: 16 }).earlyWindow, true);
+assert.equal(status(1, { 0: 10, 1: 3 }).obligationLeft, 99);
+assert.equal(status(2, { 0: 10, 1: 10, 2: 17 }).due, false);
+const krEnd = status(2, { 0: 10, 1: 10, 2: 18 });
 assert.equal(krEnd.due, true);
 assert.equal(krEnd.limit.month, 180);
-assert.equal(status(3, { 0: 10, 1: 10, 2: 28 }).due, false);
-assert.equal(status(6, { 6: 30 }).extension.until, 84);
-assert.equal(status(6, { 6: 32 }, { serviceExtensions: { 6: { until: 84 } } }).due, false);
+assert.equal(status(3, { 0: 10, 1: 10, 2: 18 }).due, false);
+assert.equal(status(6, { 6: 20 }).extension.until, 84);
+assert.equal(status(6, { 6: 22 }, { serviceExtensions: { 6: { until: 84 } } }).due, false);
 assert.deepEqual(commissionRoutes(false, "plt", "air").map(route => route.years), [15, 13]);
 
 const failures = (grade, first, second) => ({
@@ -47,19 +47,19 @@ const failures = (grade, first, second) => ({
 });
 assert.equal(status(0, { 0: 18 }, failures(0, 24, 33), true).limit.month, 42);
 const twice = failures(2, 96, 100);
-const usReview = status(2, { 0: 10, 1: 10, 2: 12 }, twice, true);
+const usReview = status(2, { 0: 10, 1: 10, 2: 8 }, twice, true);
 assert.equal(usReview.limit.month, 107);
 assert.equal(usReview.extension.until, 240);
-assert.equal(status(2, { 0: 10, 1: 10, 2: 13 }, twice, true).due, true);
+assert.equal(status(2, { 0: 10, 1: 10, 2: 9 }, twice, true).due, true);
 assert.ok(applyServiceAction("continue", usReview, 2, 33));
-assert.equal(status(2, { 0: 10, 1: 10, 2: 40 }, { ...twice, serviceExtensions: career.serviceExtensions }, true).due, true);
-assert.equal(status(2, { 0: 10, 1: 10, 2: 40 }, {}, true).due, false);
-assert.equal(status(3, { 0: 10, 1: 10, 2: 10, 3: 2 }, failures(3, 90, 96), true).extension.until, 288);
-assert.equal(status(2, { 0: 10, 1: 10, 2: 35 }, failures(2, 205, 215), true, "navy").limit.month, 241);
+assert.equal(status(2, { 0: 10, 1: 10, 2: 26 }, { ...twice, serviceExtensions: career.serviceExtensions }, true).due, true);
+assert.equal(status(2, { 0: 10, 1: 10, 2: 26 }, {}, true).due, false);
+assert.equal(status(3, { 0: 10, 1: 10, 2: 10, 3: 1 }, failures(3, 120, 126), true).extension.until, 288);
+assert.equal(status(2, { 0: 10, 1: 10, 2: 22 }, failures(2, 205, 215), true, "navy").limit.month, 241);
 assert.equal(status(4, { 4: 94 }, {}, true).limit.month, 337);
 assert.equal(status(5, { 5: 100 }, {}, true).limit.month, 361);
 assert.equal(status(7, { 5: 122, 7: 10 }, {}, true).limit.month, 493);
 const jet = contractFor(commissionRoutes(true, "plt", "air")[0]);
-assert.equal(status(2, { 2: 18 }, { ...failures(2, 75, 84), serviceContract: jet }, true, "air").limit.month, 96);
+assert.equal(status(2, { 2: 12 }, { ...failures(2, 75, 84), serviceContract: jet }, true, "air").limit.month, 96);
 console.log("Korea and US active-duty obligations, deadlines, and extensions passed.");
 
