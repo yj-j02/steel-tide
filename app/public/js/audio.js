@@ -8,9 +8,9 @@ import { careerStorage } from "./characters.js";
 import { G, clamp } from "./core.js";
 
 const FILES = ["gun_near", "gun_far", "hit", "explode", "flak", "mg1", "mg2", "engine", "splash"];
-export const A = { ctx: null, master: null, buf: {}, muted: false, noise: null, brown: null, hum: null, eng: null, later: [], amb: {}, radio: {}, radioEn: {}, rBusy: 0, bgmOn: true, bgmWant: null, bgmEl: null };
+export const A = { ctx: null, master: null, buf: {}, muted: false, noise: null, brown: null, hum: null, eng: null, later: [], amb: {}, radio: {}, radioEn: {}, rBusy: 0, bgmOn: true, voOn: true, bgmWant: null, bgmEl: null };
 A.vol = { sfx: 0.85, music: 0.5 };
-try { A.bgmOn = careerStorage.getItem("steeltide:bgm") !== "0"; const v = JSON.parse(careerStorage.getItem("steeltide:vol")); if (v && v.sfx >= 0 && v.music >= 0) A.vol = { sfx: +v.sfx, music: +v.music }; } catch {}
+try { A.bgmOn = careerStorage.getItem("steeltide:bgm") !== "0"; A.voOn = careerStorage.getItem("steeltide:vo") !== "0"; const v = JSON.parse(careerStorage.getItem("steeltide:vol")); if (v && v.sfx >= 0 && v.music >= 0) A.vol = { sfx: +v.sfx, music: +v.music }; } catch {}
 export const RADIO_KEYS = ["battle", "sunk", "torp_warn", "ally_sunk", "launch", "return", "fire", "flood", "hull", "torp_launch", "fleet", "abandon"];
 
 function loopNoise(buf, type, freq, q, gain) {
@@ -621,24 +621,37 @@ export const VO_CATALOG = [
   [65, "65 · US White House Situation Room NSC Command"],
 ];
 
-let voEl = null, voTimer = null;
+let voEl = null, voTimer = null, voSeq = 0, voRestore = null;
+export function setVoOn(on) {
+  A.voOn = !!on;
+  try { careerStorage.setItem("steeltide:vo", on ? "1" : "0"); } catch {}
+  if (!on) stopVO();
+}
 export function stopVO() {
+  voSeq++;
   if (voTimer) { clearTimeout(voTimer); voTimer = null; }
   if (voEl) {
     const el = voEl;
     voEl = null;
-    try { el.pause(); } catch {}
-    el.onended?.();
+    el.onended = null;
+    el.onerror = null;
+    try { el.pause(); el.currentTime = 0; } catch {}
+  }
+  if (voRestore) {
+    const fn = voRestore;
+    voRestore = null;
+    fn();
   }
 }
 
-/** Play one of the 65 recorded voice-over lines (sfx/vo/vo_01.mp3 .. vo_65.mp3) with automatic BGM/fanfare ducking. */
+/** Play one of the 65 recorded voice-over lines (sfx/vo/vo_01.mp3 .. vo_65.mp3) without overlapping. */
 export function playVO(num, { delayMs = 0, nextVo = null } = {}) {
-  if (A.muted || !num) return;
+  if (A.muted || !A.voOn || !num) return;
   stopVO();
+  const mySeq = ++voSeq;
   const id = String(num).padStart(2, "0");
   const start = () => {
-    if (A.muted) return;
+    if (mySeq !== voSeq || A.muted || !A.voOn) return;
     const el = new Audio(`sfx/vo/vo_${id}.mp3`);
     el.volume = Math.min(1, (A.vol?.sfx ?? 0.85) * 1.15);
     voEl = el;
@@ -647,18 +660,30 @@ export function playVO(num, { delayMs = 0, nextVo = null } = {}) {
     if (bgGain && A.ctx) bgGain.gain.setTargetAtTime(0.09, A.ctx.currentTime, 0.08);
     if (pr) pr.volume = prV0 * 0.32;
     let restored = false;
-    const restore = () => {
+    const restoreGain = () => {
       if (restored) return;
       restored = true;
       if (bgGain && A.ctx) bgGain.gain.setTargetAtTime(bgV0, A.ctx.currentTime, 0.18);
       if (pr && promoEl === pr) pr.volume = prV0;
+    };
+    voRestore = restoreGain;
+    const finish = (allowChain) => {
+      restoreGain();
+      if (voRestore === restoreGain) voRestore = null;
       if (voEl === el) voEl = null;
       el.onended = null;
-      if (nextVo) playVO(nextVo, { delayMs: 280 });
+      el.onerror = null;
+      if (allowChain && nextVo && mySeq === voSeq && !A.muted && A.voOn) {
+        playVO(nextVo, { delayMs: 280 });
+      }
     };
-    el.onended = restore;
-    el.onerror = restore;
-    el.play().catch(restore);
+    el.onended = () => finish(true);
+    el.onerror = () => finish(false);
+    el.play().then(() => {
+      if (mySeq !== voSeq || !A.voOn || A.muted) {
+        try { el.pause(); el.currentTime = 0; } catch {}
+      }
+    }).catch(() => finish(false));
   };
   if (delayMs > 0) voTimer = setTimeout(start, delayMs);
   else start();

@@ -12,7 +12,7 @@ import { automaticCaptain, boardCard, preview as boardPreview, settle, hint, int
  * connection to the captain's room (credits, ships, rank).
  */
 import { THREE, $, PI, TAU, DEG, KN, clamp, wrap, brg, fmt, params, rnd, gauss, G, camera, canvas, renderer, scene, ovScene, ovCam, makeIslands, MAPS, addIsland, clearFx, updateWorld, spray, spark, flash, spawnSplash } from "./js/core.js";
-import { A, initAudio, setMuted, setVolume, sfx, updateAudio, radio, bgm, setBgmOn, jetSound, droneSound, fanfare, stopFanfare, playMinisterAnthem, playPotusAnthem, setAmbienceMood, playVO, stopVO, promoVoForGrade, VO_CATALOG } from "./js/audio.js";
+import { A, initAudio, setMuted, setVolume, sfx, updateAudio, radio, bgm, setBgmOn, setVoOn, jetSound, droneSound, fanfare, stopFanfare, playMinisterAnthem, playPotusAnthem, setAmbienceMood, playVO, stopVO, promoVoForGrade, VO_CATALOG } from "./js/audio.js";
 import { OPS, isModernOp, opsInit, opsStep, opsClear, opsCheck, opsMarks, opsShellLand, aswRocket, nearestSubContact, O as OPSO, opsDebug, opsStatus, jamDrones } from "./js/ops.js";
 import { cicStart, cicBigFeeds, cicStop, cicStep, cicToggle, cicExpand, cicPending, cicResolve, cicUsed, cicWcs, cicSetWcs, cicFeedInfo } from "./js/cic.js";
 import { post, renderFrame, renderPiP, renderToCanvas } from "./js/post.js";
@@ -2857,7 +2857,6 @@ $("#hqP").addEventListener("click", (e) => {
         (dc.civLog ??= []).push({ choice, outcome });
         dc.civStep = step + 1;
         saveCareer();
-        playVO(39);
         toast(`🌟 제2의 인생 ${step + 1}장 완료 — ${choice}`, 3.5);
         checkCareerAchievements(dc.g ?? g);
         renderDischarged();
@@ -2894,9 +2893,9 @@ $("#hqP").addEventListener("click", (e) => {
       if (res) {
         profile.xp += res.xpGain; saveProfile();
         const del = fireDeltas(res.xpGain || 0);
-        playVO(12);
         showEventScene({ title: "계급 시그니처 스토리", text: res.msg, nation: isUS() ? "us" : "kr", service: svk, kind: "arc", score: res.score, xp: res.xpGain || 0, ...del });
         if (res.completed) {
+          playVO(12);
           showBreakingPaper({ nation: isUS() ? "us" : "kr", headline: `${rankLabel(g, svk)} ${cmdr.name}, 핵심 지휘 과업 완수`, body: res.msg, dateline: careerDate(dutyState().week || 1) });
         }
         toast(res.msg, 4); refreshMenus(); renderDutyDesk();
@@ -2911,7 +2910,6 @@ $("#hqP").addEventListener("click", (e) => {
         if (res.xpGain) { profile.xp += res.xpGain; saveProfile(); }
         const del = fireDeltas(res.xpGain || 0);
         lastRivalQuote = res.msg;
-        playVO(optIdx === 0 ? 18 : 19);
         checkCareerAchievements(g);
         showEventScene({ title: isUS() ? "사관학교 동기 인맥" : "임관 동기 인맥", text: res.msg, nation: isUS() ? "us" : "kr", service: svk, kind: "rival", xp: res.xpGain || 0, ...del });
         toast(res.msg, 4); refreshMenus(); renderDutyDesk();
@@ -2950,7 +2948,7 @@ $("#hqP").addEventListener("click", (e) => {
       finishOfficerService(g, "의무복무 이행 후 본인 지원으로 전역", status.elapsed, true);
       return;
     }
-    if (a.startsWith("rep:")) { const res = resolveReport(+a.slice(4), g); if (res) { playVO(12); toast(res.msg, 4); renderDutyDesk(); } return; }
+    if (a.startsWith("rep:")) { const res = resolveReport(+a.slice(4), g); if (res) { toast(res.msg, 4); renderDutyDesk(); } return; }
     if (a.startsWith("ev:")) {
       stampCard(cardEl, "결재 완료");
       const [, id, idx] = a.split(":"), evMeta = dutyEventById(id), res = resolveDuty(id, +idx, g);
@@ -2962,7 +2960,8 @@ $("#hqP").addEventListener("click", (e) => {
         const after = myGrade();
         if (after > g) { if (career.seen == null) careerInit(g, careerTitle(g), BRANCHES[br].n); career.picks += after - g; logPromotion({ g: after, t: postOf(after), b: BRANCHES[br].n, why: res.headline }); buildPromo(g, after); $("#promoM").style.display = "flex"; fanfare(after, br); }
         else {
-          playVO(12, { nextVo: res.score >= 82 ? 16 : res.score < 66 ? 17 : null });
+          if (res.score >= 92) playVO(16);
+          else if (res.score < 52) playVO(17);
           toast(`${res.label} — 평정 ${res.score}점 · +${fmt(res.xpGain)} XP`, 3.5);
         }
         refreshMenus(); renderDutyDesk();
@@ -2999,10 +2998,8 @@ $("#hqP").addEventListener("click", (e) => {
         playVO(19);
       } else if (d.warroom && (d.warroom.stage || 0) === 0) {
         playVO(22);
-      } else if (d.crisis || (d.tension ?? 0) >= 70) {
+      } else if (d.crisis) {
         playVO(21);
-      } else {
-        playVO(11);
       }
       if (status.due && !(status.extension && status.qualifies)) {
         finishOfficerService(g, status.limit.title, status.limit.month);
@@ -3831,6 +3828,7 @@ $("#againBtn").addEventListener("click", () => start(G.auto)); $("#endYardBtn").
 $("#takeBtn").addEventListener("click", takeOver); $("#spdBtns").addEventListener("click", (e) => { const b = e.target.closest("[data-spd]"); if (b) { e.stopPropagation(); setAutoSpeed(+b.dataset.spd); } }); $("#autoModeBtn").addEventListener("click", (e) => { e.stopPropagation(); toAuto(); });
 for (const k of ["sfx", "music"]) { const el = $("#vol_" + k); el.value = A.vol?.[k] ?? el.value; el.addEventListener("input", () => setVolume(k, +el.value)); }
 $("#bgmOn").checked = A.bgmOn; $("#bgmOn").addEventListener("change", (e) => { initAudio(); setBgmOn(e.target.checked); });
+if ($("#voOn")) { $("#voOn").checked = A.voOn; $("#voOn").addEventListener("change", (e) => { initAudio(); setVoOn(e.target.checked); }); }
 let glassOn = true; try { glassOn = careerStorage.getItem("steeltide:glass") !== "0"; } catch {} document.body.classList.toggle("noglass", !glassOn); $("#glassOn").checked = glassOn;
 $("#postOn").checked = post.on; $("#postOn").addEventListener("change", (e) => { post.on = e.target.checked; try { careerStorage.setItem("steeltide:post", post.on ? "1" : "0"); } catch {} });
 $("#glassOn").addEventListener("change", (e) => { glassOn = e.target.checked; document.body.classList.toggle("noglass", !glassOn); try { careerStorage.setItem("steeltide:glass", glassOn ? "1" : "0"); } catch {} });
