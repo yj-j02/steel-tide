@@ -35,7 +35,7 @@ import { adminBar } from "./js/career-rules.js";
 import { potusState, potusStart, potusHTML, potusClick, potusTitle, potusAdmin } from "./js/potus.js";
 import { presState, presStart, presHTML, presClick, presAdmin, presTheme, PARTIES } from "./js/president.js";
 import { usPresState, usPresStart, usPresHTML, usPresClick, usPresAdmin } from "./js/us-pres.js";
-import { unlockEnding, endingsHTML, trophyShelfHTML } from "./js/endings.js";
+import { unlockEnding, unlockAchievement, endingsHTML, trophyShelfHTML } from "./js/endings.js";
 import { galleryHTML, minAdminEnd } from "./js/ministry.js";
 import { minFx, minHTML, minClick, minStart, minOpResult, minState, legacy, NG_RESET } from "./js/ministry.js";
 /** 국방부장관 교리·사업·2회차 특전을 전투 보정치에 곱한다 */
@@ -1199,6 +1199,56 @@ function showMedal(key) {
   dialog.showModal();
 }
 
+function originBadgeLabel() {
+  const c = career.serviceContract;
+  if (isUS()) {
+    if (c?.id === "jet") return "Service Academy (Flight)";
+    return "Service Academy (West Point / USNA / USAFA)";
+  }
+  const id = c?.id || "academy";
+  const base = id === "army3" ? "육군3사관학교"
+    : (id === "short" || id === "aviationOther") ? "학사장교·후보생"
+    : id === "aviationAcademy" ? "해·공군사관학교"
+    : "사관학교 (정규 장기)";
+  return c?.longTermSelected ? `${base} · 장기복무 전환` : base;
+}
+
+function checkCareerAchievements(grade = myGrade(), d = dutyState()) {
+  const cid = career.serviceContract?.id || "academy";
+  const isOcs = !isUS() && (cid === "short" || cid === "aviationOther");
+  const is3sa = !isUS() && cid === "army3";
+  const br = normBranch(staff.branch);
+  const switches = (() => {
+    let s = 0, prev = null;
+    for (const e of (career.log || [])) { if (prev && e.b && e.b !== prev) s++; if (e.b) prev = e.b; }
+    return s;
+  })();
+  const allies = (d.rivals || []).filter((r) => (r.rel ?? 50) >= 75).length;
+  const trigger = (id, showPaper = false) => {
+    const meta = unlockAchievement(id);
+    if (!meta) return;
+    toast(`🏅 업적 달성: ${meta.ic} ${meta.n}!`, 4.5);
+    if (showPaper) {
+      showBreakingPaper({
+        nation: isUS() ? "us" : "kr",
+        headline: meta.headline,
+        body: `${rankLabel(grade)} ${cmdr.name} (${originBadgeLabel()}) — 「${meta.n}」 업적을 달성했습니다. (${meta.sub})`,
+        dateline: careerDate(d.week || 1),
+      });
+    }
+  };
+  if (isOcs && grade >= 6) trigger("ach_ocs_gen", true);
+  if (is3sa && grade >= 6) trigger("ach_3sa_gen", true);
+  if ((isOcs || is3sa) && grade >= 9) trigger("ach_nonacad_4star", true);
+  if (br === "eng" && grade >= 6) trigger("ach_eng_gen", true);
+  if (career.serviceContract?.longTermSelected) trigger("ach_longterm_win", false);
+  if (grade >= 6 && switches === 0) trigger("ach_one_track", false);
+  if (career.tours?.cmd && career.tours?.joint && career.tours?.edu) trigger("ach_joint_master", false);
+  if (allies >= 3) trigger("ach_brotherhood", false);
+  if (career.discharged?.routeConfirmed && career.discharged?.routeId === "airline") trigger("ach_sky_captain", false);
+  if (grade >= 10 || career.warVictory) trigger("ach_5star_war", false);
+}
+
 let recTab = "log";
 function renderRecord() { /* 인사기록: 좌측 고정 프로필 + 우측 4개 서브탭 (약력 / 계급 로드맵 / 훈장 / 엔딩 도감) */
   const rl = rankLine(), acc = profile.shots ? ((profile.hits / profile.shots) * 100).toFixed(1) : "0.0", best = profile.bestSeconds ? `${Math.floor(profile.bestSeconds / 60)}분 ${profile.bestSeconds % 60}초` : "—";
@@ -1241,17 +1291,17 @@ function renderRecord() { /* 인사기록: 좌측 고정 프로필 + 우측 4개
     : recTab === "medals" ? medalsHTML
     : recTab === "endings" ? endingsHTML()
     : recTab === "chron" ? chronicleHTML(chronCtx())
-    : `<h3>장교 복무 요약</h3><div class="rstats"><div><span>누적 복무</span><b>${careerDate(dd.week)}</b></div><div><span>군내 평판</span><b>${dd.rep ?? 55}</b></div><div><span>부대 사기</span><b>${dd.morale ?? 72}</b></div><div><span>전술전 승률</span><b>${profile.battles ? Math.round((profile.wins / profile.battles) * 100) : 0}%</b></div><div><span>보유 훈장</span><b>${Object.keys(career.medals || {}).length}/10</b></div></div>`
+    : `<h3>장교 복무 요약</h3><div class="rstats"><div><span>임관 출신</span><b>${originBadgeLabel()}</b></div><div><span>누적 복무</span><b>${careerDate(dd.week)}</b></div><div><span>군내 평판</span><b>${dd.rep ?? 55}</b></div><div><span>부대 사기</span><b>${dd.morale ?? 72}</b></div><div><span>보유 훈장</span><b>${Object.keys(career.medals || {}).length}/10</b></div></div>`
       + `<h3>${(SV[svk] || SV.navy).n} 장교 인사기록 · 약력</h3><div class="mi-log">${log}</div>`
       + `<h3>내 참모진 · ${echUnit}</h3><div class="mi-st">${STAFF_ROLES.map((r) => `<span>${roleTitle(r.k, rl.r)}</span><b>${of(r.k).rk} ${of(r.k).nm}</b>`).join("")}</div>`;
-  const recTabsHTML = `<div class="rec-tabs">${[["log", "📋 요약 · 약력"], ["timeline", "복무 연표"], ["ladder", "🎖 계급 로드맵"], ["medals", "🏅 훈장 · 표창"], ["endings", "🏆 엔딩 도감"], ["chron", "📜 회고록"]].map(([k, lbl]) => `<button class="rec-tab${recTab === k ? " on" : ""}" data-rectab="${k}">${lbl}</button>`).join("")}</div>`;
+  const recTabsHTML = `<div class="rec-tabs">${[["log", "📋 요약 · 약력"], ["timeline", "복무 연표"], ["ladder", "🎖 계급 로드맵"], ["medals", "🏅 훈장 · 표창"], ["endings", "🏆 엔딩 · 업적"], ["chron", "📜 회고록"]].map(([k, lbl]) => `<button class="rec-tab${recTab === k ? " on" : ""}" data-rectab="${k}">${lbl}</button>`).join("")}</div>`;
   const isAnyPres = (!isUS() && isPotus()) || usIsPotus();
   const isCivView = civil() || usIsPotus();
   const presMarkImg = usIsPotus() ? `<img src="img/us_potus_mark.png" alt="U.S. Presidential Seal" class="pmark-b">` : (!isUS() && isPotus()) ? `<img src="img/potus_mark.png" alt="" class="pmark-b">` : "";
   const recRankTitle = usPotusOn() ? "President of the United States" : usIsPotus() ? "Former U.S. President" : civil() ? (!isUS() && potusOn() ? "대한민국 대통령" : !isUS() && isPotus() ? "전 대통령" : "민간인") : career.minister ? `예비역 ${rl.name}` : isUS() ? `${rl.name} · ${US_PAY[rl.r]}` : `${rl.name} ${ps.step}호봉`;
   const recSubTitle = usPotusOn() ? `Commander-in-Chief · ${usPresTitle()} · Retired ${rl.name}` : usIsPotus() ? `${usPresTitle()} · Retired ${rl.name}` : career.minister ? (!isUS() && potusOn() ? `국군통수권자 · ${potusTitle().replace("대통령 · ", "")} · 전 국방부장관` : !isUS() && isPotus() ? `${potusTitle()} · 예비역 ${rl.name}` : civil() ? `전 ${mTitle} · 예비역 ${rl.name}` : mTitle) : `${postLabel(postOf(rl.r))}${staff.branch ? ` · ${(BR[br] || BRANCHES.sea).n} 보직` : ""}`;
   let h = `<div class="mi"><div class="mi-l">`
-    + `<div class="mi-por-w">${isCivView ? `<div class="mi-por civp">${face({ ...agedFace(cmdr.face, myGrade()), civ: true, bg: isAnyPres ? "#1d3b6e" : "#2b3446" }, 280)}${presMarkImg}</div>` : portraitHTML(career.finalUniform?.grade ?? rl.r, career.finalUniform)}</div><p class="uniform-caption">${usIsPotus() ? `${usPresTitle()} · The White House` : career.finalUniform ? `${rankLabel(career.finalUniform.grade)} · ${postLabel(career.finalUniform.title)} · ${career.finalUniform.date}` : `${rankLabel(rl.r)} · ${postLabel(postOf(rl.r))} · ${careerDate(dd.week)}`}</p><div class="mi-card"><div><div class="mi-rk">${badge(rl.r, 22)}<b>${recRankTitle}</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${recSubTitle}</div></div></div>`
+    + `<div class="mi-por-w">${isCivView ? `<div class="mi-por civp">${face({ ...agedFace(cmdr.face, myGrade()), civ: true, bg: isAnyPres ? "#1d3b6e" : "#2b3446" }, 280)}${presMarkImg}</div>` : portraitHTML(career.finalUniform?.grade ?? rl.r, career.finalUniform)}</div><p class="uniform-caption">${usIsPotus() ? `${usPresTitle()} · The White House` : career.finalUniform ? `${rankLabel(career.finalUniform.grade)} · ${postLabel(career.finalUniform.title)} · ${career.finalUniform.date}` : `${rankLabel(rl.r)} · ${postLabel(postOf(rl.r))} · ${careerDate(dd.week)}`}</p><div class="mi-card"><div><div class="mi-rk">${badge(rl.r, 22)}<b>${recRankTitle}</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${recSubTitle}</div><div style="font-size:11px;color:#9fc5e2;margin-top:3px">임관 출신 · ${originBadgeLabel()}</div></div></div>`
     + (isCivView || career.minister ? `<p class="mi-note">${usPotusOn() ? "O-1 임관에서 미합중국 대통령까지 — 집무실 탭에서 백악관 국정을 운영합니다" : usIsPotus() ? "미합중국 대통령 임기를 명예롭게 마쳤습니다" : !isUS() && potusOn() ? "소위 임관에서 대통령까지 — 집무실 탭에서 국정을 운영합니다" : !isUS() && isPotus() ? "대통령 임기를 마쳤습니다" : civil() ? `${mTitle} 임기를 마치고 민간인이 되었습니다` : `전역 후 ${mTitle}으로 임명되어 호봉·진급이 없습니다`}</p>` : `<div class="mi-bar"><span>다음 호봉</span><div class="hbar"><i style="width:${Math.max(2, stepPct).toFixed(0)}%"></i></div></div><div class="mi-bar"><span>${rl.next ? `${rl.next} 진급` : "최고 계급"}</span><div class="hbar"><i style="width:${(rl.pct * 100).toFixed(0)}%;background:var(--gold)"></i></div><small>${rl.next ? `${fmt(rl.need - profile.xp)} XP 남음` : ""}</small></div>`)
     + (isCivView && career.finalUniform ? `<details class="final-uniform"><summary>마지막 정복 초상 · ${postLabel(career.finalUniform.title)}</summary>${portraitHTML(career.finalUniform.grade, career.finalUniform)}</details>` : "")
     + (isCivView || career.minister ? "" : evalHTML(rl)) + ministerHTML(rl)
@@ -1341,6 +1391,7 @@ function recordBoardPromotion(result, grade, branch) {
   if (nextBranch !== branch) setBranch(nextBranch);
   logPromotion({g:grade+1,t:postOf(grade+1),b:curBranches()[nextBranch].n,why:result.reason,turn:result.week,serviceDate:result.date});
   pmMedals = awardMedals({grade:grade+1, turn:result.week, source:result.reason});
+  checkCareerAchievements(grade + 1);
 }
 
 function showBoardPromotion(result, grade, branch) {
@@ -2081,7 +2132,7 @@ $("#hqP").addEventListener("click", (e) => {
     }
     return;
   }
-  const rr = e.target.closest("[data-retire-route]"); if (rr && career.discharged && !career.discharged.routeConfirmed) { sfx.click(); career.discharged.routeId = rr.dataset.retireRoute; career.discharged.routeConfirmed = true; saveCareer(); renderDischarged(); return; }
+  const rr = e.target.closest("[data-retire-route]"); if (rr && career.discharged && !career.discharged.routeConfirmed) { sfx.click(); career.discharged.routeId = rr.dataset.retireRoute; career.discharged.routeConfirmed = true; saveCareer(); checkCareerAchievements(career.discharged.g); renderDischarged(); return; }
   const dy = e.target.closest("[data-duty]"); if (dy) { if (dy.disabled) return; sfx.click(); const a = dy.dataset.duty, g = myGrade(), br = normBranch(staff.branch), svk = serviceOf(br);
     const beforeD = dutyState(), preMor = beforeD.morale ?? 70, preRep = beforeD.rep ?? 50, preTen = beforeD.tension ?? 30, cardEl = dy.closest(".mn-card");
     const fireDeltas = (xp = 0) => {
@@ -2125,6 +2176,7 @@ $("#hqP").addEventListener("click", (e) => {
         if (res.xpGain) { profile.xp += res.xpGain; saveProfile(); }
         const del = fireDeltas(res.xpGain || 0);
         lastRivalQuote = res.msg;
+        checkCareerAchievements(g);
         showEventScene({ title: isUS() ? "사관학교 동기 인맥" : "임관 동기 인맥", text: res.msg, nation: isUS() ? "us" : "kr", service: svk, kind: "rival", xp: res.xpGain || 0, ...del });
         toast(res.msg, 4); refreshMenus(); renderDutyDesk();
       }
@@ -2147,6 +2199,7 @@ $("#hqP").addEventListener("click", (e) => {
           showEventScene({ title: "⭐ 장기복무 선발 합격!", text: result.message, nation: "kr", service: svk, kind: "arc" });
           d.headlines = d.headlines || [];
           d.headlines.unshift(`${careerDate(d.week)} · [인사] ${rankLabel(g, svk)} ${cmdr.name}, 장기복무 선발 전형 최종 합격!`);
+          checkCareerAchievements(g, d);
         }
         renderDutyDesk();
       }
@@ -2227,6 +2280,7 @@ $("#hqP").addEventListener("click", (e) => {
             saveCareer();
             saveProfile();
             unlockEnding(isUS() ? "us_marshal" : "kr_marshal");
+            checkCareerAchievements(10);
             logPromotion({ g: 10, t: postOf(10), b: (curBranches()[br] || BRANCHES[br]).n, why: `${res.warTitle} 완전 승전 · 원수(5성) 특별진급` });
             showBreakingPaper({ nation: isUS() ? "us" : "kr", headline: `${cmdr.name}, ${res.warTitle} 대승 · 5성 원수(★★★★★) 추대!`, body: `전공 점수 ${res.score}점, 전선 우세도 ${res.front}%의 압도적 승전을 거두며 최고 명예인 5성 원수로 특별 진급했습니다.`, dateline: careerDate(dutyState().week || 1) });
             buildPromo(g, 10);

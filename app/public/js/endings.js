@@ -1,6 +1,34 @@
 import { careerStorage } from "./characters.js";
 // 엔딩 컬렉션 도감 (한국·미국 12종 영구 수집, 2회차 초기화에도 보존)
 const EK = "steeltide:endings";
+const AK = "steeltide:achievements";
+
+export const ACHIEVEMENTS = [
+  { id: "ach_ocs_gen", ic: "🔥", n: "유리천장을 깬 별", sub: "학사장교·후보생 출신으로 장성(준장+) 진급", headline: "유리천장을 깼다! 학사장교 출신 장성 탄생 — 창군 이래 손꼽히는 쾌거" },
+  { id: "ach_3sa_gen", ic: "⚡", n: "영천의 신화", sub: "육군3사관학교 출신으로 장성(준장+) 진급", headline: "영천의 신화! 육군3사관학교 출신 장성 진급에 동문·야전 환호" },
+  { id: "ach_nonacad_4star", ic: "👑", n: "비사관학교 4성 대장", sub: "학사·3사 출신으로 4성 대장 도달", headline: "역사를 새로 쓰다! 비사관학교 출신 4성 대장 전격 발탁" },
+  { id: "ach_eng_gen", ic: "🏗️", n: "공병의 별", sub: "공병 병과로 장성(준장+) 진급", headline: "기술·공병 병과의 자부심 — 공병 출신 장성 진급 쾌거" },
+  { id: "ach_longterm_win", ic: "⭐", n: "단기에서 장기로", sub: "3사·학사 단기복무 → 장기복무 선발 합격", headline: "치열한 경쟁 뚫고 장기복무 선발 전형 최종 합격!" },
+  { id: "ach_one_track", ic: "🏛️", n: "외길 정통 지휘관", sub: "보직 전과 0회로 장성(준장+) 진급", headline: "한 우물만 판 정통 야전 지휘관, 마침내 별을 달다" },
+  { id: "ach_joint_master", ic: "⚔️", n: "야전·합동·교육 3관왕", sub: "야전 지휘 + 합동 보직 + 고등군사교육 모두 이수", headline: "야전·합동·고등군사교육을 모두 섭렵한 완벽한 전략 지휘관" },
+  { id: "ach_brotherhood", ic: "🤝", n: "평생의 전우들", sub: "임관 동기 3명 이상과 핵심 우군(관계도 75+) 달성", headline: "동기 3명 이상과 굳건한 전우애 구축 — 전군 최고 인망" },
+  { id: "ach_sky_captain", ic: "✈️", n: "하늘의 두 번째 비행", sub: "전역 후 민간 항공사 기장 진로 확정", headline: "전투기 조종간에서 여객기 콕핏으로 — 하늘의 두 번째 비행" },
+  { id: "ach_5star_war", ic: "🌟", n: "전시 구국의 5성 원수", sub: "전시 총력전 완승으로 5성 원수 추대", headline: "전시 총력전 완전 승전 — 역사적인 5성 원수(★★★★★) 추대" },
+];
+
+export function unlockedAchievements() {
+  try { return JSON.parse(careerStorage.getItem(AK) || "{}"); } catch { return {}; }
+}
+
+export function unlockAchievement(id) {
+  const meta = ACHIEVEMENTS.find((a) => a.id === id);
+  if (!meta) return null;
+  const map = unlockedAchievements();
+  if (map[id]) return null;
+  map[id] = new Date().toISOString().slice(0, 10);
+  try { careerStorage.setItem(AK, JSON.stringify(map)); } catch {}
+  return meta;
+}
 
 export const ENDINGS = [
   { id: "kr_civil", nat: "kr", ic: "🏛️", n: "국방부 군무원 임용", sub: "KR 위관(소위~대위) 전역" },
@@ -55,13 +83,19 @@ export function trophyShelfHTML(grade, careerState = {}, us = false, isPres = fa
 
 export function endingsHTML() {
   const got = unlockedEndings(), ng = ngBonuses();
+  const achGot = unlockedAchievements();
+  const achCnt = Object.keys(achGot).filter((k) => ACHIEVEMENTS.some((a) => a.id === k)).length;
   const ngStrip = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px;font-size:11px">`
     + `<span style="padding:4px 8px;border-radius:6px;border:1px solid ${ng.cnt >= 1 ? "#8ef07a" : "rgba(180,200,210,.25)"};color:${ng.cnt >= 1 ? "#b8f7a8" : "#88a0b0"}">${ng.cnt >= 1 ? "✔" : "🔒"} 1종 달성: 초기 평판 +5</span>`
     + `<span style="padding:4px 8px;border-radius:6px;border:1px solid ${ng.cnt >= 3 ? "#8ef07a" : "rgba(180,200,210,.25)"};color:${ng.cnt >= 3 ? "#b8f7a8" : "#88a0b0"}">${ng.cnt >= 3 ? "✔" : "🔒"} 3종 달성: 직무 XP +10%</span>`
     + `<span style="padding:4px 8px;border-radius:6px;border:1px solid ${ng.cnt >= 6 ? "#8ef07a" : "rgba(180,200,210,.25)"};color:${ng.cnt >= 6 ? "#b8f7a8" : "#88a0b0"}">${ng.cnt >= 6 ? "✔" : "🔒"} 6종 달성: 위기 위임 승률 +8%</span>`
     + `</div>`;
+  const achHTML = `<h3 style="margin-top:18px">🏅 특수 업적 · 명예 도전과제 (${achCnt} / ${ACHIEVEMENTS.length})</h3><div class="mi-md">${ACHIEVEMENTS.map((a) => {
+    const dt = achGot[a.id];
+    return `<div class="md${dt ? "" : " no"}" title="${a.sub}"><i style="font-style:normal;font-size:15px;display:flex;align-items:center;justify-content:center;background:none;border:0">${a.ic}</i><span>${a.n}</span><small>${dt ? "✔ 달성 완료" : a.sub}</small></div>`;
+  }).join("")}</div>`;
   return `<h3>🏆 엔딩 컬렉션 도감 (${ng.cnt} / ${ENDINGS.length})</h3>${ngStrip}<div class="mi-md">${ENDINGS.map((e) => {
     const dt = got[e.id];
     return `<div class="md${dt ? "" : " no"}" title="${e.sub}"><i style="font-style:normal;font-size:15px;display:flex;align-items:center;justify-content:center;background:none;border:0">${e.ic}</i><span>${e.n}</span><small>${dt ? `${dt} 달성` : e.sub}</small></div>`;
-  }).join("")}</div>`;
+  }).join("")}</div>${achHTML}`;
 }
