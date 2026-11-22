@@ -882,9 +882,9 @@ const ministerSign = () => {
   const dt = new Date();
   if (isUS()) {
     const mon = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"][dt.getMonth()];
-    return `<div class="pm-sign"><div class="pm-date">${dt.getDate()} ${mon} ${dt.getFullYear()} · PENTAGON</div><div class="pm-sg"><span>Secretary of Defense</span><svg viewBox="0 0 160 54" width="160" height="54"><path d="M10 38 C16 14 28 12 24 30 C22 40 34 22 44 26 C50 28 46 38 56 32 C66 26 74 14 82 28 C88 38 98 20 110 26 C118 30 128 18 144 24 M28 42 C64 38 106 39 148 35" stroke="#182a4a" stroke-width="2.1" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8.5px">U.S. DoD<br>SEAL</i></div></div>`;
+    return `<div class="pm-sign"><div class="pm-date">${dt.getDate()} ${mon} ${dt.getFullYear()} · PENTAGON</div><div class="pm-sg"><span>Secretary of Defense</span><img src="img/sign_pres.png" class="pm-sig-img" alt="Signature"><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8.5px">U.S. DoD<br>SEAL</i></div></div>`;
   }
-  return `<div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>국방부장관</span><svg viewBox="0 0 150 54" width="150" height="54"><path d="M8 38 C18 10 30 12 26 30 C22 46 34 40 42 22 C46 14 50 18 48 30 C46 40 56 34 64 20 C68 30 70 36 80 28 C88 22 92 16 98 24 C104 32 112 30 120 18 M60 44 C80 40 110 40 142 34" stroke="#1d2340" stroke-width="2.4" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg><i>國防部長官印</i></div></div>`;
+  return `<div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>국방부장관</span><img src="img/sign_pres.png" class="pm-sig-img" alt="서명"><i>國防部長官印</i></div></div>`;
 }; /* fictional signature, no real person's name */
 let pmMedals = [], pmPage = 1;
 function pmGo(n) {
@@ -1276,7 +1276,7 @@ function ministerOrder(preview = false) {
             </div>
           </div>
         </div>
-        <div class="pm-sign"><div class="pm-date">${dt.getDate()} ${mon} ${dt.getFullYear()}</div><div class="pm-sg"><span>${potusSignUS}</span><svg viewBox="0 0 160 54" width="160" height="54"><path d="M12 36 C22 10 34 14 28 32 C26 42 40 20 52 24 C60 28 62 36 74 28 C84 20 96 14 104 26 C112 36 124 20 146 22 M36 44 C72 40 112 40 148 36" stroke="#182a4a" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">POTUS<br>SEAL</i></div></div>
+        <div class="pm-sign"><div class="pm-date">${dt.getDate()} ${mon} ${dt.getFullYear()}</div><div class="pm-sg"><span>${potusSignUS}</span><img src="img/sign_pres.png" class="pm-sig-img" alt="Signature"><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">POTUS<br>SEAL</i></div></div>
         <button id="promoOk">${preview ? "Close Preview" : "I So Swear"}</button>
       </div></div>`
     : `<div class="pm-doc pm-min"><div class="pm-pg on" data-pg="1">
@@ -1300,7 +1300,7 @@ function ministerOrder(preview = false) {
             </div>
           </div>
         </div>
-        <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>${potusSignKR}</span><svg viewBox="0 0 150 54" width="150" height="54"><path d="M10 34 C22 12 34 14 30 32 C26 46 40 38 50 22 C58 12 62 30 70 28 C80 24 84 14 92 22 C100 30 110 26 122 16 M56 44 C84 40 112 40 140 36" stroke="#1d2340" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg><i>大統領印</i></div></div>
+        <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>${potusSignKR}</span><img src="img/sign_pres.png" class="pm-sig-img" alt="서명"><i>大統領印</i></div></div>
         <button id="promoOk">${preview ? "미리보기 닫기" : "명 받았습니다"}</button>
       </div></div>`;
   pmPreview = true; $("#promoM").style.display = "flex"; initAudio(); playMinisterAnthem(); if (!preview) refreshMenus();
@@ -1340,7 +1340,7 @@ function commissionOrder(preview = false) {
             </div>
           </div>
         </div>
-        <div class="pm-sign"><div class="pm-date">1 MAR ${dt.getFullYear()}</div><div class="pm-sg"><span>${potusSignUS}</span><svg viewBox="0 0 160 54" width="160" height="54"><path d="M12 36 C22 10 34 14 28 32 C26 42 40 20 52 24 C60 28 62 36 74 28 C84 20 96 14 104 26 C112 36 124 20 146 22 M36 44 C72 40 112 40 148 36" stroke="#182a4a" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">DOD<br>SEAL</i></div></div>
+        <div class="pm-sign"><div class="pm-date">1 MAR ${dt.getFullYear()}</div><div class="pm-sg"><span>${potusSignUS}</span><img src="img/sign_pres.png" class="pm-sig-img" alt="Signature"><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">DOD<br>SEAL</i></div></div>
         <button id="promoOk">${preview ? "Close Preview" : "I So Swear · Report for Duty"}</button>
       </div></div>`
     : `<div class="pm-doc pm-min"><div class="pm-pg on" data-pg="1">
@@ -1365,7 +1365,7 @@ function commissionOrder(preview = false) {
             </div>
           </div>
         </div>
-        <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 3월 1일</div><div class="pm-sg"><span>${potusSignKR}</span><svg viewBox="0 0 150 54" width="150" height="54"><path d="M10 34 C22 12 34 14 30 32 C26 46 40 38 50 22 C58 12 62 30 70 28 C80 24 84 14 92 22 C100 30 110 26 122 16 M56 44 C84 40 112 40 140 36" stroke="#1d2340" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg><i>大統領印</i></div></div>
+        <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 3월 1일</div><div class="pm-sg"><span>${potusSignKR}</span><img src="img/sign_pres.png" class="pm-sig-img" alt="서명"><i>大統領印</i></div></div>
         <button id="promoOk">${preview ? "미리보기 닫기" : "엄숙히 선서합니다 — 첫 부임지로 출발"}</button>
       </div></div>`;
   pmPreview = true; $("#promoM").style.display = "flex"; initAudio(); fanfare(0, staff.branch);
@@ -1402,7 +1402,7 @@ function marshalOrder(preview = false) {
             </div>
           </div>
         </div>
-        <div class="pm-sign"><div class="pm-date">${dt.getDate()} ${mon} ${dt.getFullYear()}</div><div class="pm-sg"><span>${potusSignUS}</span><svg viewBox="0 0 160 54" width="160" height="54"><path d="M12 36 C22 10 34 14 28 32 C26 42 40 20 52 24 C60 28 62 36 74 28 C84 20 96 14 104 26 C112 36 124 20 146 22 M36 44 C72 40 112 40 148 36" stroke="#182a4a" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">POTUS<br>SEAL</i></div></div>
+        <div class="pm-sign"><div class="pm-date">${dt.getDate()} ${mon} ${dt.getFullYear()}</div><div class="pm-sg"><span>${potusSignUS}</span><img src="img/sign_pres.png" class="pm-sig-img" alt="Signature"><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">POTUS<br>SEAL</i></div></div>
         <button id="promoOk">${preview ? "Close Preview" : "Accept Five-Star Baton"}</button>
       </div></div>`
     : `<div class="pm-doc pm-min" style="border-color:#b8860b;box-shadow:0 0 65px rgba(242,202,92,.45)"><div class="pm-pg on" data-pg="1">
@@ -1426,7 +1426,7 @@ function marshalOrder(preview = false) {
             </div>
           </div>
         </div>
-        <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>${potusSignKR}</span><svg viewBox="0 0 150 54" width="150" height="54"><path d="M10 34 C22 12 34 14 30 32 C26 46 40 38 50 22 C58 12 62 30 70 28 C80 24 84 14 92 22 C100 30 110 26 122 16 M56 44 C84 40 112 40 140 36" stroke="#1d2340" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg><i>國璽</i></div></div>
+        <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>${potusSignKR}</span><img src="img/sign_pres.png" class="pm-sig-img" alt="서명"><i>國璽</i></div></div>
         <button id="promoOk">${preview ? "미리보기 닫기" : "구국의 원수봉을 받겠습니다"}</button>
       </div></div>`;
   pmPreview = true; $("#promoM").style.display = "flex"; initAudio(); fanfare(10, staff.branch);
@@ -1458,7 +1458,7 @@ function presidentOrder(preview = false) {
             </div>
           </div>
         </div>
-        <div class="pm-sign"><div class="pm-date">20 JAN ${dt.getFullYear()}</div><div class="pm-sg"><span>Chief Justice of the United States</span><svg viewBox="0 0 160 54" width="160" height="54"><path d="M12 36 C22 10 34 14 28 32 C26 42 40 20 52 24 C60 28 62 36 74 28 C84 20 96 14 104 26 C112 36 124 20 146 22 M36 44 C72 40 112 40 148 36" stroke="#182a4a" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">GREAT<br>SEAL</i></div></div>
+        <div class="pm-sign"><div class="pm-date">20 JAN ${dt.getFullYear()}</div><div class="pm-sg"><span>Chief Justice of the United States</span><img src="img/sign_pres.png" class="pm-sig-img" alt="Signature"><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">GREAT<br>SEAL</i></div></div>
         <button id="promoOk">${preview ? "Close Preview" : "Enter The Oval Office"}</button>
       </div></div>`
     : `<div class="pm-doc pm-min" style="border-color:#1c3d6e;box-shadow:0 0 70px rgba(216,178,71,.42)"><div class="pm-pg on" data-pg="1">
@@ -1480,7 +1480,7 @@ function presidentOrder(preview = false) {
             </div>
           </div>
         </div>
-        <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>중앙선거관리위원회 위원장</span><svg viewBox="0 0 150 54" width="150" height="54"><path d="M10 34 C22 12 34 14 30 32 C26 46 40 38 50 22 C58 12 62 30 70 28 C80 24 84 14 92 22 C100 30 110 26 122 16 M56 44 C84 40 112 40 140 36" stroke="#1d2340" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg><i>選管委印</i></div></div>
+        <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>중앙선거관리위원회 위원장</span><img src="img/sign_pres.png" class="pm-sig-img" alt="서명"><i>選管委印</i></div></div>
         <button id="promoOk">${preview ? "미리보기 닫기" : "대통령실 국정 운영 시작"}</button>
       </div></div>`;
   pmPreview = true; $("#promoM").style.display = "flex"; initAudio(); playPotusAnthem();
