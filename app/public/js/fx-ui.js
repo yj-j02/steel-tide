@@ -68,6 +68,28 @@ function injectFxStyles() {
     .fx-defcon { display:inline-flex; align-items:center; gap:5px; padding:2px 9px; border-radius:99px; font-size:11px; font-weight:800;
       background:rgba(220,53,45,.22); color:#ff8f82; border:1px solid rgba(255,107,87,.55); animation:fxPulse 1.8s infinite; }
     @keyframes fxPulse { 0%,100%{opacity:1} 50%{opacity:.58} }
+
+    #fxMinOfferM { position:fixed; inset:0; z-index:148; display:none; align-items:center; justify-content:center; padding:18px;
+      background:radial-gradient(ellipse at center, rgba(16,28,46,.92), rgba(4,8,14,.97)); backdrop-filter:blur(4px); }
+    #fxMinOfferM.on { display:flex; animation:fxFadeIn .3s ease; }
+    .fx-mo-card { width:min(540px,94vw); background:linear-gradient(160deg,#101d30,#09111c); border:2px solid #f2ca5c; border-radius:14px;
+      box-shadow:0 0 50px rgba(242,202,92,.28), 0 24px 60px rgba(0,0,0,.78); padding:26px 28px; text-align:center; color:#eef5fc;
+      animation:fxMoUp .45s cubic-bezier(.18,.88,.3,1); }
+    @keyframes fxMoUp { from { opacity:0; transform:translateY(28px) scale(.94); } to { opacity:1; transform:none; } }
+    .fx-mo-seal { width:72px; height:72px; margin:0 auto 12px; border-radius:50%; background:radial-gradient(circle,#ffe38e,#c9942a);
+      display:flex; align-items:center; justify-content:center; font-size:34px; color:#131b26;
+      box-shadow:0 0 28px rgba(242,202,92,.55); animation:fxMoSeal .55s cubic-bezier(.2,1.15,.35,1); }
+    @keyframes fxMoSeal { 0%{transform:scale(.4) rotate(-18deg);opacity:0} 70%{transform:scale(1.08) rotate(4deg);opacity:1} 100%{transform:scale(1) rotate(0);opacity:1} }
+    .fx-mo-kicker { font-size:11px; font-weight:800; letter-spacing:2.4px; color:#f2ca5c; margin-bottom:6px; }
+    .fx-mo-card h2 { margin:0 0 10px; font-size:22px; color:#fff; }
+    .fx-mo-card p { margin:0 0 18px; font-size:13.5px; line-height:1.68; color:#d2e2f0; }
+    .fx-mo-btns { display:flex; flex-direction:column; gap:9px; }
+    .fx-mo-accept { background:linear-gradient(90deg,#c98a1c,#f0c44c); color:#101822; border:none; border-radius:8px; padding:12px 16px;
+      font-weight:900; font-size:14px; cursor:pointer; box-shadow:0 6px 20px rgba(240,196,76,.32); }
+    .fx-mo-accept:hover { filter:brightness(1.08); }
+    .fx-mo-decline { background:rgba(255,255,255,.06); color:#b8cfe0; border:1px solid rgba(255,255,255,.18); border-radius:8px;
+      padding:10px 14px; font-size:12.5px; cursor:pointer; }
+    .fx-mo-decline:hover { background:rgba(255,255,255,.12); color:#fff; }
   `;
   document.head.appendChild(s);
 }
@@ -225,4 +247,33 @@ export function officeAmbienceLabel(grade, isUSFlag) {
   if (grade >= 6) return isUSFlag ? "🎖️ 장성 사령부 집무실" : "🎖️ 장성급 사령부 집무실";
   if (grade >= 3) return isUSFlag ? "📋 영관 지휘관실" : "📋 대대·연대 지휘관실";
   return isUSFlag ? "⛺ 야전 초급장교 지휘소" : "⛺ 야전 부대 지휘소";
+}
+
+/** Show a dramatic animated Minister of Defense / SecDef nomination offer modal upon retiring as a 4-star+ General. */
+export function showMinisterOfferModal({ nation = "kr", rankName = "대장", cmdrName = "지휘관", onAccept, onDecline }) {
+  injectFxStyles();
+  let el = document.getElementById("fxMinOfferM");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "fxMinOfferM";
+    document.body.appendChild(el);
+  }
+  const us = nation === "us";
+  el.innerHTML = `<div class="fx-mo-card">
+    <div class="fx-mo-seal">${us ? "🦅" : "🏛️"}</div>
+    <div class="fx-mo-kicker">${us ? "THE WHITE HOUSE · URGENT NOMINATION" : "대한민국 대통령실 · 비서실장 긴급 연락"}</div>
+    <h2>${us ? "미합중국 국방장관 (SecDef) 지명 오퍼" : "대한민국 국방부장관 지명 오퍼"}</h2>
+    <p>${us
+      ? `예비역 ${rankName} <b>${cmdrName}</b> 장군님, 현역 복무를 명예롭게 마치신 직후 백악관으로부터 긴급 연락이 도착했습니다.<br>대통령께서 귀하를 차기 <b>미 국방장관(Secretary of Defense)</b>으로 지명하고자 합니다. 펜타곤의 수장이 되어 36주간 미군 국방 경영을 이끄시겠습니까?`
+      : `예비역 ${rankName} <b>${cmdrName}</b> 장군님, 명예로운 전역을 축하드리며 대통령실 비서실장이 긴급 연락을 전해왔습니다.<br>대통령께서 귀하를 차기 <b>대한민국 국방부장관</b>으로 임명하고자 합니다. 국방부 집무실에 입성해 36주간 3군 국방 경영을 총괄하시겠습니까?`
+    }</p>
+    <div class="fx-mo-btns">
+      <button class="fx-mo-accept" id="fxMoAccept">🏛️ ${us ? "미 국방장관 (SecDef) 지명 수락 ›" : "국방부장관 지명 수락 (국방부 집무실 입성) ›"}</button>
+      <button class="fx-mo-decline" id="fxMoDecline">정중히 사양하고 민간 제2의 인생 진로 선택</button>
+    </div>
+  </div>`;
+  el.classList.add("on");
+  const close = () => { el.classList.remove("on"); };
+  el.querySelector("#fxMoAccept").onclick = () => { close(); if (onAccept) onAccept(); };
+  el.querySelector("#fxMoDecline").onclick = () => { close(); if (onDecline) onDecline(); };
 }

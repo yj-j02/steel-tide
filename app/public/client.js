@@ -47,7 +47,7 @@ let hqView = "duty", minDirect = false, minDirect3d = false, dutyDirect = false,
 import { FOCUS, PASS, minBattles, scoreBattle, recordEval, evalOf, board, marshalQuest, setCap, deferNote } from "./js/service.js";
 import { openMarshalWar } from "./js/marshal-war.js";
 import { availableRetireRoutes, resolveRetireRoute } from "./js/retire-routes.js";
-import { stampCard, floatStatDeltas, showEventScene, showBreakingPaper, bossReactionQuote, officeAmbienceLabel } from "./js/fx-ui.js";
+import { stampCard, floatStatDeltas, showEventScene, showBreakingPaper, bossReactionQuote, officeAmbienceLabel, showMinisterOfferModal } from "./js/fx-ui.js";
 import { ECON_RANKS, ECON_RANK_XP, econRank, econNewProfile, econReward, econCheck, econApply } from "./js/shop.js";
 
 // ── profile + room connection ───────────────────────────────────────────────
@@ -1114,8 +1114,8 @@ function ministerHTML(rl) {
   if (rl.r < 9) return ""; if (!isUS() && isPotus()) return `<div class="mi-min on"><b>${potusOn() ? "대통령 재임 중" : "대통령 퇴임"}</b><small>${potusTitle()}</small></div>`;
   const mTitle = isUS() ? "미 국방장관 (SecDef)" : "국방부장관";
   if (career.minister) return civil() ? `<div class="mi-min on"><b>${mTitle} 임기 종료 · 민간인</b><small>예비역 ${rl.name} · ${isUS() ? "미 대선 챕터 추후 업데이트 예정" : "다음 장: 대통령 출마 가능"}</small></div>` : `<div class="mi-min on"><b>${mTitle} 재임 중</b><small>예비역 ${rl.name} · 대통령 임명 · 사령부 탭 → ${isUS() ? "펜타곤 집무실" : "국방부 집무실"}</small></div>`;
-  const e = evalOf(rl.r), ok = ministerOk(rl.r);
-  return `<div class="mi-min"><b>${mTitle} 임명 제청</b><small>${isUS() ? "대장(O-10)" : "대장"} 이상 · 이 계급 근무 ${e.n}/3회 · 평정 평균 ${e.avg}점 (70점·A 이상 필요)${profile.admin ? " · 관리자" : ""}</small><button data-act="minister"${ok ? "" : " disabled"}>${ok ? "제청 수락 — 전역 후 장관 임명" : "조건 미충족"}</button></div>`;
+  const e = evalOf(rl.r), ok = ministerOk(rl.r) && !!career.discharged;
+  return `<div class="mi-min"><b>${mTitle} 지명 오퍼</b><small>${!career.discharged ? "문민통제 원칙에 따라 대장 이상으로 전역하면 대통령실에서 지명 오퍼가 도착합니다." : `${isUS() ? "예비역 대장(O-10)" : "예비역 대장"} 이상 · 평정 ${e.avg}점 (70점+)`}</small><button data-act="minister"${ok ? "" : " disabled"}>${ok ? "지명 오퍼 수락 — 국방부 입성" : !career.discharged ? "전역 후 오퍼 도착" : "조건 미충족"}</button></div>`;
 }
 function ministerOrder() {
   saveFinalUniform(myGrade(), postOf(myGrade()));
@@ -1539,7 +1539,7 @@ function renderDutyDesk() {
   const cr = d.crisis ? dutyCrisisById(d.crisis) : null;
   const crFmRec = cr && cr.domain !== "navy";
   const crCard = cr ? `<div id="duty-crisis" class="mn-card mn-dk mn-nsc"><b>🚨 ${cr.tag} — ${cr.title}</b><p>${cr.desc}</p><div class="dm-ops"><button class="dm-op" data-duty="del">① 자동 위임</button><button class="dm-op fm" data-duty="fm">② FM 합동 작전 지휘${crFmRec ? " ★추천" : ""}</button><button class="dm-op d3" data-duty="3d">③ 3D 직접 개입${!crFmRec ? " ★추천" : ""}</button></div></div>` : "";
-  const minBtn = g >= 9 && (ministerOk(g) || profile.admin) ? `<div class="mn-card" style="border-color:#ffd166"><b>🏛️ ${isUS() ? "미 국방장관 (SecDef) 지명 가능" : "국방부장관 임명 가능"}</b><p>대장 계급과 우수 평정을 달성했습니다. ${isUS() ? "펜타곤 국방장관으로 취임해 36주 3군 국방 경영을 시작하십시오." : "국방부장관으로 취임해 36주 3군 국방 경영을 시작하십시오."}</p><button class="mn-go" data-duty="tomin">${isUS() ? "미 국방장관 취임 ›" : "국방부장관 취임 ›"}</button></div>` : "";
+  const minBtn = g >= 9 ? `<div class="mn-card" style="border-color:rgba(255,209,102,.45)"><b>🏛️ ${isUS() ? "미 국방장관 (SecDef) 지명 안내" : "국방부장관 지명 안내"}</b><p style="font-size:11.5px;color:#d6e2ec">문민통제 원칙에 따라 현역 대장 복무를 마치고 <b>전역 신청</b>하면 대통령실로부터 공식 국방부장관 지명 오퍼가 도착합니다.</p></div>` : "";
   const admDuty = profile.admin ? `<div class="adm-bar"><b>관리자 시험</b><button data-duty="admrank">+1계급 진급</button><button data-duty="tomin">→ ${isUS() ? "미 국방장관 취임" : "국방부장관 취임"}</button>${isUS() ? `<button data-uspres="preview">→ 미국 대선 시험 (538)</button>` : `<button data-adm="topres">→ 대선 시작</button><button data-adm="topotus">→ 대통령 취임</button>`}<button data-adm="reset0">↺ 소위부터 다시 시작</button></div>` : "";
   const wrObj = d.warroom ? warroomById(d.warroom.id) : null;
   const wrStg = wrObj?.stages?.[d.warroom?.stage || 0];
@@ -1699,6 +1699,22 @@ function renderDischarged() {
   const curRoute = resolveRetireRoute(dc.routeId, br, g, isUS());
   const why = dc.reason ?? (dc.voluntary ? "전역 신청으로 현역 복무를 마쳤습니다." : "이전 복무 기록에 따라 전역했습니다.");
   const admRow = profile.admin ? `<div class="adm-bar"><b>관리자 시험</b><button data-adm="reset0">↺ 소위부터 다시 시작</button></div>` : "";
+  const canMinOffer = (g >= 9 && (ministerOk(g) || profile.admin)) && !career.minister;
+  const triggerMinOffer = () => {
+    showMinisterOfferModal({
+      nation: isUS() ? "us" : "kr",
+      rankName: rankLabel(g, svk),
+      cmdrName: cmdr.name,
+      onAccept: () => { career.minister = true; openHQ("min"); ministerOrder(); },
+      onDecline: () => { toast("오퍼를 정중히 사양했습니다. 민간 제2의 인생을 선택하십시오.", 3); },
+    });
+  };
+  if (canMinOffer && !dc.minOfferSeen) {
+    dc.minOfferSeen = true;
+    saveCareer();
+    setTimeout(triggerMinOffer, 260);
+  }
+  const minOfferBtn = canMinOffer ? `<button class="mn-go" data-duty="minoffer" style="background:linear-gradient(90deg,#c98a1c,#f0c44c);color:#101822;font-weight:800;margin-bottom:8px">🏛️ ${isUS() ? "백악관 국방장관(SecDef) 지명 오퍼 다시 보기 ›" : "대통령실 국방부장관 지명 오퍼 다시 보기 ›"}</button>` : "";
   if (!dc.routeConfirmed) {
     const pickCards = routes.map((r) => `<div style="background:#0e1723;border:1.5px solid ${r.primary ? "#f2ca5c" : "rgba(120,158,190,.35)"};border-radius:10px;overflow:hidden;display:flex;flex-direction:column;text-align:left">
       <div style="height:126px;background:url('${r.img}') center/cover no-repeat;position:relative">
@@ -1719,6 +1735,7 @@ function renderDischarged() {
       <div style="color:#ffd166;font:800 13px 'Noto Sans KR',sans-serif;margin-bottom:4px">🧭 전역 후 제2의 인생 진로 선택</div>
       <h3 style="margin:0 0 6px">${sv.icon} 예비역 ${rankLabel(g, svk)} ${cmdr.name} · 최종 보직 ${postLabel(dc.title || postOf(g))}</h3>
       <p style="font-size:12px;color:#a8c4d8;margin:0 0 14px">${escapeTitle(why)} — 전역 후 걸어갈 제2의 인생 루트를 <b>하나만 최종 선택</b>하십시오.</p>
+      ${minOfferBtn}
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">${pickCards}</div>
     </div></div></div>`;
     return;
@@ -1745,6 +1762,7 @@ function renderDischarged() {
       <div class="kv"><span>최종 계급</span><b>${insignia(g, 16)} ${rankLabel(g, svk)}</b></div>
       ${dc.serviceMonths != null ? `<div class="kv"><span>총 현역 복무</span><b>${serviceDuration(dc.serviceMonths)}</b></div>` : ""}
       <div class="kv"><span>최종 계급 평균 평정</span><b>${dc.avg || 0}점</b></div>
+      ${minOfferBtn}
       ${g >= 6 ? (isUS() ? `<button class="mn-pres" data-uspres="start"><b>🇺🇸 예비역 장성 · 미국 대통령 선거 출마 (538 선거인단) ›</b><small>군복을 벗고 미 합중국 대통령 선거에 도전합니다.</small></button>` : `<button class="mn-pres" data-pres="start"><b>예비역 장성 · 대통령 선거 출마 ›</b><small>군복을 벗고 민간인 예비역 장성으로 정계에 도전합니다.</small></button>`) : ""}
       <button class="mn-go" data-duty="restart">↺ 2회차 시작 (소위 재임관)</button>
     </div>
@@ -2297,6 +2315,17 @@ $("#hqP").addEventListener("click", (e) => {
           refreshMenus();
           renderDutyDesk();
         },
+      });
+      return;
+    }
+    if (a === "minoffer") {
+      const gg = career.discharged?.g ?? g;
+      showMinisterOfferModal({
+        nation: isUS() ? "us" : "kr",
+        rankName: rankLabel(gg, svk),
+        cmdrName: cmdr.name,
+        onAccept: () => { career.minister = true; openHQ("min"); ministerOrder(); },
+        onDecline: () => {},
       });
       return;
     }
