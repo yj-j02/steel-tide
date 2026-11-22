@@ -100,10 +100,9 @@ export function preview(g, xp, title, br, svc, d = dutyState()) {
     100,
   );
   const posts = flagPostsForTrack(g + 1, br, svc);
-  const blocker = (d.rivals || []).find(
-    (r) => !r.retired && r.g === g + 1 && posts.some((p) => p.t === r.post),
+  const vacant = posts.filter(
+    (p) => !d.rivals?.some((r) => !r.retired && r.g === g + 1 && r.post === p.t),
   );
-  const vacant = posts.filter((p) => !blocker || p.t !== blocker.post);
   const seats =
     g < 3 ? 1 : g < 5 ? 2 : Math.min(vacant.length, g === 5 ? 2 : 1);
   const rivals = (d.rivals || [])
