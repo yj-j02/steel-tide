@@ -1,18 +1,38 @@
 /* Career touch layouts. Tactical controls have their own screen. */
 .mobile-menu, .mobile-side, .mobile-picker { display:none }
 @media (max-width: 760px), (pointer:coarse) and (max-height: 550px) {
-  #titleHub, #hqP, #recordP, #scene2d, #promoM, .bd-modal { touch-action:pan-y pinch-zoom }
+  #titleHub, #recordP, #scene2d, #promoM, .bd-modal { touch-action:pan-y pinch-zoom }
   #titleHub { padding:8px }
   .th-card, .th-roster { box-sizing:border-box; width:100%; max-height:94vh; max-height:94dvh; padding:16px 12px }
   .th-title { font-size:30px }
   .th-brs, .th-row { grid-template-columns:repeat(2,minmax(0,1fr)) }
   .th-service-contract, .th-faces, .hq-tog { flex-wrap:wrap }
-  .th-service-contract select { min-width:0; max-width:100% }
+  .th-service-contract select { width:100%; box-sizing:border-box; min-width:0; max-width:100% }
   #titleHub :is(input,select), .mobile-picker select { font-size:16px }
   #titleHub button, #hqP button:not(.us-st,.wh-pin), #promoM button, .bd-modal button, #scene2d button { min-height:44px; touch-action:manipulation }
   #topbar { height:52px; padding:0 8px; gap:8px }
   #topbar .logo { font-size:15px; white-space:nowrap }
-  #topbar .tb-right { min-width:0; overflow:hidden }
+  #topbar .mobile-menu { flex:none; white-space:nowrap }
+  #topbar .tb-right, #topbar .tb-rank, #topbar .tb-rank > div:last-child { min-width:0 }
+  #topbar .tb-right { flex:1; justify-content:flex-end }
+  #tbIns { flex:none }
+  #tbIns svg { max-width:100%; max-height:100% }
+  #topbar .rk { width:100% }
+  #toast { box-sizing:border-box; width:max-content; max-width:calc(100% - 24px); padding:8px 12px; overflow-wrap:anywhere; z-index:119 }
+  #hqP .hq-head { display:grid; grid-template-columns:minmax(0,1fr); align-items:start }
+  #hqP .hq-sum { display:grid; grid-template-columns:repeat(auto-fit,minmax(76px,1fr)) }
+  #hqP .hq-st { min-width:0 }
+  #hqP .hq-unit { grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr)) }
+  #hqP .hq-cands { grid-template-columns:minmax(0,1fr) }
+  #hqP .hq-sk { min-width:0 }
+  #hqP .hq-ci { min-width:0 }
+  #hqP .hq-c { grid-template-columns:auto minmax(0,1fr) }
+  #hqP .hq-ca { grid-column:1/-1 }
+  #recordP .rstats { grid-template-columns:repeat(2,minmax(0,1fr)) }
+  #hqP .hq-rh, #hqP .hq-legend { flex-wrap:wrap }
+  #hqP .hq-post b, #hqP .hq-nm b { white-space:normal; overflow-wrap:anywhere }
+  #hqP .hq-grid { touch-action:pan-x pan-y pinch-zoom }
+
   #tbRank { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:42vw }
   .mobile-menu, .mobile-side { display:block; background:#182a37; border:1px solid #517183; border-radius:5px; color:#ecf2f6; padding:8px 12px; min-height:44px }
   #topbar nav, #topbar #natSw { display:none }
@@ -42,8 +62,16 @@
   .bd-modal button:last-child { position:sticky; bottom:0; background:#203747; color:#fff }
   .hq-tog small { flex-basis:100% }
   .bd-modal { padding:14px; overflow:auto }
-  #promoM .pm-doc { width:calc(100vw - 16px); box-sizing:border-box; padding:16px; max-height:92dvh }
-  #promoM .pm-next, #promoOk { position:sticky; bottom:0 }
+  #promoM { box-sizing:border-box; padding:8px 8px max(12px,env(safe-area-inset-bottom)); overflow-y:auto }
+  #promoM .pm-doc { box-sizing:border-box; flex:none; width:100%; max-width:640px; max-height:none; overflow:visible; padding:16px; margin:0 auto }
+  #promoM .pm-pg.on { justify-content:flex-start; min-height:0; text-align:center; overflow-wrap:anywhere }
+  #promoM .pm-ins, #promoM .pm-flag { box-sizing:border-box; max-width:100%; flex:none }
+  #promoM .pm-ins { padding:8px 12px; animation:none }
+  #promoM :is(.pm-ins,.pm-flag) > svg { display:block; max-width:100%; height:auto; max-height:24dvh; margin:auto }
+  #promoM .pm-rank { font-size:clamp(22px,6vw,34px); letter-spacing:.04em }
+  #promoM .pst-row { max-height:none; overflow:visible }
+
+  #promoM .pm-next, #promoOk { position:static }
   #scene2d .s3-title { left:12px; top:12px; max-width:67% }
   #scene2d .s3-title b { font-size:16px }
   #scene2d .s3-skip { right:6px; top:8px; bottom:auto }

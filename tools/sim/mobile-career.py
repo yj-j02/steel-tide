@@ -25,13 +25,31 @@ def check(page, nation):
     page.locator(".mobile-side").tap()
     expect(page.locator("#careerSide")).to_be_visible()
     page.locator(".mobile-side").tap()
+    page.locator(".mobile-menu").tap()
+    page.locator("#tabOrg").tap()
+    fits(page,"#hqP")
+    home(page)
     for turn in range(1,11):
         page.locator(f'[data-duty="ev:opening-inf-{turn}:0"]').tap()
         report = page.locator('[data-duty="rep:0"]:enabled')
         if report.count():
             report.tap()
         page.locator('[data-duty="next"]').tap()
+        if turn == 1:
+            toast = page.locator("#toast")
+            expect(toast).to_contain_text("새 안건")
+            assert toast.evaluate("e => e.clientWidth > 170 && e.clientHeight < 64")
     assert page.evaluate("async()=> (await import('./js/career.js')).career.cap") == 1
+    badge = page.locator("#promoM .pm-ins svg")
+    expect(badge).to_be_visible()
+    for size in ((320,568),(568,320)):
+        page.set_viewport_size({"width": size[0], "height": size[1]})
+        assert badge.evaluate("""e => {
+          const b=e.getBoundingClientRect();
+          return b.width>12 && b.left>=0 && b.right<=innerWidth && b.top>=0 && b.bottom<=innerHeight &&
+            e.contains(document.elementFromPoint(b.x+b.width/2,b.y+b.height/2));
+        }"""), size
+    page.set_viewport_size({"width":360,"height":800})
     page.locator('[data-pmgo="2"]').tap()
     if page.locator('[data-pmgo="3"]').is_visible():
         page.locator('[data-pmgo="3"]').tap()
