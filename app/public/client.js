@@ -2106,7 +2106,7 @@ function potusResult(r) {
   if (r.cuts) { renderPotus(); playCuts({ title: "대통령 퇴임", place: "대통령실", cuts: r.cuts, onClose: () => { renderPotus(); refreshMenus(); } }); return; }
   if (r.redraw) { renderPotus(); refreshMenus(); }
 }
-function renderPres() { if (!presState()) presStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="min">‹ 국방부 기록</button><b>대통령 선거</b><small>${cmdr.name}</small>${potusState() ? `<button data-hqv="potus" class="hq-tg2">대통령실 ›</button>` : ""}</div>${admBar("pres")}${presHTML()}`; }
+function renderPres() { if (!presState()) presStart(cmdr.name); setAmbienceMood("presidential"); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="min">‹ 국방부 기록</button><b>대통령 선거</b><small>${cmdr.name}</small>${potusState() ? `<button data-hqv="potus" class="hq-tg2">대통령실 ›</button>` : ""}</div>${admBar("pres")}${presHTML()}`; }
 /** 대선 화면 클릭 결과 처리 (장면·컷·다시 그리기) */
 function presResult(r) {
   setTheme(presTheme());
@@ -2143,7 +2143,7 @@ function restartCurrentCareer(keepAdmin = false) {
 }
 
 function renderUsPres() {
-  if (usPotusOn()) setAmbienceMood("presidential");
+  setAmbienceMood("presidential");
   const admUs = profile.admin ? `<div class="adm-bar"><b>관리자 시험 (US 대선·백악관)</b><button data-usadm="pri">경선 승리</button><button data-usadm="night">선거일</button><button data-usadm="win">당선(POTUS)</button><button data-usadm="loss">낙선</button><button data-usadm="seats">의석 반전</button><button data-usadm="qtr">분기 스킵</button><button data-usadm="end">임기 종료</button><button data-uspres="reset">초기화</button></div>` : "";
   const svk = serviceOf(normBranch(staff.branch));
   const cab = usPotusOn() ? classmateCabinetHTML({ mode: "potus_us", rivals: dutyState().rivals || [], appointed: career.cabinetAppointments?.potus_us || {}, rankLabelFn: (r) => rankLabel(r, svk) }) : "";
@@ -2467,7 +2467,7 @@ $("#titleHub")?.addEventListener("click", (e) => {
 });
 
 function openHQ(view = null) {
-  initAudio(); bgm("menu"); hideAll(); screen = "hq"; G.state = "menu";
+  initAudio(); hideAll(); screen = "hq"; G.state = "menu";
   if (view) usPresPreview = false;
   if (view === "org") hqView = "org";
   else if (view === "min") hqView = "min";
@@ -2948,7 +2948,7 @@ $("#hqP").addEventListener("click", (e) => {
   if (tk && profile.admin) { sfx.click(); if (tk.dataset.take === "reset") staff.adminPost = null; else { const [k, g, t] = tk.dataset.take.split(":"), fp = curFlagPosts().find((p) => p.t === t && p.g === +g); staff.adminPost = { b: fp ? fp.b : BRANCHES[k] ? k : staff.branch, g: +g, t: fp ? t : null }; } saveStaff(); renderHQ(); return; }
   const br = e.target.closest("[data-branch]"); if (br) { sfx.click(); const had = career.seen != null; if (!had) hqView = "duty"; setBranch(br.dataset.branch); svcDraft = null; showcase(flagshipId()); if (had) logPromotion({ g: myGrade(), t: careerTitle(myGrade()), b: BRANCHES[br.dataset.branch].n, why: "보직 변경" }); else careerInit(myGrade(), careerTitle(myGrade()), BRANCHES[br.dataset.branch].n); refreshMenus(); renderHQ(); toast(`${BRANCHES[br.dataset.branch].n} 보직 — ${careerTitle(myGrade())}`); return; } if (e.target.closest("[data-rebranch]")) { sfx.click(); staff.branch = null; hqView = "duty"; usPresPreview = false; renderHQ(); return; } const r = e.target.closest("[data-role]"); if (r) { sfx.click(); hqRole = r.dataset.role; renderHQ(); return; } const a = e.target.closest("[data-appoint]"); if (a) { sfx.click(); appoint(hqRole, a.dataset.appoint); renderHQ(); toast(`${STAFF_ROLES.find((x) => x.k === hqRole).n} 임명 — ${officer(a.dataset.appoint).rk} ${officer(a.dataset.appoint).nm}`); } });
 $("#tabPort").addEventListener("click", () => { sfx.click(); openMenu(); });
-function openRecord() { initAudio(); bgm("menu"); hideAll(); screen = "record"; G.state = "menu"; setTab("record"); $("#topbar").style.display = "flex"; renderRecord(); $("#recordP").style.display = "block"; showcase(flagshipId()); }
+function openRecord() { initAudio(); bgm((career.minister || (!isUS() && isPotus()) || usIsPotus()) ? "state" : "menu"); hideAll(); screen = "record"; G.state = "menu"; setTab("record"); $("#topbar").style.display = "flex"; renderRecord(); $("#recordP").style.display = "block"; showcase(flagshipId()); }
 $("#tabRecord").addEventListener("click", () => { sfx.click(); openRecord(); });
 function hideAll() { if (typeof md !== "undefined" && md.fly) { md.fly.pilot = false; md.fly = null; } document.body.classList.remove("jetfly"); jetSound(0); sel = []; $("#cmdrM").style.display = "none"; $("#titleHub")?.classList.remove("on"); capClear(); aa.on = false; aaGun.visible = false; paused = false; $("#pause").style.display = "none"; $("#start").style.display = "none"; $("#end").style.display = "none"; $("#yard").style.display = "none"; $("#recordP").style.display = "none"; $("#hqP").style.display = "none"; $("#promoM").style.display = "none"; document.body.classList.remove("playing", "flying", "auto", "firstp"); if (goalMk) goalMk.visible = false; }
 function openYard() { return openRecord(); }

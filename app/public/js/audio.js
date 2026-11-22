@@ -546,26 +546,9 @@ function syncBgm() {
 
 let curMood = "office";
 export const currentAmbienceMood = () => curMood;
-/** Dynamically shifts BGM track, playback timbre, and plays a subtle WebAudio harmonic stinger when entering DEFCON / Ministry / Presidential chambers. */
+/** Switches BGM track cleanly: Ministry/Pentagon & Presidential/White House use sfx/bgm_state.mp3 ("state"). */
 export function setAmbienceMood(mood = "office") {
-  const prev = curMood;
   curMood = mood;
-  const track = mood === "defcon" ? "battle" : "menu";
+  const track = (mood === "ministry" || mood === "presidential") ? "state" : mood === "defcon" ? "battle" : "menu";
   if (A.bgmWant !== track) bgm(track);
-  if (A.bgmEl) {
-    try {
-      A.bgmEl.playbackRate = mood === "presidential" ? 0.92 : mood === "ministry" ? 0.96 : 1.0;
-    } catch {}
-  }
-  if (prev === mood || !A.ctx || A.muted) return;
-  const t0 = A.ctx.currentTime + 0.04;
-  if (mood === "defcon") {
-    timp(t0, 41.2, 0.22);
-    voiceTone(0.035, 0.28, 880, 880, "sine", 0.08);
-  } else if (mood === "ministry") {
-    brass(["Bb2", "F3", "Bb3", "D4"].map(NOTE), t0, 1.3, 0.014);
-  } else if (mood === "presidential") {
-    brass(["Eb3", "Bb3", "Eb4", "G4", "Bb4"].map(NOTE), t0, 1.7, 0.016);
-    timp(t0, 38.9, 0.24);
-  }
 }
