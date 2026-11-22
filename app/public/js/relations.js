@@ -1,7 +1,10 @@
 // 인맥 & 인간 드라마: 직속 상관(평정권자) 성향, 동기 인터랙션 이벤트, 우호 동기 참모 시너지, 장군 회고록(Chronicle) & PNG 저장.
 import { isUS, serviceOf, normBranch, careerTitle, curServices, curBranches } from "./staff.js";
-import { usNpcName } from "./us-ranks.js";
+import { usNpcName, koreanUsRanks } from "./us-ranks.js";
+import { koreanPostName } from "./us-post-labels.js";
 import { careerDate } from "./service-calendar.js";
+
+const fmtPost = (title) => (title && isUS() && koreanUsRanks() ? koreanPostName(title) : title || "");
 
 export const BOSS_STYLES = {
   strict: {
@@ -119,7 +122,7 @@ export function rivalEpilogues(rivals = [], rankLabelFn) {
   return (rivals || []).map((r, ri) => {
     const nm = us ? usNpcName(r.name + ri) : r.name;
     const rel = r.rel ?? 50;
-    const post = r.retired ? (r.retiredPost || "예비역 · 방산·안보 자문위원") : (r.post || careerTitle(r.g, r.br));
+    const post = r.retired ? (r.retiredPost || "예비역 · 방산·안보 자문위원") : fmtPost(r.post || careerTitle(r.g, r.br));
     const rk = r.retired ? `예비역 ${rankLabelFn(r.g)}` : rankLabelFn(r.g);
     const routeTag = r.style || "야전 지휘관";
     const bond = r.retired
@@ -183,7 +186,7 @@ export function careerPathHTML({ log = [], grade = 0, initBranchName = "", curBr
       ${n.cur ? `<circle cx="${x}" cy="${y}" r="11" fill="rgba(242,202,92,.24)"/>` : ""}
       <circle cx="${x}" cy="${y}" r="${n.cur ? 6.5 : 5}" fill="${fill}" stroke="#0d1520" stroke-width="1.6"/>
       <text x="${x}" y="${y - 11}" text-anchor="middle" font-size="10" fill="${n.cur ? "#ffe28a" : "#d8e7f4"}" font-weight="${n.cur ? 800 : 600}">${n.label}</text>
-      <text x="${x}" y="${y + 18}" text-anchor="middle" font-size="9" fill="${n.shifted ? "#d8bcff" : "#97b4c9"}">${(n.branch || "").slice(0, 8)}</text>
+      <text x="${x}" y="${y + 18}" text-anchor="middle" font-size="9" fill="${n.shifted ? "#d8bcff" : "#97b4c9"}">${fmtPost(n.branch || "").slice(0, 8)}</text>
     </g>`;
   }).join("");
 
@@ -207,7 +210,7 @@ export function careerPathHTML({ log = [], grade = 0, initBranchName = "", curBr
       </svg>
     </div>
     <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;font-size:11px;color:#b8cfe0">
-      <span>🟢 상단 실선: 임관 병과 정석 유지 (${baseBranch})</span>
+      <span>🟢 상단 실선: 임관 병과 정석 유지 (${fmtPost(baseBranch)})</span>
       <span>🟣 하단 분기: 타 병과·합동 트랙 전과/순환</span>
       <span style="color:${synergyOk ? "#8ef07a" : "#95aec2"}">${synergyOk ? "✔ 야전·합동 균형 경력 충족 (진급심사 +5점)" : "○ 야전+합동 병행 시 진급심사 +5점 가점"}</span>
     </div>
@@ -253,7 +256,7 @@ export function decisionImpactHTML({ log = [], timeline = [], boardHistory = [],
 /** Build the Career Chronicle (장군 회고록) HTML for endings and 인사기록 modal. */
 export function chronicleHTML({ cmdrName, grade, rankName, post, svcName, branchName, initBranchName = "", week, medalsCount, log = [], rivals = [], timeline = [], boardHistory = [], tours = {}, rankLabelFn, chapterLabel }) {
   const ep = rivalEpilogues(rivals, rankLabelFn);
-  const milestones = log.slice(-10).map((e, idx) => `<li><b>${logServiceLabel(e, idx)}</b> · ${rankLabelFn(e.g)} · ${e.t}${e.why && !["임관", "보직 변경"].includes(e.why) ? ` <small>(${e.why})</small>` : ""}</li>`).join("") || "<li>임관 기록 준비 중</li>";
+  const milestones = log.slice(-10).map((e, idx) => `<li><b>${logServiceLabel(e, idx)}</b> · ${rankLabelFn(e.g)} · ${fmtPost(e.t)}${e.why && !["임관", "보직 변경"].includes(e.why) ? ` <small>(${e.why})</small>` : ""}</li>`).join("") || "<li>임관 기록 준비 중</li>";
   const pathBox = careerPathHTML({ log, grade, initBranchName: initBranchName || log[0]?.b || branchName, curBranchName: branchName, rankLabelFn, tours });
   const impactBox = decisionImpactHTML({ log, timeline, boardHistory, rivals, tours, grade });
   return `<div class="mn-card" style="text-align:left;border-color:#f2ca5c;background:rgba(16,22,30,.92);padding:18px 20px">
@@ -305,7 +308,7 @@ export function downloadChroniclePNG({ cmdrName, rankName, post, svcName, branch
   let y = 266;
   const recentLogs = log.slice(-7);
   recentLogs.forEach((e, idx) => {
-    ctx.fillText(`• ${logServiceLabel(e, idx)}  ${rankLabelFn(e.g)} — ${e.t}`, 64, y);
+    ctx.fillText(`• ${logServiceLabel(e, idx)}  ${rankLabelFn(e.g)} — ${fmtPost(e.t)}`, 64, y);
     y += 30;
   });
   ctx.fillStyle = "#72ace8"; ctx.font = "bold 20px sans-serif";
