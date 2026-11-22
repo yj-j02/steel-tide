@@ -277,8 +277,8 @@ export function careerPathHTML({ log = [], grade = 0, initBranchName = "", curBr
       <div><b style="color:#fff;font-size:13.5px">🗺️ 커리어 보직 경로도 (정석 라인 vs 전과·순환 루트)</b><div style="font-size:11.5px;color:#9eb9cd;margin-top:2px">${archetype.desc}</div></div>
       <span style="padding:3px 10px;border-radius:99px;font-size:11px;font-weight:800;background:rgba(255,255,255,.07);border:1px solid ${archetype.color};color:${archetype.color}">${archetype.tag} · 전과 ${switches}회</span>
     </div>
-    <div style="overflow-x:auto">
-      <svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:520px;background:#071019;border:1px solid #1f3348;border-radius:8px">
+    <div>
+      <svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block;max-width:100%;height:auto;background:#071019;border:1px solid #1f3348;border-radius:8px">
         <text x="12" y="${yStd + 4}" font-size="9.5" fill="#7eb8e8" font-weight="700">정석</text>
         <text x="12" y="${yRot + 4}" font-size="9.5" fill="#c29bff" font-weight="700">순환</text>
         ${stdLine}${pathSegs}${dots}
@@ -350,19 +350,19 @@ export function uniformGalleryHTML({ grade = 0, log = [], rankLabelFn, portraitF
     const svg = portraitFn(r);
     const postTxt = rec?.t ? fmtPost(rec.t) : "";
     const yrTxt = rec ? logServiceLabel(rec, r) : "";
-    cards.push(`<button type="button" class="chron-uni-card" data-uni-rank="${r}" title="클릭하여 정복 확대 보기" style="background:rgba(12,20,30,.85);border:1px solid ${r === maxG ? "#f2ca5c" : "rgba(114,172,232,.32)"};border-radius:8px;padding:7px;text-align:center;cursor:pointer;color:#eaf2fa;width:118px;flex:0 0 auto">
-      <div style="width:102px;height:102px;margin:0 auto 5px;border-radius:6px;overflow:hidden;border:1px solid rgba(242,202,92,.35)">${svg.replace(/width="300" height="300"/, 'width="102" height="102"')}</div>
+    cards.push(`<button type="button" class="chron-uni-card" data-uni-rank="${r}" title="클릭하여 정복 확대 보기" style="background:rgba(12,20,30,.85);border:1px solid ${r === maxG ? "#f2ca5c" : "rgba(114,172,232,.32)"};border-radius:8px;padding:7px;text-align:center;cursor:pointer;color:#eaf2fa;min-width:0">
+      <div style="width:100%;max-width:96px;aspect-ratio:1/1;margin:0 auto 5px;border-radius:6px;overflow:hidden;border:1px solid rgba(242,202,92,.35)">${svg.replace(/width="300" height="300"/, 'width="100%" height="100%"')}</div>
       <div style="font-size:11.5px;font-weight:800;color:${r === maxG ? "#ffe082" : "#fff"}">${rankLabelFn(r)}</div>
       ${postTxt ? `<div style="font-size:10px;color:#9fc5e2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px">${postTxt}</div>` : ""}
       ${yrTxt ? `<div style="font-size:9.5px;color:#7f9db3;margin-top:1px">${yrTxt}</div>` : ""}
     </button>`);
   }
   return `<div style="margin-bottom:14px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px;margin-bottom:7px">
       <b style="color:#f2ca5c;font-size:12.5px">🎖️ 계급별 정복 초상 갤러리 (${maxG + 1}계급 · 클릭 시 확대)</b>
       <small style="color:#8faec0;font-size:11px">소위부터 현재까지 착용한 정복·계급장·노화 변화</small>
     </div>
-    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px">${cards.join("")}</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(106px,1fr));gap:8px">${cards.join("")}</div>
   </div>`;
 }
 
