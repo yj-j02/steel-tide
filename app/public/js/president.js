@@ -88,14 +88,25 @@ const blackout = (P) => dday(P) <= 6;
 
 /** TV 토론 질문 세트 */
 export function debateQs(P) {
-  const k = [1, 3, 5].indexOf(P.turn), base = DEBATE_Q[k].map(([q, o]) => ({ who: "사회자", q, opts: o.map(([n, e]) => [n, e]) })), o = P.opp[0];
-  base.push({ who: `${o.n} 후보`, q: `${P.name} 후보는 장관 시절 성과를 말하지만, 그때 국정 지지율이 평균 ${P.term.avg}였습니다. 국민이 그 성과를 체감했다고 보십니까?`, opts: [["숫자로 실적 반박", "신뢰 +"], ["인정하고 비전으로 전환", "중도층 +"], ["상대 후보 이력으로 역공", "지지층 결집 · 중도층 −"]] });
+  const k = [1, 3, 5].indexOf(P.turn), base = DEBATE_Q[k].map(([q, o]) => ({ who: "사회자", q, opts: o.map(([n, e, , sp]) => [n, e, sp]) })), o = P.opp[0];
+  base.push({ who: `${o.n} 후보`, q: `${P.name} 후보는 장관 시절 성과를 말하지만, 그때 국정 지지율이 평균 ${P.term.avg}였습니다. 국민이 그 성과를 체감했다고 보십니까?`, opts: [
+    ["숫자로 실적 반박", "신뢰 +", "지지율 수치만 떼어 놓고 보실 일이 아닙니다. 재임 중 핵심 전력화 달성과 위기 방어 성과는 객관적 기록으로 남아 있습니다."],
+    ["인정하고 비전으로 전환", "중도층 +", "국민 눈높이에 부족했던 점은 겸허히 인정합니다. 그 교훈을 밑거름 삼아 민생과 안보를 함께 챙기는 대통령이 되겠습니다."],
+    ["상대 후보 이력으로 역공", "지지층 결집 · 중도층 −", "상대 후보께서는 국가 위기 앞에서 책임 있는 결정을 내려 보신 적이 있습니까? 말뿐인 비판으로는 나라를 지킬 수 없습니다."],
+  ] });
   if (k === 0 && P.serviceDecision) {
     base[2] = {who: "사회자", q: `복무 중 「${P.serviceDecision.title}」에서 “${P.serviceDecision.choice}”를 선택했습니다. 정부에서도 그 판단 기준을 적용할 수 있겠습니까?`,
-      opts: [["당시 결과와 판단 근거를 공개한다", "신뢰 +3"], ["제도의 한계와 개선안을 설명한다", "중도층 +4"], ["군 지휘 경력을 앞세운다", "안보층·경제층 +2 · 중도층 −4"]]};
+      opts: [
+        ["당시 결과와 판단 근거를 공개한다", "신뢰 +3", "당시 판단의 근거와 결과를 국민 앞에 투명하게 공개하겠습니다. 위기 앞에서 원칙을 지킨 결정이었고, 국정 운영도 그 기준을 따르겠습니다."],
+        ["제도의 한계와 개선안을 설명한다", "중도층 +4", "현장 지휘관으로서 기존 제도의 한계를 직접 겪었습니다. 대통령이 되면 불합리한 규정을 고쳐 현장 판단이 존중받도록 개선하겠습니다."],
+        ["군 지휘 경력을 앞세운다", "안보층·경제층 +2 · 중도층 −4", "생사가 갈리는 현장에서 수십 년간 검증된 결단력입니다. 책상머리 정치가 아니라 실전 위기관리 능력으로 나라를 이끌겠습니다."],
+      ]};
   }
   const ks = Object.keys(PAST).filter((id) => P.picks[id] != null), id = ks[k % Math.max(1, ks.length)];
-  if (id) { const [t, opts] = PAST[id], was = opts[P.picks[id]] || opts[0]; base.push({ who: "패널 기자", q: `장관 시절 「${t}」에서 '${was}' 쪽으로 결재하셨습니다. 지금도 같은 입장입니까?`, opts: [["그 입장 그대로입니다", "신뢰 +3 · 해당 지지층 +"], ["상황이 바뀌어 입장을 조정하겠습니다", "중도층 +2 · 신뢰 −5"]], past: id }); }
+  if (id) { const [t, opts] = PAST[id], was = opts[P.picks[id]] || opts[0]; base.push({ who: "패널 기자", q: `장관 시절 「${t}」에서 '${was}' 쪽으로 결재하셨습니다. 지금도 같은 입장입니까?`, opts: [
+    ["그 입장 그대로입니다", "신뢰 +3 · 해당 지지층 +", `「${t}」 건은 당시 국익과 안보 현실을 종합해 내린 소신 있는 결정이었습니다. 지금도 그 원칙과 판단에는 변함이 없습니다.`],
+    ["상황이 바뀌어 입장을 조정하겠습니다", "중도층 +2 · 신뢰 −5", `그때와 지금은 안보·국제 정세가 크게 달라졌습니다. 과거 결정에 얽매이기보다 변화한 현실에 맞춰 유연하게 조정하겠습니다.`],
+  ], past: id }); }
   return base;
 }
 function debatePick(P, qi, ai) {
@@ -165,7 +176,36 @@ export function presHTML() {
 }
 
 /** 클릭 처리 → { redraw, toast, scene, cuts } */
-const declScene = (P) => ({ kind: "declare", title: "대통령 선거 출마 선언", place: `${PARTIES[P.party]?.n || "무소속"} · 출마 선언 기자회견`, speaker: P.name, questions: [{ who: "기자", q: P.serviceDecision ? `복무 중 「${P.serviceDecision.title}」에서 “${P.serviceDecision.choice}”를 선택했습니다. 이 경험을 정부에서 어떻게 살리겠습니까?` : "공직을 마치고 대선에 출마하시는 이유는 무엇입니까?", opts: [["안보와 민생을 함께 지키겠습니다", "중도층 +3"], ["경험으로 증명하겠습니다", "인지도 +4"], ["새로운 정치를 하겠습니다", "청년층 +3"]] }], pick: (qi, ai) => presClick(`decl:${ai}`) });
+const declScene = (P) => ({
+  kind: "declare", title: "대통령 선거 출마 선언", place: `${PARTIES[P.party]?.n || "무소속"} · 출마 선언 기자회견`, speaker: P.name,
+  questions: [{
+    who: "기자",
+    q: P.serviceDecision ? `복무 중 「${P.serviceDecision.title}」에서 “${P.serviceDecision.choice}”를 선택했습니다. 이 경험을 정부에서 어떻게 살리겠습니까?` : "공직을 마치고 대선에 출마하시는 이유는 무엇입니까?",
+    opts: [
+      ["안보와 민생을 함께 지키겠습니다", "중도층 +3", "튼튼한 안보 위에 국민의 먹고사는 문제를 바로 세우겠습니다. 진영 갈등이 아닌 통합의 길로 나아가겠습니다."],
+      ["경험으로 증명하겠습니다", "인지도 +4", "말이 아니라 성과로 보여드리겠습니다. 현장에서 위기를 돌파해 온 경험으로 국정을 안정적으로 이끌겠습니다."],
+      ["새로운 정치를 하겠습니다", "청년층 +3", "낡은 정쟁의 시대를 끝내겠습니다. 청년과 미래 세대가 희망을 걸 수 있는 새로운 정치 질서를 열겠습니다."],
+    ],
+  }],
+  pick: (qi, ai) => presClick(`decl:${ai}`),
+});
+const PRI_QA = [
+  ["본선에서 이길 수 있다는 근거가 무엇입니까?", [
+    ["실적과 숫자로 답한다", "신뢰 기반 · 안정적", "국방 개혁과 위기 대응에서 확인된 객관적 지표가 제 경쟁력입니다. 본선에서 중도층의 선택을 받을 후보는 바로 저입니다."],
+    ["당원들과 함께 가겠다고 호소", "조직 기반", "혼자 이기는 선거가 아닙니다. 전국 당원 동지 여러분과 하나로 뭉쳐 반드시 본선 승리를 만들어 내겠습니다."],
+    ["상대 약점을 찌른다", "모 아니면 도", "상대 후보께서는 본선 확장성에 대한 우려가 여전합니다. 과거의 방식으로는 이번 대선에서 이길 수 없습니다."],
+  ]],
+  ["당에 들어온 지 얼마 안 된 분이 당을 대표할 수 있습니까?", [
+    ["실적과 숫자로 답한다", "신뢰 기반 · 안정적", "정당의 주인은 기득권이 아니라 국민입니다. 국정 현장에서 검증된 실력으로 우리 당의 외연을 넓히겠습니다."],
+    ["당원들과 함께 가겠다고 호소", "조직 기반", "입당 시점보다 중요한 것은 당원 여러분과 같은 비전을 품고 있는가입니다. 가장 낮은 자세로 당원들과 함께 뛰겠습니다."],
+    ["상대 약점을 찌른다", "모 아니면 도", "오래 당에 계셨으면서도 정작 국민 신뢰를 얻지 못했다면, 이제는 새로운 인물에게 기회를 주셔야 할 때입니다."],
+  ]],
+  ["장관 시절 정책 중 가장 아쉬운 것은 무엇입니까?", [
+    ["실적과 숫자로 답한다", "신뢰 기반 · 안정적", "일부 전력화 일정이 지연된 점은 뼈아프게 돌아봅니다. 하지만 핵심 목표를 완수한 성과를 바탕으로 빈틈을 보완하겠습니다."],
+    ["당원들과 함께 가겠다고 호소", "조직 기반", "현장의 목소리를 더 세밀하게 담지 못한 부분이 있습니다. 당원들과 국민 의견을 경청해 더 완성도 높은 정책으로 답하겠습니다."],
+    ["상대 약점을 찌른다", "모 아니면 도", "당시 예산과 법안 처리를 가로막았던 정치권의 발목잡기가 가장 아쉬웠습니다. 대통령이 되어 직접 매듭짓겠습니다."],
+  ]],
+];
 export function presClick(a) {
   const P = presState(); if (!P) return {};
   const done = (t) => { save(P); return { redraw: true, toast: t }; };
@@ -180,10 +220,14 @@ export function presClick(a) {
     P.stage = "pri"; P.org += 20; P.money += 60; return { ...done(`${PARTIES[k].n} 경선 시작`), scene: declScene(P) }; }
   if (a === "orgbuy" && P.stage === "pri" && P.money >= 30) { P.money -= 30; P.org += 8; return done("조직 동원 +8"); }
   if (a.startsWith("pri:") && P.stage === "pri" && P.pri.round < 4) { const topic = a.slice(4); P.pending = topic; save(P);
-    return { scene: { kind: "primary", title: `${PRI_ROUND[P.pri.round][0]} 경선 합동 토론회`, place: `${PARTIES[P.party].n} 대통령 후보 경선`, speaker: P.name, questions: [{ who: `${P.pri.riv[P.pri.round % 2].n} 후보`, q: pick(["본선에서 이길 수 있다는 근거가 무엇입니까?", "당에 들어온 지 얼마 안 된 분이 당을 대표할 수 있습니까?", "장관 시절 정책 중 가장 아쉬운 것은 무엇입니까?"]), opts: [["실적과 숫자로 답한다", "신뢰 기반 · 안정적"], ["당원들과 함께 가겠다고 호소", "조직 기반"], ["상대 약점을 찌른다", "모 아니면 도"]] }], pick: (qi, ai) => presClick(`prid:${ai}`) } }; }
+    const [pq, popts] = pick(PRI_QA);
+    return { scene: { kind: "primary", title: `${PRI_ROUND[P.pri.round][0]} 경선 합동 토론회`, place: `${PARTIES[P.party].n} 대통령 후보 경선`, speaker: P.name, questions: [{ who: `${P.pri.riv[P.pri.round % 2].n} 후보`, q: pq, opts: popts }], pick: (qi, ai) => presClick(`prid:${ai}`) } }; }
   if (a.startsWith("prid:") && P.stage === "pri") { const ai = +a.slice(5), k = [P.trust / 400, P.org / 300, rnd(-0.25, 0.35)][ai]; priRound(P, P.pending, k); P.hp -= 8; save(P); return { redraw: true }; }
   if (a === "nominee" && P.stage === "pri") { note(P, `${PARTIES[P.party].n} 대통령 후보로 확정`); setupRace(P); save(P);
-    return { redraw: true, scene: { kind: "primary", title: "후보 수락 연설", place: `${PARTIES[P.party].n} 전당대회`, speaker: P.name, questions: [{ who: "사회자", q: "경선에서 경쟁한 후보들에게 한마디 해 주십시오.", opts: [["원팀으로 함께 가겠습니다", "조직 +8"], ["정권을 바꿀 준비가 됐습니다", "인지도 +3"]] }], pick: (qi, ai) => presClick(`acc:${ai}`) } }; }
+    return { redraw: true, scene: { kind: "primary", title: "후보 수락 연설", place: `${PARTIES[P.party].n} 전당대회`, speaker: P.name, questions: [{ who: "사회자", q: "경선에서 경쟁한 후보들에게 한마디 해 주십시오.", opts: [
+      ["원팀으로 함께 가겠습니다", "조직 +8", "치열하게 경쟁해 주신 후보님들께 깊이 감사드립니다. 오늘부터 우리는 하나의 팀입니다. 모두의 뜻을 모아 반드시 승리하겠습니다!"],
+      ["정권을 바꿀 준비가 됐습니다", "인지도 +3", "이제 본선입니다. 낡은 시대를 끝내고 대한민국의 새로운 도약을 이끌 준비는 모두 끝났습니다. 반드시 승리로 보답하겠습니다!"],
+    ] }], pick: (qi, ai) => presClick(`acc:${ai}`) } }; }
   if (a.startsWith("acc:")) { apply(P, [{ org: 8 }, { fame: 3 }][+a.slice(4)]); return done(); }
   if (a === "concede" && P.stage === "pri") { P.stage = "lost"; note(P, "경선 결과에 승복했습니다."); return done(); }
   if (a === "bolt" && P.stage === "pri") { P.party = "ind"; apply(P, { org: -15, fame: 5, trust: -8, g: { mid: 4 } }); note(P, "탈당 후 무소속으로 출마했습니다."); setupRace(P); return done("무소속 후보 등록"); }

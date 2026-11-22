@@ -38,41 +38,85 @@ let R = null;
 /** 나레이션 장면: cuts = [{ img, f: [x, y, 배율], who, text, card?, flash? }] 순서대로 재생 후 닫힘 */
 export function playCuts({ title = "", place = "", cuts = [], onClose }) {
   closeScene();
+  const isEn = document.documentElement.lang === "en";
   const el = document.createElement("div"); el.id = "scene2d"; el.className = "cuts";
   el.innerHTML = `<div class="sv"><div class="ly"></div><div class="ly"></div></div><div class="fl"></div><div class="vg"></div><div class="s3-bar t"></div><div class="s3-bar b"></div>
-    <div class="s3-title"><span>${place}</span><b>${title}</b></div><div class="s3-card"></div><div class="s3-sub"></div><button class="s3-skip">${document.documentElement.lang === "en" ? "Skip" : "건너뛰기"} ✕</button><button class="s3-next">${document.documentElement.lang === "en" ? "Next" : "다음"} ›</button>`;
+    <div class="s3-title"><span>${place}</span><b>${title}</b></div><div class="s3-card"></div><div class="s3-sub"></div><button class="s3-skip">${isEn ? "Skip" : "건너뛰기"} ✕</button><button class="s3-next">${isEn ? "Next" : "다음"} ›</button>`;
   document.body.appendChild(el);
   const S = (R = { el, onClose, qi: 0, timers: [], cur: 0, typer: 0, skipped: false });
   const L = [...el.querySelectorAll(".ly")], sub = el.querySelector(".s3-sub"), card = el.querySelector(".s3-card"), fl = el.querySelector(".fl"), nb = el.querySelector(".s3-next");
   for (const c of cuts) load(new Image(), c.img, () => {});
-  let i = -1, ready = false;
+  let i = -1, ready = false, delayT = 0, curCut = null;
+  const finishTyping = () => {
+    if (!curCut || ready) return;
+    clearTimeout(delayT); clearInterval(S.typer);
+    sub.className = `s3-sub on ${curCut.cls || ""}`;
+    sub.innerHTML = `<i>${curCut.who || ""}</i><span></span>`;
+    sub.querySelector("span").textContent = curCut.text;
+    ready = true; nb.classList.add("on");
+    if (curCut.auto) S.timers.push(setTimeout(next, curCut.auto));
+  };
   const show = (c) => { const img = new Image(); const nx = L[S.cur ^ 1], old = L[S.cur], [fx, fy, z] = c.f || [0.5, 0.5, 1.06];
-    const go = () => { nx.innerHTML = ""; nx.appendChild(img); img.style.transition = "none"; img.style.transform = fit(el, img, fx, fy, z); nx.style.transition = "opacity 1.2s"; nx.style.opacity = 1; old.style.opacity = 0; S.cur ^= 1;
+    const go = () => { nx.innerHTML = ""; nx.appendChild(img); img.style.transition = "none"; img.style.transform = fit(el, img, fx, fy, z); nx.style.transition = "opacity 1.0s"; nx.style.opacity = 1; old.style.opacity = 0; S.cur ^= 1;
       requestAnimationFrame(() => requestAnimationFrame(() => { img.style.transition = "transform 10s cubic-bezier(.25,.1,.25,1)"; img.style.transform = fit(el, img, c.to?.[0] ?? fx, c.to?.[1] ?? fy, c.to?.[2] ?? z * 1.08); })); };
     load(img, c.img, go); };
-  const next = () => { if (!ready && i >= 0) return; i++; if (i >= cuts.length) return closeScene(true); const c = cuts[i]; ready = false; nb.classList.remove("on");
-    if (c.img !== cuts[i - 1]?.img || c.f) show(c); if (c.flash) for (let k = 0; k < c.flash; k++) S.timers.push(setTimeout(() => { fl.classList.remove("on"); void fl.offsetWidth; fl.classList.add("on"); }, 300 + k * 260));
+  const next = () => {
+    if (!ready && i >= 0) { finishTyping(); return; }
+    clearTimeout(delayT); clearInterval(S.typer);
+    i++; if (i >= cuts.length) return closeScene(true);
+    const c = (curCut = cuts[i]); ready = false; nb.classList.remove("on");
+    if (c.img !== cuts[i - 1]?.img || c.f) show(c);
+    if (c.flash) for (let k = 0; k < c.flash; k++) S.timers.push(setTimeout(() => { fl.classList.remove("on"); void fl.offsetWidth; fl.classList.add("on"); }, 220 + k * 240));
     card.className = c.card ? "s3-card on" : "s3-card"; card.innerHTML = c.card || "";
     const done = () => { ready = true; nb.classList.add("on"); if (c.auto) S.timers.push(setTimeout(next, c.auto)); };
-    S.timers.push(setTimeout(() => { sub.className = `s3-sub on ${c.cls || ""}`; sub.innerHTML = `<i>${c.who || ""}</i><span></span>`; const sp = sub.querySelector("span"), t0 = performance.now(); clearInterval(S.typer);
-      S.typer = setInterval(() => { const n = Math.ceil((performance.now() - t0) / 38); sp.textContent = c.text.slice(0, n); if (n >= c.text.length) { clearInterval(S.typer); done(); } }, 30); }, 700)); };
-  nb.addEventListener("click", next); el.querySelector(".s3-skip").addEventListener("click", () => { S.skipped = true; closeScene(true); });
+    delayT = setTimeout(() => {
+      sub.className = `s3-sub on ${c.cls || ""}`;
+      sub.innerHTML = `<i>${c.who || ""}</i><span></span>`;
+      const sp = sub.querySelector("span"), t0 = performance.now();
+      clearInterval(S.typer);
+      S.typer = setInterval(() => {
+        const n = Math.ceil((performance.now() - t0) / 24);
+        sp.textContent = c.text.slice(0, n);
+        if (n >= c.text.length) { clearInterval(S.typer); done(); }
+      }, 24);
+    }, 280);
+    S.timers.push(delayT);
+  };
+  nb.addEventListener("click", (e) => { e.stopPropagation(); next(); });
+  el.addEventListener("click", (e) => { if (e.target.closest(".s3-skip") || e.target.closest(".s3-next")) return; next(); });
+  el.querySelector(".s3-skip").addEventListener("click", (e) => { e.stopPropagation(); S.skipped = true; closeScene(true); });
+  S.onKey = (e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); next(); } else if (e.key === "Escape") { S.skipped = true; closeScene(true); } };
+  addEventListener("keydown", S.onKey);
   S.resize = () => {}; next();
 }
 function fit(el, img, fx, fy, z) { const W = el.clientWidth, H = el.clientHeight, iw = img.naturalWidth || 1376, ih = img.naturalHeight || 768, s = Math.max(W / iw, H / ih) * z, w = iw * s, h = ih * s;
   const x = Math.min(0, Math.max(W - w, W / 2 - fx * w)), y = Math.min(0, Math.max(H - h, H / 2 - fy * h)); return `translate(${x.toFixed(1)}px,${y.toFixed(1)}px) scale(${s.toFixed(4)})`; }
 
+function fallbackSpeech(kind, label) {
+  if (kind === "declare" || kind === "primary" || kind === "debate") return label;
+  if (kind === "summit") return `${label} — 양국의 공동 이익을 위해 이 방향으로 협의하겠습니다.`;
+  if (kind === "nsc") return `${label} — 즉시 관계 부처와 합참에 하달하겠습니다.`;
+  return `${label} — 이 원칙에 따라 흔들림 없이 추진하겠습니다.`;
+}
+
 /** 장면 열기: questions = [{ who, q, opts: [[답변, 효과 설명, 대사?]] }], onPick(qi, ai), onClose(qi, skipped) */
 export function openScene({ kind = "press", title = "", questions = [], onPick, onClose, speaker = "장관", place = null }) {
   closeScene();
   const K = SHOTS[kind] ? kind : "press", Sh = SHOTS[K];
+  const isEn = document.documentElement.lang === "en";
   const el = document.createElement("div"); el.id = "scene2d"; el.className = K;
   el.innerHTML = `<div class="sv"><div class="ly"></div><div class="ly"></div></div><div class="fl"></div><div class="vg"></div><div class="s3-bar t"></div><div class="s3-bar b"></div>
-    <div class="s3-title"><span>${place || PLACE[K]}</span><b>${title}</b></div><div class="s3-sub"></div><div class="s3-opts"></div><button class="s3-skip">${document.documentElement.lang === "en" ? "Skip" : "건너뛰기"} ✕</button>`;
+    <div class="s3-title"><span>${place || PLACE[K]}</span><b>${title}</b></div><div class="s3-sub"></div><div class="s3-opts"></div><button class="s3-skip">${isEn ? "Skip" : "건너뛰기"} ✕</button>`;
   document.body.appendChild(el);
-  const S = (R = { el, onClose, qi: 0, timers: [], cur: 0, typer: 0, skipped: false });
+  const S = (R = { el, onClose, qi: 0, timers: [], cur: 0, typer: 0, skipped: false, fast: null });
   const L = [...el.querySelectorAll(".ly")], sub = el.querySelector(".s3-sub"), box = el.querySelector(".s3-opts"), fl = el.querySelector(".fl");
-  const later = (f, ms) => S.timers.push(setTimeout(f, ms));
+  const later = (f, ms) => { const id = setTimeout(f, ms); S.timers.push(id); return id; };
+  const stepAfter = (fn, ms) => {
+    let ran = false;
+    const go = () => { if (ran) return; ran = true; S.fast = null; clearTimeout(id); fn(); };
+    const id = later(go, ms);
+    S.fast = go;
+  };
   for (const n of new Set(Object.values(Sh).map((s) => s[0]))) load(new Image(), n, () => {});
   /* 화면을 꽉 채우도록 배율·위치를 계산해 (fx, fy)가 화면 중앙에 오게 한다 */
   const frame = (img, fx, fy, z) => { const W = el.clientWidth, H = el.clientHeight, iw = img.naturalWidth || 1376, ih = img.naturalHeight || 768, s = Math.max(W / iw, H / ih) * z, w = iw * s, h = ih * s;
@@ -80,29 +124,72 @@ export function openScene({ kind = "press", title = "", questions = [], onPick, 
   const shot = ([n, fx, fy, z], cut = true) => {
     const nx = L[S.cur ^ 1], old = L[S.cur], img = new Image();
     const go = () => { nx.innerHTML = ""; nx.appendChild(img); img.style.transition = "none"; img.style.transform = frame(img, fx, fy, z);
-      nx.style.transition = cut ? "opacity .35s" : "opacity 1.1s"; nx.style.opacity = 1; old.style.opacity = 0; S.cur ^= 1;
+      nx.style.transition = cut ? "opacity .35s" : "opacity 1.0s"; nx.style.opacity = 1; old.style.opacity = 0; S.cur ^= 1;
       /* 천천히 밀고 들어가는 카메라 (Ken Burns) */
       requestAnimationFrame(() => requestAnimationFrame(() => { img.style.transition = "transform 9s cubic-bezier(.25,.1,.25,1)"; img.style.transform = frame(img, fx + (Math.random() - 0.5) * 0.04, fy, z * 1.07); })); };
     load(img, n, go);
   };
   const flash = (n = 3) => { for (let i = 0; i < n; i++) later(() => { fl.classList.remove("on"); void fl.offsetWidth; fl.classList.add("on"); }, i * (120 + Math.random() * 260)); };
-  const say = (who, text, cls, done) => { sub.className = `s3-sub on ${cls}`; sub.innerHTML = `<i>${who}</i><span></span>`; const sp = sub.querySelector("span"), t0 = performance.now(); clearInterval(S.typer);
-    S.typer = setInterval(() => { const n = Math.ceil((performance.now() - t0) / 33); sp.textContent = text.slice(0, n); if (n >= text.length) { clearInterval(S.typer); done?.(); } }, 30); };
-  const ask = () => { const Q = questions[S.qi]; if (!Q) return finish(); box.className = "s3-opts"; box.innerHTML = "";
+  const say = (who, text, cls, done) => {
+    sub.className = `s3-sub on ${cls}`;
+    sub.innerHTML = `<i>${who}</i><span></span><em style="display:block;font-style:normal;font-size:11px;opacity:.55;margin-top:6px;letter-spacing:.04em">${isEn ? "Click / Space to fast-forward" : "화면 클릭 · Space — 빠르게 넘기기"}</em>`;
+    const sp = sub.querySelector("span"), t0 = performance.now();
+    clearInterval(S.typer);
+    let finished = false;
+    const complete = () => {
+      if (finished) return;
+      finished = true;
+      clearInterval(S.typer);
+      sp.textContent = text;
+      S.fast = null;
+      done?.();
+    };
+    S.fast = complete;
+    S.typer = setInterval(() => {
+      const n = Math.ceil((performance.now() - t0) / 24);
+      sp.textContent = text.slice(0, n);
+      if (n >= text.length) complete();
+    }, 24);
+  };
+  const ask = () => {
+    const Q = questions[S.qi]; if (!Q) return finish();
+    box.className = "s3-opts"; box.innerHTML = "";
     shot(S.qi % 2 ? Sh.askAlt : Sh.ask); if (K === "press") flash(2);
-    later(() => say(Q.who || (K === "press" ? "기자" : K === "assembly" ? "국방위원" : "참석자"), Q.q, "q", () => later(() => { box.innerHTML = Q.opts.map(([n, e], i) => `<button data-a="${i}"><b>${n}</b>${e ? `<small>${e}</small>` : ""}</button>`).join(""); box.className = "s3-opts on"; }, 250)), 600); };
-  const answer = (ai) => { const o = questions[S.qi].opts[ai]; box.className = "s3-opts"; box.innerHTML = ""; shot(Sh.ans); if (K === "press") flash(4);
+    stepAfter(() => say(Q.who || (K === "press" ? "기자" : K === "assembly" ? "국방위원" : "참석자"), Q.q, "q", () => {
+      stepAfter(() => {
+        box.innerHTML = Q.opts.map(([n, e], i) => `<button data-a="${i}"><b>${n}</b>${e ? `<small>${e}</small>` : ""}</button>`).join("");
+        box.className = "s3-opts on";
+      }, 180);
+    }), 380);
+  };
+  const answer = (ai) => {
+    const o = questions[S.qi].opts[ai]; box.className = "s3-opts"; box.innerHTML = ""; shot(Sh.ans); if (K === "press") flash(4);
     onPick?.(S.qi, ai);
-    later(() => say(speaker, o[2] || `${o[0]}. 정부는 이 방침에 따라 책임 있게 대응하겠습니다.`, "a", () => later(() => { S.qi++; if (S.qi < questions.length) { shot(Sh.wide, false); later(ask, 1300); } else finish(); }, 1700)), 500); };
-  const finish = () => { shot(Sh.end, false); const [w, t] = K.startsWith("us_") ? ["Chair", "The session is adjourned."] : END[K]; later(() => say(w, t, "", () => later(() => closeScene(true), 1300)), 700); };
-  box.addEventListener("click", (e) => { const b = e.target.closest("[data-a]"); if (b && box.classList.contains("on")) answer(+b.dataset.a); });
-  el.querySelector(".s3-skip").addEventListener("click", () => { if (S.qi < questions.length) S.skipped = true; closeScene(true); });
+    const spoken = o[2] || fallbackSpeech(K, o[0]);
+    stepAfter(() => say(speaker, spoken, "a", () => {
+      stepAfter(() => {
+        S.qi++;
+        if (S.qi < questions.length) { shot(Sh.wide, false); stepAfter(ask, 850); }
+        else finish();
+      }, 1300);
+    }), 320);
+  };
+  const finish = () => {
+    shot(Sh.end, false);
+    const [w, t] = K.startsWith("us_") ? ["Chair", "The session is adjourned."] : END[K];
+    stepAfter(() => say(w, t, "", () => stepAfter(() => closeScene(true), 950)), 450);
+  };
+  box.addEventListener("click", (e) => { const b = e.target.closest("[data-a]"); if (b && box.classList.contains("on")) { e.stopPropagation(); answer(+b.dataset.a); } });
+  el.addEventListener("click", (e) => { if (e.target.closest(".s3-skip") || e.target.closest(".s3-opts")) return; if (S.fast) S.fast(); });
+  el.querySelector(".s3-skip").addEventListener("click", (e) => { e.stopPropagation(); if (S.qi < questions.length) S.skipped = true; closeScene(true); });
+  S.onKey = (e) => { if (e.key === " " || e.key === "Enter") { if (S.fast) { e.preventDefault(); S.fast(); } } else if (e.key === "Escape") { if (S.qi < questions.length) S.skipped = true; closeScene(true); } };
+  addEventListener("keydown", S.onKey);
   S.resize = () => { const img = L[S.cur].querySelector("img"); if (img) img.style.transition = "none"; };
   addEventListener("resize", S.resize);
-  shot(Sh.wide, false); later(ask, 1800);
+  shot(Sh.wide, false); stepAfter(ask, 1100);
 }
 export function closeScene(fire = false) {
-  if (!R) return; const S = R; R = null; S.timers.forEach(clearTimeout); clearInterval(S.typer); removeEventListener("resize", S.resize); S.el.remove();
+  if (!R) return; const S = R; R = null; S.timers.forEach(clearTimeout); clearInterval(S.typer); removeEventListener("resize", S.resize); if (S.onKey) removeEventListener("keydown", S.onKey); S.el.remove();
   if (fire) S.onClose?.(S.qi, S.skipped);
 }
 export const sceneOn = () => !!R;
