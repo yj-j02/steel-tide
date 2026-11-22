@@ -19,6 +19,7 @@ const checkFiles = [
   "app/public/js/service.js",
   "app/public/js/promotion-board.js",
   "app/public/js/marshal-war.js",
+  "app/public/js/retire-routes.js",
   "app/public/js/fx-ui.js",
   "app/public/js/us-global.js",
   "app/public/js/us-pres.js",

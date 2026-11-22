@@ -46,6 +46,7 @@ let usPresPreview = false;
 let hqView = "duty", minDirect = false, minDirect3d = false, dutyDirect = false, returnToHQ = false, svcDraft = null;
 import { FOCUS, PASS, minBattles, scoreBattle, recordEval, evalOf, board, marshalQuest, setCap, deferNote } from "./js/service.js";
 import { openMarshalWar } from "./js/marshal-war.js";
+import { availableRetireRoutes, resolveRetireRoute } from "./js/retire-routes.js";
 import { stampCard, floatStatDeltas, showEventScene, showBreakingPaper, bossReactionQuote, officeAmbienceLabel } from "./js/fx-ui.js";
 import { ECON_RANKS, ECON_RANK_XP, econRank, econNewProfile, econReward, econCheck, econApply } from "./js/shop.js";
 
@@ -1628,22 +1629,44 @@ function renderDischarged() {
   saveFinalUniform(g, dc.title || postOf(g), dc.date);
   if (isUS()) unlockEnding(g <= 2 ? "us_civil" : g <= 4 ? "us_corp" : "us_prof");
   else unlockEnding(g <= 2 ? "kr_civil" : g <= 4 ? "kr_corp" : g === 5 ? "kr_prof" : "kr_gen");
-  const end = isUS() ? (() => { const u = usDischargeEndingOf(g, sv.n); return { badge: `${u.icon} ${u.tag}`, sub: u.role, desc: u.desc }; })() : dischargeEndingOf(g, sv.n);
+  const routes = availableRetireRoutes(br, g, isUS());
+  const curRoute = resolveRetireRoute(dc.routeId, br, g, isUS());
+  if (dc.routeId !== curRoute.id) { dc.routeId = curRoute.id; saveCareer(); }
   const why = dc.reason ?? (dc.voluntary ? "전역 신청으로 현역 복무를 마쳤습니다." : "이전 복무 기록에 따라 전역했습니다.");
   const admRow = profile.admin ? `<div class="adm-bar"><b>관리자 시험</b><button data-adm="reset0">↺ 소위부터 다시 시작</button></div>` : "";
-  $("#hqP").innerHTML = `${admRow}<div class="mn"><div class="mn-ret"><div class="mn-card big" style="text-align:center">
-    <div style="margin:0 auto 10px">${face({ ...agedFace(cmdr.face, g), civ: true, bg: "#26323d" }, 132)}</div>
-    <div style="color:#ffd166;font:700 13px 'Noto Sans KR',sans-serif;margin-bottom:4px">${end.badge}</div>
-    <h3>${end.sub}</h3>
-    <p>${sv.icon} 예비역 ${rankLabel(g, svk)} ${cmdr.name} · 최종 보직 ${postLabel(dc.title || postOf(g))}</p>
-    <p style="font-size:12.5px;color:#c8d8e2;line-height:1.6">${end.desc}</p>
-    <p style="font-size:11.5px;color:#8faec0;margin-top:4px">${escapeTitle(why)}</p>
-    <div class="kv"><span>최종 계급</span><b>${insignia(g, 16)} ${rankLabel(g, svk)}</b></div>
-    ${dc.serviceMonths != null ? `<div class="kv"><span>총 현역 복무</span><b>${serviceDuration(dc.serviceMonths)}</b></div>` : ""}
-    <div class="kv"><span>최종 계급 평균 평정</span><b>${dc.avg || 0}점</b></div>
-    ${g >= 6 ? (isUS() ? `<button class="mn-pres" data-uspres="start"><b>🇺🇸 예비역 장성 · 미국 대통령 선거 출마 (538 선거인단) ›</b><small>군복을 벗고 미 합중국 대통령 선거에 도전합니다.</small></button>` : `<button class="mn-pres" data-pres="start"><b>예비역 장성 · 대통령 선거 출마 ›</b><small>군복을 벗고 민간인 예비역 장성으로 정계에 도전합니다.</small></button>`) : ""}
-    <button class="mn-go" data-duty="restart">↺ 2회차 시작 (소위 재임관)</button>
-  </div>${chronicleHTML({ cmdrName: cmdr.name, grade: g, rankName: rankLabel(g, svk), post: postLabel(dc.title || postOf(g)), svcName: sv.n, branchName: postLabel((curBranches()[br] || curBranches().sea).n), week: dutyState().week || 1, medalsCount: Object.keys(career.medals || {}).length, log: career.log || [], rivals: dutyState().rivals || [], timeline: dutyState().timeline || [], boardHistory: career.boardHistory || [], tours: career.tours || {}, rankLabelFn: (r) => rankLabel(r, svk), chapterLabel: end.sub })}</div></div>`;
+  const routeBtns = routes.map((r) => `<button data-retire-route="${r.id}" style="text-align:left;padding:9px 11px;border-radius:8px;cursor:pointer;background:${r.id === curRoute.id ? "rgba(242,202,92,.18)" : "rgba(18,28,40,.85)"};border:1.5px solid ${r.id === curRoute.id ? "#f2ca5c" : "rgba(120,158,190,.3)"};color:#eef5fc">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-weight:800;font-size:12.5px"><span>${r.icon} ${r.short}</span>${r.primary ? `<span style="font-size:10px;padding:1px 6px;border-radius:99px;background:rgba(242,202,92,.22);color:#ffe082">★ 병과 추천</span>` : ""}</div>
+    <small style="display:block;margin-top:3px;font-size:11px;color:#9eb9cd">${r.title}</small>
+  </button>`).join("");
+  $("#hqP").innerHTML = `${admRow}<div class="mn"><div class="mn-ret"><div class="mn-card big" style="text-align:center;overflow:hidden;padding:0">
+    <div style="position:relative;height:260px;background:url('${curRoute.img}') center/cover no-repeat;display:flex;align-items:flex-end;justify-content:center;padding:18px 22px">
+      <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,14,22,.15) 0%,rgba(10,16,26,.92) 95%)"></div>
+      <div style="position:relative;z-index:2;text-align:center">
+        <div style="color:#ffd166;font:800 13px 'Noto Sans KR',sans-serif;letter-spacing:.04em;margin-bottom:4px;text-shadow:0 2px 8px rgba(0,0,0,.85)">${curRoute.badge}</div>
+        <h3 style="margin:0;font-size:21px;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.9)">${curRoute.title}</h3>
+      </div>
+    </div>
+    <div style="padding:16px 20px 20px">
+      <div style="display:flex;align-items:center;justify-content:center;gap:14px;margin-bottom:10px;flex-wrap:wrap">
+        <div>${face({ ...agedFace(cmdr.face, g), civ: true, bg: "#26323d" }, 84)}</div>
+        <div style="text-align:left">
+          <div style="font-size:14px;font-weight:800;color:#fff">${sv.icon} 예비역 ${rankLabel(g, svk)} ${cmdr.name}</div>
+          <div style="font-size:12px;color:#a8c4d8">최종 보직: ${postLabel(dc.title || postOf(g))}</div>
+          <div style="font-size:11.5px;color:#8faec0;margin-top:2px">${escapeTitle(why)}</div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:#d6e4ee;line-height:1.65;max-width:680px;margin:0 auto 14px">${curRoute.desc}</p>
+      <div style="text-align:left;background:rgba(8,14,22,.65);border:1px solid rgba(114,172,232,.28);border-radius:9px;padding:12px 14px;margin-bottom:14px">
+        <div style="font-size:12px;font-weight:800;color:#9fc5e8;margin-bottom:8px">🧭 전역 후 제2의 인생 진로 선택 (${routes.length}개 루트)</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px">${routeBtns}</div>
+      </div>
+      <div class="kv"><span>최종 계급</span><b>${insignia(g, 16)} ${rankLabel(g, svk)}</b></div>
+      ${dc.serviceMonths != null ? `<div class="kv"><span>총 현역 복무</span><b>${serviceDuration(dc.serviceMonths)}</b></div>` : ""}
+      <div class="kv"><span>최종 계급 평균 평정</span><b>${dc.avg || 0}점</b></div>
+      ${g >= 6 ? (isUS() ? `<button class="mn-pres" data-uspres="start"><b>🇺🇸 예비역 장성 · 미국 대통령 선거 출마 (538 선거인단) ›</b><small>군복을 벗고 미 합중국 대통령 선거에 도전합니다.</small></button>` : `<button class="mn-pres" data-pres="start"><b>예비역 장성 · 대통령 선거 출마 ›</b><small>군복을 벗고 민간인 예비역 장성으로 정계에 도전합니다.</small></button>`) : ""}
+      <button class="mn-go" data-duty="restart">↺ 2회차 시작 (소위 재임관)</button>
+    </div>
+  </div>${chronicleHTML({ cmdrName: cmdr.name, grade: g, rankName: rankLabel(g, svk), post: postLabel(dc.title || postOf(g)), svcName: sv.n, branchName: postLabel((curBranches()[br] || curBranches().sea).n), week: dutyState().week || 1, medalsCount: Object.keys(career.medals || {}).length, log: career.log || [], rivals: dutyState().rivals || [], timeline: dutyState().timeline || [], boardHistory: career.boardHistory || [], tours: career.tours || {}, rankLabelFn: (r) => rankLabel(r, svk), chapterLabel: curRoute.short })}</div></div>`;
 }
 function renderHQ() {
   if (!staff.branch) return renderBranchPick();
@@ -1975,6 +1998,7 @@ $("#hqP").addEventListener("click", (e) => {
     toast("회고록 PNG 이미지를 저장했습니다", 2.5);
     return;
   }
+  const rr = e.target.closest("[data-retire-route]"); if (rr && career.discharged) { sfx.click(); career.discharged.routeId = rr.dataset.retireRoute; saveCareer(); renderDischarged(); return; }
   const dy = e.target.closest("[data-duty]"); if (dy) { if (dy.disabled) return; sfx.click(); const a = dy.dataset.duty, g = myGrade(), br = normBranch(staff.branch), svk = serviceOf(br);
     const beforeD = dutyState(), preMor = beforeD.morale ?? 70, preRep = beforeD.rep ?? 50, preTen = beforeD.tension ?? 30, cardEl = dy.closest(".mn-card");
     const fireDeltas = (xp = 0) => {
