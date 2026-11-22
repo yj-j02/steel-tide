@@ -1484,7 +1484,7 @@ function serviceRulesCard(status) {
     <p>${contract.title} · 의무 현역 ${serviceDuration(contract.obligation)} · ${obligationLeft ? `${serviceDuration(obligationLeft)} 남음` : "이행 완료"}</p>
     ${us ? '<p>초기 총 복무의무(현역·예비역 6~8년)는 별도입니다. 이 커리어는 현역 기간을 기록합니다.</p>' : ""}
     ${limit ? `<p><b>${limit.title}</b> · 누적 ${serviceDuration(limit.month)} · ${due ? "기간 도달" : `${serviceDuration(remaining)} 남음`}</p>` : ""}
-    ${longTermWindow ? `<p style="color:#ffe082"><b>⭐ 장기복무 선발 전형 개설</b> · 요건: 군내 평판 ${longTermReq.rep}점+ · 평균 평정 ${longTermReq.avg}점+ (${longTermQualifies ? "요건 충족 · 즉시 지원 가능" : "요건 보강 필요"})</p><button data-duty="service:longterm" style="border-color:#f2ca5c;color:#ffe699">⭐ 장기복무 선발 전형 지원 ›</button>` : ""}
+    ${longTermWindow ? `<p style="color:#ffd86b;font-weight:700"><b>⭐ 장기복무 선발 전형 개설</b> · 요건: 군내 평판 ${longTermReq.rep}점+ · 평균 평정 ${longTermReq.avg}점+ (${longTermQualifies ? "요건 충족 · 즉시 지원 가능" : "요건 보강 필요"})</p><button data-duty="service:longterm" style="background:linear-gradient(90deg,#c98a1c,#e6b83a);color:#101822;font-weight:800;border:1px solid #ffe48f">⭐ 장기복무 선발 전형 지원 ›</button>` : ""}
     ${extension || earlyWindow ? '<p>단기 연장·전역 전형 기준 · 군내 평판 70점, 평균 평정 65점</p>' : ""}
     ${extension ? `<button data-duty="service:${extension.action}">${extension.label}</button>` : ""}
     ${earlyWindow ? '<button data-duty="service:early">임용 5년 경과 · 전역 지원 심의</button>' : ""}
