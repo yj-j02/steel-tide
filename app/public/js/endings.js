@@ -24,6 +24,9 @@ export const ACHIEVEMENTS = [
   { id: "ach_president_elected", ic: "🏛️", n: "국군통수권자 등극", sub: "대통령 선거 승리 및 국군통수권자 취임", headline: "소위 임관에서 대통령까지 — 입지전적 국군통수권자 탄생" },
   { id: "ach_civil_master", ic: "🏆", n: "제2의 인생 완성", sub: "전역 후 민간 진로 3단계 핵심 결단 시나리오 완수", headline: "군문을 떠나 민간에서도 정점에 서다 — 제2의 인생 마스터" },
   { id: "ach_defense_mogul", ic: "🛡️", n: "방산·안보계의 거목", sub: "전역 후 방산 임원·사이버보안·싱크탱크 진로 확정", headline: "야전 지휘 경험 살려 국가 방산·사이버·안보 전략의 거목으로" },
+  { id: "ach_overseas_vet", ic: "🌍", n: "해외파병 베테랑", sub: "해외 실전 파병 · 연합원정군 3단계 파견 임무 완수", headline: "아덴만에서 중동까지 — 해외 실전 파병 임무 완벽 완수 금의환향" },
+  { id: "ach_hearing_hero", ic: "⚖️", n: "청문회 역전의 명수", sub: "특별감찰 · 국회/상원 청문회 위기를 정면 돌파해 신뢰 회복", headline: "청문회 정면 돌파! 원칙과 소신 증언으로 여론을 단숨에 뒤집다" },
+  { id: "ach_military_dynasty", ic: "🗡️", n: "대를 잇는 호국 명문가", sub: "선대 지휘관의 가문·삼정검을 계승해 2대 장교로 임관", headline: "아버지의 삼정검을 물려받다 — 대를 잇는 호국 군인 명문가 탄생" },
 ];
 
 export function unlockedAchievements() {
@@ -93,13 +96,15 @@ export function ngBonuses() {
 export function trophyShelfHTML(grade, careerState = {}, us = false, isPres = false) {
   const items = [
     { ic: "🎖️", n: us ? "Command Pin (O-4+)" : "지휘관 휘장", sub: us ? "영관(O-4) 진급" : "영관(소령) 진급", ok: grade >= 3 },
+    { ic: "🌍", n: us ? "Expeditionary Campaign Medal" : "해외파병 기장", sub: us ? "해외 합동원정군 파병 완수" : "해외 실전 파병 임무 완수", ok: !!careerState.tours?.overseas },
     { ic: "🗡️", n: us ? "General Officer Pistol" : "삼정검 (三精劍)", sub: us ? "장성(O-7) 진급" : "장성(준장) 진급", ok: grade >= 6 },
+    { ic: "🧬", n: us ? "Family Heritage Saber" : "가문 전승 삼정검·가보", sub: careerState.heritageParent ? `${careerState.heritageParent} 장군 가문 계승` : "선대 지휘관 가문 계승 임관", ok: !!careerState.heritageParent },
     { ic: "🚩", n: us ? "Four-Star Personal Flag" : "4성 장성기", sub: us ? "4성(O-10) 대장 진급" : "대장(4성) 진급", ok: grade >= 9 },
     { ic: "🏛️", n: us ? "SecDef Commission Plaque" : "국방부장관 임명패", sub: us ? "펜타곤 국방장관 취임" : "국방부장관 취임", ok: !!careerState.minister },
     { ic: "🦅", n: us ? "POTUS Inaugural Seal" : "대통령 취임 기념패", sub: us ? "미국 대통령 당선" : "대한민국 대통령 당선", ok: !!isPres },
   ];
   const gotN = items.filter((x) => x.ok).length;
-  return `<h3>🏛️ 지휘관 기념관 (${gotN} / ${items.length})</h3><div class="mi-md">${items.map((x) => `<div class="md${x.ok ? "" : " no"}" title="${x.sub}"><i style="font-style:normal;font-size:16px;display:flex;align-items:center;justify-content:center;background:none;border:0">${x.ic}</i><span>${x.n}</span><small>${x.ok ? "획득 완료" : x.sub}</small></div>`).join("")}</div>`;
+  return `<h3>🏛️ 지휘관 기념관 (${gotN} / ${items.length})</h3><div class="mi-md">${items.map((x) => `<div class="md${x.ok ? "" : " no"}" title="${x.sub}"><i style="font-style:normal;font-size:16px;display:flex;align-items:center;justify-content:center;background:none;border:0">${x.ic}</i><span>${x.n}</span><small>${x.ok ? (x.ic === "🧬" && careerState.heritageParent ? `${careerState.heritageParent} 계승` : "획득 완료") : x.sub}</small></div>`).join("")}</div>`;
 }
 
 export function endingsHTML(hallHTML = "") {

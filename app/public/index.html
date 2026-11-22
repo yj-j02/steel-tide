@@ -458,15 +458,15 @@
       .pm-ins { margin:10px 0 2px; padding:14px 22px; background:#1b2230; border:2px solid #8a6a22; animation:pmIns 1.1s ease .2s both; }
       .pm-rank { font:900 40px "Noto Sans KR",sans-serif; letter-spacing:.12em; color:#20180c; } .pm-name { font:700 20px "Noto Sans KR",sans-serif; }
       .pm-txt { font:15px/1.7 "Noto Sans KR",sans-serif; text-align:center; } .pm-txt b { color:#7a2a12; }
-      .pm-doc.pm-min { width:min(680px, 94vw); padding:30px 36px 26px; gap:12px; position:relative; }
-      .pm-min-crest { font-size:24px; line-height:1; color:#8a6a22; letter-spacing:.2em; }
-      .pm-min-body { display:grid; grid-template-columns:182px minmax(0,1fr); gap:24px; align-items:center; width:100%; margin:8px 0 4px; text-align:left; }
-      .pm-min-por-wrap { display:flex; flex-direction:column; align-items:center; gap:10px; }
+      .pm-doc.pm-min { width:min(700px, 94vw); padding:28px 34px 24px; gap:10px; position:relative; box-sizing:border-box; }
+      .pm-min-crest { font:800 17px/1.25 "Noto Sans KR",sans-serif; color:#8a6a22; letter-spacing:.14em; text-align:center; width:100%; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+      .pm-min-body { display:grid; grid-template-columns:182px minmax(0,1fr); gap:22px; align-items:center; width:100%; margin:6px 0 4px; text-align:left; }
+      .pm-min-por-wrap { display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; }
       .pm-min-por { box-sizing:border-box; width:176px; height:220px; padding:5px; background:linear-gradient(145deg,#d8b65c,#7c5e1c,#ebd07f); box-shadow:0 10px 24px rgba(24,18,8,.32); border-radius:4px; animation:pmPg .55s ease .1s both; overflow:hidden; }
       .pm-min-por svg { display:block; width:100%; height:100%; border-radius:2px; }
-      .pm-min-cap { font:700 12px "Noto Sans KR",sans-serif; color:#5a4620; letter-spacing:.08em; margin-top:2px; }
+      .pm-min-cap { font:700 11.5px/1.35 "Noto Sans KR",sans-serif; color:#5a4620; letter-spacing:.04em; margin-top:2px; text-align:center; width:100%; word-break:keep-all; }
       .pm-min-info { display:flex; flex-direction:column; gap:8px; min-width:0; }
-      .pm-min-info .pm-rank { font-size:34px; line-height:1.15; letter-spacing:.08em; }
+      .pm-min-info .pm-rank { font-size:clamp(22px, 2.8vw, 32px); line-height:1.18; letter-spacing:.04em; word-break:keep-all; }
       .pm-min-info .pm-name { font-size:22px; border-bottom:1px solid rgba(138,106,34,.45); padding-bottom:6px; }
       .pm-min-info .pm-txt { text-align:left; font-size:14.5px; line-height:1.7; }
       .pm-min-meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:2px; }
