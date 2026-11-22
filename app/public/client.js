@@ -46,6 +46,7 @@ let usPresPreview = false;
 let hqView = "duty", minDirect = false, minDirect3d = false, dutyDirect = false, returnToHQ = false, svcDraft = null;
 import { FOCUS, PASS, minBattles, scoreBattle, recordEval, evalOf, board, marshalQuest, setCap, deferNote } from "./js/service.js";
 import { openMarshalWar } from "./js/marshal-war.js";
+import { stampCard, floatStatDeltas, showEventScene, showBreakingPaper, bossReactionQuote, officeAmbienceLabel } from "./js/fx-ui.js";
 import { ECON_RANKS, ECON_RANK_XP, econRank, econNewProfile, econReward, econCheck, econApply } from "./js/shop.js";
 
 // ── profile + room connection ───────────────────────────────────────────────
@@ -1323,6 +1324,7 @@ function marshalCardHTML(g) {
     <button class="mn-go" data-duty="marshal" ${q.ok || profile.admin ? "" : "disabled"}>${q.ok ? "⚔️ 전시 총력전 개전 · 원수(5성) 특별진급 도전 ›" : profile.admin ? "⚔️ [관리자] 전시 총력전 시나리오 즉시 개전 ›" : "전시 총사령관 임명 요건 미달"}</button></div>`;
 }
 let retireArm = false;
+let lastBossQuote = "", lastRivalQuote = "";
 function tierAuthHTML(g) {
   if (g <= 2) return `<div class="mn-card" style="padding:8px 12px;border-left:3px solid #72ace8"><b>⚡ 위관 권한 (소위~대위)</b><small style="display:block;color:#b8d4e6">현장 실무 지휘 · 현 계급 복무 기간과 경험치·평정 횟수 조건을 채우면 진급심사를 받습니다.</small></div>`;
   if (g <= 5) return `<div class="mn-card" style="padding:8px 12px;border-left:3px solid #f2ca5c"><b>📋 영관 권한 해금 (소령~대령)</b><small style="display:block;color:#e4d9b5">부대 운영 · 공통 융합 트랙 전과 가능 · 진급 심사에서 주요 보직 경력과 평정이 크게 작용합니다.</small></div>`;
@@ -1488,19 +1490,20 @@ function renderDutyDesk() {
   const arc = activeRankArc(d, g);
   const arcCard = arc ? `<div id="duty-arc" class="mn-card mn-dk mn-paper" style="border-color:#ffd166;box-shadow:0 0 18px rgba(255,209,102,.14)"><div class="dh"><div class="dt"><small style="color:#ffd166;font-weight:700">📖 ${arc.tag} · ${arc.name} (${arc.step + 1}/${arc.total}화)</small><b>${arc.ep.title}</b><span>계급 전용 연속 스토리 · 선택이 다음 화와 복무 연표에 반영됩니다</span></div></div><p>${arc.ep.desc}</p>${arc.carryover ? `<p style="color:#d8ecff;font-size:11.5px;background:rgba(40,80,120,.28);padding:6px 9px;border-radius:6px"><b>이전 화 결과 이어받기</b> · ${arc.carryover.text} <strong>(평정 ${arc.carryover.pts >= 0 ? "+" : ""}${arc.carryover.pts}점)</strong></p>` : ""}${arc.ep.opts.map((o, oi) => `<button data-duty="arc:${oi}"><b>${o.l}</b><small>${o.d}</small></button>`).join("")}</div>` : "";
   const boss = bossFor(g, svk);
-  const bossCard = `<div class="mn-card dm-news" style="border-left:3px solid ${boss.style.color}"><div class="mn-h">🎖️ 직속 상관 · 평정권자</div><div style="font-size:11.5px;display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><b>${boss.name}</b><span style="padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:rgba(255,255,255,.08);color:${boss.style.color}">${isUS() ? `${boss.style.n} (${boss.style.en})` : boss.style.n}</span></div><small style="border:0;padding:0;color:#9bb6c6">${boss.title}</small><small style="border:0;padding:2px 0 0;color:#b8d4e4">${boss.style.hint}</small></div>`;
+  const bossCard = `<div class="mn-card dm-news" style="border-left:3px solid ${boss.style.color}"><div class="mn-h">🎖️ 직속 상관 · 평정권자</div><div style="font-size:11.5px;display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><b>${boss.name}</b><span style="padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:rgba(255,255,255,.08);color:${boss.style.color}">${isUS() ? `${boss.style.n} (${boss.style.en})` : boss.style.n}</span></div><small style="border:0;padding:0;color:#9bb6c6">${boss.title}</small><small style="border:0;padding:2px 0 0;color:#b8d4e4">${boss.style.hint}</small>${lastBossQuote ? `<div class="fx-bubble"><b>💬 ${boss.name} 반응</b>${lastBossQuote}</div>` : ""}</div>`;
   const rvEvObj = d.rivalEvent ? RIVAL_EVENTS.find((x) => x.id === d.rivalEvent.evId) : null;
   const rvEvTarget = d.rivalEvent ? d.rivals?.[d.rivalEvent.ri ?? 0] : null;
   const rvEvNm = rvEvTarget ? (isUS() ? usNpcName(rvEvTarget.name + (d.rivalEvent.ri ?? 0)) : rvEvTarget.name) : "";
   const rvEvPost = rvEvTarget ? postLabel(rvEvTarget.post || careerTitle(rvEvTarget.g, rvEvTarget.br)) : "";
   const rvEvCard = rvEvObj && rvEvTarget ? `<div id="duty-rival" class="mn-card mn-dk mn-paper" style="border-color:#72ace8"><div class="dh"><div class="dt"><small>🤝 ${isUS() ? "Academy Classmate Request" : "임관 동기 인맥 이벤트"} · ${rvEvNm} (관계도 ${rvEvTarget.rel ?? 50})</small><b>${rvEvObj.title}</b><span>선택에 따라 동기 관계도·군내 평판·후반 참모 시너지가 달라집니다</span></div></div><p>${rvEvObj.desc(rvEvNm, rvEvPost)}</p>${rvEvObj.opts.map((o, oi) => `<button data-duty="rvev:${oi}"><b>${o.l}</b><small>${o.d}</small></button>`).join("")}</div>` : "";
   const ab = allyBonus(d.rivals, g);
-  const rivalsHTML = d.rivals?.length ? `<div class="mn-card dm-news"><div class="mn-h">👥 ${isUS() ? "사관학교 동기 동향" : "임관 동기 동향"}${ab.allies ? ` <small style="color:#8ef07a;font-weight:700">우군 시너지 +${ab.crisisWinBonus}%</small>` : ""}</div>${d.rivals.map((r, ri) => {
-    const diff = r.g > g ? `<b class="r">선진급</b>` : r.g === g ? `<b class="y">동급</b>` : `<b class="g">추월</b>`;
+  const rivalsHTML = d.rivals?.length ? `<div class="mn-card dm-news"><div class="mn-h">👥 ${isUS() ? "사관학교 동기 동향" : "임관 동기 동향"} (${d.rivals.length}명)${ab.allies ? ` <small style="color:#8ef07a;font-weight:700">우군 시너지 +${ab.crisisWinBonus}%</small>` : ""}</div>${d.rivals.map((r, ri) => {
+    const diff = r.retired ? `<b style="color:#9eb2c4">예비역</b>` : r.g > g ? `<b class="r">선진급</b>` : r.g === g ? `<b class="y">동급</b>` : `<b class="g">추월</b>`;
     const rNm = isUS() ? usNpcName(r.name + ri) : r.name;
     const rlInfo = relLabel(r.rel ?? 50);
-    return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px 0;border-bottom:1px dashed rgba(170,200,210,.14)"><span>${insignia(r.g, 12)} <b>${rankLabel(r.g, svk)} ${rNm}</b><br><small style="color:#8fb0c2;border:0;padding:0">${postLabel(r.post || careerTitle(r.g, r.br))} · <b class="${rlInfo.cls}">${rlInfo.t} (${r.rel ?? 50})</b></small></span>${diff}</div>`;
-  }).join("")}</div>` : "";
+    const rPost = r.retired ? (r.retiredPost || "예비역 · 안보 자문") : postLabel(r.post || careerTitle(r.g, r.br));
+    return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:11px;padding:4px 0;border-bottom:1px dashed rgba(170,200,210,.14)"><span>${insignia(r.g, 12)} <b>${rankLabel(r.g, svk)} ${rNm}</b> <span style="font-size:9.5px;color:#d6c089">[${r.style || "야전"}]</span><br><small style="color:#8fb0c2;border:0;padding:0">${rPost} · <b class="${rlInfo.cls}">${rlInfo.t} (${r.rel ?? 50})</b></small></span>${diff}</div>`;
+  }).join("")}${lastRivalQuote ? `<div class="fx-bubble"><b>🤝 동기 소식</b>${lastRivalQuote}</div>` : ""}</div>` : "";
   const agenda = items.map(id => [`duty-${id}`, openingEvent(id)?.title ?? dutyEventById(id)?.[4]]).filter(([, title]) => title);
   if (cr) agenda.unshift(["duty-crisis", cr.title]);
   if (d.report) agenda.push(["duty-report", d.report.title]);
@@ -1514,8 +1517,8 @@ function renderDutyDesk() {
   ].filter(Boolean);
   const promotionSummary = g === 9 ? "원수 특별진급 조건 보기" : g > 9 ? "최고 계급 도달" :
     needs.length ? `남은 조건 · ${needs.join(" · ")}` : automaticCaptain(g) ? `${g === 0 ? "중위" : "대위"} 자동진급 조건 충족` : review.seats ? "심사 신청 조건 충족" : "상위 보직 공석 대기";
-  $("#hqP").innerHTML = `<div class="hq-tog"><b>${sv.icon} ${sv.n} 장교 커리어 · ${rankLabel(g, svk)} ${cmdr.name}</b><small>${postLabel(B.n)} · ${postLabel(postOf(g))}</small><button data-hqv="org" class="hq-tg2">지휘 계통도 · 참모 ›</button>${career.minister ? `<button data-hqv="min" class="hq-tg2">국방부 집무실 ›</button>` : ""}</div>${admDuty}
-    <div class="mn dm-shell">
+  $("#hqP").innerHTML = `<div class="hq-tog"><b>${sv.icon} ${sv.n} 장교 커리어 · ${rankLabel(g, svk)} ${cmdr.name}</b><small>${officeAmbienceLabel(g, isUS())} · ${postLabel(postOf(g))}</small>${d.tension >= 70 ? `<span class="fx-defcon">🚨 DEFCON 주의 · 긴장 ${d.tension}</span>` : ""}<button data-hqv="org" class="hq-tg2">지휘 계통도 · 참모 ›</button>${career.minister ? `<button data-hqv="min" class="hq-tg2">국방부 집무실 ›</button>` : ""}</div>${admDuty}
+    <div class="mn dm-shell${d.tension >= 70 ? " mood-alert" : ""}">
       <div class="mn-top dm-top">
         <div class="mt"><span>계급 성장</span><b>${insignia(g, 18)} ${rankLabel(g, svk)}${g < 9 ? ` → ${rankLabel(g + 1, svk)}` : g === 9 ? " (★특별진급)" : " ★"}</b>${bar(rl.pct * 100, "g")}</div>
         <div class="mt"><span>근무평정</span><b class="${ev.avg >= 70 ? "g" : ev.avg >= 55 ? "y" : "r"}">${ev.n ? `${ev.avg}점 (${ev.l})` : "대기"}</b><small>${g >= 9 ? "원수 특별진급 심사" : `진급 요건 ${ev.n}/${bd.need}회`}</small></div>
@@ -1971,9 +1974,53 @@ $("#hqP").addEventListener("click", (e) => {
     return;
   }
   const dy = e.target.closest("[data-duty]"); if (dy) { if (dy.disabled) return; sfx.click(); const a = dy.dataset.duty, g = myGrade(), br = normBranch(staff.branch), svk = serviceOf(br);
-    if (a.startsWith("wr:")) { const res = resolveWarroom(+a.slice(3), g); if (res) { if (res.xpGain) { profile.xp += res.xpGain; saveProfile(); } toast(res.msg, 4.5); refreshMenus(); renderDutyDesk(); } return; }
-    if (a.startsWith("arc:")) { const res = resolveRankArc(+a.slice(4), g); if (res) { profile.xp += res.xpGain; saveProfile(); toast(res.msg, 4); refreshMenus(); renderDutyDesk(); } return; }
-    if (a.startsWith("rvev:")) { const res = resolveRivalEvent(+a.slice(5)); if (res) { if (res.xpGain) { profile.xp += res.xpGain; saveProfile(); } toast(res.msg, 4); refreshMenus(); renderDutyDesk(); } return; }
+    const beforeD = dutyState(), preMor = beforeD.morale ?? 70, preRep = beforeD.rep ?? 50, preTen = beforeD.tension ?? 30, cardEl = dy.closest(".mn-card");
+    const fireDeltas = (xp = 0) => {
+      const afterD = dutyState();
+      const dMorale = (afterD.morale ?? preMor) - preMor, dRep = (afterD.rep ?? preRep) - preRep, dTension = (afterD.tension ?? preTen) - preTen;
+      floatStatDeltas({ morale: dMorale, rep: dRep, tension: dTension, xp });
+      return { dMorale, dRep, dTension };
+    };
+    if (a.startsWith("wr:")) {
+      stampCard(cardEl, "긴급 하달");
+      const res = resolveWarroom(+a.slice(3), g);
+      if (res) {
+        if (res.xpGain) { profile.xp += res.xpGain; saveProfile(); }
+        const del = fireDeltas(res.xpGain || 0);
+        showEventScene({ title: "합동 워룸 작전 결재", text: res.msg, nation: isUS() ? "us" : "kr", service: svk, kind: "warroom", xp: res.xpGain || 0, ...del });
+        if ((res.xpGain || 0) >= 700) {
+          showBreakingPaper({ nation: isUS() ? "us" : "kr", headline: `${rankLabel(g, svk)} ${cmdr.name}, 워룸 안보 위기 완벽 제압!`, body: res.msg, dateline: careerDate(dutyState().week || 1) });
+        }
+        toast(res.msg, 4.5); refreshMenus(); renderDutyDesk();
+      }
+      return;
+    }
+    if (a.startsWith("arc:")) {
+      stampCard(cardEl, "결재 완료");
+      const res = resolveRankArc(+a.slice(4), g);
+      if (res) {
+        profile.xp += res.xpGain; saveProfile();
+        const del = fireDeltas(res.xpGain || 0);
+        showEventScene({ title: "계급 시그니처 스토리", text: res.msg, nation: isUS() ? "us" : "kr", service: svk, kind: "arc", score: res.score, xp: res.xpGain || 0, ...del });
+        if (res.completed) {
+          showBreakingPaper({ nation: isUS() ? "us" : "kr", headline: `${rankLabel(g, svk)} ${cmdr.name}, 핵심 지휘 과업 완수`, body: res.msg, dateline: careerDate(dutyState().week || 1) });
+        }
+        toast(res.msg, 4); refreshMenus(); renderDutyDesk();
+      }
+      return;
+    }
+    if (a.startsWith("rvev:")) {
+      stampCard(cardEl, "회신 완료");
+      const res = resolveRivalEvent(+a.slice(5));
+      if (res) {
+        if (res.xpGain) { profile.xp += res.xpGain; saveProfile(); }
+        const del = fireDeltas(res.xpGain || 0);
+        lastRivalQuote = res.msg;
+        showEventScene({ title: isUS() ? "사관학교 동기 인맥" : "임관 동기 인맥", text: res.msg, nation: isUS() ? "us" : "kr", service: svk, kind: "rival", xp: res.xpGain || 0, ...del });
+        toast(res.msg, 4); refreshMenus(); renderDutyDesk();
+      }
+      return;
+    }
     if (a.startsWith("deputy-") || ["study","share","solo"].includes(a)) { interact(a,g); renderDutyDesk(); return; }
     if (a === "review") { openPromotionBoard(g, br, svk); return; }
     if (a === "restart") { restartCurrentCareer(); return; }
@@ -1997,8 +2044,35 @@ $("#hqP").addEventListener("click", (e) => {
       return;
     }
     if (a.startsWith("rep:")) { const res = resolveReport(+a.slice(4), g); if (res) { toast(res.msg, 4); renderDutyDesk(); } return; }
-    if (a.startsWith("ev:")) { const [, id, idx] = a.split(":"), res = resolveDuty(id, +idx, g); if (res) { profile.xp += res.xpGain; saveProfile(); const after = myGrade(); if (after > g) { if (career.seen == null) careerInit(g, careerTitle(g), BRANCHES[br].n); career.picks += after - g; logPromotion({ g: after, t: postOf(after), b: BRANCHES[br].n, why: res.headline }); buildPromo(g, after); $("#promoM").style.display = "flex"; fanfare(after, br); } else toast(`${res.label} — 평정 ${res.score}점 · +${fmt(res.xpGain)} XP`, 3.5); refreshMenus(); renderDutyDesk(); } return; }
-    if (a === "del") { const m = staffMods(g, br), res = resolveCrisisDelegate(g, br, m.outK); if (res) { profile.xp += res.xpGain; saveProfile(); const after = myGrade(); if (after > g) { career.picks += after - g; logPromotion({ g: after, t: postOf(after), b: BRANCHES[br].n, why: res.msg }); buildPromo(g, after); $("#promoM").style.display = "flex"; fanfare(after, br); } else toast(res.msg, 4); refreshMenus(); renderDutyDesk(); } return; }
+    if (a.startsWith("ev:")) {
+      stampCard(cardEl, "결재 완료");
+      const [, id, idx] = a.split(":"), evMeta = dutyEventById(id), res = resolveDuty(id, +idx, g);
+      if (res) {
+        profile.xp += res.xpGain; saveProfile();
+        const del = fireDeltas(res.xpGain || 0);
+        lastBossQuote = bossReactionQuote(bossFor(g, svk), +idx, res.score < 68);
+        showEventScene({ title: evMeta?.[4] || res.label || "현장 지휘 결재", text: res.headline || `${res.label} — 평정 ${res.score}점`, nation: isUS() ? "us" : "kr", service: svk, kind: "duty", score: res.score, xp: res.xpGain || 0, ...del });
+        const after = myGrade();
+        if (after > g) { if (career.seen == null) careerInit(g, careerTitle(g), BRANCHES[br].n); career.picks += after - g; logPromotion({ g: after, t: postOf(after), b: BRANCHES[br].n, why: res.headline }); buildPromo(g, after); $("#promoM").style.display = "flex"; fanfare(after, br); }
+        else toast(`${res.label} — 평정 ${res.score}점 · +${fmt(res.xpGain)} XP`, 3.5);
+        refreshMenus(); renderDutyDesk();
+      }
+      return;
+    }
+    if (a === "del") {
+      stampCard(cardEl, "작전 위임");
+      const m = staffMods(g, br), res = resolveCrisisDelegate(g, br, m.outK);
+      if (res) {
+        profile.xp += res.xpGain; saveProfile();
+        const del = fireDeltas(res.xpGain || 0);
+        showEventScene({ title: "안보 위기 작전 결과", text: res.msg, nation: isUS() ? "us" : "kr", service: svk, kind: "warroom", score: res.score, xp: res.xpGain || 0, ...del });
+        const after = myGrade();
+        if (after > g) { career.picks += after - g; logPromotion({ g: after, t: postOf(after), b: BRANCHES[br].n, why: res.msg }); buildPromo(g, after); $("#promoM").style.display = "flex"; fanfare(after, br); }
+        else toast(res.msg, 4);
+        refreshMenus(); renderDutyDesk();
+      }
+      return;
+    }
     if (a === "fm") { const cr = dutyCrisisById(dutyState().crisis); dutyDirect = true; startOpMap(cr?.opAir); return; }
     if (a === "3d") { const cr = dutyCrisisById(dutyState().crisis); launchDirect3d(cr?.op3d || "navy", true); return; }
     if (a === "next") {
@@ -2031,6 +2105,7 @@ $("#hqP").addEventListener("click", (e) => {
             saveProfile();
             unlockEnding(isUS() ? "us_marshal" : "kr_marshal");
             logPromotion({ g: 10, t: postOf(10), b: (curBranches()[br] || BRANCHES[br]).n, why: `${res.warTitle} 완전 승전 · 원수(5성) 특별진급` });
+            showBreakingPaper({ nation: isUS() ? "us" : "kr", headline: `${cmdr.name}, ${res.warTitle} 대승 · 5성 원수(★★★★★) 추대!`, body: `전공 점수 ${res.score}점, 전선 우세도 ${res.front}%의 압도적 승전을 거두며 최고 명예인 5성 원수로 특별 진급했습니다.`, dateline: careerDate(dutyState().week || 1) });
             buildPromo(g, 10);
             $("#promoM").style.display = "flex";
             fanfare(10, br);

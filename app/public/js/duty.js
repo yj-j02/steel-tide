@@ -297,14 +297,29 @@ const US_CRISES = [
   { id: "us_base", domain: "army", tag: "전방기지 위기", title: "인도-태평양 전방기지 탄도·포격 도발 경보", desc: "전방 주둔 기지와 동맹국 도서를 겨냥한 기습 화력 도발이 탐지됐습니다.", map: "west", opAir: false, op3d: "army" },
 ];
 
-const SUR = ["김", "이", "박", "최", "정", "강", "조", "윤", "장", "임", "한", "오"], GIV = ["도현", "준혁", "민재", "서진", "태윤", "성호", "지훈", "현우", "정민", "재원"];
-function mkRivals(svc) {
-  const s1 = pick(SUR) + pick(GIV); let s2 = pick(SUR) + pick(GIV); if (s2 === s1) s2 = "한재민";
+const SUR = ["김", "이", "박", "최", "정", "강", "조", "윤", "장", "임", "한", "오"], GIV = ["도현", "준혁", "민재", "서진", "태윤", "성호", "지훈", "현우", "정민", "재원", "승우", "동현", "지성", "우진"];
+const RIVAL_ARCHETYPES = [
+  { style: "야전 엘리트", route: "field", prefJoint: null },
+  { style: "전략 참모형", route: "staff", prefJoint: null },
+  { style: "특수·전문가", route: "spec", prefJoint: null },
+  { style: "정책·외교관", route: "policy", prefJoint: "pol" },
+  { style: "방산·전력통", route: "acq", prefJoint: "acq" },
+];
+function mkRivals(svc, existing = []) {
   const brs = Object.keys(BRANCHES).filter((k) => BRANCHES[k].svc === svc);
-  return [
-    { name: s1, br: brs[0] || "sea", g: 0, style: "야전 엘리트", xp: 0 },
-    { name: s2, br: brs[1] || brs[0] || "sea", g: 0, style: "전략 참모형", xp: 0 },
-  ];
+  const used = new Set(existing.map((r) => r.name));
+  const out = [...existing];
+  while (out.length < 5) {
+    const idx = out.length;
+    let nm = pick(SUR) + pick(GIV);
+    for (let k = 0; k < 20 && used.has(nm); k++) nm = pick(SUR) + pick(GIV);
+    if (used.has(nm)) nm = `한민수${idx + 1}`;
+    used.add(nm);
+    const arch = RIVAL_ARCHETYPES[idx % RIVAL_ARCHETYPES.length];
+    const br = brs[idx % Math.max(1, brs.length)] || "sea";
+    out.push({ name: nm, br, g: 0, style: arch.style, route: arch.route, prefJoint: arch.prefJoint, xp: 0, rel: 50, retired: false });
+  }
+  return out;
 }
 export function dutyState() {
   let d = rd(DK, null);
@@ -508,6 +523,7 @@ export function syncRivalPosts(d, svc, playerPost = "") {
   if (playerPost) used.add(playerPost);
   let changed = false;
   d.rivals.forEach((r, ri) => {
+    if (r.retired) return;
     if (!BR[r.br] || (BR[r.br].svc !== svc && BR[r.br].svc !== "joint")) {
       r.br = svcBrs[ri % svcBrs.length] || allBrs[0] || "sea";
       r.post = null;
@@ -555,7 +571,10 @@ export function syncRivalPosts(d, svc, playerPost = "") {
 export function ensureDuty(svc, grade, playerPost = "") {
   const d = dutyState(), wantNat = isUS() ? "us" : "kr", wantTier = rankTier(Math.min(9, grade));
   let dirty = false;
-  if (!d.rivals) { d.rivals = mkRivals(svc); dirty = true; }
+  if (!d.rivals || d.rivals.length < 5) {
+    d.rivals = mkRivals(svc, d.rivals || []);
+    dirty = true;
+  }
   for(const rival of d.rivals){if(rival.rel==null){rival.rel=50;dirty=true;}}
   for (const rival of d.rivals) {
     if (rival.rankSinceWeek != null) continue;
@@ -584,25 +603,36 @@ export function dutyEventById(id) { return EVENTS.find((e) => e[0] === id) || US
 export function dutyCrisisById(id) { return CRISES.find((c) => c.id === id) || US_CRISES.find((c) => c.id === id); }
 
 export function rivalEligible(rival, week) {
+  if (rival?.retired) return false;
   return week - (rival.rankSinceWeek ?? (rival.g === 0 ? 1 : week)) >= minWeeks(rival.g);
 }
 
-/** Advance rival classmates flexibly: can pull 1-2 ranks ahead or fall 1-3 ranks behind organically. */
+/** Advance rival classmates flexibly across 5 distinct career archetypes (field/staff/spec/policy/acq + organic early retirement). */
 function tickRivals(d, playerGrade, svc = "navy", playerPost = "") {
   if (!d.rivals) return;
   const maxG = playerGrade === 0 ? 0 : Math.min(9, playerGrade + 2);
   const promoted = [];
   d.rivals.forEach((r, ri) => {
-    if (r.g >= maxG || r.g >= 9 || !rivalEligible(r, d.week)) return;
-    const elite = r.style === "야전 엘리트";
+    if (r.retired) return;
+    if (r.retired || r.g >= maxG || r.g >= 9 || !rivalEligible(r, d.week)) return;
     const diff = r.g - playerGrade;
-    const prob = diff <= -2 ? (elite ? 0.65 : 0.45)
-      : diff === -1 ? (elite ? 0.60 : 0.40)
-      : diff === 0 ? (elite ? 0.36 : 0.20)
-      : (elite ? 0.18 : 0.08);
+    if (r.g >= 4 && diff <= -3 && r.style !== "야전 엘리트" && Math.random() < 0.16) {
+      r.retired = true;
+      r.retiredPost = r.route === "acq" ? "예비역 · 방산 대기업 임원" : r.route === "policy" ? "예비역 · 국방안보연구원 선임위원" : "예비역 · 안보 자문위원";
+      const rNm = isUS() ? usNpcName(r.name + ri) : r.name;
+      d.headlines.unshift(`${careerDate(d.week)} · [동기 동향] ${rNm}, 현역 명예전역 후 ${r.retiredPost} 취임`);
+      d.headlines = d.headlines.slice(0, 12);
+      return;
+    }
+    const elite = r.style === "야전 엘리트";
+    const lateSurge = (r.route === "policy" || r.route === "staff") && r.g >= 3;
+    const boost = elite ? 0.16 : lateSurge ? 0.08 : 0;
+    const baseProb = diff <= -2 ? 0.44 : diff === -1 ? 0.38 : diff === 0 ? 0.20 : 0.08;
+    const prob = Math.min(0.75, baseProb + boost);
     if (Math.random() >= prob) return;
     const prevG = r.g;
     r.g++;
+    if (r.g >= 3 && r.prefJoint && r.br !== r.prefJoint) r.br = r.prefJoint;
     r.rankSinceWeek = d.week;
     r.post = null;
     promoted.push([r, ri, prevG]);
