@@ -7,7 +7,7 @@ import { usNpcName } from "./us-ranks.js";
 import { recordEval, evalOf, board, FOCUS, letter, addRankWeek, weeksOf, minWeeks } from "./service.js";
 import { career, saveCareer, awardMedals } from "./career.js";
 import { ngBonuses } from "./endings.js";
-import { bossMod, RIVAL_EVENTS, allyBonus } from "./relations.js";
+import { bossMod, RIVAL_EVENTS, pickRivalEvent, allyBonus } from "./relations.js";
 import { currentRankArc } from "./rank-arcs.js";
 import { warroomById, pickWarroom } from "./warroom.js";
 
@@ -386,9 +386,7 @@ function drawEvents(d, svc, grade) {
   d.tier = rankTier(gClamped);
   d.crisis = grade >= 2 && d.week >= 3 && (d.week % 4 === 0 || Math.random() < 0.2) ? pick(crSrc).id : null; /* 합동 위기: 대위 이상부터 발생 */
   if (d.week >= 2 && d.week % 4 === 2 && d.rivals?.length && d.rivalEventWeek !== d.week) {
-    const ri = (Math.floor(d.week / 4)) % d.rivals.length;
-    const ev = RIVAL_EVENTS[Math.floor(d.week / 4) % RIVAL_EVENTS.length];
-    d.rivalEvent = { evId: ev.id, ri };
+    d.rivalEvent = pickRivalEvent(d.rivals, gClamped, d.week);
   }
   if (grade >= 6 && d.week >= 3 && d.week % 5 === 0 && !d.warroom && d.warroomWeek !== d.week) {
     const wrs = pickWarroom(d.week);

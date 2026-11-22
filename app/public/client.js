@@ -1499,7 +1499,7 @@ function renderDutyDesk() {
   const rvEvObj = d.rivalEvent ? RIVAL_EVENTS.find((x) => x.id === d.rivalEvent.evId) : null;
   const rvEvTarget = d.rivalEvent ? d.rivals?.[d.rivalEvent.ri ?? 0] : null;
   const rvEvNm = rvEvTarget ? (isUS() ? usNpcName(rvEvTarget.name + (d.rivalEvent.ri ?? 0)) : rvEvTarget.name) : "";
-  const rvEvPost = rvEvTarget ? postLabel(rvEvTarget.post || careerTitle(rvEvTarget.g, rvEvTarget.br)) : "";
+  const rvEvPost = rvEvTarget ? (rvEvTarget.retired ? (rvEvTarget.retiredPost || "예비역 · 민간 전문가") : postLabel(rvEvTarget.post || careerTitle(rvEvTarget.g, rvEvTarget.br))) : "";
   const rvEvCard = rvEvObj && rvEvTarget ? `<div id="duty-rival" class="mn-card mn-dk mn-paper" style="border-color:#72ace8"><div class="dh"><div class="dt"><small>🤝 ${isUS() ? "Academy Classmate Request" : "임관 동기 인맥 이벤트"} · ${rvEvNm} (관계도 ${rvEvTarget.rel ?? 50})</small><b>${rvEvObj.title}</b><span>선택에 따라 동기 관계도·군내 평판·후반 참모 시너지가 달라집니다</span></div></div><p>${rvEvObj.desc(rvEvNm, rvEvPost)}</p>${rvEvObj.opts.map((o, oi) => `<button data-duty="rvev:${oi}"><b>${o.l}</b><small>${o.d}</small></button>`).join("")}</div>` : "";
   const ab = allyBonus(d.rivals, g);
   const rivalsHTML = d.rivals?.length ? `<div class="mn-card dm-news"><div class="mn-h">👥 ${isUS() ? "사관학교 동기 동향" : "임관 동기 동향"} (${d.rivals.length}명)${ab.allies ? ` <small style="color:#8ef07a;font-weight:700">우군 시너지 +${ab.crisisWinBonus}%</small>` : ""}</div>${d.rivals.map((r, ri) => {
@@ -1633,13 +1633,32 @@ function renderDischarged() {
   else unlockEnding(g <= 2 ? "kr_civil" : g <= 4 ? "kr_corp" : g === 5 ? "kr_prof" : "kr_gen");
   const routes = availableRetireRoutes(br, g, isUS());
   const curRoute = resolveRetireRoute(dc.routeId, br, g, isUS());
-  if (dc.routeId !== curRoute.id) { dc.routeId = curRoute.id; saveCareer(); }
   const why = dc.reason ?? (dc.voluntary ? "전역 신청으로 현역 복무를 마쳤습니다." : "이전 복무 기록에 따라 전역했습니다.");
   const admRow = profile.admin ? `<div class="adm-bar"><b>관리자 시험</b><button data-adm="reset0">↺ 소위부터 다시 시작</button></div>` : "";
-  const routeBtns = routes.map((r) => `<button data-retire-route="${r.id}" style="text-align:left;padding:9px 11px;border-radius:8px;cursor:pointer;background:${r.id === curRoute.id ? "rgba(242,202,92,.18)" : "rgba(18,28,40,.85)"};border:1.5px solid ${r.id === curRoute.id ? "#f2ca5c" : "rgba(120,158,190,.3)"};color:#eef5fc">
-    <div style="display:flex;justify-content:space-between;align-items:center;gap:6px;font-weight:800;font-size:12.5px"><span>${r.icon} ${r.short}</span>${r.primary ? `<span style="font-size:10px;padding:1px 6px;border-radius:99px;background:rgba(242,202,92,.22);color:#ffe082">★ 병과 추천</span>` : ""}</div>
-    <small style="display:block;margin-top:3px;font-size:11px;color:#9eb9cd">${r.title}</small>
-  </button>`).join("");
+  if (!dc.routeConfirmed) {
+    const pickCards = routes.map((r) => `<div style="background:#0e1723;border:1.5px solid ${r.primary ? "#f2ca5c" : "rgba(120,158,190,.35)"};border-radius:10px;overflow:hidden;display:flex;flex-direction:column;text-align:left">
+      <div style="height:126px;background:url('${r.img}') center/cover no-repeat;position:relative">
+        <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,14,22,.1),rgba(10,16,26,.88))"></div>
+        ${r.primary ? `<span style="position:absolute;top:8px;right:8px;font-size:10.5px;font-weight:800;padding:2px 8px;border-radius:99px;background:rgba(242,202,92,.92);color:#141a24">★ 병과 추천</span>` : ""}
+        <div style="position:absolute;left:10px;bottom:8px;font-size:13.5px;font-weight:800;color:#fff;text-shadow:0 1px 6px rgba(0,0,0,.9)">${r.icon} ${r.short}</div>
+      </div>
+      <div style="padding:10px 12px;flex:1;display:flex;flex-direction:column;justify-content:space-between;gap:8px">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:#ffe082;margin-bottom:4px">${r.title}</div>
+          <div style="font-size:11.5px;color:#b8cfe0;line-height:1.5">${r.desc}</div>
+        </div>
+        <button class="mn-go" data-retire-route="${r.id}" style="margin:0;padding:8px 10px;font-size:12px">이 진로로 최종 확정 ›</button>
+      </div>
+    </div>`).join("");
+    $("#hqP").innerHTML = `${admRow}<div class="mn"><div class="mn-ret"><div class="mn-card big" style="text-align:center;padding:20px">
+      <div style="margin:0 auto 8px">${face({ ...agedFace(cmdr.face, g), civ: true, bg: "#26323d" }, 96)}</div>
+      <div style="color:#ffd166;font:800 13px 'Noto Sans KR',sans-serif;margin-bottom:4px">🧭 전역 후 제2의 인생 진로 선택</div>
+      <h3 style="margin:0 0 6px">${sv.icon} 예비역 ${rankLabel(g, svk)} ${cmdr.name} · 최종 보직 ${postLabel(dc.title || postOf(g))}</h3>
+      <p style="font-size:12px;color:#a8c4d8;margin:0 0 14px">${escapeTitle(why)} — 전역 후 걸어갈 제2의 인생 루트를 <b>하나만 최종 선택</b>하십시오.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:12px">${pickCards}</div>
+    </div></div></div>`;
+    return;
+  }
   $("#hqP").innerHTML = `${admRow}<div class="mn"><div class="mn-ret"><div class="mn-card big" style="text-align:center;overflow:hidden;padding:0">
     <div style="position:relative;height:260px;background:url('${curRoute.img}') center/cover no-repeat;display:flex;align-items:flex-end;justify-content:center;padding:18px 22px">
       <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,14,22,.15) 0%,rgba(10,16,26,.92) 95%)"></div>
@@ -1658,10 +1677,7 @@ function renderDischarged() {
         </div>
       </div>
       <p style="font-size:13px;color:#d6e4ee;line-height:1.65;max-width:680px;margin:0 auto 14px">${curRoute.desc}</p>
-      <div style="text-align:left;background:rgba(8,14,22,.65);border:1px solid rgba(114,172,232,.28);border-radius:9px;padding:12px 14px;margin-bottom:14px">
-        <div style="font-size:12px;font-weight:800;color:#9fc5e8;margin-bottom:8px">🧭 전역 후 제2의 인생 진로 선택 (${routes.length}개 루트)</div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px">${routeBtns}</div>
-      </div>
+      <div class="kv"><span>확정된 제2의 인생</span><b>${curRoute.icon} ${curRoute.short}</b></div>
       <div class="kv"><span>최종 계급</span><b>${insignia(g, 16)} ${rankLabel(g, svk)}</b></div>
       ${dc.serviceMonths != null ? `<div class="kv"><span>총 현역 복무</span><b>${serviceDuration(dc.serviceMonths)}</b></div>` : ""}
       <div class="kv"><span>최종 계급 평균 평정</span><b>${dc.avg || 0}점</b></div>
@@ -2037,7 +2053,7 @@ $("#hqP").addEventListener("click", (e) => {
     toast("전체 회고록 PNG 이미지를 저장했습니다", 2.5);
     return;
   }
-  const rr = e.target.closest("[data-retire-route]"); if (rr && career.discharged) { sfx.click(); career.discharged.routeId = rr.dataset.retireRoute; saveCareer(); renderDischarged(); return; }
+  const rr = e.target.closest("[data-retire-route]"); if (rr && career.discharged && !career.discharged.routeConfirmed) { sfx.click(); career.discharged.routeId = rr.dataset.retireRoute; career.discharged.routeConfirmed = true; saveCareer(); renderDischarged(); return; }
   const dy = e.target.closest("[data-duty]"); if (dy) { if (dy.disabled) return; sfx.click(); const a = dy.dataset.duty, g = myGrade(), br = normBranch(staff.branch), svk = serviceOf(br);
     const beforeD = dutyState(), preMor = beforeD.morale ?? 70, preRep = beforeD.rep ?? 50, preTen = beforeD.tension ?? 30, cardEl = dy.closest(".mn-card");
     const fireDeltas = (xp = 0) => {
