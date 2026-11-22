@@ -193,10 +193,14 @@ export function classmateCabinetHTML({ mode, rivals = [], appointed = {}, rankLa
   const cards = slots.map((slot) => {
     const cur = appointed?.[slot.id];
     if (cur) {
+      const synHTML = cur.synergyDone
+        ? `<div style="margin-top:6px;padding:5px 8px;border-radius:5px;background:rgba(99,212,113,.14);border:1px solid rgba(99,212,113,.45);color:#b8f7a8;font-size:11px"><b>★ 동기 합동 국정과제 완수</b> — “자네와 함께여서 가능한 개혁이었네.” (지지율 +4 · 우호도 상승 완료)</div>`
+        : `<button data-cab-syn="${mode}:${slot.id}" style="margin-top:7px;width:100%;padding:6px 10px;border-radius:6px;background:linear-gradient(90deg,#c98a1c,#f0c44c);color:#101822;font-weight:800;border:0;cursor:pointer;font-size:11.5px">🤝 ${cur.name} 독대 보고 결재 — 합동 특별 대책 승인 (지지율 +4 · 전우애 +10) ›</button>`;
       return `<div style="padding:10px 12px;border-radius:8px;background:rgba(242,202,92,.12);border:1px solid rgba(242,202,92,.55);font-size:12px">
         <div style="display:flex;justify-content:space-between;align-items:center"><b style="color:#ffe082">✔ ${slot.title}</b><span style="font-size:10.5px;color:#8ef07a">임명 완료</span></div>
         <div style="margin-top:4px;color:#fff;font-weight:700">${cur.name} <small style="color:#a8c4d8">(${cur.origin})</small></div>
         <div style="margin-top:4px;font-size:11.5px;color:#d6e6f2;line-height:1.45">${cur.quote}</div>
+        ${synHTML}
       </div>`;
     }
     const opts = rivals.map((r, ri) => {

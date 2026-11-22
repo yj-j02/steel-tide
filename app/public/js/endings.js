@@ -14,6 +14,16 @@ export const ACHIEVEMENTS = [
   { id: "ach_brotherhood", ic: "🤝", n: "평생의 전우들", sub: "임관 동기 3명 이상과 핵심 우군(관계도 75+) 달성", headline: "동기 3명 이상과 굳건한 전우애 구축 — 전군 최고 인망" },
   { id: "ach_sky_captain", ic: "✈️", n: "하늘의 두 번째 비행", sub: "전역 후 민간 항공사 기장 진로 확정", headline: "전투기 조종간에서 여객기 콕핏으로 — 하늘의 두 번째 비행" },
   { id: "ach_5star_war", ic: "🌟", n: "전시 구국의 5성 원수", sub: "전시 총력전 완승으로 5성 원수 추대", headline: "전시 총력전 완전 승전 — 역사적인 5성 원수(★★★★★) 추대" },
+  { id: "ach_commissioned", ic: "🎖️", n: "초임 소위의 선서", sub: "소위 임관식 및 장교 임관 선서 완료", headline: "초임 소위 임관 선서 — 국가와 국민을 향한 첫걸음을 내딛다" },
+  { id: "ach_sub_commander", ic: "🦈", n: "심해의 사령관", sub: "잠수함 병과로 장성(준장+) 진급", headline: "은밀한 심해의 방패 — 잠수함 병과 출신 장성 탄생" },
+  { id: "ach_marine_general", ic: "⚓", n: "무적 해병의 별", sub: "해병대 병과로 장성(준장+) 진급", headline: "상륙작전의 선봉 — 해병대 출신 장성 진급에 전 부대 환호" },
+  { id: "ach_topgun_chief", ic: "🦅", n: "창공의 지배자", sub: "전투기 조종 병과로 4성 대장 달성", headline: "조종간으로 정상에 서다! 전투기 조종사 출신 4성 대장 등극" },
+  { id: "ach_artillery_star", ic: "💥", n: "전장의 신(화력 장성)", sub: "포병·방공 병과로 장성(준장+) 진급", headline: "압도적 화력 지휘관 — 포병·방공 출신 장성 진급 쾌거" },
+  { id: "ach_medal_collector", ic: "🏅", n: "만장(滿章)의 영예", sub: "한 캐릭터로 훈장·표창 6개 이상 수훈", headline: "가슴을 가득 채운 약장 — 6개 이상 훈장 수훈한 살아있는 전설" },
+  { id: "ach_minister_appointed", ic: "💼", n: "문민 국방의 수장", sub: "예비역 장성으로 국방부장관/SecDef 취임", headline: "예비역 대장에서 문민 국방부장관으로 — 군정·군령 총괄 취임" },
+  { id: "ach_president_elected", ic: "🏛️", n: "국군통수권자 등극", sub: "대통령 선거 승리 및 국군통수권자 취임", headline: "소위 임관에서 대통령까지 — 입지전적 국군통수권자 탄생" },
+  { id: "ach_civil_master", ic: "🏆", n: "제2의 인생 완성", sub: "전역 후 민간 진로 3단계 핵심 결단 시나리오 완수", headline: "군문을 떠나 민간에서도 정점에 서다 — 제2의 인생 마스터" },
+  { id: "ach_defense_mogul", ic: "🛡️", n: "방산·안보계의 거목", sub: "전역 후 방산 임원·사이버보안·싱크탱크 진로 확정", headline: "야전 지휘 경험 살려 국가 방산·사이버·안보 전략의 거목으로" },
 ];
 
 export function unlockedAchievements() {
@@ -92,7 +102,7 @@ export function trophyShelfHTML(grade, careerState = {}, us = false, isPres = fa
   return `<h3>🏛️ 지휘관 기념관 (${gotN} / ${items.length})</h3><div class="mi-md">${items.map((x) => `<div class="md${x.ok ? "" : " no"}" title="${x.sub}"><i style="font-style:normal;font-size:16px;display:flex;align-items:center;justify-content:center;background:none;border:0">${x.ic}</i><span>${x.n}</span><small>${x.ok ? "획득 완료" : x.sub}</small></div>`).join("")}</div>`;
 }
 
-export function endingsHTML() {
+export function endingsHTML(hallHTML = "") {
   const got = unlockedEndings(), ng = ngBonuses();
   const achGot = unlockedAchievements();
   const achCnt = Object.keys(achGot).filter((k) => ACHIEVEMENTS.some((a) => a.id === k) && achGot[k]?.length).length;
@@ -108,7 +118,7 @@ export function endingsHTML() {
     const subTxt = list.length ? `✔ ${list.length}회 달성 (${names}${list.length > 3 ? " 외" : ""})` : a.sub;
     return `<div class="md${list.length ? "" : " no"}" title="${a.sub}"><i style="font-style:normal;font-size:15px;display:flex;align-items:center;justify-content:center;background:none;border:0">${a.ic}</i><span>${a.n}</span><small>${subTxt}</small></div>`;
   }).join("")}</div>`;
-  return `<h3>🏆 엔딩 컬렉션 도감 (${ng.cnt} / ${ENDINGS.length})</h3>${ngStrip}<div class="mi-md">${ENDINGS.map((e) => {
+  return `${hallHTML}<h3>🏆 엔딩 컬렉션 도감 (${ng.cnt} / ${ENDINGS.length})</h3>${ngStrip}<div class="mi-md">${ENDINGS.map((e) => {
     const dt = got[e.id];
     return `<div class="md${dt ? "" : " no"}" title="${e.sub}"><i style="font-style:normal;font-size:15px;display:flex;align-items:center;justify-content:center;background:none;border:0">${e.ic}</i><span>${e.n}</span><small>${dt ? `${dt} 달성` : e.sub}</small></div>`;
   }).join("")}</div>${achHTML}`;

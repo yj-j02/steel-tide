@@ -1,8 +1,8 @@
 const manifestKey = "steeltide:characters";
 const prefix = "steeltide:character:";
 const scoped = new Set([
-  "c72", "camp", "career", "cmdr", "duty", "hall", "hall:us",
-  "kcamp", "legacy", "mission", "mod", "oplog", "post", "potus", "potus_hall",
+  "c72", "camp", "career", "cmdr", "duty",
+  "kcamp", "legacy", "mission", "mod", "oplog", "post", "potus",
   "pres", "profile", "staff", "us:career", "uspres",
 ]);
 
@@ -62,6 +62,9 @@ export function characters() {
     staff: json(keyFor(slot.id, "steeltide:staff"), {}),
     career: json(keyFor(slot.id, "steeltide:career"), {}),
     duty: json(keyFor(slot.id, "steeltide:duty"), {}),
+    potus: json(keyFor(slot.id, "steeltide:potus"), null),
+    pres: json(keyFor(slot.id, "steeltide:pres"), null),
+    uspres: json(keyFor(slot.id, "steeltide:uspres"), null),
   }));
 }
 
