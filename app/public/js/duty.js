@@ -512,13 +512,57 @@ export function resolveRivalEvent(choiceIdx) {
   return { xpGain: opt.xp || 0, msg: `${rNm} 관계도 ${opt.rel >= 0 ? "+" : ""}${opt.rel} (현재 ${r.rel}) · ${opt.l}` };
 }
 
-/** Ensure every rival classmate holds a real, unique billet that never collides with the player or another rival. */
+const ALT_RIVAL_POSTS = {
+  kr: {
+    army: {
+      6: ["제11기동사단 부사단장", "육군본부 인사참모부 차장", "한미연합사 작전처장", "특수전사령부 참모장"],
+      7: ["제3보병사단장", "제7보병사단장", "제2신속대응사단장", "육군사관학교장"],
+      8: ["제3군단장", "제5군단장", "합참 작전본부장", "국방대학교 총장"],
+      9: ["한미연합사 작전참모부장", "지상작전사령부 부사령관", "국방개혁추진단장", "합참 전략자문위원"],
+    },
+    navy: {
+      6: ["제1함대 부사령관", "해군본부 기획관리참모부장", "특수전전단장", "진해기지사령관"],
+      7: ["제1함대사령관", "제3함대사령관", "해군군수사령관", "해군교육사령관"],
+      8: ["합참 작전본부장", "국방대학교 총장", "해군본부 전력분석시험평가단장", "한미연합사 해군구성군 부사령관"],
+      9: ["합참 전략자문위원", "국방개혁추진단장", "해양안보전략위원장", "연합해상전력 자문관"],
+    },
+    air: {
+      6: ["제11전투비행단장", "제17전투비행단장", "공군본부 정보작전참모부장", "공군사관학교 부교장"],
+      7: ["공중기동정찰사령관", "공군군수사령관", "공군사관학교장", "한미연합사 공군구성군 참모장"],
+      8: ["합참 작전본부장", "국방대학교 총장", "공군전력발전단장", "한미연합사 공군구성군 부사령관"],
+      9: ["합참 전략자문위원", "국방개혁추진단장", "항공우주전략위원장", "연합공군전력 자문관"],
+    },
+  },
+  us: {
+    army: {
+      6: ["Deputy CG, 101st Airborne Division", "Deputy Director for Operations (J-3)", "Commandant, Infantry School", "Assistant Division Commander, 4th ID"],
+      7: ["CG, 101st Airborne Division", "CG, 4th Infantry Division", "CG, 10th Mountain Division", "Superintendent, West Point"],
+      8: ["CG, V Corps", "Director for Operations (J-3)", "CG, U.S. Army Training & Doctrine", "Deputy Commander, USEUCOM"],
+      9: ["Commander, U.S. Central Command", "Commander, USEUCOM", "Commander, USSOUTHCOM", "Commander, U.S. Army Europe & Africa"],
+    },
+    navy: {
+      6: ["Commander, Carrier Strike Group 9", "Director, Maritime Operations", "Commander, Navy Region Hawaii", "Deputy Director, J-3"],
+      7: ["Commander, U.S. 5th Fleet", "Commander, U.S. 6th Fleet", "Superintendent, U.S. Naval Academy", "Commander, Naval Surface Force Atlantic"],
+      8: ["Commander, U.S. Fleet Forces", "Director for Operations (J-3)", "Commander, U.S. 2nd Fleet", "Deputy Commander, USCENTCOM"],
+      9: ["Commander, U.S. Strategic Command", "Commander, U.S. Fleet Forces Command", "Commander, U.S. Naval Forces Europe", "Commander, USTRANSCOM"],
+    },
+    air: {
+      6: ["Commander, 388th Fighter Wing", "Commander, 57th Wing (Nellis)", "Director of Operations, PACAF", "Deputy Director, J-3"],
+      7: ["Commander, 12th Air Force", "Commander, 9th Air Force", "Superintendent, USAF Academy", "Commander, Air Force Research Lab"],
+      8: ["Commander, 5th Air Force (Japan)", "Director for Operations (J-3)", "Commander, Air Education & Training", "Deputy Commander, USSTRATCOM"],
+      9: ["Commander, Air Mobility Command", "Commander, Air Force Global Strike", "Commander, USAFE-AFAFRICA", "Commander, U.S. Space Command"],
+    },
+  },
+};
+
+/** Ensure every rival classmate holds a real, unique billet; only the #1 rival (ri === 0) competes directly in the player's flag pool. */
 export function syncRivalPosts(d, svc, playerPost = "") {
   if (!d?.rivals?.length) return false;
-  const BR = curBranches(), FP = curFlagPosts();
+  const BR = curBranches(), FP = curFlagPosts(), us = isUS();
   const svcBrs = Object.keys(BR).filter((k) => BR[k].svc === svc);
   const jointBrs = Object.keys(BR).filter((k) => BR[k].svc === "joint");
   const allBrs = [...svcBrs, ...jointBrs];
+  const altMap = (us ? ALT_RIVAL_POSTS.us : ALT_RIVAL_POSTS.kr)[svc] || (us ? ALT_RIVAL_POSTS.us.army : ALT_RIVAL_POSTS.kr.army);
   const used = new Set();
   if (playerPost) used.add(playerPost);
   let changed = false;
@@ -529,27 +573,34 @@ export function syncRivalPosts(d, svc, playerPost = "") {
       r.post = null;
       changed = true;
     }
+    const isMainRival = ri === 0;
     const validCur = () => {
       if (!r.post || used.has(r.post)) return false;
-      if (r.g >= 6) return FP.some((p) => p.g === r.g && (p.svc === svc || p.svc === "joint") && p.t === r.post);
+      if (r.g >= 6) {
+        if (isMainRival) return FP.some((p) => p.g === r.g && (p.svc === svc || p.svc === "joint") && p.t === r.post);
+        return (altMap[r.g] || []).includes(r.post);
+      }
       return allBrs.some((bk) => BR[bk]?.t?.[r.g] === r.post);
     };
     if (!validCur()) {
       let picked = null;
       if (r.g >= 6) {
-        for (let tryG = Math.min(9, r.g); tryG >= 6; tryG--) {
-          const cands = FP.filter((p) => p.g === tryG && (p.svc === svc || p.svc === "joint") && !used.has(p.t));
-          if (cands.length) {
-            picked = cands.find((p) => p.svc === svc && p.b === r.br)
-              || cands.find((p) => p.svc === svc)
-              || cands[0];
-            if (r.g !== tryG) r.g = tryG;
-            break;
+        if (isMainRival) {
+          for (let tryG = Math.min(9, r.g); tryG >= 6; tryG--) {
+            const cands = FP.filter((p) => p.g === tryG && (p.svc === svc || p.svc === "joint") && !used.has(p.t));
+            if (cands.length) {
+              picked = (cands.find((p) => p.svc === svc && p.b === r.br) || cands.find((p) => p.svc === svc) || cands[0]).t;
+              if (r.g !== tryG) r.g = tryG;
+              break;
+            }
           }
+        } else {
+          const alts = (altMap[Math.min(9, r.g)] || []).filter((t) => !used.has(t));
+          if (alts.length) picked = alts[(ri - 1) % alts.length];
         }
       }
       if (picked) {
-        r.post = picked.t;
+        r.post = picked;
       } else {
         if (r.g >= 6) r.g = 5;
         const pref = BR[r.br]?.t?.[r.g];
