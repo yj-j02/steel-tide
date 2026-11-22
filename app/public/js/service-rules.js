@@ -37,7 +37,10 @@ export function contractFor(route) {
 export function serviceStatus({us, grade, turn, service, branch, rep = 0, average = 0, record = career}) {
   const elapsed = careerMonths(turn, record.rankWeeks);
   const inGrade = rankMonths(grade, record.rankWeeks?.[grade] ?? 0);
-  const contract = record.serviceContract ?? contractFor(commissionRoutes(us, branch, service)[0]);
+  const rawContract = record.serviceContract ?? contractFor(commissionRoutes(us, branch, service)[0]);
+  const contract = !us && rawContract.short && grade >= 3
+    ? { ...rawContract, short: false, longTermSelected: true, title: rawContract.title.replace("단기복무", "장기복무 (영관 전환)") }
+    : rawContract;
   const relevantFailures = (record.boardHistory ?? []).filter(receipt => receipt.grade === grade && !receipt.passed);
   const existing = record.serviceNotices?.[grade];
   const approved = record.serviceExtensions?.[grade];
@@ -81,7 +84,7 @@ export function serviceStatus({us, grade, turn, service, branch, rep = 0, averag
       add(approved?.until ?? end, approved ? "연장된 계급정년" : "장성 계급정년", 8, !approved ?
         {action:"defer", label:"장성 계급정년 연장 심의", until:end + YEAR, section:8} : null);
     }
-    if (contract.short) add(contract.obligation, "단기복무 기간 만료", 36, {
+    if (contract.short && grade < 3) add(contract.obligation, "단기복무 기간 만료", 36, {
       action:"short", label:"단기복무 1년 연장 전형", until:contract.obligation + YEAR, section:6,
     });
   }
@@ -97,7 +100,7 @@ export function serviceStatus({us, grade, turn, service, branch, rep = 0, averag
     ? { ...proposed, until }
     : null;
   const earlyWindow = !us && !contract.short && !contract.earlyUsed && elapsed >= 5 * YEAR && elapsed < 6 * YEAR && obligationLeft > 0;
-  const longTermWindow = !us && !!contract.short && (grade >= 1 || elapsed >= 2 * YEAR);
+  const longTermWindow = !us && !!contract.short && grade < 3 && (grade >= 1 || elapsed >= 2 * YEAR);
   const longTermReq = contract.id === "army3" ? { rep: 70, avg: 72 } : { rep: 72, avg: 75 };
   const longTermQualifies = rep >= longTermReq.rep && average >= longTermReq.avg;
   return {elapsed, inGrade, contract, remaining, limit, extension, notice, obligationLeft,

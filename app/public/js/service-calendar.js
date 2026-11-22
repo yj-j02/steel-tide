@@ -31,7 +31,11 @@ export function careerDate(turn = 1, rankWeeks = career.rankWeeks ?? {}) {
   return calendarLabel(careerMonths(turn, rankWeeks));
 }
 
+export const COMMISSIONING_AGE = 23;
+export const careerAge = (total) => COMMISSIONING_AGE + Math.floor(Math.max(0, total) / 12);
+
 export function calendarLabel(total) {
-  const season = ["겨울", "봄", "여름", "가을"][Math.floor((total % 12) / 3)];
-  return `복무 ${Math.floor(total / 12) + 1}년차 · ${season}`;
+  const years = Math.floor(Math.max(0, total) / 12);
+  const season = ["겨울", "봄", "여름", "가을"][Math.floor((Math.max(0, total) % 12) / 3)];
+  return `복무 ${years + 1}년차 (${COMMISSIONING_AGE + years}세) · ${season}`;
 }
