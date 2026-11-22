@@ -35,6 +35,57 @@ const PLACE = { declare: "출마 선언 기자회견", summit: "정상회담", d
 const END = { declare: ["사회자", "출마 선언 기자회견을 마치겠습니다."], summit: ["의전비서관", "회담을 마치고 공동 기자회견을 시작하겠습니다."], debate: ["사회자", "이상으로 오늘 토론을 마치겠습니다."], primary: ["사회자", "합동 토론회를 마칩니다."], press: ["대변인", "이상으로 오늘 브리핑을 마치겠습니다."], assembly: ["위원장", "답변 잘 들었습니다. 다음 안건으로 넘어가겠습니다."], nsc: ["안보실장", "결정 사항을 각 군에 하달하겠습니다."] };
 let R = null;
 
+const inferCutVO = ({ title = "", cut = {}, played }) => {
+  const txt = `${cut.who || ""} ${cut.text || ""} ${cut.card || ""}`;
+  const isEn = /[a-zA-Z]{4,}/.test(txt) && !/[가-힣]/.test(cut.text || "");
+  if (/이임|Farewell/i.test(title) && !played.has(45)) { played.add(45); return 45; }
+  if (/퇴임|Farewell Address/i.test(title) && !played.has(55)) { played.add(55); return 55; }
+  if (/취임|Inaugur|선서|Oath/i.test(txt)) {
+    const id = isEn ? 64 : 52;
+    if (!played.has(id)) { played.add(id); return id; }
+  }
+  if ((/당선|President-Elect|270|확실|유력|승리|Victory/i.test(txt)) && !/낙선|패배|Defeat|Concede/i.test(txt)) {
+    const id = isEn ? 63 : 51;
+    if (!played.has(id)) { played.add(id); return id; }
+  }
+  if (/출구조사|투표 마감|개표|8시/i.test(txt) && !isEn && !played.has(50)) {
+    played.add(50);
+    return 50;
+  }
+  return null;
+};
+
+const inferAskVO = ({ kind, title = "", q = {}, qi = 0, played }) => {
+  if (q.vo) return q.vo;
+  if (qi === 0) {
+    if (kind === "us_hearing") return 62;
+    if (kind === "assembly") return 31;
+    if (kind === "press") return 43;
+    if (kind === "debate") return 49;
+    if (kind === "nsc") return /White House|Pentagon|United States|U\.S\./i.test(title) ? 65 : 53;
+    if (kind === "summit" && !played.has(54)) { played.add(54); return 54; }
+    if (kind === "declare" && !played.has(46)) { played.add(46); return 46; }
+    if (/수락|후보/.test(title) && !played.has(48)) { played.add(48); return 48; }
+  }
+  return null;
+};
+
+const inferPickVO = ({ kind, title = "", opt = [], qi = 0, total = 1, played }) => {
+  if (opt[3]) return opt[3];
+  if (kind === "assembly" && !played.has(`ans:${qi}`)) { played.add(`ans:${qi}`); return 32; }
+  if (kind === "declare" && qi === total - 1 && !played.has(46)) { played.add(46); return 46; }
+  if ((kind === "primary" || /수락|후보/.test(title)) && qi === total - 1 && !played.has(48)) { played.add(48); return 48; }
+  if (kind === "summit" && qi === total - 1 && !played.has(54)) { played.add(54); return 54; }
+  if (kind === "nsc" && /제압|격퇴|타격|원점/.test(opt[0] || "") && !played.has(23)) { played.add(23); return 23; }
+  return null;
+};
+
+const inferEndVO = ({ kind, title = "" }) => {
+  if (kind === "assembly") return 33;
+  if (kind === "primary" && /승리|확정/.test(title)) return 47;
+  return null;
+};
+
 /** 나레이션 장면: cuts = [{ img, f: [x, y, 배율], who, text, card?, flash? }] 순서대로 재생 후 닫힘 */
 export function playCuts({ title = "", place = "", cuts = [], onClose }) {
   closeScene();
@@ -47,6 +98,7 @@ export function playCuts({ title = "", place = "", cuts = [], onClose }) {
   const L = [...el.querySelectorAll(".ly")], sub = el.querySelector(".s3-sub"), card = el.querySelector(".s3-card"), fl = el.querySelector(".fl"), nb = el.querySelector(".s3-next");
   for (const c of cuts) load(new Image(), c.img, () => {});
   let i = -1, ready = false, delayT = 0, curCut = null;
+  const played = new Set();
   const finishTyping = () => {
     if (!curCut || ready) return;
     clearTimeout(delayT); clearInterval(S.typer);
@@ -70,6 +122,8 @@ export function playCuts({ title = "", place = "", cuts = [], onClose }) {
     card.className = c.card ? "s3-card on" : "s3-card"; card.innerHTML = c.card || "";
     const done = () => { ready = true; nb.classList.add("on"); if (c.auto) S.timers.push(setTimeout(next, c.auto)); };
     delayT = setTimeout(() => {
+      const vo = c.vo ?? inferCutVO({ title, cut: c, played });
+      if (vo) globalThis.__playVO?.(vo);
       sub.className = `s3-sub on ${c.cls || ""}`;
       sub.innerHTML = `<i>${c.who || ""}</i><span></span>`;
       const sp = sub.querySelector("span"), t0 = performance.now();
@@ -151,33 +205,46 @@ export function openScene({ kind = "press", title = "", questions = [], onPick, 
       if (n >= text.length) complete();
     }, 24);
   };
+  const played = new Set();
   const ask = () => {
     const Q = questions[S.qi]; if (!Q) return finish();
     box.className = "s3-opts"; box.innerHTML = "";
     shot(S.qi % 2 ? Sh.askAlt : Sh.ask); if (K === "press") flash(2);
-    stepAfter(() => say(Q.who || (K === "press" ? "기자" : K === "assembly" ? "국방위원" : "참석자"), Q.q, "q", () => {
-      stepAfter(() => {
-        box.innerHTML = Q.opts.map(([n, e], i) => `<button data-a="${i}"><b>${n}</b>${e ? `<small>${e}</small>` : ""}</button>`).join("");
-        box.className = "s3-opts on";
-      }, 180);
-    }), 380);
+    stepAfter(() => {
+      const vo = inferAskVO({ kind: K, title, q: Q, qi: S.qi, played });
+      if (vo) globalThis.__playVO?.(vo);
+      say(Q.who || (K === "press" ? "기자" : K === "assembly" ? "국방위원" : "참석자"), Q.q, "q", () => {
+        stepAfter(() => {
+          box.innerHTML = Q.opts.map(([n, e], i) => `<button data-a="${i}"><b>${n}</b>${e ? `<small>${e}</small>` : ""}</button>`).join("");
+          box.className = "s3-opts on";
+        }, 180);
+      });
+    }, 380);
   };
   const answer = (ai) => {
     const o = questions[S.qi].opts[ai]; box.className = "s3-opts"; box.innerHTML = ""; shot(Sh.ans); if (K === "press") flash(4);
     onPick?.(S.qi, ai);
     const spoken = o[2] || fallbackSpeech(K, o[0]);
-    stepAfter(() => say(speaker, spoken, "a", () => {
-      stepAfter(() => {
-        S.qi++;
-        if (S.qi < questions.length) { shot(Sh.wide, false); stepAfter(ask, 850); }
-        else finish();
-      }, 1300);
-    }), 320);
+    stepAfter(() => {
+      const vo = inferPickVO({ kind: K, title, opt: o, qi: S.qi, total: questions.length, played });
+      if (vo) globalThis.__playVO?.(vo);
+      say(speaker, spoken, "a", () => {
+        stepAfter(() => {
+          S.qi++;
+          if (S.qi < questions.length) { shot(Sh.wide, false); stepAfter(ask, 850); }
+          else finish();
+        }, 1300);
+      });
+    }, 320);
   };
   const finish = () => {
     shot(Sh.end, false);
     const [w, t] = K.startsWith("us_") ? ["Chair", "The session is adjourned."] : END[K];
-    stepAfter(() => say(w, t, "", () => stepAfter(() => closeScene(true), 950)), 450);
+    stepAfter(() => {
+      const vo = inferEndVO({ kind: K, title });
+      if (vo) globalThis.__playVO?.(vo);
+      say(w, t, "", () => stepAfter(() => closeScene(true), 950));
+    }, 450);
   };
   box.addEventListener("click", (e) => { const b = e.target.closest("[data-a]"); if (b && box.classList.contains("on")) { e.stopPropagation(); answer(+b.dataset.a); } });
   el.addEventListener("click", (e) => { if (e.target.closest(".s3-skip") || e.target.closest(".s3-opts")) return; if (S.fast) S.fast(); });
