@@ -7,7 +7,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(here, "..", "..");
 
 // 1. Run all existing sim suites
-for (const suite of ["army-opening.mjs", "characters.mjs", "promotion-story.mjs", "service-rules.mjs"]) {
+for (const suite of ["army-opening.mjs", "characters.mjs", "promotion-story.mjs", "service-rules.mjs", "career-pacing.mjs"]) {
   execFileSync(process.execPath, [path.join(here, suite)], { stdio: "inherit", cwd: root });
 }
 

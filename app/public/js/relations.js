@@ -126,9 +126,9 @@ export function rivalEpilogues(rivals = [], rankLabelFn) {
     const rk = r.retired ? `예비역 ${rankLabelFn(r.g)}` : rankLabelFn(r.g);
     const routeTag = r.style || "야전 지휘관";
     const bond = r.retired
-      ? (rel >= 75
+      ? (r.retiredNote || (rel >= 75
           ? "전역 후 방산·안보 연구계로 진출해 국방 개혁의 든든한 민간 후원자가 되었습니다."
-          : "중견 장교로 명예 전역한 뒤 국방 산업계에서 제2의 인생을 개척했습니다.")
+          : "중견 장교로 명예 전역한 뒤 민간 산업계에서 제2의 인생을 개척했습니다."))
       : rel >= 75
         ? "평생의 전우이자 핵심 우군으로 남아 국방 개혁과 안보 정책을 함께 이끌었습니다."
         : rel >= 40
