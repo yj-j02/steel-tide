@@ -189,7 +189,7 @@ export function openScene({ kind = "press", title = "", questions = [], onPick, 
   shot(Sh.wide, false); stepAfter(ask, 1100);
 }
 export function closeScene(fire = false) {
-  if (!R) return; const S = R; R = null; S.timers.forEach(clearTimeout); clearInterval(S.typer); removeEventListener("resize", S.resize); if (S.onKey) removeEventListener("keydown", S.onKey); S.el.remove();
+  if (!R) return; const S = R; R = null; S.timers.forEach(clearTimeout); clearInterval(S.typer); removeEventListener("resize", S.resize); if (S.onKey) removeEventListener("keydown", S.onKey); globalThis.__stopVO?.(); S.el.remove();
   if (fire) S.onClose?.(S.qi, S.skipped);
 }
 export const sceneOn = () => !!R;

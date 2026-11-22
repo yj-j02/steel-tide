@@ -1314,7 +1314,7 @@ function ministerOrder(preview = false) {
           <div class="pm-min-info">
             <div class="pm-rank" style="font-size:27px">Secretary of Defense</div>
             <div class="pm-name">${escapeTitle(cmdr.name)}</div>
-            <div class="pm-txt">By and with the advice and consent of the Senate, hereby appointed <b>Secretary of Defense of the United States</b>, vested with full civilian authority over the Department of Defense.</div>
+            <div class="pm-txt">By and with the advice and consent of the Senate, hereby appointed <b>Secretary of Defense of the United States</b>, vested with full civilian authority over the Department of Defense.<small style="display:block;margin-top:6px;padding:7px 10px;background:rgba(28,61,110,.1);border-left:3px solid #1c3d6e;font-style:italic;line-height:1.5"><b>[Oath of Office]</b> “I do solemnly swear that I will support and defend the Constitution of the United States, and that I will well and faithfully discharge the duties of Secretary of Defense.”</small></div>
             <div class="pm-min-meta">
               <span>Retired ${usRankFull(g, svk)} (${US_PAY[g]})</span>
               <span>${brNm}</span>
@@ -1337,7 +1337,7 @@ function ministerOrder(preview = false) {
           <div class="pm-min-info">
             <div class="pm-rank">국방부장관</div>
             <div class="pm-name">${escapeTitle(cmdr.name)}</div>
-            <div class="pm-txt">대한민국 헌법 제87조에 따라 위 사람을 <b>국방부장관</b>에 임명함.<br>국군 지휘·군정 및 국방 정책을 총괄하시오.</div>
+            <div class="pm-txt">대한민국 헌법 제87조에 따라 위 사람을 <b>국방부장관</b>에 임명함.<br>국군 지휘·군정 및 국방 정책을 총괄하시오.<small style="display:block;margin-top:6px;padding:7px 10px;background:rgba(138,106,34,.13);border-left:3px solid #8a6a22;line-height:1.55;color:#3b2d13"><b>[국방부장관 취임 선서]</b> “명 받았습니다! 문민 통제의 원칙 아래 정예 선진 강군을 육성하고, 대한민국의 영토와 국민의 생명을 굳건히 수호할 것을 엄숙히 선서합니다.”</small></div>
             <div class="pm-min-meta">
               <span>예비역 ${ECON_RANKS[g]}</span>
               <span>${originBadgeLabel()}</span>
@@ -2665,7 +2665,7 @@ $("#promoM").addEventListener("click", (e) => {
   const go = e.target.closest("[data-pmgo]"); if (go) { pmGo(+go.dataset.pmgo); return; }
   const ps = e.target.closest("[data-post]"); if (ps) { const k = ps.dataset.post, BR = curBranches(); if (!BR[k]) return; pmPostSel = k; if (pmPreview) { $("#pmPostT").textContent = postLabel(BR[k].t[pmPostG]); sfx.click(); } else { career.post = null; setBranch(k); const g = myGrade(), last = career.log[career.log.length - 1]; if (last && last.g === g) { last.t = postOf(g); last.b = BR[normBranch(staff.branch)].n; } saveCareer(); $("#pmPostT").textContent = postLabel(postOf(g)); refreshMenus(); sfx.click(); } renderPostPick(pmPostG); return; }
   if (e.target.closest("#promoOk")) {
-    sfx.click(); stopFanfare();
+    sfx.click(); stopFanfare(); stopVO();
     if (!isUS() && pmCertKind === "comm" && career.heritageParent) playVO(37);
     $("#promoM").style.display = "none"; refreshMenus(); if (screen === "hq") renderHQ(); if (storyQ) { const q = storyQ; storyQ = null; setTimeout(() => storyCard(q), 300); }
   }

@@ -664,6 +664,7 @@ export function playVO(num, { delayMs = 0, nextVo = null } = {}) {
   else start();
 }
 globalThis.__playVO = playVO;
+globalThis.__stopVO = stopVO;
 
 export function promoVoForGrade(grade, isUsMode = false) {
   if (isUsMode) {

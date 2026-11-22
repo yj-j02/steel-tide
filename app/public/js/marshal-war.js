@@ -544,11 +544,12 @@ export function openMarshalWar({ nation = "kr", rankName = "대장", cmdrName = 
     }
 
     const abortBtn = el.querySelector("#mwAbortBtn");
-    if (abortBtn) abortBtn.onclick = () => { el.classList.remove("on"); };
+    if (abortBtn) abortBtn.onclick = () => { globalThis.__stopVO?.(); el.classList.remove("on"); };
 
     const finBtn = el.querySelector("#mwFinishBtn");
     if (finBtn) {
       finBtn.onclick = () => {
+        globalThis.__stopVO?.();
         el.classList.remove("on");
         if (onComplete) onComplete({ won, stalemate, score: state.score, front: state.front, force: state.force, coal: state.coal, warTitle: war.title });
       };
