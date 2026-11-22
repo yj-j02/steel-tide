@@ -217,39 +217,47 @@ export function careerPathHTML({ log = [], grade = 0, initBranchName = "", curBr
   </div>`;
 }
 
-/** Summarize how the player's choices (rotations, education, board results, timeline decisions, classmate ties) impacted their career. */
+/** Filter timeline down to at most 3 truly historic turning-point decisions (no routine weekly reports / TMI). */
+function pickMajorDecisions(timeline = []) {
+  const major = (timeline || []).filter((ev) => {
+    const t = String(ev?.title || "");
+    if (/상부 결과 보고/.test(t)) return false;
+    return /\[.*\]|워룸|전면전|아크/.test(t) || ev.score >= 95 || (ev.score != null && ev.score <= 55);
+  });
+  return major.slice(-3).reverse();
+}
+
+/** Summarize how the player's choices (rotations, education, board results, major turning points, classmate ties) impacted their career. */
 export function decisionImpactHTML({ log = [], timeline = [], boardHistory = [], rivals = [], tours = {}, grade = 0 }) {
   const ab = allyBonus(rivals, grade);
   const passedCount = boardHistory.filter((b) => b.passed).length;
   const topContrib = boardHistory.length ? boardHistory[boardHistory.length - 1]?.contribution : null;
   const pills = [
     tours?.cmd && tours?.joint
-      ? { ok: true, t: "야전·합동 균형 경력 달성 → 진급심사 +5점 가산" }
-      : { ok: false, t: "단일 트랙 집중 (야전·합동 병행 가점 미적용)" },
+      ? { ok: true, t: "야전·합동 균형 경력 (+5점)" }
+      : { ok: false, t: "단일 트랙 집중" },
     tours?.edu
-      ? { ok: true, t: "고등군사교육(합동대/국방대) 이수 → 진급심사 +3~6점" }
+      ? { ok: true, t: "고등군사교육 이수 (+3~6점)" }
       : { ok: false, t: "고등군사교육 미이수" },
     ab.allies > 0
-      ? { ok: true, t: `핵심 우군 동기 ${ab.allies}명 확보 → 위기 작전 승률 +${ab.crisisWinBonus}%` }
-      : { ok: false, t: "우군 동기(관계도 75+) 미확보" },
+      ? { ok: true, t: `우군 동기 ${ab.allies}명 (위기 +${ab.crisisWinBonus}%)` }
+      : { ok: false, t: "우군 동기 미확보" },
     boardHistory.length
-      ? { ok: true, t: `정기 진급심사 ${passedCount}/${boardHistory.length}회 통과${topContrib ? ` (최대 기여: ${topContrib[0]})` : ""}` }
-      : { ok: false, t: "정기 진급심사 기록 대기 중" },
+      ? { ok: true, t: `정기심사 ${passedCount}/${boardHistory.length}회 통과${topContrib ? ` · ${topContrib[0]}` : ""}` }
+      : { ok: false, t: "정기심사 기록 대기" },
   ];
 
-  const keyDecisions = (timeline || []).slice(-6).reverse().map((ev) => {
-    const sc = ev.score != null ? `<b style="color:${ev.score >= 85 ? "#8ef07a" : ev.score < 65 ? "#ff9485" : "#f2ca5c"}">평정 ${ev.score}점</b>` : "";
-    return `<div style="padding:8px 10px;border-radius:7px;background:rgba(255,255,255,.035);border-left:3px solid ${ev.score >= 85 ? "#8ef07a" : ev.score != null && ev.score < 65 ? "#ff8e80" : "#72ace8"};font-size:11.5px">
-      <div style="display:flex;justify-content:space-between;gap:8px"><b style="color:#fff">${ev.date || ""} · ${ev.title}</b>${sc}</div>
-      <div style="color:#f2d88f;margin-top:2px">선택: ${ev.choice}</div>
-      <div style="color:#b8cfe0;margin-top:2px">영향: ${ev.outcome}</div>
+  const keyDecisions = pickMajorDecisions(timeline).map((ev) => {
+    const sc = ev.score != null ? `<b style="color:${ev.score >= 85 ? "#8ef07a" : "#ff9485"}">${ev.score}점</b>` : "";
+    return `<div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;background:rgba(255,255,255,.035);border-left:3px solid ${ev.score >= 85 ? "#8ef07a" : "#ff8e80"};font-size:11.5px">
+      <span style="color:#dce9f5"><b>${ev.date || ""}</b> · ${ev.title} <small style="color:#f2d88f">(${ev.choice})</small></span>${sc}
     </div>`;
   }).join("");
 
   return `<div style="margin-bottom:14px">
-    <b style="color:#8ef07a;font-size:12.5px">🔎 내 선택과 커리어 영향 분석</b>
-    <div style="display:flex;flex-wrap:wrap;gap:6px;margin:7px 0 10px">${pills.map((p) => `<span style="font-size:11px;padding:3px 9px;border-radius:99px;background:${p.ok ? "rgba(76,217,123,.12)" : "rgba(255,255,255,.05)"};border:1px solid ${p.ok ? "rgba(76,217,123,.4)" : "rgba(255,255,255,.14)"};color:${p.ok ? "#a8f7bf" : "#9ab2c4"}">${p.ok ? "✔ " : "• "}${p.t}</span>`).join("")}</div>
-    ${keyDecisions ? `<div style="display:flex;flex-direction:column;gap:6px">${keyDecisions}</div>` : `<p style="font-size:11.5px;color:#8faec0;margin:4px 0">오프닝 사건·시그니처 스토리·워룸 결단을 진행하면 선택의 인과관계가 이곳에 자동 기록됩니다.</p>`}
+    <b style="color:#8ef07a;font-size:12.5px">🔎 커리어 핵심 영향 요약</b>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin:7px 0 ${keyDecisions ? "8px" : "0"}">${pills.map((p) => `<span style="font-size:11px;padding:3px 9px;border-radius:99px;background:${p.ok ? "rgba(76,217,123,.12)" : "rgba(255,255,255,.05)"};border:1px solid ${p.ok ? "rgba(76,217,123,.4)" : "rgba(255,255,255,.14)"};color:${p.ok ? "#a8f7bf" : "#9ab2c4"}">${p.ok ? "✔ " : "• "}${p.t}</span>`).join("")}</div>
+    ${keyDecisions ? `<div style="display:flex;flex-direction:column;gap:5px">${keyDecisions}</div>` : ""}
   </div>`;
 }
 
@@ -331,13 +339,13 @@ export async function downloadChroniclePNG({ cmdrName, grade = 0, rankName, post
   const us = isUS();
   const maxG = Math.max(0, Math.min(10, grade | 0));
   const recentLogs = log.slice(-12);
-  const keyDecisions = (timeline || []).slice(-5).reverse();
+  const keyDecisions = pickMajorDecisions(timeline);
   const ep = rivalEpilogues(rivals, rankLabelFn).slice(0, 5);
 
   const uniRows = portraitFn ? Math.ceil((maxG + 1) / 6) : 0;
   const uniH = uniRows ? 44 + uniRows * 144 : 0;
   const pathH = 175;
-  const impactH = 88 + Math.max(1, keyDecisions.length) * 56;
+  const impactH = 74 + keyDecisions.length * 30;
   const logH = 54 + Math.max(1, recentLogs.length) * 28;
   const rivalH = 56 + Math.max(1, ep.length) * 44;
   const W = 1280;
@@ -460,17 +468,10 @@ export async function downloadChroniclePNG({ cmdrName, grade = 0, rankName, post
   y += 28;
   if (keyDecisions.length) {
     for (const ev of keyDecisions) {
-      ctx.fillStyle = "rgba(255,255,255,0.04)"; ctx.fillRect(56, y - 16, W - 112, 46);
-      ctx.fillStyle = "#ffffff"; ctx.font = "bold 14px sans-serif";
-      ctx.fillText(`${ev.date || ""} · ${ev.title}${ev.score != null ? ` (평정 ${ev.score}점)` : ""}`, 68, y);
-      ctx.fillStyle = "#e8d294"; ctx.font = "13px sans-serif";
-      ctx.fillText(`선택: ${String(ev.choice || "").slice(0, 44)}  →  영향: ${String(ev.outcome || "").slice(0, 48)}`, 68, y + 20);
-      y += 54;
+      ctx.fillStyle = "#dce9f5"; ctx.font = "14px sans-serif";
+      ctx.fillText(`• ${ev.date || ""} · ${ev.title} (${String(ev.choice || "").slice(0, 32)})${ev.score != null ? ` — ${ev.score}점` : ""}`, 64, y);
+      y += 28;
     }
-  } else {
-    ctx.fillStyle = "#8faec0"; ctx.font = "14px sans-serif";
-    ctx.fillText("• 기록된 주요 분기 선택이 아직 없습니다.", 64, y);
-    y += 40;
   }
   y += 12;
 
