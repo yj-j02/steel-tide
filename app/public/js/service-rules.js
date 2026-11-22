@@ -97,8 +97,11 @@ export function serviceStatus({us, grade, turn, service, branch, rep = 0, averag
     ? { ...proposed, until }
     : null;
   const earlyWindow = !us && !contract.short && !contract.earlyUsed && elapsed >= 5 * YEAR && elapsed < 6 * YEAR && obligationLeft > 0;
+  const longTermWindow = !us && !!contract.short && (grade >= 1 || elapsed >= 2 * YEAR);
+  const longTermReq = contract.id === "army3" ? { rep: 70, avg: 72 } : { rep: 72, avg: 75 };
+  const longTermQualifies = rep >= longTermReq.rep && average >= longTermReq.avg;
   return {elapsed, inGrade, contract, remaining, limit, extension, notice, obligationLeft,
-    due: !!limit && elapsed >= limit.month, qualifies, earlyWindow, us,
+    due: !!limit && elapsed >= limit.month, qualifies, earlyWindow, longTermWindow, longTermReq, longTermQualifies, us,
     source:us ? usaLaw(limit?.section ?? 651) : koreaLaw};
 }
 
@@ -111,7 +114,25 @@ export function noteServiceNotice(status) {
 }
 
 export function applyServiceAction(action, status, grade, turn) {
-  const {extension, contract, earlyWindow, qualifies} = status;
+  const {extension, contract, earlyWindow, longTermWindow, longTermReq, longTermQualifies, qualifies} = status;
+  if (action === "longterm" && longTermWindow) {
+    if (!longTermQualifies) {
+      return { ok: false, message: `장기복무 선발 요건 미달 · 군내 평판 ${longTermReq.rep}점 이상 & 평균 평정 ${longTermReq.avg}점 이상이 필요합니다.` };
+    }
+    const baseName = contract.id === "army3" ? "육군3사관학교" : "학사장교·사관후보생";
+    const nextObligation = Math.max(contract.obligation, 10 * YEAR);
+    career.serviceContract = {
+      ...contract,
+      short: false,
+      longTermSelected: true,
+      title: `${baseName} · 장기복무 전환 선발`,
+      obligation: nextObligation,
+    };
+    const message = `⭐ 장기복무 선발 합격! 정규 장기복무 장교로 전환되었습니다 (의무복무 ${serviceDuration(nextObligation)}, 정년 트랙 적용).`;
+    (career.serviceHistory ??= []).push({turn, date:careerDate(turn), title:"장기복무 선발 전형", message});
+    saveCareer();
+    return { ok: true, longTerm: true, message };
+  }
   if (!(extension && action === extension.action) && !(action === "early" && earlyWindow)) return null;
   const label = action === "early" ? "5년차 전역 지원" : extension.label;
   if (!qualifies) return {message:"게임 전형 요건 · 군내 평판 70점과 평균 평정 65점이 필요합니다."};
@@ -121,5 +142,5 @@ export function applyServiceAction(action, status, grade, turn) {
   const message = action === "early" ? "전역 신청 자격이 생겼습니다." : `누적 복무 ${serviceDuration(extension.until)}까지 연장됐습니다.`;
   (career.serviceHistory ??= []).push({turn, date:careerDate(turn), title:label, message});
   saveCareer();
-  return {message};
+  return {ok: true, message};
 }
