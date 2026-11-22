@@ -69,13 +69,13 @@ export const SERVICES = {
 export const BRANCHES = {
   // 육군 (ROKA)
   inf: { svc: "army", n: "보병·특수전", d: "GP/GOP 경계, 야전 복무 및 특수전 작전 지휘", bonus: "접경·도서 위기 방어↑ · 전군 사기 관리 수월 · 받는 피해 −", t: ["GOP 소대장", "수색중대장", "특전여단 중대장", "보병대대 작전과장", "보병대대장", "특전여단장", "보병사단 부사단장", "보병사단장", "군단장", "육군참모총장", "육군원수"] },
-  arm: { svc: "army", n: "기갑·기동", d: "K2 흑표 전차·장갑차 기반 기동전 및 돌파 작전", bonus: "화력 + · 재장전 − · 기동 위기 대응력 강화", t: ["전차소대장", "기갑수색소대장", "전차중대장", "기계화대대 작전과장", "K2 전차대대장", "기갑여단장", "기갑여단장(준장)", "기동군단 참모장", "지상작전사령관", "육군참모총장", "육군원수"] },
-  art: { svc: "army", n: "포병·방공", d: "K9 자주포 화력 지원, 대화력전 및 야전 방공", bonus: "화력 + · 요격률 + · 화력 도발 즉각 응징력 상향", t: ["포반장", "화력관측장교", "포대장", "포병대대 작전과장", "K9 포병대대장", "포병여단장", "화력여단장", "수도방위사령관", "지상작전사령관", "육군참모총장", "육군원수"] },
-  eng: { svc: "army", n: "공병", d: "시설 점검, 재난 복구와 공사 일정 관리", bonus: "첫 10주 시설 복구 연속 사건", t: ["공병소대장", "시설복구장교", "공병중대장", "공병대대 계획장교", "공병대대장", "공병단장", "공병여단 부여단장", "육군 시설관리단장", "육군 공병참모", "육군참모총장", "육군원수"] },
+  arm: { svc: "army", n: "기갑·기동", d: "K2 흑표 전차·장갑차 기반 기동전 및 돌파 작전", bonus: "화력 + · 재장전 − · 기동 위기 대응력 강화", t: ["전차소대장", "기갑수색소대장", "전차중대장", "기계화대대 작전과장", "K2 전차대대장", "기갑여단장", "기갑여단장(준장)", "기계화보병사단장", "기동군단장", "육군참모총장", "육군원수"] },
+  art: { svc: "army", n: "포병·방공", d: "K9 자주포 화력 지원, 대화력전 및 야전 방공", bonus: "화력 + · 요격률 + · 화력 도발 즉각 응징력 상향", t: ["포반장", "화력관측장교", "포대장", "포병대대 작전과장", "K9 포병대대장", "포병여단장", "화력여단장", "미사일전략사령관", "수도방위사령관", "육군참모총장", "육군원수"] },
+  eng: { svc: "army", n: "공병", d: "시설 점검, 재난 복구와 공사 일정 관리", bonus: "첫 10주 시설 복구 연속 사건", t: ["공병소대장", "시설복구장교", "공병중대장", "공병대대 계획장교", "공병대대장", "공병여단장", "육군공병학교장", "국방시설본부장", "육군군수사령관", "육군참모총장", "육군원수"] },
   // 해군 (ROKN)
   sea: { svc: "navy", n: "수상함", d: "구축함·호위함 기반 함대 지휘 및 해상 기동전", bonus: "수리반 +1 (대위부터) · 함대함/함대공 효율 +", t: ["고속정 부장", "고속정 정장", "구축함 전투정보관", "호위함 작전관", "구축함 함장", "구축함전대장", "해상전투단장", "제2함대사령관", "해군작전사령관", "해군참모총장", "해군원수"] },
   sub: { svc: "navy", n: "잠수함", d: "214급·안창호급 수중 은밀 작전 및 뇌격 임무", bonus: "은밀 정찰↑ · 받는 피해 − · 미사일·뇌격 돌파율 +", t: ["잠수함 항해관", "잠수함 무장관", "잠수함 작전관", "잠수함 부장", "214급 잠수함장", "안창호급 잠수함장", "잠수함전단장", "잠수함사령관", "해군작전사령관", "해군참모총장", "해군원수"] },
-  mar: { svc: "navy", n: "해상항공·해병", d: "해상초계기·작전헬기 및 상륙작전·도서 방어 전력", bonus: "전투기 +1 (중위부터) · 광역 정찰 · 도서 방어력 +", t: ["항공운항담당", "상륙소대장", "해상초계기 전술관", "항공작전과장", "해상항공전대장", "상륙여단장", "항공전단장", "해병대사령관", "합참 군사지원본부장", "해군참모총장", "해군원수"] },
+  mar: { svc: "navy", n: "해상항공·해병", d: "해상초계기·작전헬기 및 상륙작전·도서 방어 전력", bonus: "전투기 +1 (중위부터) · 광역 정찰 · 도서 방어력 +", t: ["항공운항담당", "상륙소대장", "해상초계기 전술관", "항공작전과장", "해상항공전대장", "상륙여단장", "항공전단장", "해병대 제1사단장", "해병대사령관", "해군참모총장", "해군원수"] },
   // 공군 (ROKAF)
   plt: { svc: "air", n: "전투조종 (Pilot)", d: "KF-21·F-35A·F-15K 핵심 전투기 출격 및 영공 방위", bonus: "전투기 +1 (중위부터) · 화력 + · 영공 대응 속도 최상", t: ["KF-16 편대원", "전투비행대대 요격조종사", "전투비행대대 편대장", "비행대대 작전과장", "F-35A 비행대대장", "항공작전전대장", "전투비행단장", "공중전투사령관", "공군작전사령관", "공군참모총장", "공군원수"] },
   sam: { svc: "air", n: "방공유도탄", d: "패트리어트·천궁·L-SAM 기반 탄도미사일 방어망 운용", bonus: "대공·대탄도탄 요격률 대폭 + · 받는 피해 −", t: ["발사통제장교", "방공포대 작전장교", "천궁 포대장", "방공유도탄대대 작전과장", "패트리어트 대대장", "방공유도탄전대장", "방공유도탄여단장", "미사일방어사령관", "공군작전사령관", "공군참모총장", "공군원수"] },
@@ -88,13 +88,13 @@ const BR_ALIAS = { ops: "sea", int: "tac", log: "acq", air: "mar" };
 export const normBranch = (b) => (BRANCHES[b] ? b : BR_ALIAS[b] || "sea");
 export const serviceOf = (b = staff.branch) => { const br = BRANCHES[normBranch(b)]; return br?.svc && br.svc !== "joint" ? br.svc : staff.service || "navy"; };
 /** Hidden posting tier for promotion board odds (never shown to the player): "key" (요직) / "std" (보통) / "back" (한직). */
-const KEY_POSTS = new Set(["보병대대장", "공병대대장", "공병단장", "K2 전차대대장", "K9 포병대대장", "특전여단장", "기갑여단장", "화력여단장", "보병사단장", "수도방위사령관", "군단장", "지상작전사령관", "제2작전사령관", "육군참모차장",
+const KEY_POSTS = new Set(["보병대대장", "공병대대장", "공병여단장", "K2 전차대대장", "K9 포병대대장", "특전여단장", "기갑여단장", "화력여단장", "보병사단장", "기계화보병사단장", "미사일전략사령관", "해병대 제1사단장", "수도방위사령관", "군단장", "기동군단장", "해병대사령관", "지상작전사령관", "제2작전사령관", "육군참모차장",
   "구축함 함장", "214급 잠수함장", "안창호급 잠수함장", "구축함전대장", "해상전투단장", "잠수함전단장", "제2함대사령관", "잠수함사령관", "해군작전사령관", "해군참모차장",
   "F-35A 비행대대장", "패트리어트 대대장", "항공작전전대장", "전투비행단장", "공중전투사령관", "미사일방어사령관", "공군작전사령관", "공군참모차장",
   "방위사업청 사업담당", "전력기획처장", "국방부 정책기획과장", "합참 전략기획과장", "국방정책실 국장", "NSC 안보비서관", "국방정보본부장", "합동참모차장", "합참 전략기획본부장", "합참 군사지원본부장", "한미연합사 부사령관",
-  "Infantry Battalion Commander", "Combined Arms Bn Commander", "Brigade Combat Team Commander", "CG, 82nd Airborne Division", "CG, 1st Armored Division", "CG, XVIII Airborne Corps", "Deputy CG, FORSCOM", "CG, U.S. Army Forces Command", "Vice Chief of Staff of the Army",
-  "CO, Arleigh Burke-class DDG", "CO, Virginia-class SSN", "CO, Ohio-class SSBN", "Commander, Carrier Strike Group", "Commander, U.S. 7th Fleet", "Commander, U.S. 3rd Fleet", "Deputy CNO (Operations)", "Commander, U.S. Pacific Fleet", "Commander, USINDOPACOM",
-  "Commander, F-35A Fighter Sq", "Commander, 1st Fighter Wing", "Commander, 7th Air Force", "Commander, 11th Air Force", "Deputy CSAF (Operations)", "Commander, Pacific Air Forces", "Commander, Air Combat Command", "Vice Chairman, Joint Chiefs (VCJCS)", "NSC Military Advisor"]);
+  "Infantry Battalion Commander", "Combined Arms Bn Commander", "Brigade Combat Team Commander", "Engineer Brigade Commander", "CG, 82nd Airborne Division", "CG, 1st Armored Division", "CG, 25th Infantry Division", "CG, XVIII Airborne Corps", "CG, III Armored Corps", "CG, I Corps", "Chief of Engineers & CG, USACE", "Deputy CG, FORSCOM", "CG, U.S. Army Forces Command", "CG, U.S. Army Pacific (USARPAC)", "Vice Chief of Staff of the Army",
+  "CO, Arleigh Burke-class DDG", "CO, Virginia-class SSN", "CO, Ohio-class SSBN", "Commander, Carrier Strike Group", "Commander, Carrier Strike Group 5", "Commander, U.S. 7th Fleet", "Commander, U.S. 3rd Fleet", "Commander, Naval Submarine Forces", "Commander, Naval Air Forces", "Deputy CNO (Operations)", "Commander, U.S. Pacific Fleet", "Commander, USINDOPACOM",
+  "Commander, F-35A Fighter Sq", "Commander, 1st Fighter Wing", "Commander, 7th Air Force", "Commander, 11th Air Force", "Commander, 16th Air Force", "Deputy Commander, NORAD", "Deputy CSAF (Operations)", "Commander, Pacific Air Forces", "Commander, Air Combat Command", "Director of the Joint Staff (DJS)", "Vice Chairman, Joint Chiefs (VCJCS)", "NSC Military Advisor"]);
 const BACK_POSTS = new Set(["육군교육사령관", "해군사관학교장", "공군교육사령관", "방공관제사 부사령관", "군수사 부사령관", "주외무관", "항공정보단 작전과장", "기계화대대 작전과장", "해상항공전대장", "잠수함 부장", "방공유도탄대대 작전과장", "보병사단 부사단장", "기동군단 참모장",
   "Commandant, Armor School", "Deputy Commanding General", "U.S. Defense Attaché", "Executive Officer (SSN)", "VFA Squadron XO", "Commander, 9th Recon Wing", "Deputy Director, DLA"]);
 export const postTier = (title) => (KEY_POSTS.has(title) || /Commander|Commanding Officer|^CG,|Chief of Staff|Joint Staff|Platoon Leader/i.test(title) ? "key" : BACK_POSTS.has(title) || /School|Instructor|Academy/i.test(title) ? "back" : "std");
@@ -111,7 +111,14 @@ export function flagPostsForTrack(grade, branch, service) {
   const own = posts.find(post => post.t === ownTitle && post.svc === track?.svc);
   return own ? [{ ...own, b: branch }, ...posts.filter(post => post !== own)] : posts;
 }
-export const careerTitle = (grade, br = staff.branch) => (curBranches()[normBranch(br)] || curBranches().sea).t[Math.max(0, Math.min(10, grade))];
+export const careerTitle = (grade, br = staff.branch) => {
+  const g = Math.max(0, Math.min(10, grade));
+  if (g >= 10 && isUS()) {
+    const sv = serviceOf(br);
+    return sv === "navy" ? "Fleet Admiral" : sv === "air" ? "General of the Air Force" : "General of the Army";
+  }
+  return (curBranches()[normBranch(br)] || curBranches().sea).t[g];
+};
 export function setNation(n) { if (n === "kr" || n === "us") { staff.nation = n; saveStaff(); } }
 export function setService(s) { if (SERVICES[s]) { staff.service = s; saveStaff(); } }
 export function setBranch(k) { const nk = normBranch(k); if (BRANCHES[nk]) { staff.branch = nk; if (BRANCHES[nk].svc !== "joint") staff.service = BRANCHES[nk].svc; saveStaff(); } }

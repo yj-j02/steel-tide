@@ -1118,7 +1118,7 @@ function ministerHTML(rl) {
 }
 function ministerOrder() {
   saveFinalUniform(myGrade(), postOf(myGrade()));
-  career.minister = true; saveCareer(); logPromotion({ g: myGrade(), t: "국방부장관", b: "", why: "국방부장관 임명" }); minStart(cmdr.name);
+  career.minister = true; saveCareer(); logPromotion({ g: myGrade(), t: isUS() ? "Secretary of Defense (SecDef)" : "국방부장관", b: "", why: isUS() ? "미 국방장관 임명" : "국방부장관 임명" }); minStart(cmdr.name);
   const dt = new Date(), mon = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"][dt.getMonth()];
   $("#promoM").innerHTML = isUS()
     ? `<div class="pm-doc"><div class="pm-pg on" data-pg="1"><div class="pm-h">THE WHITE HOUSE · WASHINGTON</div><div class="pm-no">COMMISSION OF APPOINTMENT</div><div class="pm-rank">Secretary of Defense</div><div class="pm-name">${cmdr.name}</div><div class="pm-txt">By and with the advice and consent of the Senate, hereby appointed Secretary of Defense of the United States<br><b>Retired ${usRankFull(myGrade(), serviceOf(staff.branch))} (${US_PAY[myGrade()]})</b></div><div class="pm-sign"><div class="pm-date">${dt.getDate()} ${mon} ${dt.getFullYear()}</div><div class="pm-sg"><span>President of the United States</span><svg viewBox="0 0 160 54" width="160" height="54"><path d="M12 36 C22 10 34 14 28 32 C26 42 40 20 52 24 C60 28 62 36 74 28 C84 20 96 14 104 26 C112 36 124 20 146 22 M36 44 C72 40 112 40 148 36" stroke="#182a4a" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">POTUS<br>SEAL</i></div></div><button id="promoOk">I So Swear</button></div></div>`
