@@ -1637,11 +1637,14 @@ function cameoBannerHTML() {
   </div>`;
 }
 
+let hofOpen = true, hofNat = "all";
 function hallOfFameHTML() {
   const slots = characters().filter((s) => (s.commander?.name || "").trim());
   if (!slots.length) return "";
   const curId = activeCharacterId();
-  const cards = slots.map((s) => {
+  const krSlots = slots.filter((s) => s.nation !== "us");
+  const usSlots = slots.filter((s) => s.nation === "us");
+  const renderCard = (s) => {
     const us = s.nation === "us";
     const BR = us ? US_BRANCHES : BRANCHES;
     const br = BR[s.staff?.branch] || BR.inf;
@@ -1659,21 +1662,44 @@ function hallOfFameHTML() {
     const medCnt = Object.keys(s.career?.medals || {}).length;
     const wk = s.duty?.week || 1;
     const ava = face({ ...agedFace(s.commander?.face || 0, g, us), civ: isP || isM || Boolean(s.career?.discharged), svc: svk, bg: isP ? "#1d3b6e" : isM ? "#232a36" : "#2b3446" }, 58);
-    return `<div style="display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:8px;background:${s.id === curId ? "rgba(242,202,92,.14)" : "rgba(14,22,32,.85)"};border:1px solid ${s.id === curId ? "#f2ca5c" : "rgba(120,160,195,.28)"}">
+    return `<div style="display:flex;gap:10px;align-items:center;padding:10px 12px;border-radius:8px;background:${s.id === curId ? "rgba(242,202,92,.14)" : "rgba(14,22,32,.85)"};border:1px solid ${s.id === curId ? "#f2ca5c" : us ? "rgba(93,168,232,.35)" : "rgba(120,195,160,.32)"}">
       <div style="flex:none;width:58px;height:58px;border-radius:6px;overflow:hidden;border:1px solid rgba(242,202,92,.5)">${ava}</div>
       <div style="min-width:0;flex:1">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
           <b style="color:#fff;font-size:13.5px">${escapeTitle(s.commander.name)}</b>
-          <span style="font-size:10.5px;padding:1px 6px;border-radius:4px;background:rgba(114,172,232,.18);color:#9fc5e2">${us ? "US" : "KR"} · ${orig}</span>
+          <span style="font-size:10.5px;padding:1px 6px;border-radius:4px;background:${us ? "rgba(70,130,210,.25)" : "rgba(60,150,115,.25)"};color:${us ? "#a8d4ff" : "#a8f0c6"};font-weight:700">${us ? "🇺🇸 미군" : "🇰🇷 한국군"} · ${orig}</span>
           ${s.id === curId ? `<span style="font-size:10px;padding:1px 6px;border-radius:4px;background:#f2ca5c;color:#111;font-weight:800">현재 캐릭터</span>` : s.archived ? `<span style="font-size:10px;color:#9ab">보관됨</span>` : ""}
         </div>
         <div style="color:#ffd166;font-size:12px;font-weight:700;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeTitle(title)}</div>
-        <div style="color:#9ab8cf;font-size:11px;margin-top:2px">${careerDate(wk)} · 훈장 ${medCnt}개</div>
+        <div style="color:#9ab8cf;font-size:11px;margin-top:2px">${careerDate(wk)} · 훈장 ${medCnt}개${s.career?.heritageParent ? ` · 🗡️ ${escapeTitle(s.career.heritageParent)} 가문 2세` : ""}</div>
       </div>
     </div>`;
-  }).join("");
-  return `<h3>🏛️ 10인 캐릭터 명예의 전당 (${slots.length}명 기록 · 세계관 공유)</h3>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(265px,1fr));gap:9px;margin-bottom:18px">${cards}</div>`;
+  };
+  const pillStyle = (on) => `padding:4px 10px;border-radius:6px;font-size:11.5px;font-weight:700;cursor:pointer;border:1px solid ${on ? "#f2ca5c" : "rgba(150,180,205,.3)"};background:${on ? "rgba(242,202,92,.2)" : "rgba(15,24,36,.8)"};color:${on ? "#ffe082" : "#9fc0d8"}`;
+  const filterRow = `<div style="display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 12px">
+    <button type="button" data-hof-nat="all" style="${pillStyle(hofNat === "all")}">🌐 전체 (${slots.length}명)</button>
+    <button type="button" data-hof-nat="kr" style="${pillStyle(hofNat === "kr")}">🇰🇷 한국군 (${krSlots.length}명)</button>
+    <button type="button" data-hof-nat="us" style="${pillStyle(hofNat === "us")}">🇺🇸 미군 (${usSlots.length}명)</button>
+  </div>`;
+  const krSection = (hofNat === "all" || hofNat === "kr")
+    ? `<div style="margin-bottom:12px">
+        <div style="font-size:12px;font-weight:800;color:#a8f0c6;margin-bottom:6px;display:flex;align-items:center;gap:6px"><span>🇰🇷 대한민국 국군 명예의 전당 (${krSlots.length}명)</span></div>
+        ${krSlots.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(265px,1fr));gap:9px">${krSlots.map(renderCard).join("")}</div>` : `<div style="font-size:11.5px;color:#7f9bb0;padding:8px 10px;background:rgba(10,18,26,.5);border-radius:6px">등록된 한국군 캐릭터가 없습니다.</div>`}
+      </div>`
+    : "";
+  const usSection = (hofNat === "all" || hofNat === "us")
+    ? `<div style="margin-bottom:6px">
+        <div style="font-size:12px;font-weight:800;color:#a8d4ff;margin-bottom:6px;display:flex;align-items:center;gap:6px"><span>🇺🇸 미합중국군 (U.S. Armed Forces) 명예의 전당 (${usSlots.length}명)</span></div>
+        ${usSlots.length ? `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(265px,1fr));gap:9px">${usSlots.map(renderCard).join("")}</div>` : `<div style="font-size:11.5px;color:#7f9bb0;padding:8px 10px;background:rgba(10,18,26,.5);border-radius:6px">등록된 미군 캐릭터가 없습니다.</div>`}
+      </div>`
+    : "";
+  return `<div class="mn-card" style="margin-bottom:18px;padding:12px 14px;border-color:rgba(242,202,92,.45);background:rgba(10,18,28,.82)">
+    <div data-hof-toggle="1" role="button" tabindex="0" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer;user-select:none">
+      <b style="color:#ffd166;font-size:14px">🏛️ 10인 캐릭터 명예의 전당 (총 ${slots.length}명 · 🇰🇷 ${krSlots.length} / 🇺🇸 ${usSlots.length})</b>
+      <span style="font-size:12px;color:#9fc5e2;font-weight:700;padding:3px 9px;border-radius:5px;background:rgba(255,255,255,.06);border:1px solid rgba(159,197,226,.25)">${hofOpen ? "접기 ▴" : "펼치기 ▾"}</span>
+    </div>
+    ${hofOpen ? `${filterRow}${krSection}${usSection}` : ""}
+  </div>`;
 }
 
 let recTab = "log";
@@ -2467,6 +2493,8 @@ $("#recordP").addEventListener("keydown", e => {
 });
 $("#recordP").addEventListener("click", (e) => {
   const ribbon = e.target.closest("[data-medal]"); if (ribbon) { showMedal(ribbon.dataset.medal); return; }
+  const hofT = e.target.closest("[data-hof-toggle]"); if (hofT) { sfx.click(); hofOpen = !hofOpen; renderRecord(); return; }
+  const hofN = e.target.closest("[data-hof-nat]"); if (hofN) { sfx.click(); hofNat = hofN.dataset.hofNat; renderRecord(); return; }
   const rt = e.target.closest("[data-rectab]"); if (rt) { sfx.click(); recTab = rt.dataset.rectab; renderRecord(); return; }
   const uniBtn = e.target.closest("[data-uni-rank]");
   if (uniBtn) {
