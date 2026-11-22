@@ -143,15 +143,20 @@ export function getOverseasTour(svk = "army", us = false) {
   return OVERSEAS_TOURS.kr_army;
 }
 
-export function overseasCardHTML(careerState = {}, svk = "army", us = false) {
+export function overseasCardHTML(grade = 0, week = 1, careerState = {}, svk = "army", us = false) {
   const tour = getOverseasTour(svk, us);
   const step = careerState.overseasStep || 0;
   const done = Boolean(careerState.tours?.overseas) || step >= tour.stages.length;
-  if (done) {
-    return `<div class="mn-card" style="margin-top:10px;border-color:rgba(99,212,113,.55);background:rgba(14,28,22,.82)">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <b style="color:#8ef07a;font-size:13px">${tour.icon} ${tour.title} — 파병 완수</b>
-        <span style="font-size:11px;color:#ffd166;font-weight:700">🌍 해외파병 기장 · 진급심사 가산점 적용 중</span>
+  if (done) return "";
+  // 초임 소위 때는 표시하지 않고, 중위 이상(grade >= 1) 및 복무 10주차(약 3년차) 이후부터 파병 트랙 개방
+  if (grade < 1 || week < 10) return "";
+  // 이전 단계 완료 후 최소 3주차(안건 3회)가 지나야 다음 파병 단계가 열림
+  const lastWk = careerState.overseasLastWeek || 0;
+  if (step > 0 && week < lastWk + 3) {
+    return `<div class="mn-card" style="margin-top:10px;padding:9px 12px;border-color:rgba(93,168,232,.35);background:rgba(12,24,38,.65)">
+      <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px">
+        <b style="color:#7ec2f8">${tour.icon} ${tour.title} — 현지 파병 임무 수행 중 (${step}/${tour.stages.length}단계 완료)</b>
+        <span style="color:#9ab8cf;font-size:11px">다음 파병 상황 보고까지 ${lastWk + 3 - week}안건 남음</span>
       </div>
     </div>`;
   }
@@ -198,16 +203,9 @@ export const HEARING_CASES = [
   },
 ];
 
-export function hearingCardHTML(grade = 0, careerState = {}, us = false) {
-  if (grade < 3) return "";
-  if (careerState.hearingCleared) {
-    return `<div class="mn-card" style="margin-top:10px;border-color:rgba(242,202,92,.45);background:rgba(28,24,14,.75)">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <b style="color:#ffe082;font-size:12.5px">⚖️ ${us ? "Senate Armed Services Hearing Cleared" : "국회 국방위원회 특별청문회 정면 돌파 완료"}</b>
-        <span style="font-size:11px;color:#8ef07a">✔ 소신 증언으로 대국민 신뢰 확보</span>
-      </div>
-    </div>`;
-  }
+export function hearingCardHTML(grade = 0, week = 1, careerState = {}, us = false) {
+  // 중령(grade >= 4) 이상 & 복무 32주차 이후에 한 번 발생하는 중견 지휘관 위기
+  if (grade < 4 || week < 32 || careerState.hearingCleared) return "";
   const c = HEARING_CASES[0];
   return `<div class="mn-card" style="margin-top:10px;border-color:#ff8a65;background:linear-gradient(135deg,rgba(42,18,18,.92),rgba(20,16,28,.94))">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
@@ -222,46 +220,40 @@ export function hearingCardHTML(grade = 0, careerState = {}, us = false) {
 /** 🧬 Feature ③ — 장교 결혼·가족 서사 & 2대·3대 자녀 세대 계승 */
 export const FAMILY_STAGES = [
   {
-    minG: 0,
+    minG: 2,
+    minWk: 16,
     title: "💍 제1장 · 예도(禮刀) 아래 맺은 백년가약",
-    desc: "임관 동기들이 뽑아 든 예도 터널을 지나 평생의 반려자와 백년가약을 맺고 첫 군 관사에 입주했습니다.",
-    btn: "💍 가족의 응원을 가슴에 새기다 (부대 사기 +5 · 평판 +3)",
-    log: "임관 동기들의 예도 축복 속에 가정을 꾸리고 첫 군 관사에 입주했습니다.",
+    desc: "초임 시절을 지나 어엿한 대위 지휘관으로 자리 잡은 당신은 임관 동기들이 뽑아 든 예도 터널을 지나 평생의 반려자와 백년가약을 맺고 첫 군 관사에 입주했습니다.",
+    btn: "💍 가족의 응원을 가슴에 새기다 (부대 사기 +5 · 평판 +4 · XP +250)",
+    log: "대위 시절 임관 동기들의 예도 축복 속에 가정을 꾸리고 첫 군 관사에 입주했습니다.",
   },
   {
     minG: 3,
+    minWk: 30,
     title: "👶 제2장 · 전방 관사의 불빛과 아이의 첫 거수경례",
-    desc: "잦은 전속과 비상대기 속에서도 건강하게 자란 자녀가 현관에서 고사리손으로 첫 거수경례를 올립니다.",
-    btn: "👶 부끄럽지 않은 지휘관이 되겠다고 다짐 (사기 +6 · XP +250)",
+    desc: "영관 장교로서 잦은 전속과 야간 비상대기가 이어지는 가운데, 어느덧 훌쩍 자란 자녀가 현관에서 고사리손으로 첫 거수경례를 올립니다.",
+    btn: "👶 부끄럽지 않은 지휘관이 되겠다고 다짐 (사기 +5 · 평판 +4 · XP +250)",
     log: "자녀의 첫 거수경례를 받으며 영관 지휘관으로서의 책임감을 되새겼습니다.",
   },
   {
     minG: 6,
+    minWk: 64,
     title: "🗡️ 제3장 · 자녀의 사관학교 입교 결심 — “대를 이어 충성하겠습니다”",
-    desc: "장성으로 성장한 당신의 뒷모습을 보고 자란 자녀가 사관생도의 길을 선택해 가문의 삼정검을 잇겠다고 선언합니다.",
+    desc: "장성으로 성장한 당신의 뒷모습을 보고 자란 자녀가 마침내 사관생도의 길을 선택해 가문의 삼정검을 잇겠다고 선언합니다.",
     btn: "🗡️ 호국 명문가 2세 사관생도 입교 축복 (새 캐릭터 생성 시 가문 계승 활성화!)",
     log: "자녀가 사관학교에 입교하여 대를 잇는 군인 명문가의 전통을 세웠습니다.",
   },
 ];
 
-export function familyCardHTML(grade = 0, careerState = {}) {
+export function familyCardHTML(grade = 0, week = 1, careerState = {}) {
   const fStep = careerState.familyStep || 0;
+  if (fStep >= FAMILY_STAGES.length) return "";
+  const stg = FAMILY_STAGES[fStep];
+  const lastWk = careerState.familyLastWeek || 0;
+  if (grade < stg.minG || week < stg.minWk || (fStep > 0 && week < lastWk + 8)) return "";
   const heritage = careerState.heritageParent
     ? `<div style="margin-bottom:6px;padding:5px 8px;border-radius:5px;background:rgba(242,202,92,.15);border:1px solid rgba(242,202,92,.5);color:#ffe082;font-size:11.5px">🗡️ <b>호국 명문가 2대 장교</b> — 선대 <b>${careerState.heritageParent}</b> 장군의 삼정검과 명예를 계승하여 복무 중입니다.</div>`
     : "";
-  if (fStep >= FAMILY_STAGES.length) {
-    return `<div class="mn-card" style="margin-top:10px;border-color:rgba(242,202,92,.45);background:rgba(18,24,32,.85)">
-      ${heritage}
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <b style="color:#ffd166;font-size:12.5px">🏡 군인 가족 & 호국 명문가 서사 완수</b>
-        <span style="font-size:11px;color:#8ef07a">✔ 자녀 사관생도 입교 · 새 캐릭터 가문 계승 가능</span>
-      </div>
-    </div>`;
-  }
-  const stg = FAMILY_STAGES[fStep];
-  if (grade < stg.minG) {
-    return heritage ? `<div class="mn-card" style="margin-top:10px">${heritage}</div>` : "";
-  }
   return `<div class="mn-card" style="margin-top:10px;border-color:rgba(242,202,92,.45);background:rgba(18,24,34,.88)">
     ${heritage}
     <div style="font-weight:800;color:#ffe082;font-size:13px;margin-bottom:4px">${stg.title}</div>

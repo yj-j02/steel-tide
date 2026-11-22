@@ -2058,7 +2058,7 @@ function renderDutyDesk() {
           }).join("")}</div>
           <button class="dm-tab" data-duty="retire_now" ${serviceTerms.obligationLeft ? "disabled" : ""} style="margin-top:6px;border-color:rgba(255,140,120,.35);color:#f2b8b0"><span>${serviceTerms.obligationLeft ? "의무복무 이행 중" : retireArm ? "⚠ 한 번 더 클릭: 전역" : "🚪 전역 신청"}</span></button>
         </nav>
-        <div class="dm-main">${warroomCard ? `<span class="dm-pri-badge">🔥 최우선 긴급 결재 · 합동 워룸</span>` + warroomCard : crCard ? `<span class="dm-pri-badge">🔥 최우선 긴급 결재 · 안보 위기</span>` + crCard : arcCard ? `<span class="dm-pri-badge">📖 최우선 결재 · 계급 시그니처 스토리</span>` + arcCard : ""}${warroomCard ? crCard : ""}${warroomCard || crCard ? arcCard : ""}${rvEvCard}${evCards}${repCard}${hearingCardHTML(g, career, isUS())}${overseasCardHTML(career, svk, isUS())}${familyCardHTML(g, career)}<div id="duty-promotion">${g < 9 ? reviewCard : marshalCardHTML(g)}</div>${g >= 9 ? reviewCard : ""}${minBtn}<details class="mn-card mn-fold"><summary><span>⭐ 계급 권한 안내${d.last ? " · 최근 결재 결과" : ""}</span><small style="color:#9fc0d8;font-weight:500">펼치기 ▾</small></summary>${tierAuthHTML(g)}${d.last ? `<div style="font-size:11.5px;color:#b8d0e2;margin-top:6px">최근 결과: ${d.last}</div>` : ""}</details></div>
+        <div class="dm-main">${warroomCard ? `<span class="dm-pri-badge">🔥 최우선 긴급 결재 · 합동 워룸</span>` + warroomCard : crCard ? `<span class="dm-pri-badge">🔥 최우선 긴급 결재 · 안보 위기</span>` + crCard : arcCard ? `<span class="dm-pri-badge">📖 최우선 결재 · 계급 시그니처 스토리</span>` + arcCard : ""}${warroomCard ? crCard : ""}${warroomCard || crCard ? arcCard : ""}${rvEvCard}${evCards}${repCard}${hearingCardHTML(g, d.week || 1, career, isUS())}${overseasCardHTML(g, d.week || 1, career, svk, isUS())}${familyCardHTML(g, d.week || 1, career)}<div id="duty-promotion">${g < 9 ? reviewCard : marshalCardHTML(g)}</div>${g >= 9 ? reviewCard : ""}${minBtn}<details class="mn-card mn-fold"><summary><span>⭐ 계급 권한 안내${d.last ? " · 최근 결재 결과" : ""}</span><small style="color:#9fc0d8;font-weight:500">펼치기 ▾</small></summary>${tierAuthHTML(g)}${d.last ? `<div style="font-size:11.5px;color:#b8d0e2;margin-top:6px">최근 결과: ${d.last}</div>` : ""}</details></div>
         <aside class="dm-side">${globalThis.__careerProfileHTML()}${bossCard}${rivalsHTML}<div class="mn-card dm-news"><div class="mn-h">📰 군 내부 · 언론 헤드라인</div>${(d.headlines || []).slice(0, 7).map((h) => `<small>• ${h.replace(/^(\d+)주차 ·/, "안건 $1 ·")}</small>`).join("")}</div></aside>
       </div>
     </div>`;
@@ -2716,9 +2716,10 @@ $("#hqP").addEventListener("click", (e) => {
       const step = career.overseasStep || 0, stg = tour.stages[step];
       if (stg && stg.opts[idx]) {
         const [choice, outcome] = stg.opts[idx];
-        career.overseasStep = step + 1;
-        profile.xp += 200;
         const d = dutyState();
+        career.overseasStep = step + 1;
+        career.overseasLastWeek = d.week || 1;
+        profile.xp += 200;
         d.rep = Math.min(100, (d.rep ?? 55) + 3);
         d.morale = Math.min(100, (d.morale ?? 72) + 3);
         if (career.overseasStep >= tour.stages.length) {
@@ -2726,7 +2727,7 @@ $("#hqP").addEventListener("click", (e) => {
           (career.serviceHistory ??= []).push({ turn: d.week || 1, date: careerDate(d.week || 1), title: `${tour.title} 완수`, message: outcome });
           toast(`🌍 ${tour.title} 3단계 전원 무사 완수! (해외파병 기장 획득 · XP +200)`, 4.5);
         } else {
-          toast(`🌍 파병 ${step + 1}단계 완료 — ${choice} (XP +200)`, 3.5);
+          toast(`🌍 파병 ${step + 1}단계 완료 — ${choice} (XP +200 · 3안건 후 다음 파병 상황 발생)`, 3.5);
         }
         saveProfile(); saveCareer();
         checkCareerAchievements(g, d);
@@ -2736,10 +2737,11 @@ $("#hqP").addEventListener("click", (e) => {
     }
     if (a === "famstep") {
       const fStep = career.familyStep || 0, stg = FAMILY_STAGES[fStep];
-      if (stg && g >= stg.minG) {
+      const d = dutyState();
+      if (stg && g >= stg.minG && (d.week || 1) >= stg.minWk) {
         career.familyStep = fStep + 1;
+        career.familyLastWeek = d.week || 1;
         profile.xp += 250;
-        const d = dutyState();
         d.morale = Math.min(100, (d.morale ?? 72) + 5);
         d.rep = Math.min(100, (d.rep ?? 55) + 4);
         (career.serviceHistory ??= []).push({ turn: d.week || 1, date: careerDate(d.week || 1), title: stg.title, message: stg.log });
