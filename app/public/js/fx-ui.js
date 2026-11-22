@@ -139,13 +139,14 @@ export function floatStatDeltas({ morale = 0, rep = 0, tension = 0, xp = 0 } = {
 
 let sceneTimer = null;
 /** Show a non-blocking visual scene card summarizing the outcome of an event choice. */
-export function showEventScene({ title, text, nation = "kr", service = "army", kind = "duty", score = null, xp = 0, dMorale = 0, dRep = 0, dTension = 0 }) {
+export function showEventScene({ title, text, nation = "kr", service = "army", kind = "duty", customBg = null, score = null, xp = 0, dMorale = 0, dRep = 0, dTension = 0 }) {
   injectFxStyles();
   const prev = document.getElementById("fxSceneCard");
   if (prev) prev.remove();
   if (sceneTimer) clearTimeout(sceneTimer);
 
   const vis = pickSceneVisual({ title, text, nation, service, kind });
+  if (customBg) vis.bg = customBg;
   const pills = [];
   if (score != null) pills.push(`<span class="fx-sc-pill ${score >= 85 ? "g" : score < 65 ? "r" : "y"}">평정 ${score}점</span>`);
   if (xp > 0) pills.push(`<span class="fx-sc-pill y">+${xp.toLocaleString()} XP</span>`);

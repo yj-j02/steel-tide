@@ -612,37 +612,37 @@ function rivalCivilianCareer(r, svc, us) {
   const br = r.br || "";
   if (br === "plt" || br === "mar") {
     return us
-      ? { post: "✈️ Major Airline B777 Captain", note: "군 조종사 전역 후 메이저 항공사 국제선 기장으로 제2의 비행을 이어가고 있습니다." }
-      : { post: "✈️ 대형 국적 항공사 국제선 기장", note: "전투기·군용기 조종간을 놓고 대형 항공사 국제선 기장으로 전 세계 하늘을 누빕니다." };
+      ? { post: "✈️ Major Airline B777 Captain", img: "img/bg/retire_airline.jpg", note: "군 조종사 전역 후 메이저 항공사 국제선 기장으로 제2의 비행을 이어가고 있습니다." }
+      : { post: "✈️ 대형 국적 항공사 국제선 기장", img: "img/bg/retire_airline.jpg", note: "전투기·군용기 조종간을 놓고 대형 항공사 국제선 기장으로 전 세계 하늘을 누빕니다." };
   }
   if (br === "sea" || br === "sub") {
     return us
-      ? { post: "🚢 Global Maritime Fleet Captain", note: "해군 전역 후 글로벌 해운선단 선장으로 대양 해상물류를 지휘합니다." }
-      : { post: "🚢 대형 상선 선장 · 해운사 운항임원", note: "함정 항해 경력을 살려 글로벌 해운사 초대형 컨테이너선 선장으로 활약 중입니다." };
+      ? { post: "🚢 Global Maritime Fleet Captain", img: "img/bg/retire_maritime.jpg", note: "해군 전역 후 글로벌 해운선단 선장으로 대양 해상물류를 지휘합니다." }
+      : { post: "🚢 대형 상선 선장 · 해운사 운항임원", img: "img/bg/retire_maritime.jpg", note: "함정 항해 경력을 살려 글로벌 해운사 초대형 컨테이너선 선장으로 활약 중입니다." };
   }
   if (br === "eng") {
     return us
-      ? { post: "🏗️ Infrastructure & Engineering VP", note: "공병단 경력을 바탕으로 미국 대형 인프라·건설 기업 임원으로 영입됐습니다." }
-      : { post: "🏗️ 대형 건설사 SOC·플랜트 본부장", note: "공병 복무 경력을 인정받아 글로벌 대형 건설사의 핵심 인프라 본부장으로 자리 잡았습니다." };
+      ? { post: "🏗️ Infrastructure & Engineering VP", img: "img/bg/retire_engineer.jpg", note: "공병단 경력을 바탕으로 미국 대형 인프라·건설 기업 임원으로 영입됐습니다." }
+      : { post: "🏗️ 대형 건설사 SOC·플랜트 본부장", img: "img/bg/retire_engineer.jpg", note: "공병 복무 경력을 인정받아 글로벌 대형 건설사의 핵심 인프라 본부장으로 자리 잡았습니다." };
   }
   if (r.g <= 2) {
     return us
-      ? { post: "💼 DoD Civil Service / Law School", note: "위관 복무를 마친 뒤 로스쿨 및 국방 연방공무원 트랙으로 새 커리어를 열었습니다." }
-      : { post: "💼 대기업 전략팀 · 국방 군무원 특채", note: "위관 전역 후 장교 특채로 대기업·국방 행정 분야에서 새로운 경력을 쌓았습니다." };
+      ? { post: "💼 DoD Civil Service / Law School", img: "img/bg/retire_cyber.jpg", note: "위관 복무를 마친 뒤 로스쿨 및 국방 연방공무원 트랙으로 새 커리어를 열었습니다." }
+      : { post: "💼 대기업 전략팀 · 국방 군무원 특채", img: "img/bg/retire_cyber.jpg", note: "위관 전역 후 장교 특채로 대기업·국방 행정 분야에서 새로운 경력을 쌓았습니다." };
   }
   if (br === "arm" || br === "art" || br === "sam" || br === "acq" || r.route === "acq") {
     return us
-      ? { post: "🛡️ Defense & Aerospace Corp. VP", note: "무기체계 운용 경력을 살려 미국 방산·우주항공 대기업 전략 임원으로 스카우트됐습니다." }
-      : { post: "🛡️ K-방산 대기업 해외수출 상무", note: "실전 무기체계와 획득 경험을 인정받아 K-방산 해외 수출을 이끄는 임원이 되었습니다." };
+      ? { post: "🛡️ Defense & Aerospace Corp. VP", img: "img/bg/retire_defense.jpg", note: "무기체계 운용 경력을 살려 미국 방산·우주항공 대기업 전략 임원으로 스카우트됐습니다." }
+      : { post: "🛡️ K-방산 대기업 해외수출 상무", img: "img/bg/retire_defense.jpg", note: "실전 무기체계와 획득 경험을 인정받아 K-방산 해외 수출을 이끄는 임원이 되었습니다." };
   }
   if (r.g >= 5 || br === "pol" || r.route === "policy") {
     return us
-      ? { post: "🎓 Washington Think Tank Senior Fellow", note: "워싱턴 유력 안보 싱크탱크 석좌연구원 겸 방송 안보 해설위원으로 활동 중입니다." }
-      : { post: "🎓 국방안보연구원 석좌위원 · 정계 자문", note: "지휘관·참모 경륜을 바탕으로 국가안보 싱크탱크와 언론·정계에서 핵심 자문을 맡고 있습니다." };
+      ? { post: "🎓 Washington Think Tank Senior Fellow", img: "img/bg/retire_thinktank.jpg", note: "워싱턴 유력 안보 싱크탱크 석좌연구원 겸 방송 안보 해설위원으로 활동 중입니다." }
+      : { post: "🎓 국방안보연구원 석좌위원 · 정계 자문", img: "img/bg/retire_thinktank.jpg", note: "지휘관·참모 경륜을 바탕으로 국가안보 싱크탱크와 언론·정계에서 핵심 자문을 맡고 있습니다." };
   }
   return us
-    ? { post: "📡 Global Cybersecurity & Risk CEO", note: "작전·정보 경력을 살려 글로벌 사이버보안·위기관리 컨설팅 회사를 이끌고 있습니다." }
-    : { post: "📡 사이버보안·위기관리 컨설팅 대표", note: "야전·정보 경험을 살려 기업 위기관리와 사이버안보 컨설팅 대표이사로 성공했습니다." };
+    ? { post: "📡 Global Cybersecurity & Risk CEO", img: "img/bg/retire_cyber.jpg", note: "작전·정보 경력을 살려 글로벌 사이버보안·위기관리 컨설팅 회사를 이끌고 있습니다." }
+    : { post: "📡 사이버보안·위기관리 컨설팅 대표", img: "img/bg/retire_cyber.jpg", note: "야전·정보 경험을 살려 기업 위기관리와 사이버안보 컨설팅 대표이사로 성공했습니다." };
 }
 
 /** Advance rival classmates independently by their own service years (even if player is slow) + organic discharge into civilian careers. */
@@ -652,27 +652,42 @@ function tickRivals(d, playerGrade, svc = "navy", playerPost = "") {
   const us = isUS();
   const RK_KR = ["소위", "중위", "대위", "소령", "중령", "대령", "준장", "소장", "중장", "대장"];
   const promoted = [];
+  let activeCount = d.rivals.filter((x) => !x.retired).length;
   d.rivals.forEach((r, ri) => {
-    if (r.retired || r.g >= maxG || !rivalEligible(r, d.week)) return;
+    if (r.retired || !rivalEligible(r, d.week)) return;
     const waitInRank = d.week - (r.rankSinceWeek ?? (r.g === 0 ? 1 : d.week));
     const elite = r.style === "야전 엘리트";
     const lateSurge = (r.route === "policy" || r.route === "staff") && r.g >= 3;
 
-    const stallTurns = r.g <= 2 ? 18 : r.g <= 5 ? 22 : 26;
-    const retireProb = r.g >= 2 && waitInRank >= stallTurns
-      ? (elite ? 0.08 : r.g === 2 ? 0.16 : 0.22)
-      : (r.g === 2 && waitInRank >= 14 && (r.br === "plt" || r.br === "mar" || r.br === "eng") ? 0.10 : 0);
+    // Organic retirement across Captain / Field / Flag ranks (keep at least 1 active rival for competition)
+    const canRetire = activeCount > 1 && r.g >= 2 && (
+      (r.g === 9 && waitInRank >= 16) ||
+      (r.g >= 6 && waitInRank >= 16) ||
+      (r.g >= 3 && r.g <= 5 && waitInRank >= 13) ||
+      (r.g === 2 && waitInRank >= 11)
+    );
+    const retireProb = !canRetire ? 0
+      : r.g === 9 ? 0.28
+      : r.g >= 6 ? (elite ? 0.12 : 0.22)
+      : r.g >= 3 ? (elite ? 0.08 : 0.20)
+      : (r.br === "plt" || r.br === "mar" || r.br === "eng" ? 0.16 : 0.10);
+
     if (retireProb > 0 && Math.random() < retireProb) {
       const civ = rivalCivilianCareer(r, svc, us);
       r.retired = true;
       r.retiredPost = civ.post;
       r.retiredNote = civ.note;
+      r.retiredDate = careerDate(d.week);
+      activeCount--;
       const rNm = us ? usNpcName(r.name + ri) : r.name;
-      d.headlines.unshift(`${careerDate(d.week)} · [동기 전역·전직] ${RK_KR[r.g] || ""} ${rNm}, 전역 후 ${civ.post} 취임`);
+      const rkNm = RK_KR[r.g] || "";
+      d.recentRivalRetire = { name: rNm, rank: rkNm, post: civ.post, note: civ.note, img: civ.img, date: r.retiredDate };
+      d.headlines.unshift(`${r.retiredDate} · [동기 전역·전직] ${rkNm} ${rNm}, 전역 후 ${civ.post} 취임`);
       d.headlines = d.headlines.slice(0, 12);
       return;
     }
 
+    if (r.g >= maxG) return;
     const baseProb = r.g <= 1 ? 0.55 : r.g === 2 ? 0.34 : r.g <= 4 ? 0.24 : r.g === 5 ? 0.16 : 0.11;
     const boost = elite ? 0.14 : lateSurge ? 0.07 : 0;
     const catchup = waitInRank >= 16 ? 0.10 : 0;

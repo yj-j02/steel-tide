@@ -2104,6 +2104,12 @@ $("#hqP").addEventListener("click", (e) => {
     if (a === "next") {
       const d = nextDutyWeek(svk, g, postOf(g)), status = currentServiceStatus(g, d);
       noteServiceNotice(status);
+      if (d.recentRivalRetire) {
+        const ret = d.recentRivalRetire;
+        delete d.recentRivalRetire;
+        lastRivalQuote = `${ret.rank} ${ret.name}, 전역 후 ${ret.post} 취임!`;
+        showEventScene({ title: `🎖️ 동기 ${ret.rank} ${ret.name} 전역 · ${ret.post}`, text: ret.note, nation: isUS() ? "us" : "kr", service: svk, kind: "rival", customBg: ret.img });
+      }
       if (status.due && !(status.extension && status.qualifies)) {
         finishOfficerService(g, status.limit.title, status.limit.month);
         return;
