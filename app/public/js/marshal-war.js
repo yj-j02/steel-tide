@@ -171,160 +171,160 @@ export const MARSHAL_WARS = {
   us: {
     code: "OPERATION PACIFIC VANGUARD",
     title: "인도태평양 전면전 · Operation Pacific Vanguard",
-    subtitle: "DEFCON 1 · U.S. Wartime Supreme Theater Commander Appointed",
+    subtitle: "DEFCON 1 발령 · 미 인도태평양 전시 총사령관 (Supreme Theater Commander) 임명",
     bg: "img/bg/warroom_us.jpg",
-    medal: "Medal of Honor",
-    marshalTitle: "U.S. 5-Star Marshal (★★★★★ · O-11)",
+    medal: "Medal of Honor (명예훈장)",
+    marshalTitle: "미합중국 5성 원수 (★★★★★ · O-11)",
     nodes: [
-      { id: "strait", x: 76, y: 124, label: "First Island Chain" },
-      { id: "guam", x: 184, y: 132, label: "Okinawa · Guam" },
-      { id: "scs", x: 158, y: 66, label: "South China Sea" },
-      { id: "break", x: 288, y: 88, label: "Fleet Decisive" },
-      { id: "peace", x: 386, y: 74, label: "Pacific Armistice" },
+      { id: "strait", x: 76, y: 124, label: "제1도련선" },
+      { id: "guam", x: 184, y: 132, label: "오키나와·괌" },
+      { id: "scs", x: 158, y: 66, label: "남중국해" },
+      { id: "break", x: 288, y: 88, label: "함대 결전" },
+      { id: "peace", x: 386, y: 74, label: "태평양 종전" },
     ],
     phases: [
       {
         day: "D+0 · 04:15Z",
         node: 0,
-        title: "Phase 1 · Opening Salvo & First Island Chain Defense",
-        brief: "Simultaneous anti-ship ballistic missile salvos target forward bases in Okinawa and Guam while hostile naval task forces attempt to blockade key Indo-Pacific sea lanes. As newly appointed Supreme Theater Commander under DEFCON 1, set your opening war doctrine.",
+        title: "제1국면 · 개전 미사일 포화 및 제1도련선(First Island Chain) 방어",
+        brief: "오키나와와 괌 전진기지를 겨냥한 대함탄도미사일(ASBM) 동시 포화 공격이 개시됐고, 적 기동함대가 서태평양 핵심 해협 봉쇄에 나섰습니다. DEFCON 1 아래 임명된 전시 총사령관으로서 개전 초기 방어 교리를 하달하십시오.",
         choices: [
           {
-            label: "🛡️ Integrated Missile Defense + Distributed Maritime Operations (DMO)",
-            tag: "Balanced Doctrine",
-            desc: "Disperse carrier strike groups beyond A2/AD choke points, activate Aegis Ashore & THAAD shields, and counter-strike launch grids.",
+            label: "🛡️ 통합 미사일 방어(Aegis·THAAD) + 분산해양작전(DMO) 전면 가동",
+            tag: "균형 교리 · 정석",
+            desc: "항모강습단을 적 A2/AD 사거리 외곽으로 분산 기동시키고 통합 방공망으로 기지를 방호하며 발사 원점을 정밀 반격합니다.",
             dFront: 14, dForce: -6, dCoal: 10, score: 84,
-            sitrep: "Distributed fleet positioning denied enemy targeting satellites. Integrated missile shields intercepted 84% of incoming salvos while preserving core carrier aviation."
+            sitrep: "분산 배치 덕분에 적 정찰위성의 표적 획득을 무력화했습니다. 이지스·사드 통합 방공망이 미사일 84%를 요격하며 핵심 항모 전력을 온전히 보존했습니다."
           },
           {
-            label: "⚡ Immediate B-21 & Tomahawk Deep Counter-Strike on Launch Complexes",
-            tag: "High Risk · High Tempo",
-            desc: "Accept early forward damage to shatter enemy C4ISR and coastal missile batteries within 12 hours.",
+            label: "⚡ B-21 스텔스 폭격기·토마호크 즉각 심층 반격 (발사 기지 직타)",
+            tag: "고위험 · 초고속 주도권",
+            desc: "전진기지 초기 피해를 감수하고 12시간 내에 적 C4ISR 지휘망과 연안 미사일 포대를 마비시킵니다.",
             dFront: 20, dForce: -14, dCoal: 4, score: 88,
-            sitrep: "Long-range stealth strikes blinded hostile over-the-horizon radar networks, seizing early initiative at the cost of heavy forward airbase repairs."
+            sitrep: "장거리 스텔스 타격으로 적 초수평선 레이더망을 무력화하고 초기 주도권을 장악했습니다. 다만 전진 비행장 복구 부담으로 전력 소모가 컸습니다."
           },
           {
-            label: "⚓ Allied Naval Escort First · Secure Japan-Korea-Australia Sea Lanes",
-            tag: "Coalition Focus",
-            desc: "Prioritize allied maritime defense and submarine screens to keep Pacific supply arteries unbroken.",
+            label: "⚓ 동맹 해군 호위 최우선 · 한·미·일·호주 태평양 보급로 사수",
+            tag: "동맹 결속 · 보급선 보존",
+            desc: "동맹국 해상 방어와 잠수함 방어막 구축에 집중해 태평양 병참 동맥이 끊기지 않도록 지킵니다.",
             dFront: 10, dForce: -4, dCoal: 12, score: 76,
-            sitrep: "Allied navies held the maritime lifeline intact and coalition unity surged, though forward island garrisons came under intense pressure."
+            sitrep: "동맹 해군과 해상 보급로를 완벽히 지켜내며 연합 결속이 급상승했습니다. 다만 제1도련선 전방 도서 거점이 강한 압박에 노출됐습니다."
           }
         ]
       },
       {
         day: "D+9 · 16:00Z",
         node: 1,
-        title: "Phase 2 · Battle for Air & Undersea Supremacy",
-        brief: "Enemy nuclear attack submarines threaten Pacific logistics convoys while dense SAM belts contest the skies over the First Island Chain. Three U.S. Carrier Strike Groups and Allied air wings await your campaign order.",
+        title: "제2국면 · 서태평양 제공권·수중 제해권 결전",
+        brief: "적 원자력 공격잠수함이 태평양 수송선단을 위협하고 있으며, 조밀한 지대공 미사일 방공망이 제1도련선 상공을 가로막고 있습니다. 미 항모강습단 3개 전단과 동맹 항공단이 총사령관의 작전 명령을 대기 중입니다.",
         choices: [
           {
-            label: "✈️ Joint Multi-Domain Air-Sea Dominance (F-35 · Virginia SSN · Cyber)",
-            tag: "Joint Masterstroke",
-            desc: "Synchronize submarine torpedo ambushes, stealth SEAD sorties, and satellite cyber disruption in a single 72-hour blitz.",
+            label: "✈️ 다영역 합동 공세 (F-35 · 버지니아급 SSN · 사이버전 동시 투입)",
+            tag: "다영역 합동 · 최고 효율",
+            desc: "잠수함 어뢰 매복, 스텔스 SEAD 출격, 위성 사이버 교란을 72시간 내 동시 동기화해 적 함대 방공망을 붕괴시킵니다.",
             dFront: 16, dForce: -5, dCoal: 12, score: 88,
-            sitrep: "In the largest multi-domain battle since 1944, hostile surface action groups lost air cover and withdrew behind coastal waters."
+            sitrep: "1944년 이후 최대 규모의 다영역 결전에서 적 수상전투단이 공중 엄호를 상실하고 연안 해역으로 전면 후퇴했습니다."
           },
           {
-            label: "🚢 Submarine Wolfpack Blockade · Strangle Hostile Energy & Munitions",
-            tag: "Force Preservation",
-            desc: "Deploy Virginia-class SSNs and P-8A Poseidons to sever enemy maritime resupply while rebuilding forward air wings.",
+            label: "🚢 잠수함 울프팩(Wolfpack) 해상 봉쇄 · 적 에너지·탄약 보급 차단",
+            tag: "전력 회복 · 병참 압박",
+            desc: "버지니아급 잠수함과 P-8A 초계기로 적 해상 보급로를 차단하는 동안 미 본토(CONUS) 공수 증원으로 전력을 재정비합니다.",
             dFront: 10, dForce: 6, dCoal: 8, score: 78,
-            sitrep: "Hostile maritime logistics collapsed by 65%, and American forward readiness rebounded with fresh CONUS airlift reinforcements."
+            sitrep: "적 해상 병참 물동량이 65% 급감했고, 본토 전략 공수가 도착하면서 아군 전진 전력 보존율이 뚜렷하게 회복됐습니다."
           },
           {
-            label: "🔥 Direct Carrier Push into Contested Strait",
-            tag: "Aggressive Gamble",
-            desc: "Drive three Carrier Strike Groups straight into the contested strait to force an immediate decisive fleet engagement.",
+            label: "🔥 항모강습단 3개 전단 해협 정면 돌파 · 주력 함대 결전 강제",
+            tag: "공격적 승부수 · 고손실",
+            desc: "항모전단을 분쟁 해협 정면으로 밀어 넣어 적 주력 함대와의 즉각적인 전면 결전을 유도합니다.",
             dFront: 19, dForce: -16, dCoal: 2, score: 76,
-            sitrep: "U.S. naval aviators sank two hostile capital ships, but dense anti-ship missile volleys heavily damaged two escort destroyers."
+            sitrep: "미 해군 함재기가 적 주력 대형함 2척을 격침했으나, 밀집 대함미사일 세례에 아군 호위 구축함 2척이 중파됐습니다."
           }
         ]
       },
       {
         day: "D+21 · 06:00Z",
         node: 2,
-        title: "Phase 3 · Grand Counteroffensive — Breaking the Blockade",
-        brief: "Hostile air and naval reserves are stretched thin. The Joint Chiefs and Allied capitals endorse a decisive counteroffensive to reopen the Western Pacific.",
+        title: "제3국면 · 대반격(Grand Counteroffensive) — 해협 봉쇄 돌파",
+        brief: "적 해·공군 예비 전력이 한계에 다다랐습니다. 미 합참(JCS)과 동맹국 수도 모두 서태평양 항행의 자유를 회복할 결정적 대반격을 승인했습니다.",
         choices: [
           {
-            label: "⚔️ Twin-Axis Allied Amphibious & Carrier Breakthrough",
-            tag: "5-Star Maneuver",
-            desc: "Pair a Marine Littoral Regiment island-hopping thrust with a flanking Allied carrier-amphibious pincer to collapse the blockade.",
+            label: "⚔️ 양축 연합 상륙·항모 돌파 (해병연안전투단 + 동맹 기동전단 협공)",
+            tag: "5성급 대전략 기동",
+            desc: "미 해병연안전투단(MLR)의 도서 탈환과 동맹 항모·상륙전단의 측면 포위를 결합해 적 봉쇄망을 단숨에 붕괴시킵니다.",
             dFront: 18, dForce: -7, dCoal: 12, score: 92,
-            sitrep: "The twin-axis pincer shattered the blockade in 96 hours. Allied forces retook key chokepoints and captured intact radar installations."
+            sitrep: "96시간 만의 양축 협공으로 적 봉쇄선이 완전히 무너졌습니다! 연합군이 핵심 전략 요충지와 레이더 기지를 온전히 탈환했습니다."
           },
           {
-            label: "🎯 Stand-Off Attrition · Long-Range Precision Fires Before Advance",
-            tag: "Low Casualty",
-            desc: "Expend JASSM-ER and LRASM stockpiles over five days to neutralize coastal defenses before committing amphibious forces.",
+            label: "🎯 원거리 정밀 소모전 (JASSM-ER · LRASM 집중 타격 후 안전 진격)",
+            tag: "인명 피해 최소화",
+            desc: "상륙 전력 투입 전 5일간 장거리 정밀유도무기로 적 해안 방어망을 완전히 무력화한 뒤 진격합니다.",
             dFront: 11, dForce: -2, dCoal: 10, score: 80,
-            sitrep: "Casualties stayed remarkably low and public support remained firm, though hostile fleet remnants escaped to fortified ports."
+            sitrep: "미군 인명 피해를 극소화하며 미국 내 여론 지지를 굳건히 유지했으나, 적 잔존 함대 일부가 요새화된 항만으로 철수했습니다."
           },
           {
-            label: "🚀 High-Speed Task Force Raid on Enemy Fleet Headquarters",
-            tag: "Bold Strike",
-            desc: "Launch a daring high-speed naval and airborne raid straight toward enemy theater command nodes.",
+            label: "🚀 고속 기동타격대 적 전구사령부 기습 타격",
+            tag: "대담한 종심 타격",
+            desc: "보급선 부담을 감수하고 고속 함정·장거리 타격 편대를 적 전구 지휘 거점으로 직투입합니다.",
             dFront: 21, dForce: -15, dCoal: -4, score: 82,
-            sitrep: "The raid stunned enemy leadership and disrupted their chain of command, though extended tanker and escort lines suffered heavy strain."
+            sitrep: "적 지도부에 치명적 충격을 주며 지휘 계통을 교란했지만, 길어진 공중급유·호위 라인에 상당한 전력 손실이 누적됐습니다."
           }
         ]
       },
       {
         day: "D+34 · 22:30Z",
         node: 3,
-        title: "Phase 4 · Strategic Escalation & Nuclear Deterrence Crisis",
-        brief: "Facing decisive conventional defeat, hostile strategic forces raise nuclear readiness levels. The President convenes the National Security Council and asks for your theater assessment.",
+        title: "제4국면 · 전략적 확전과 핵 억지(Nuclear Deterrence) 위기",
+        brief: "재래식 전력의 결정적 패배에 직면한 적 전략군이 핵 대비 태세를 격상했습니다. 미 대통령이 백악관 국가안보회의(NSC)를 긴급 소집해 전시 총사령관의 판단을 요청합니다.",
         choices: [
           {
-            label: "🛰️ Ironclad Strategic Triad Alert + Controlled Conventional De-escalation Corridor",
-            tag: "Masterful Deterrence",
-            desc: "Demonstrate unmistakable nuclear deterrence via SSBN/B-2 posture while signaling strict limits on mainland strikes to prevent miscalculation.",
+            label: "🛰️ 미 3대 핵전력(Strategic Triad) 경계 격상 + 재래식 확전 통제선 명확화",
+            tag: "완벽한 전략 억지",
+            desc: "전략핵잠수함(SSBN)·B-2 전개로 압도적 핵 억지력을 과시하는 동시에 본토 심층 타격 제한선을 분명히 해 오판을 차단합니다.",
             dFront: 12, dForce: -3, dCoal: 14, score: 92,
-            sitrep: "Your calibrated deterrence held the line: hostile strategic forces stood down from launch alert while U.S. conventional dominance remained intact."
+            sitrep: "정교한 억지 전략이 적중했습니다. 적 전략군이 발사 경계 태세를 해제했고, 미군의 재래식 전구 우위는 흔들림 없이 유지됐습니다."
           },
           {
-            label: "📡 Backchannel Military-to-Military Hotline with Allied Diplomatic Backing",
-            tag: "Diplomatic Leverage",
-            desc: "Open an urgent theater hotline alongside Allied capitals to lock in red lines and isolate hardliners.",
+            label: "📡 군사 핫라인 가동 + 동맹국 외교 공조를 통한 확전 차단",
+            tag: "외교·군사 복합 대응",
+            desc: "동맹국 수도와 보조를 맞춰 적 군부와 긴급 직통 채널을 가동해 레드라인을 확정하고 강경파를 고립시킵니다.",
             dFront: 9, dForce: 2, dCoal: 12, score: 82,
-            sitrep: "Direct military-to-military communication defused the nuclear flashpoint and rallied neutral nations behind the Allied peace framework."
+            sitrep: "군 대 군 직통 핫라인이 핵 충돌 위기를 잠재웠고, 중립국들까지 연합군의 평화 프레임워크를 지지하기 시작했습니다."
           },
           {
-            label: "💣 Expand Deep Strikes Against Strategic Infrastructure",
-            tag: "Escalatory Risk",
-            desc: "Press total military pressure by striking inland dual-use command and power networks.",
+            label: "💣 내륙 이중용도 전략 인프라 전면 타격 확대",
+            tag: "강경 압박 · 확전 리스크",
+            desc: "적 내륙 지휘·전력 인프라까지 전면 타격해 저항 의지를 완전히 꺾습니다.",
             dFront: 14, dForce: -9, dCoal: -14, score: 68,
-            sitrep: "Enemy resistance fractured further, but severe escalation fears fractured coalition support in Europe and Asia."
+            sitrep: "적의 조직적 저항은 크게 약화됐으나, 확전 공포로 유럽·아시아 동맹국들의 외교적 균열이 심화됐습니다."
           }
         ]
       },
       {
         day: "D+48 · 10:00Z",
         node: 4,
-        title: "Phase 5 · Decisive Victory & Pacific Armistice",
-        brief: "Hostile naval and air power in the Western Pacific is effectively neutralized. One final command decision will define the postwar order and your place in military history.",
+        title: "제5국면 · 결정적 승전과 태평양 종전 협정 (Pacific Armistice)",
+        brief: "서태평양의 적 해·공군 전력이 사실상 무력화됐습니다. 전후 인도태평양 질서와 귀관의 역사적 위상을 확정할 마지막 통수 결단만이 남았습니다.",
         choices: [
           {
-            label: "🏛️ Formal Surrender of Theater Forces & Allied Freedom-of-Navigation Charter",
-            tag: "Decisive Victory · 5-Star Legacy",
-            desc: "Enforce verifiable demilitarization of contested chokepoints aboard the flagship and establish a permanent Allied security charter.",
+            label: "🏛️ 기함 함상 공식 항복 접수 & 동맹 항행의 자유 헌장 체결",
+            tag: "완전 승전 · 5성 원수 정석",
+            desc: "미 기함 함상에서 검증 가능한 비무장화 조항과 영구적인 동맹 안보 헌장을 관철해 역사적 승전을 완성합니다.",
             dFront: 12, dForce: -2, dCoal: 14, score: 94,
-            sitrep: "Aboard the flagship, theater armistice terms were signed under Allied terms. Congress prepares a joint resolution conferring the historic 5-star rank."
+            sitrep: "기함 함상에서 연합군 조건에 따른 공식 종전 협정이 조인됐습니다! 미 의회가 역사적인 5성 원수(O-11) 추대 합동결의안을 상정했습니다."
           },
           {
-            label: "🤝 Immediate Ceasefire & Rapid Force Demobilization",
-            tag: "Pragmatic Peace",
-            desc: "Halt operations immediately on favorable lines to bring American service members home swiftly.",
+            label: "🤝 유리한 전선에서 즉각 정전 체결 · 미군 장병 신속 귀환",
+            tag: "실용적 조기 종전",
+            desc: "현재의 유리한 전선에서 즉각 포성을 멈추고 미군 장병들을 신속히 본국으로 귀환시킵니다.",
             dFront: 6, dForce: 5, dCoal: 8, score: 76,
-            sitrep: "The guns fell silent across the Pacific and troops returned home safely, though critics debate leaving disputed waters unresolved."
+            sitrep: "태평양 전역의 포성이 멎고 장병들이 무사히 귀환했으나, 분쟁 해역의 영구 해결이 미완으로 남아 의회 논쟁이 이어집니다."
           },
           {
-            label: "⚔️ Continue Naval Blockade Until Total Unconditional Capitulation",
-            tag: "Hardline Finish",
-            desc: "Maintain full wartime blockade until every hostile port surrenders unconditionally.",
+            label: "⚔️ 완전 무조건 항복까지 전면 해상 봉쇄 무기한 지속",
+            tag: "강경 완결 · 장기 소모",
+            desc: "모든 적 항만이 무조건 항복할 때까지 전시 해상 봉쇄를 끝까지 유지합니다.",
             dFront: 14, dForce: -13, dCoal: -6, score: 78,
-            sitrep: "Total capitulation was achieved, yet weeks of prolonged blockade strained global trade and cost additional Allied lives."
+            sitrep: "완전 항복을 받아냈으나, 수 주간 이어진 봉쇄로 세계 교역망이 타격을 입고 동맹군 추가 희생이 발생했습니다."
           }
         ]
       }

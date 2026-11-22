@@ -310,7 +310,18 @@ export function dutyState() {
   let d = rd(DK, null);
   if (!d) {
     const ng = ngBonuses();
-    d = { week: 1, morale: 72, rep: clamp(55 + ng.initRep, 0, 100), tension: 32, stance: "bal", recent: [], headlines: [isUS() ? "O-1 소위 임관 — 미합중국 군(U.S. Armed Forces) 장교 커리어 시작" : "신임 소위 임관 — 대한민국 국군 장교 커리어 시작"], pending: [], crisis: null, report: null, rivals: null, last: null };
+    d = { saveVersion: 2, week: 1, morale: 72, rep: clamp(55 + ng.initRep, 0, 100), tension: 32, stance: "bal", recent: [], headlines: [isUS() ? "O-1 소위 임관 — 미합중국 군(U.S. Armed Forces) 장교 커리어 시작" : "신임 소위 임관 — 대한민국 국군 장교 커리어 시작"], pending: [], crisis: null, report: null, rivals: null, arcs: {}, last: null };
+    wr(DK, d);
+  } else if ((d.saveVersion || 0) < 2) {
+    d.recent = Array.isArray(d.recent) ? d.recent : [];
+    d.headlines = Array.isArray(d.headlines) ? d.headlines : [];
+    d.pending = Array.isArray(d.pending) ? d.pending : [];
+    d.stance = d.stance || "bal";
+    d.arcs = d.arcs && typeof d.arcs === "object" ? d.arcs : {};
+    if (d.morale == null) d.morale = 72;
+    if (d.rep == null) d.rep = 55;
+    if (d.tension == null) d.tension = 32;
+    d.saveVersion = 2;
     wr(DK, d);
   }
   return d;

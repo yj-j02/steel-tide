@@ -3,8 +3,23 @@ import { careerStorage } from "./characters.js";
 // Officer career: pay steps (호봉) within a rank, service record (약력), medals and flagship assignment.
 
 const KEY = "steeltide:career";
-export const career = (() => { let c = null; try { c = JSON.parse(careerStorage.getItem(KEY) || "null"); } catch {} return c && c.log ? c : null; })() || { log: [], ship: null, seen: null };
-export const saveCareer = () => { try { careerStorage.setItem(KEY, JSON.stringify(career)); } catch {} };
+export const SAVE_VERSION = 2;
+export function migrateCareerSave(raw) {
+  const c = raw && typeof raw === "object" && Array.isArray(raw.log) ? raw : { log: [], ship: null, seen: null };
+  c.medals = c.medals && typeof c.medals === "object" ? c.medals : {};
+  c.medalHistory = c.medalHistory && typeof c.medalHistory === "object" ? c.medalHistory : {};
+  c.evals = c.evals && typeof c.evals === "object" ? c.evals : {};
+  c.rankWeeks = c.rankWeeks && typeof c.rankWeeks === "object" ? c.rankWeeks : {};
+  c.boardHistory = Array.isArray(c.boardHistory) ? c.boardHistory : [];
+  c.boardWaits = Array.isArray(c.boardWaits) ? c.boardWaits : [];
+  c.crisisWins = c.crisisWins && typeof c.crisisWins === "object" ? c.crisisWins : {};
+  c.tours = c.tours && typeof c.tours === "object" ? c.tours : {};
+  if (c.warVictory === undefined) c.warVictory = null;
+  c.saveVersion = SAVE_VERSION;
+  return c;
+}
+export const career = (() => { let c = null; try { c = JSON.parse(careerStorage.getItem(KEY) || "null"); } catch {} return migrateCareerSave(c); })();
+export const saveCareer = () => { try { career.saveVersion = SAVE_VERSION; careerStorage.setItem(KEY, JSON.stringify(career)); } catch {} };
 
 /** First visit: record a single enlistment line. */
 export function careerInit(grade, title, branchName) {

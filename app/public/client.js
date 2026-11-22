@@ -747,7 +747,8 @@ function finish() {
 let screen = "menu";
 function refreshMenus() {
   const rl = rankLine(), u = perkMods().upg;
-  $("#tbMoney").textContent = profile.admin ? "∞ CR (관리자)" : `${fmt(profile.money)} CR`;
+  const tbMoneyEl = $("#tbMoney");
+  if (tbMoneyEl) tbMoneyEl.textContent = profile.admin ? "∞ CR (관리자)" : `${fmt(profile.money)} CR`;
   $("#tbRank").textContent = usIsPotus() ? usPresTitle() : civil() ? presTitle() : career.minister ? `${isUS() ? "SecDef" : "국방부장관"} · 예비역 ${rl.name}` : `${rl.name} ${payStep(profile.xp, rl.r, ECON_RANK_XP).step}호봉 · ${postLabel(postOf(rl.r))}`; $("#tbIns").innerHTML = badge(rl.r, 24);
   $("#rankBar").style.width = rl.pct * 100 + "%";
   document.body.classList.toggle("us-nat", isUS());
@@ -772,7 +773,7 @@ function refreshMenus() {
   $("#modeSel").innerHTML = `<button class="er hero" data-mode="career"><b>🎖️ ${isUS() ? "미국 3군 장교 커리어 (U.S. Armed Forces)" : "국방 경영 &amp; 3군 장교 커리어"} (${staff.branch ? `${svc.icon} ${svc.n} ${rankLabel(myGrade(), svcK)}` : isUS() ? "O-1 임관 시작" : "소위 임관 시작"})</b><small>${isUS() ? "미 육·해·공군 O-1 임관 → 계급장·보직 성장 → 펜타곤·합참(JCS) → 미 국방장관(SecDef · 36주)" : "육·해·공 소위 임관 → 복무 안건·위기 결재·계급장 성장 → 장성·국방부장관(36주) → 대선 → 대통령"}</small></button>`
     + `<div class="mode-sep">전술 시나리오 (3D 전투 · 2D FM 작전)</div>`
     + `<button class="er" data-mode="camp"><b>한반도 시나리오 (3D)</b><small>서해부터 제주 남방까지 5단계 + 보너스 · 브리핑과 별점</small></button>`
-    + `<button class="er" data-mode="ops"><b>함정 전투 (3D)</b><small>미사일 해전 · 호송 등 작전을 골라 직접 지휘함·전투기를 조종</small></button>`
+    + `<button class="er" data-mode="ops"><b>3군 합동 전술 훈련 (3D)</b><small>합동 전술 시나리오를 선택해 직접 기동·요격·타격을 지휘합니다</small></button>`
     + `<button class="er" data-mode="opmap"><b>FM 작전 지휘 · 작전지도</b><small>서해 해상 차단 작전 — 전단 기동·지원 배정을 계획하고 실시간으로 지휘</small></button>`
     + `<button class="er" data-mode="c72"><b>캠페인 · 서해 72시간</b><small>해상·항공 합동 4연속 작전 — 결과에 따라 다음 작전이 갈리고 신뢰도·피로가 이어짐</small></button>`
     + (brk === "mar" || brk === "plt" || brk === "tac" ? `<button class="er" data-mode="airmap"><b>항공 작전 · 작전지도</b><small>항공·조종 특화 — 전투기·초계기·헬기 편대에 임무를 주고 출격·귀환·재무장을 지휘</small></button>` : "");
@@ -1359,7 +1360,19 @@ function openPromotionBoard(g, br, svk, automatic = false) {
   lastShownReview = reviewKey;
   const dialog=document.createElement("dialog"); dialog.className="bd-modal";
   const vacantTitles=new Set(v.vacant.map(p=>p.t));
-  dialog.innerHTML=`<h2>제${v.season}차 정기 진급심사</h2>${v.parts.map(([n,s],i)=>`<p>${n}<b>${s} / ${v.partMax[i]}점</b></p>`).join("")}<p>가점 +${v.bonus} (부대 사기 +${v.moraleBonus}) / 감점 −${v.penalty}</p><p>합계 ${v.score}점 · 기준 ${v.cutoff}점</p><p>정원 ${v.seats} · 동점 시 현 차수 플레이어 우선</p>${v.rivals.map(r=>`<p>${r.name} · ${r.score}점</p>`).join("")}${g===8?`<label>희망 4성 보직 <select>${v.posts.map(p=>`<option ${vacantTitles.has(p.t)?"":"disabled"} value="${p.t}">${postLabel(p.t)}${vacantTitles.has(p.t)?"":" · 동기 재임 중"}</option>`).join("")}</select></label>`:""}<button data-submit>심사 결과 확정</button><button data-dismiss>나중에</button>`;
+  const labelMap = { "보직 트랙": "보직 경력 평가" };
+  const rowsHTML = v.parts.map(([n, s], i) => {
+    const mx = v.partMax[i] || 1, pct = Math.min(100, Math.round((s / mx) * 100));
+    return `<div class="bd-row"><div class="bd-row-h"><span>${labelMap[n] || n}</span><b>${s} / ${mx}점</b></div><div class="bd-track"><div class="bd-fill" style="width:${pct}%"></div></div></div>`;
+  }).join("");
+  const diff = v.score - v.cutoff;
+  const routePill = v.routeMod?.delta ? `<span class="bd-pill ${v.routeMod.delta > 0 ? "ok" : "warn"}">${v.routeMod.label} ${v.routeMod.delta > 0 ? `+${v.routeMod.delta}` : `−${Math.abs(v.routeMod.delta)}`}점</span>` : "";
+  dialog.innerHTML=`<h2>제${v.season}차 정기 진급심사 채점표</h2>${rowsHTML}
+    <div class="bd-pills"><span class="bd-pill ok">가점 +${v.bonus} (사기 +${v.moraleBonus})</span>${v.penalty ? `<span class="bd-pill warn">감점 −${v.penalty}</span>` : ""}${routePill}<span class="bd-pill">정원 ${v.seats}명</span></div>
+    <div class="bd-total"><div class="bd-row-h"><span>총점 vs 커트라인 (${v.cutoff}점)</span><b style="color:${diff >= 0 ? "#8ef07a" : "#ff9485"}">${v.score}점 (${diff >= 0 ? `+${diff}점 여유` : `${Math.abs(diff)}점 부족`})</b></div><div class="bd-track"><div class="bd-fill" style="width:${Math.min(100, v.score)}%;background:${diff >= 0 ? "linear-gradient(90deg,#3bc67b,#8ef07a)" : "linear-gradient(90deg,#d9534f,#ff9485)"}"></div><div class="bd-cut" style="left:${Math.min(98, v.cutoff)}%" title="커트라인 ${v.cutoff}점"></div></div></div>
+    ${v.rivals.length ? `<div style="font-size:12px;color:#b8d2e2;margin:6px 0"><b>경쟁 동기 심사 점수</b>: ${v.rivals.map(r=>`${r.name} (${r.score}점)`).join(" · ")}</div>` : ""}
+    ${g===8?`<label style="display:block;margin:8px 0;font-size:12.5px">희망 4성 보직 <select>${v.posts.map(p=>`<option ${vacantTitles.has(p.t)?"":"disabled"} value="${p.t}">${postLabel(p.t)}${vacantTitles.has(p.t)?"":" · 동기 재임 중"}</option>`).join("")}</select></label>`:""}
+    <button data-submit>심사 결과 확정</button><button data-dismiss>나중에</button>`;
   document.body.append(dialog);dialog.showModal();dialog.onclose=()=>dialog.remove();
   dialog.querySelector("[data-dismiss]").onclick=()=>dialog.close();
   const preferred=()=>dialog.querySelector("select")?.value;
@@ -1372,7 +1385,12 @@ function openPromotionBoard(g, br, svk, automatic = false) {
       if(result.passed)showBoardPromotion(result,g,br);
       if(career.discharged)renderHQ();else renderDutyDesk();
     };
-    dialog.innerHTML=`<h2>${result.reason}</h2><p>${result.score}점 · ${result.passed?(g===2?"영관 보직 트랙 선택":g===5?(isUS()?"미 상원 인준 · 게임용 절차":"국방부 장성인사심사 통과"):"진급 인사명령"):"다음 심사에서 다시 평가합니다."}</p><p>주요 기여 · ${result.contribution[0]} ${result.contribution[1]}점</p><p>기준 ${result.cutoff}점 · 감점 ${result.penalty}점</p><button>확인</button>`;
+    const rDiff = result.score - result.cutoff;
+    dialog.innerHTML=`<h2>${result.passed ? "🎖️ " : "📋 "}${result.reason}</h2>
+      <div class="bd-total"><div class="bd-row-h"><span>최종 심사 점수 (기준 ${result.cutoff}점)</span><b style="color:${result.passed ? "#8ef07a" : "#ff9485"}">${result.score}점 (${rDiff >= 0 ? `+${rDiff}` : rDiff}점)</b></div><div class="bd-track"><div class="bd-fill" style="width:${Math.min(100, result.score)}%;background:${result.passed ? "linear-gradient(90deg,#3bc67b,#8ef07a)" : "linear-gradient(90deg,#d9534f,#ff9485)"}"></div><div class="bd-cut" style="left:${Math.min(98, result.cutoff)}%"></div></div></div>
+      <p>${result.passed?(g===2?"영관 보직 트랙 선택으로 넘어갑니다.":g===5?(isUS()?"미 상원 인준(게임 절차)을 통과했습니다.":"국방부 장성인사심사를 통과했습니다."):"진급 인사명령이 발령됩니다."):"다음 정기 심사에서 다시 평가합니다."}</p>
+      <div class="bd-pills"><span class="bd-pill ok">최대 기여 · ${labelMap[result.contribution[0]] || result.contribution[0]} ${result.contribution[1]}점</span>${result.penalty ? `<span class="bd-pill warn">감점 −${result.penalty}점</span>` : ""}</div>
+      <button>확인</button>`;
     dialog.querySelector("button").onclick=()=>{
       if(result.passed&&g===5&&!isUS()){
         dialog.innerHTML="<h2>삼정검 수여식</h2><p>가족과 동료들이 지켜보는 가운데 이름이 호명됩니다. 삼정검을 받아 들고 새 지휘 책임을 인수합니다.</p><button>장성 인사명령서 열기</button>";
@@ -1401,8 +1419,10 @@ function currentServiceStatus(grade, d = dutyState()) {
 
 function serviceRulesCard(status) {
   const {contract, obligationLeft, remaining, limit, extension, due, earlyWindow, elapsed, us} = status;
-  return `<section class="mn-card service-terms">
-    <h3>현역 복무 · ${serviceDuration(elapsed)}</h3>
+  const needOpen = !!(due || extension || earlyWindow);
+  const summaryRight = due ? "⚠ 기간 도달" : limit ? `${limit.title} ${serviceDuration(remaining)} 남음` : (obligationLeft ? `의무 ${serviceDuration(obligationLeft)} 남음` : "의무 이행 완료");
+  return `<details class="mn-card mn-fold service-terms"${needOpen ? " open" : ""}>
+    <summary><span>📜 현역 복무 · ${serviceDuration(elapsed)} (${contract.title})</span><small style="color:#9fc0d8;font-weight:500">${summaryRight} ▾</small></summary>
     <p>${contract.title} · 의무 현역 ${serviceDuration(contract.obligation)} · ${obligationLeft ? `${serviceDuration(obligationLeft)} 남음` : "이행 완료"}</p>
     ${us ? '<p>초기 총 복무의무(현역·예비역 6~8년)는 별도입니다. 이 커리어는 현역 기간을 기록합니다.</p>' : ""}
     ${limit ? `<p><b>${limit.title}</b> · 누적 ${serviceDuration(limit.month)} · ${due ? "기간 도달" : `${serviceDuration(remaining)} 남음`}</p>` : ""}
@@ -1411,7 +1431,7 @@ function serviceRulesCard(status) {
     ${earlyWindow ? '<button data-duty="service:early">임용 5년 경과 · 전역 지원 심의</button>' : ""}
     ${due ? '<button data-duty="service:close">현역 복무 종료 · 전역 기록 보기</button>' : ""}
     <a href="${status.source}" target="_blank" rel="noopener">근거 법령 · 임관 나이 23세, 안건 단위 적용</a>
-  </section>`;
+  </details>`;
 }
 
 function finishOfficerService(grade, reason, elapsed, voluntary = false) {
@@ -1523,7 +1543,7 @@ function renderDutyDesk() {
           }).join("")}</div>
           <button class="dm-tab" data-duty="retire_now" ${serviceTerms.obligationLeft ? "disabled" : ""} style="margin-top:6px;border-color:rgba(255,140,120,.35);color:#f2b8b0"><span>${serviceTerms.obligationLeft ? "의무복무 이행 중" : retireArm ? "⚠ 한 번 더 클릭: 전역" : "🚪 전역 신청"}</span></button>
         </nav>
-        <div class="dm-main">${warroomCard}${crCard}${arcCard}${rvEvCard}${evCards}${repCard}<div id="duty-promotion">${g < 9 ? reviewCard : marshalCardHTML(g)}</div>${g >= 9 ? reviewCard : ""}${minBtn}${tierAuthHTML(g)}${d.last ? `<div class="mn-card"><small>최근 결과: ${d.last}</small></div>` : ""}</div>
+        <div class="dm-main">${warroomCard ? `<span class="dm-pri-badge">🔥 최우선 긴급 결재 · 합동 워룸</span>` + warroomCard : crCard ? `<span class="dm-pri-badge">🔥 최우선 긴급 결재 · 안보 위기</span>` + crCard : arcCard ? `<span class="dm-pri-badge">📖 최우선 결재 · 계급 시그니처 스토리</span>` + arcCard : ""}${warroomCard ? crCard : ""}${warroomCard || crCard ? arcCard : ""}${rvEvCard}${evCards}${repCard}<div id="duty-promotion">${g < 9 ? reviewCard : marshalCardHTML(g)}</div>${g >= 9 ? reviewCard : ""}${minBtn}<details class="mn-card mn-fold"><summary><span>⭐ 계급 권한 안내${d.last ? " · 최근 결재 결과" : ""}</span><small style="color:#9fc0d8;font-weight:500">펼치기 ▾</small></summary>${tierAuthHTML(g)}${d.last ? `<div style="font-size:11.5px;color:#b8d0e2;margin-top:6px">최근 결과: ${d.last}</div>` : ""}</details></div>
         <aside class="dm-side">${globalThis.__careerProfileHTML()}${bossCard}${rivalsHTML}<div class="mn-card dm-news"><div class="mn-h">📰 군 내부 · 언론 헤드라인</div>${(d.headlines || []).slice(0, 7).map((h) => `<small>• ${h.replace(/^(\d+)주차 ·/, "안건 $1 ·")}</small>`).join("")}</div></aside>
       </div>
     </div>`;
@@ -2795,7 +2815,7 @@ $("#resumeBtn").addEventListener("click", () => { const o = $("#pause"); if (o.c
 function openSettings() { if (G.state === "playing" || G.state === "ending") { setPause(true); return; } const o = $("#pause"); o.classList.add("menuset"); o.querySelector("h1").textContent = "설정"; $("#resumeBtn").textContent = "닫기"; o.style.display = "grid"; }
 $("#setBtn").addEventListener("click", openSettings);
 $("#quitYardBtn").addEventListener("click", () => forfeit("yard")); $("#quitMenuBtn").addEventListener("click", () => forfeit("menu"));
-$("#goBtn").addEventListener("click", () => { campSel = null; start(false); }); $("#watchBtn").addEventListener("click", () => { campSel = null; start(true); }); $("#yardBtn").addEventListener("click", openYard);
+$("#goBtn").addEventListener("click", () => { campSel = null; start(false); }); $("#watchBtn").addEventListener("click", () => { campSel = null; start(true); }); $("#yardBtn")?.addEventListener("click", openYard);
 $("#againBtn").addEventListener("click", () => start(G.auto)); $("#endYardBtn").addEventListener("click", openYard); $("#menuBtn").addEventListener("click", () => { if (returnToHQ) { returnToHQ = false; openHQ("duty"); } else openMenu(); });
 $("#takeBtn").addEventListener("click", takeOver); $("#spdBtns").addEventListener("click", (e) => { const b = e.target.closest("[data-spd]"); if (b) { e.stopPropagation(); setAutoSpeed(+b.dataset.spd); } }); $("#autoModeBtn").addEventListener("click", (e) => { e.stopPropagation(); toAuto(); });
 for (const k of ["sfx", "music"]) { const el = $("#vol_" + k); el.value = A.vol?.[k] ?? el.value; el.addEventListener("input", () => setVolume(k, +el.value)); }
