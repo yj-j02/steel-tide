@@ -141,10 +141,121 @@ function logServiceLabel(e, idx) {
   return `복무 ${Math.max(1, idx + 1)}년차`;
 }
 
+/** Build a visual SVG comparing the classic single-branch route vs. the player's actual rotation/branch-switching path. */
+export function careerPathHTML({ log = [], grade = 0, initBranchName = "", curBranchName = "", rankLabelFn, tours = {} }) {
+  const maxG = Math.max(2, Math.min(10, grade));
+  const byGrade = new Map();
+  let switches = 0, prevB = null;
+  for (const e of log) {
+    if (e.g == null) continue;
+    const bName = e.b || initBranchName;
+    if (prevB && bName && bName !== prevB) switches++;
+    if (bName) prevB = bName;
+    byGrade.set(e.g, { post: e.t, branch: bName, shifted: Boolean(initBranchName && bName && bName !== initBranchName) });
+  }
+  const baseBranch = log.find((e) => e.b)?.b || initBranchName || curBranchName || "임관 병과";
+  const nodes = [];
+  for (let r = 0; r <= maxG; r++) {
+    const rec = byGrade.get(r);
+    const branch = rec?.branch || (r === grade ? curBranchName : baseBranch);
+    const shifted = Boolean(baseBranch && branch && branch !== baseBranch);
+    nodes.push({ r, label: rankLabelFn(r), post: rec?.post || "", branch, shifted, cur: r === grade });
+  }
+
+  const W = Math.max(560, nodes.length * 84), H = 136, padX = 44;
+  const stepX = nodes.length > 1 ? (W - padX * 2) / (nodes.length - 1) : 0;
+  const yStd = 42, yRot = 94;
+
+  const stdLine = `<line x1="${padX}" y1="${yStd}" x2="${padX + stepX * (nodes.length - 1)}" y2="${yStd}" stroke="rgba(126,184,232,.35)" stroke-width="2" stroke-dasharray="5 4"/>`;
+  const pathSegs = nodes.slice(0, -1).map((n, i) => {
+    const nx = nodes[i + 1];
+    const x1 = padX + i * stepX, y1 = n.shifted ? yRot : yStd;
+    const x2 = padX + (i + 1) * stepX, y2 = nx.shifted ? yRot : yStd;
+    const changed = n.shifted !== nx.shifted || n.branch !== nx.branch;
+    const stroke = changed ? "#f59e42" : n.shifted ? "#b084f5" : "#4cd97b";
+    return `<path d="M${x1} ${y1} C${(x1 + x2) / 2} ${y1}, ${(x1 + x2) / 2} ${y2}, ${x2} ${y2}" fill="none" stroke="${stroke}" stroke-width="2.8"/>`;
+  }).join("");
+
+  const dots = nodes.map((n, i) => {
+    const x = padX + i * stepX, y = n.shifted ? yRot : yStd;
+    const fill = n.cur ? "#f2ca5c" : n.shifted ? "#b084f5" : "#4cd97b";
+    return `<g>
+      ${n.cur ? `<circle cx="${x}" cy="${y}" r="11" fill="rgba(242,202,92,.24)"/>` : ""}
+      <circle cx="${x}" cy="${y}" r="${n.cur ? 6.5 : 5}" fill="${fill}" stroke="#0d1520" stroke-width="1.6"/>
+      <text x="${x}" y="${y - 11}" text-anchor="middle" font-size="10" fill="${n.cur ? "#ffe28a" : "#d8e7f4"}" font-weight="${n.cur ? 800 : 600}">${n.label}</text>
+      <text x="${x}" y="${y + 18}" text-anchor="middle" font-size="9" fill="${n.shifted ? "#d8bcff" : "#97b4c9"}">${(n.branch || "").slice(0, 8)}</text>
+    </g>`;
+  }).join("");
+
+  const archetype = switches === 0
+    ? { tag: "🏛️ 정통 단일 병과 라인", desc: "임관 병과를 흔들림 없이 고수한 정석 야전·전문가 경로입니다.", color: "#4cd97b" }
+    : switches <= 2
+      ? { tag: "⚔️ 야전·합동 균형 엘리트", desc: "현장 지휘와 타 병과·정책 보직을 전략적으로 결합한 균형 경로입니다.", color: "#f2ca5c" }
+      : { tag: "🌐 다병과 순환 제너럴리스트", desc: "여러 병과와 기능 보직을 폭넓게 섭렵한 올라운드 순환 경로입니다.", color: "#c29bff" };
+
+  const synergyOk = Boolean(tours?.cmd && tours?.joint);
+  return `<div class="mn-card" style="text-align:left;border-color:rgba(114,172,232,.45);background:rgba(11,19,29,.9);padding:14px 16px;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
+      <div><b style="color:#fff;font-size:13.5px">🗺️ 커리어 보직 경로도 (정석 라인 vs 전과·순환 루트)</b><div style="font-size:11.5px;color:#9eb9cd;margin-top:2px">${archetype.desc}</div></div>
+      <span style="padding:3px 10px;border-radius:99px;font-size:11px;font-weight:800;background:rgba(255,255,255,.07);border:1px solid ${archetype.color};color:${archetype.color}">${archetype.tag} · 전과 ${switches}회</span>
+    </div>
+    <div style="overflow-x:auto">
+      <svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:520px;background:#071019;border:1px solid #1f3348;border-radius:8px">
+        <text x="12" y="${yStd + 4}" font-size="9.5" fill="#7eb8e8" font-weight="700">정석</text>
+        <text x="12" y="${yRot + 4}" font-size="9.5" fill="#c29bff" font-weight="700">순환</text>
+        ${stdLine}${pathSegs}${dots}
+      </svg>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px;font-size:11px;color:#b8cfe0">
+      <span>🟢 상단 실선: 임관 병과 정석 유지 (${baseBranch})</span>
+      <span>🟣 하단 분기: 타 병과·합동 트랙 전과/순환</span>
+      <span style="color:${synergyOk ? "#8ef07a" : "#95aec2"}">${synergyOk ? "✔ 야전·합동 균형 경력 충족 (진급심사 +5점)" : "○ 야전+합동 병행 시 진급심사 +5점 가점"}</span>
+    </div>
+  </div>`;
+}
+
+/** Summarize how the player's choices (rotations, education, board results, timeline decisions, classmate ties) impacted their career. */
+export function decisionImpactHTML({ log = [], timeline = [], boardHistory = [], rivals = [], tours = {}, grade = 0 }) {
+  const ab = allyBonus(rivals, grade);
+  const passedCount = boardHistory.filter((b) => b.passed).length;
+  const topContrib = boardHistory.length ? boardHistory[boardHistory.length - 1]?.contribution : null;
+  const pills = [
+    tours?.cmd && tours?.joint
+      ? { ok: true, t: "야전·합동 균형 경력 달성 → 진급심사 +5점 가산" }
+      : { ok: false, t: "단일 트랙 집중 (야전·합동 병행 가점 미적용)" },
+    tours?.edu
+      ? { ok: true, t: "고등군사교육(합동대/국방대) 이수 → 진급심사 +3~6점" }
+      : { ok: false, t: "고등군사교육 미이수" },
+    ab.allies > 0
+      ? { ok: true, t: `핵심 우군 동기 ${ab.allies}명 확보 → 위기 작전 승률 +${ab.crisisWinBonus}%` }
+      : { ok: false, t: "우군 동기(관계도 75+) 미확보" },
+    boardHistory.length
+      ? { ok: true, t: `정기 진급심사 ${passedCount}/${boardHistory.length}회 통과${topContrib ? ` (최대 기여: ${topContrib[0]})` : ""}` }
+      : { ok: false, t: "정기 진급심사 기록 대기 중" },
+  ];
+
+  const keyDecisions = (timeline || []).slice(-6).reverse().map((ev) => {
+    const sc = ev.score != null ? `<b style="color:${ev.score >= 85 ? "#8ef07a" : ev.score < 65 ? "#ff9485" : "#f2ca5c"}">평정 ${ev.score}점</b>` : "";
+    return `<div style="padding:8px 10px;border-radius:7px;background:rgba(255,255,255,.035);border-left:3px solid ${ev.score >= 85 ? "#8ef07a" : ev.score != null && ev.score < 65 ? "#ff8e80" : "#72ace8"};font-size:11.5px">
+      <div style="display:flex;justify-content:space-between;gap:8px"><b style="color:#fff">${ev.date || ""} · ${ev.title}</b>${sc}</div>
+      <div style="color:#f2d88f;margin-top:2px">선택: ${ev.choice}</div>
+      <div style="color:#b8cfe0;margin-top:2px">영향: ${ev.outcome}</div>
+    </div>`;
+  }).join("");
+
+  return `<div style="margin-bottom:14px">
+    <b style="color:#8ef07a;font-size:12.5px">🔎 내 선택과 커리어 영향 분석</b>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;margin:7px 0 10px">${pills.map((p) => `<span style="font-size:11px;padding:3px 9px;border-radius:99px;background:${p.ok ? "rgba(76,217,123,.12)" : "rgba(255,255,255,.05)"};border:1px solid ${p.ok ? "rgba(76,217,123,.4)" : "rgba(255,255,255,.14)"};color:${p.ok ? "#a8f7bf" : "#9ab2c4"}">${p.ok ? "✔ " : "• "}${p.t}</span>`).join("")}</div>
+    ${keyDecisions ? `<div style="display:flex;flex-direction:column;gap:6px">${keyDecisions}</div>` : `<p style="font-size:11.5px;color:#8faec0;margin:4px 0">오프닝 사건·시그니처 스토리·워룸 결단을 진행하면 선택의 인과관계가 이곳에 자동 기록됩니다.</p>`}
+  </div>`;
+}
+
 /** Build the Career Chronicle (장군 회고록) HTML for endings and 인사기록 modal. */
-export function chronicleHTML({ cmdrName, grade, rankName, post, svcName, branchName, week, medalsCount, log = [], rivals = [], rankLabelFn, chapterLabel }) {
+export function chronicleHTML({ cmdrName, grade, rankName, post, svcName, branchName, initBranchName = "", week, medalsCount, log = [], rivals = [], timeline = [], boardHistory = [], tours = {}, rankLabelFn, chapterLabel }) {
   const ep = rivalEpilogues(rivals, rankLabelFn);
   const milestones = log.slice(-10).map((e, idx) => `<li><b>${logServiceLabel(e, idx)}</b> · ${rankLabelFn(e.g)} · ${e.t}${e.why && !["임관", "보직 변경"].includes(e.why) ? ` <small>(${e.why})</small>` : ""}</li>`).join("") || "<li>임관 기록 준비 중</li>";
+  const pathBox = careerPathHTML({ log, grade, initBranchName: initBranchName || log[0]?.b || branchName, curBranchName: branchName, rankLabelFn, tours });
+  const impactBox = decisionImpactHTML({ log, timeline, boardHistory, rivals, tours, grade });
   return `<div class="mn-card" style="text-align:left;border-color:#f2ca5c;background:rgba(16,22,30,.92);padding:18px 20px">
     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(242,202,92,.35);padding-bottom:10px;margin-bottom:12px">
       <div><small style="color:#f2ca5c;letter-spacing:.14em;font-weight:700">THE GENERAL · CAREER CHRONICLE</small><h3 style="margin:3px 0 0;color:#fff;font-size:19px">📜 ${cmdrName} 회고록</h3></div>
@@ -156,6 +267,8 @@ export function chronicleHTML({ cmdrName, grade, rankName, post, svcName, branch
       <div style="padding:8px;background:rgba(255,255,255,.04);border-radius:6px"><small style="color:#8faec0;display:block">복무 기간</small><b>${careerDate(week)} (${week}안건)</b></div>
       <div style="padding:8px;background:rgba(255,255,255,.04);border-radius:6px"><small style="color:#8faec0;display:block">훈장 · 최종 단계</small><b>${medalsCount}/10 · ${chapterLabel}</b></div>
     </div>
+    ${pathBox}
+    ${impactBox}
     <div style="margin-bottom:12px"><b style="color:#f2ca5c;font-size:12.5px">📌 주요 복무 연대기</b><ul style="margin:6px 0 0;padding-left:18px;font-size:12px;color:#d6e4ee;line-height:1.65">${milestones}</ul></div>
     <div><b style="color:#72ace8;font-size:12.5px">👥 ${isUS() ? "사관학교 동기 후일담" : "임관 동기 후일담"} (${ep.length}명)</b>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:8px;margin-top:6px">${ep.map((x) => `<div style="padding:9px 10px;border-radius:7px;background:rgba(30,58,86,.32);border:1px solid rgba(114,172,232,.3);font-size:11.5px"><b style="color:#fff">${x.rank} ${x.name}</b> <span style="font-size:10px;padding:1px 5px;border-radius:4px;background:rgba(242,202,92,.14);color:#f2ca5c">${x.routeTag}</span><br><small style="color:#9ec5e6">${x.post} · 관계도 ${x.rel}</small><p style="margin:4px 0 0;color:#c8dbe8;line-height:1.45">${x.bond}</p></div>`).join("")}</div>

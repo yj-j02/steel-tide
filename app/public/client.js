@@ -25,7 +25,7 @@ import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, update
 import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, candidates, roleTitle, ECH, echOf, staffFor, FLAG_POSTS, FLEET_CDR, SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, setService, setBranch, POST_RANK, holds, saveStaff, isUS, setNation, curServices, curBranches, curFlagPosts, flagPostsForTrack } from "./js/staff.js";
 import { koreanUsRanks, toggleUsRankLanguage, insigniaUS, US_PAY, US_BRANCHES, US_SERVICES, usRankName, usRankFull, US_SVC_ORG, usNpcName, usDischargeEndingOf } from "./js/us-ranks.js";
 import { openingCarryover, dutyState, ensureDuty, dutyEventById, dutyCrisisById, dutyOptionHint, resolveDuty, resolveReport, resolveCrisisDelegate, resolveCrisisDirect, nextDutyWeek, STANCES, setStance, resolveRivalEvent, activeRankArc, resolveRankArc, resolveWarroom } from "./js/duty.js";
-import { bossFor, RIVAL_EVENTS, relLabel, allyBonus, chronicleHTML, downloadChroniclePNG } from "./js/relations.js";
+import { bossFor, RIVAL_EVENTS, relLabel, allyBonus, careerPathHTML, chronicleHTML, downloadChroniclePNG } from "./js/relations.js";
 import { warroomById } from "./js/warroom.js";
 import { career, saveCareer, careerInit, logPromotion, perkMods, payStep, MEDALS, US_MEDALS, awardMedals } from "./js/career.js";
 const curMedals = () => (isUS() ? US_MEDALS : MEDALS);
@@ -1227,11 +1227,13 @@ function renderRecord() { /* 인사기록: 좌측 고정 프로필 + 우측 4개
       cmdrName: cmdr.name, grade: g0, rankName: rankLabel(g0, sv0), post: postLabel(career.discharged?.title || postOf(g0)),
       svcName: (SV0[sv0] || SV0.navy).n, branchName: postLabel((BR0[br0] || BR0.sea).n),
       week: dd.week || 1, medalsCount: Object.keys(career.medals || {}).length,
-      log: career.log || [], rivals: dd.rivals || [], rankLabelFn: (r) => rankLabel(r, sv0), chapterLabel: chap,
+      log: career.log || [], rivals: dd.rivals || [], timeline: dd.timeline || [],
+      boardHistory: career.boardHistory || [], tours: career.tours || {},
+      rankLabelFn: (r) => rankLabel(r, sv0), chapterLabel: chap,
     };
   };
   const rBody = recTab === "ladder"
-    ? `<h3>${(SV[svk] || SV.navy).n} 계급 로드맵 — 누적 ${fmt(profile.xp)} XP</h3><div class="ladder">${ladderRows}</div>`
+    ? `${careerPathHTML({ log: career.log || [], grade: rl.r, initBranchName: career.log?.[0]?.b || postLabel((BR[br] || BRANCHES.sea).n), curBranchName: postLabel((BR[br] || BRANCHES.sea).n), rankLabelFn: (r) => rankLabel(r, svk), tours: career.tours || {} })}<h3>${(SV[svk] || SV.navy).n} 계급 로드맵 — 누적 ${fmt(profile.xp)} XP</h3><div class="ladder">${ladderRows}</div>`
     : recTab === "timeline" ? `<h3>복무 연표</h3>${renderCareerTimeline(career, dd, isUS(), svk)}`
     : recTab === "medals" ? medalsHTML
     : recTab === "endings" ? endingsHTML()
@@ -1641,7 +1643,7 @@ function renderDischarged() {
     <div class="kv"><span>최종 계급 평균 평정</span><b>${dc.avg || 0}점</b></div>
     ${g >= 6 ? (isUS() ? `<button class="mn-pres" data-uspres="start"><b>🇺🇸 예비역 장성 · 미국 대통령 선거 출마 (538 선거인단) ›</b><small>군복을 벗고 미 합중국 대통령 선거에 도전합니다.</small></button>` : `<button class="mn-pres" data-pres="start"><b>예비역 장성 · 대통령 선거 출마 ›</b><small>군복을 벗고 민간인 예비역 장성으로 정계에 도전합니다.</small></button>`) : ""}
     <button class="mn-go" data-duty="restart">↺ 2회차 시작 (소위 재임관)</button>
-  </div>${chronicleHTML({ cmdrName: cmdr.name, grade: g, rankName: rankLabel(g, svk), post: postLabel(dc.title || postOf(g)), svcName: sv.n, branchName: postLabel((curBranches()[br] || curBranches().sea).n), week: dutyState().week || 1, medalsCount: Object.keys(career.medals || {}).length, log: career.log || [], rivals: dutyState().rivals || [], rankLabelFn: (r) => rankLabel(r, svk), chapterLabel: end.sub })}</div></div>`;
+  </div>${chronicleHTML({ cmdrName: cmdr.name, grade: g, rankName: rankLabel(g, svk), post: postLabel(dc.title || postOf(g)), svcName: sv.n, branchName: postLabel((curBranches()[br] || curBranches().sea).n), week: dutyState().week || 1, medalsCount: Object.keys(career.medals || {}).length, log: career.log || [], rivals: dutyState().rivals || [], timeline: dutyState().timeline || [], boardHistory: career.boardHistory || [], tours: career.tours || {}, rankLabelFn: (r) => rankLabel(r, svk), chapterLabel: end.sub })}</div></div>`;
 }
 function renderHQ() {
   if (!staff.branch) return renderBranchPick();
