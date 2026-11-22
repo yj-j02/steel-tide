@@ -122,15 +122,19 @@ function pickSceneVisual({ title = "", text = "", nation = "kr", service = "army
   return { bg: svcBg, cat: "📋 현장 지휘 · 결재 완료" };
 }
 
-/** Stamp a card visually with a red official seal. */
-export function stampCard(el, text = "결재 완료") {
+/** Stamp a card visually with a red official seal (and optional custom handwritten signature). */
+export function stampCard(el, text = "결재 완료", signSrc = "") {
   injectFxStyles();
   if (!el) return;
   const pos = getComputedStyle(el).position;
   if (pos === "static") el.style.position = "relative";
   const st = document.createElement("div");
   st.className = "fx-stamp";
-  st.textContent = text;
+  if (signSrc) {
+    st.innerHTML = `<img src="${signSrc}" alt="서명" style="height:22px;max-width:86px;object-fit:contain;display:block;margin:0 auto 2px;background:rgba(255,250,240,.85);border-radius:3px;padding:1px 4px"><span>${text}</span>`;
+  } else {
+    st.textContent = text;
+  }
   el.appendChild(st);
 }
 

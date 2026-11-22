@@ -1388,7 +1388,7 @@ function commissionOrder(preview = false) {
             </div>
           </div>
         </div>
-        <div class="pm-sign"><div class="pm-date">1 MAR ${dt.getFullYear()}</div><div class="pm-sg"><span>${potusSignUS}</span><img src="img/sign_pres.png" class="pm-sig-img" alt="Signature"><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">DOD<br>SEAL</i></div></div>
+        <div class="pm-sign"><div class="pm-date">1 MAR ${dt.getFullYear()}</div><div class="pm-sg"><span>${potusSignUS}</span><img src="${officialSignSrc("potus")}" class="pm-sig-img" alt="Signature"><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">DOD<br>SEAL</i></div></div>
         <button id="promoOk">${preview ? "Close Preview" : "I So Swear · Report for Duty"}</button>
       </div></div>`
     : `<div class="pm-doc pm-min"><div class="pm-pg on" data-pg="1">
@@ -1413,7 +1413,7 @@ function commissionOrder(preview = false) {
             </div>
           </div>
         </div>
-        <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 3월 1일</div><div class="pm-sg"><span>${potusSignKR}</span><img src="img/sign_pres.png" class="pm-sig-img" alt="서명"><i>大統領印</i></div></div>
+        <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 3월 1일</div><div class="pm-sg"><span>${potusSignKR}</span><img src="${officialSignSrc("potus")}" class="pm-sig-img" alt="서명"><i>大統領印</i></div></div>
         <button id="promoOk">${preview ? "미리보기 닫기" : "엄숙히 선서합니다 — 첫 부임지로 출발"}</button>
       </div></div>`;
   pmCertKind = "comm"; pmPreview = true; $("#promoM").style.display = "flex"; initAudio(); fanfare(0, staff.branch);
@@ -1451,7 +1451,7 @@ function marshalOrder(preview = false) {
             </div>
           </div>
         </div>
-        <div class="pm-sign"><div class="pm-date">${dt.getDate()} ${mon} ${dt.getFullYear()}</div><div class="pm-sg"><span>${potusSignUS}</span><img src="img/sign_pres.png" class="pm-sig-img" alt="Signature"><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">POTUS<br>SEAL</i></div></div>
+        <div class="pm-sign"><div class="pm-date">${dt.getDate()} ${mon} ${dt.getFullYear()}</div><div class="pm-sg"><span>${potusSignUS}</span><img src="${officialSignSrc("potus")}" class="pm-sig-img" alt="Signature"><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">POTUS<br>SEAL</i></div></div>
         <button id="promoOk">${preview ? "Close Preview" : "Accept Five-Star Baton"}</button>
       </div></div>`
     : `<div class="pm-doc pm-min" style="border-color:#b8860b;box-shadow:0 0 65px rgba(242,202,92,.45)"><div class="pm-pg on" data-pg="1">
@@ -1475,7 +1475,7 @@ function marshalOrder(preview = false) {
             </div>
           </div>
         </div>
-        <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>${potusSignKR}</span><img src="img/sign_pres.png" class="pm-sig-img" alt="서명"><i>國璽</i></div></div>
+        <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>${potusSignKR}</span><img src="${officialSignSrc("potus")}" class="pm-sig-img" alt="서명"><i>國璽</i></div></div>
         <button id="promoOk">${preview ? "미리보기 닫기" : "구국의 원수봉을 받겠습니다"}</button>
       </div></div>`;
   pmCertKind = "marshal"; pmPreview = true; $("#promoM").style.display = "flex"; initAudio(); fanfare(10, staff.branch);
@@ -2086,7 +2086,21 @@ function renderDutyDesk() {
   ].filter(Boolean);
   const promotionSummary = g === 9 ? "원수 특별진급 조건 보기" : g > 9 ? "최고 계급 도달" :
     needs.length ? `남은 조건 · ${needs.join(" · ")}` : automaticCaptain(g) ? `${g === 0 ? "중위" : "대위"} 자동진급 조건 충족` : review.seats ? "심사 신청 조건 충족" : "상위 보직 공석 대기";
-  $("#hqP").innerHTML = `<div class="hq-tog"><b>${sv.icon} ${sv.n} 장교 커리어 · ${rankLabel(g, svk)} ${cmdr.name}</b><small>${officeAmbienceLabel(g, isUS())} · ${postLabel(postOf(g))}</small>${d.tension >= 70 ? `<span class="fx-defcon">🚨 DEFCON 주의 · 긴장 ${d.tension}</span>` : ""}<button data-hqv="org" class="hq-tg2">지휘 계통도 · 참모 ›</button>${career.minister ? `<button data-hqv="min" class="hq-tg2">국방부 집무실 ›</button>` : ""}</div>${admDuty}
+  let onboardOpen = false;
+  try { onboardOpen = careerStorage.getItem("steeltide:onboard") === "show" || (g === 0 && (d.week || 1) <= 3 && careerStorage.getItem("steeltide:onboard") !== "hide"); } catch {}
+  const onboardBanner = onboardOpen ? `<div class="mn-card" style="margin-bottom:10px;border-color:rgba(114,172,232,.55);background:linear-gradient(135deg,rgba(18,38,62,.86),rgba(11,21,34,.92))">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
+      <b style="color:#8fd3ff;font-size:13.5px">🧭 신임 장교 복무 가이드 · 이렇게 플레이하세요</b>
+      <button type="button" data-duty="hideguide" style="padding:3px 9px;font-size:11px;border-radius:5px;background:rgba(255,255,255,.08);color:#b8d4e8;border:1px solid rgba(150,190,220,.3);cursor:pointer">이해했습니다 (닫기)</button>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:8px;font-size:11.5px;color:#d6e7f5;line-height:1.48">
+      <div><b style="color:#ffd166">① 안건·보고 결재</b><br>아래 결재 안건과 정례 보고를 처리해 경험치(XP)·근무평정·평판을 쌓습니다.</div>
+      <div><b style="color:#ffd166">② 다음 안건 진행</b><br>안건을 모두 처리하면 우측 상단 <b>[다음 안건 ▶ (Enter)]</b>로 복무 주차가 넘어갑니다.</div>
+      <div><b style="color:#ffd166">③ 계급 성장 & 진급심사</b><br>복무기간·XP·평정 횟수를 채우면 진급심사를 거쳐 소위→대장(5성 원수)까지 승진합니다.</div>
+      <div><b style="color:#ffd166">④ 장관·대통령 & 다회차</b><br>전역 후 국방부장관(36주)·대통령까지 도전할 수 있으며 최대 10명(한/미)의 가문을 이어갑니다.</div>
+    </div>
+  </div>` : "";
+  $("#hqP").innerHTML = `<div class="hq-tog"><b>${sv.icon} ${sv.n} 장교 커리어 · ${rankLabel(g, svk)} ${cmdr.name}</b><small>${officeAmbienceLabel(g, isUS())} · ${postLabel(postOf(g))}</small>${d.tension >= 70 ? `<span class="fx-defcon">🚨 DEFCON 주의 · 긴장 ${d.tension}</span>` : ""}<button data-duty="showguide" class="hq-tg2">? 가이드</button><button data-hqv="org" class="hq-tg2">지휘 계통도 · 참모 ›</button>${career.minister ? `<button data-hqv="min" class="hq-tg2">국방부 집무실 ›</button>` : ""}</div>${admDuty}${onboardBanner}
     <div class="mn dm-shell${d.tension >= 70 ? " mood-alert" : ""}">
       <div class="mn-top dm-top">
         <div class="mt"><span>계급 성장</span><b>${insignia(g, 18)} ${rankLabel(g, svk)}${g < 9 ? ` → ${rankLabel(g + 1, svk)}` : g === 9 ? " (★특별진급)" : " ★"}</b>${bar(rl.pct * 100, "g")}</div>
@@ -2690,7 +2704,7 @@ $("#hqP").addEventListener("click", (e) => {
   const uad = e.target.closest("[data-usadm]"); if (uad && profile.admin) { sfx.click(); const r = usPresAdmin(uad.dataset.usadm); if (uad.dataset.usadm === "win") playVO(63); if (r.inaugurated) { initAudio(); playPotusAnthem(); playVO(64, { delayMs: 260 }); checkCareerAchievements(); } if (r.toast) toast(r.toast, 4); if (r.cuts) { renderUsPres(); refreshMenus(); playCuts({ title: r.cutTitle || "U.S. Presidential Election", place: r.cutPlace || "Washington, D.C.", cuts: r.cuts, onClose: () => { stopFanfare(); renderUsPres(); refreshMenus(); } }); return; } renderUsPres(); refreshMenus(); return; }
   const hv = e.target.closest("[data-hqv]"); if (hv) { sfx.click(); hqView = hv.dataset.hqv; if (hqView !== "uspres") usPresPreview = false; setTab(hqView === "org" ? "org" : "hq"); renderHQ(); return; }
   const mn = e.target.closest("[data-min]"); if (mn) { if (mn.disabled) return; sfx.click();
-    const doc = mn.dataset.min.startsWith("dk:") && mn.closest(".mn-paper"); if (doc && !doc.classList.contains("stamped")) { doc.classList.add("stamped"); mn.classList.add("pick"); doc.querySelector(".kj .me")?.insertAdjacentHTML("beforeend", `<span class="seal">결재</span>`); setTimeout(() => mn.click(), 750); return; }
+    const doc = mn.dataset.min.startsWith("dk:") && mn.closest(".mn-paper"); if (doc && !doc.classList.contains("stamped")) { doc.classList.add("stamped"); mn.classList.add("pick"); const sigHTML = career.customSign ? `<img src="${career.customSign}" alt="서명" style="height:22px;max-width:68px;object-fit:contain;display:block;margin:2px auto;pointer-events:none">` : ""; doc.querySelector(".kj .me")?.insertAdjacentHTML("beforeend", `${sigHTML}<span class="seal">결재</span>`); setTimeout(() => mn.click(), 750); return; }
     const r = minClick(mn.dataset.min); if (r.toast) toast(r.toast, 3);
     if (r.reset) { restartCurrentCareer(); return; }
     if (r.scene) { const sc = r.scene; openScene({ kind: sc.kind, title: sc.title, questions: sc.questions, onPick: (qi, ai) => { const x = minClick(`dk:${sc.id}:${ai}`); if (x.toast) toast(x.toast, 3); }, onClose: () => renderMin() }); return; }
@@ -2786,6 +2800,8 @@ $("#hqP").addEventListener("click", (e) => {
   }
   const rr = e.target.closest("[data-retire-route]"); if (rr && career.discharged && !career.discharged.routeConfirmed) { sfx.click(); career.discharged.routeId = rr.dataset.retireRoute; career.discharged.routeConfirmed = true; saveCareer(); playVO(39); checkCareerAchievements(career.discharged.g); renderDischarged(); return; }
   const dy = e.target.closest("[data-duty]"); if (dy) { if (dy.disabled) return; sfx.click(); const a = dy.dataset.duty, g = myGrade(), br = normBranch(staff.branch), svk = serviceOf(br);
+    if (a === "hideguide") { try { careerStorage.setItem("steeltide:onboard", "hide"); } catch {} renderDutyDesk(); return; }
+    if (a === "showguide") { try { const cur = careerStorage.getItem("steeltide:onboard"); careerStorage.setItem("steeltide:onboard", cur === "show" ? "hide" : "show"); } catch {} renderDutyDesk(); return; }
     if (a === "hearing") { launchSpecialHearing(false); return; }
     if (a.startsWith("overseas:")) {
       const idx = +a.slice(9), tour = getOverseasTour(svk, isUS());
