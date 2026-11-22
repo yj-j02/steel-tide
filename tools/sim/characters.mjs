@@ -29,7 +29,7 @@ assert.notEqual(original, second);
 assert.equal(american.careerStorage.getItem("steeltide:career"), null);
 assert.equal(american.careerStorage.getItem("steeltide:us-rank-language"), "ko");
 american.careerStorage.setItem("steeltide:career", JSON.stringify({ cap: 0 }));
-for (let n = 0; n < 3; n++) assert.ok(american.createCharacter("kr", {}));
+for (let n = 0; n < 8; n++) assert.ok(american.createCharacter("kr", {}));
 assert.equal(american.createCharacter("kr", {}), false);
 assert.ok(american.removeCharacter(original, true));
 assert.equal(american.selectCharacter(original), false);

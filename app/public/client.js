@@ -1225,9 +1225,9 @@ function checkCareerAchievements(grade = myGrade(), d = dutyState()) {
   })();
   const allies = (d.rivals || []).filter((r) => (r.rel ?? 50) >= 75).length;
   const trigger = (id, showPaper = false) => {
-    const meta = unlockAchievement(id);
+    const meta = unlockAchievement(id, { charId: activeCharacterId() || cmdr.name || "default", name: cmdr.name || "지휘관" });
     if (!meta) return;
-    toast(`🏅 업적 달성: ${meta.ic} ${meta.n}!`, 4.5);
+    toast(`🏅 업적 달성: ${meta.ic} ${meta.n} (${meta.count}회차)!`, 4.5);
     if (showPaper) {
       showBreakingPaper({
         nation: isUS() ? "us" : "kr",
@@ -1894,10 +1894,10 @@ function renderTitleHub() {
   if (!thEnlist) {
     const ordered = [...available].sort((a, b) => Number(b.nation === thNation) - Number(a.nation === thNation));
     el.innerHTML = `<div class="th-card th-roster"><h1 class="th-title">THE GENERAL</h1>
-      <div class="th-roster-heading"><h2>캐릭터 선택</h2><span>${available.length}/5</span></div>
+      <div class="th-roster-heading"><h2>캐릭터 선택</h2><span>${available.length}/10</span></div>
       ${ordered.map(characterCard).join("") || "<p>새 캐릭터를 만들어 소위로 시작하세요.</p>"}
-      <button class="th-go" data-th="new" ${available.length >= 5 ? "disabled" : ""}>새 캐릭터 임관</button>
-      ${available.length >= 5 ? "<p>캐릭터는 최대 5명까지 플레이할 수 있습니다.</p>" : ""}
+      <button class="th-go" data-th="new" ${available.length >= 10 ? "disabled" : ""}>새 캐릭터 임관</button>
+      ${available.length >= 10 ? "<p>캐릭터는 최대 10명까지 플레이할 수 있습니다.</p>" : ""}
       ${archived.length ? `<details class="th-archive"><summary>보관 기록 ${archived.length}건</summary>${archived.map(characterCard).join("")}</details>` : ""}
       <button class="th-sec" data-th="tac">전술 훈련</button>
     </div>`;
@@ -1996,7 +1996,7 @@ $("#titleHub")?.addEventListener("click", (e) => {
       "steeltide:staff": { branch: thBr, service: thSvc, nation: thNation, a: {}, byE: {}, x: {}, e: 0 },
     });
     if (created) reloadCharacter(true);
-    else toast("플레이 슬롯 5개가 모두 사용 중입니다");
+    else toast("플레이 슬롯 10개가 모두 사용 중입니다");
   }
 });
 

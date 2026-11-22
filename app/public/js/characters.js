@@ -1,7 +1,7 @@
 const manifestKey = "steeltide:characters";
 const prefix = "steeltide:character:";
 const scoped = new Set([
-  "c72", "camp", "career", "cmdr", "duty", "endings", "hall", "hall:us",
+  "c72", "camp", "career", "cmdr", "duty", "hall", "hall:us",
   "kcamp", "legacy", "mission", "mod", "oplog", "post", "potus", "potus_hall",
   "pres", "profile", "staff", "us:career", "uspres",
 ]);
@@ -67,7 +67,7 @@ export function characters() {
 
 export function createCharacter(nation, entries) {
   const state = manifest();
-  if (state.slots.filter(slot => !slot.archived).length >= 5) return false;
+  if (state.slots.filter(slot => !slot.archived).length >= 10) return false;
   const slot = { id: crypto.randomUUID(), nation };
   for (const [key, value] of Object.entries(entries)) {
     raw().setItem(keyFor(slot.id, key), JSON.stringify(value));

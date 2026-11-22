@@ -17,17 +17,28 @@ export const ACHIEVEMENTS = [
 ];
 
 export function unlockedAchievements() {
-  try { return JSON.parse(careerStorage.getItem(AK) || "{}"); } catch { return {}; }
+  try {
+    const raw = JSON.parse(careerStorage.getItem(AK) || "{}");
+    const norm = {};
+    for (const [k, v] of Object.entries(raw || {})) {
+      if (Array.isArray(v)) norm[k] = v;
+      else if (v) norm[k] = [{ charId: "legacy", name: "이전 지휘관", date: String(v) }];
+    }
+    return norm;
+  } catch { return {}; }
 }
 
-export function unlockAchievement(id) {
+/** Allow every distinct character (charId) to earn and stack the same achievement independently (pure trophy collection, zero gameplay stat bonuses). */
+export function unlockAchievement(id, { charId = "default", name = "지휘관" } = {}) {
   const meta = ACHIEVEMENTS.find((a) => a.id === id);
   if (!meta) return null;
   const map = unlockedAchievements();
-  if (map[id]) return null;
-  map[id] = new Date().toISOString().slice(0, 10);
+  const list = Array.isArray(map[id]) ? map[id] : [];
+  if (list.some((x) => x.charId === charId)) return null;
+  list.push({ charId, name: name || "지휘관", date: new Date().toISOString().slice(0, 10) });
+  map[id] = list;
   try { careerStorage.setItem(AK, JSON.stringify(map)); } catch {}
-  return meta;
+  return { ...meta, count: list.length };
 }
 
 export const ENDINGS = [
@@ -84,15 +95,18 @@ export function trophyShelfHTML(grade, careerState = {}, us = false, isPres = fa
 export function endingsHTML() {
   const got = unlockedEndings(), ng = ngBonuses();
   const achGot = unlockedAchievements();
-  const achCnt = Object.keys(achGot).filter((k) => ACHIEVEMENTS.some((a) => a.id === k)).length;
+  const achCnt = Object.keys(achGot).filter((k) => ACHIEVEMENTS.some((a) => a.id === k) && achGot[k]?.length).length;
+  const achTotal = Object.entries(achGot).filter(([k]) => ACHIEVEMENTS.some((a) => a.id === k)).reduce((s, [, list]) => s + (list?.length || 0), 0);
   const ngStrip = `<div style="display:flex;gap:8px;flex-wrap:wrap;margin:6px 0 10px;font-size:11px">`
     + `<span style="padding:4px 8px;border-radius:6px;border:1px solid ${ng.cnt >= 1 ? "#8ef07a" : "rgba(180,200,210,.25)"};color:${ng.cnt >= 1 ? "#b8f7a8" : "#88a0b0"}">${ng.cnt >= 1 ? "✔" : "🔒"} 1종 달성: 초기 평판 +5</span>`
     + `<span style="padding:4px 8px;border-radius:6px;border:1px solid ${ng.cnt >= 3 ? "#8ef07a" : "rgba(180,200,210,.25)"};color:${ng.cnt >= 3 ? "#b8f7a8" : "#88a0b0"}">${ng.cnt >= 3 ? "✔" : "🔒"} 3종 달성: 직무 XP +10%</span>`
     + `<span style="padding:4px 8px;border-radius:6px;border:1px solid ${ng.cnt >= 6 ? "#8ef07a" : "rgba(180,200,210,.25)"};color:${ng.cnt >= 6 ? "#b8f7a8" : "#88a0b0"}">${ng.cnt >= 6 ? "✔" : "🔒"} 6종 달성: 위기 위임 승률 +8%</span>`
     + `</div>`;
-  const achHTML = `<h3 style="margin-top:18px">🏅 특수 업적 · 명예 도전과제 (${achCnt} / ${ACHIEVEMENTS.length})</h3><div class="mi-md">${ACHIEVEMENTS.map((a) => {
-    const dt = achGot[a.id];
-    return `<div class="md${dt ? "" : " no"}" title="${a.sub}"><i style="font-style:normal;font-size:15px;display:flex;align-items:center;justify-content:center;background:none;border:0">${a.ic}</i><span>${a.n}</span><small>${dt ? "✔ 달성 완료" : a.sub}</small></div>`;
+  const achHTML = `<h3 style="margin-top:18px">🏅 특수 업적 · 명예 도전과제 (${achCnt} / ${ACHIEVEMENTS.length}종 · 누적 ${achTotal}회 · 순수 수집)</h3><div class="mi-md">${ACHIEVEMENTS.map((a) => {
+    const list = achGot[a.id] || [];
+    const names = list.slice(-3).map((x) => x.name).join(", ");
+    const subTxt = list.length ? `✔ ${list.length}회 달성 (${names}${list.length > 3 ? " 외" : ""})` : a.sub;
+    return `<div class="md${list.length ? "" : " no"}" title="${a.sub}"><i style="font-style:normal;font-size:15px;display:flex;align-items:center;justify-content:center;background:none;border:0">${a.ic}</i><span>${a.n}</span><small>${subTxt}</small></div>`;
   }).join("")}</div>`;
   return `<h3>🏆 엔딩 컬렉션 도감 (${ng.cnt} / ${ENDINGS.length})</h3>${ngStrip}<div class="mi-md">${ENDINGS.map((e) => {
     const dt = got[e.id];
