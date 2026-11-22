@@ -25,7 +25,7 @@ import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, update
 import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, candidates, roleTitle, ECH, echOf, staffFor, FLAG_POSTS, FLEET_CDR, SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, setService, setBranch, POST_RANK, holds, saveStaff, isUS, setNation, curServices, curBranches, curFlagPosts, flagPostsForTrack } from "./js/staff.js";
 import { koreanUsRanks, toggleUsRankLanguage, insigniaUS, US_PAY, US_BRANCHES, US_SERVICES, usRankName, usRankFull, US_SVC_ORG, usNpcName, usDischargeEndingOf } from "./js/us-ranks.js";
 import { openingCarryover, dutyState, ensureDuty, dutyEventById, dutyCrisisById, dutyOptionHint, resolveDuty, resolveReport, resolveCrisisDelegate, resolveCrisisDirect, nextDutyWeek, STANCES, setStance, resolveRivalEvent, activeRankArc, resolveRankArc, resolveWarroom } from "./js/duty.js";
-import { bossFor, RIVAL_EVENTS, relLabel, allyBonus, careerPathHTML, chronicleHTML, downloadChroniclePNG } from "./js/relations.js";
+import { bossFor, RIVAL_EVENTS, relLabel, allyBonus, careerPathHTML, chronicleHTML, downloadChroniclePNG, classmateCabinetHTML, buildClassmateAppointment } from "./js/relations.js";
 import { warroomById } from "./js/warroom.js";
 import { career, saveCareer, careerInit, logPromotion, perkMods, payStep, MEDALS, US_MEDALS, awardMedals } from "./js/career.js";
 const curMedals = () => (isUS() ? US_MEDALS : MEDALS);
@@ -1561,7 +1561,12 @@ function renderTrackView() {
   const g = myGrade(), br = normBranch(staff.branch), SV = curServices(), BR = curBranches(), sv = SV[serviceOf(br)] || SV.navy;
   $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="duty">‹ 복무 안건</button><b>계급 성장 로드맵</b><small>${sv.icon} ${sv.n} · ${BR[br].n}</small></div><div class="mn dm-shell">${globalThis.__careerTrackHTML()}</div>`;
 }
-function renderMin() { if (!minState()) minStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="org">‹ 지휘 계통도</button><b>${isUS() ? "펜타곤 집무실 (Pentagon)" : "국방부 집무실"}</b><small>${isUS() ? `SecDef ${cmdr.name}` : `${cmdr.name} ${civil() ? "전 장관" : "장관"}`}</small><button data-min="gal" class="hq-tg2">🖼 역대 장관</button>${!isUS() && presState() ? `<button data-hqv="pres">대선 캠프 ›</button>` : ""}</div>${admBar("min")}${minHTML()}`; }
+function renderMin() {
+  if (!minState()) minStart(cmdr.name);
+  const mode = isUS() ? "min_us" : "min_kr", svk = serviceOf(normBranch(staff.branch));
+  const cab = classmateCabinetHTML({ mode, rivals: dutyState().rivals || [], appointed: career.cabinetAppointments?.[mode] || {}, rankLabelFn: (r) => rankLabel(r, svk) });
+  $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="org">‹ 지휘 계통도</button><b>${isUS() ? "펜타곤 집무실 (Pentagon)" : "국방부 집무실"}</b><small>${isUS() ? `SecDef ${cmdr.name}` : `${cmdr.name} ${civil() ? "전 장관" : "장관"}`}</small><button data-min="gal" class="hq-tg2">🖼 역대 장관</button>${!isUS() && presState() ? `<button data-hqv="pres">대선 캠프 ›</button>` : ""}</div>${admBar("min")}${minHTML()}${cab}`;
+}
 /** 관리자 시험 바 (국방부·대선·대통령실 공통) */
 const ADM = { min: [["minok", "장관 명예 퇴임 즉시"], ["minbad", "장관 임기 종료(목표 미달)"], ["topres", "→ 대선 바로 시작"], ["topotus", "→ 대통령 바로 취임"], ["reset0", "↺ 소위부터 다시 시작"]],
   pres: [["pboost", "능력치 +15"], ["pskip", "프롤로그 건너뛰기"], ["ppri", "경선 승리"], ["pdday", "D-3으로"], ["pwin", "당선 처리"], ["plose", "낙선 처리"], ["topotus", "→ 대통령 취임"], ["reset0", "↺ 소위부터 다시 시작"]],
@@ -1578,7 +1583,12 @@ function admRun(a) {
   const P = { pboost: "boost", pskip: "skip", ppri: "pri", pdday: "dday", pwin: "win", plose: "lose" }[a]; if (P) return presResult(presAdmin(P));
   const U = { uap: "ap", uapd: "apd", ubud: "bud", useats: "seats", ucrisis: "crisis", usummit: "summit", uskip4: "skip4", uend: "end", uimp: "imp", ureset: "reset" }[a]; if (U) { const r = potusAdmin(U); if (U === "reset") { hqView = "pres"; renderPres(); refreshMenus(); return toast(r.toast, 3); } return potusResult(r); }
 }
-function renderPotus() { if (!potusState()) potusStart(cmdr.name); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="pres">‹ 대선 기록</button><b>대통령실</b><small>${cmdr.name} 대통령</small></div>${admBar("potus")}${potusHTML()}`; }
+function renderPotus() {
+  if (!potusState()) potusStart(cmdr.name);
+  const svk = serviceOf(normBranch(staff.branch));
+  const cab = classmateCabinetHTML({ mode: "potus_kr", rivals: dutyState().rivals || [], appointed: career.cabinetAppointments?.potus_kr || {}, rankLabelFn: (r) => rankLabel(r, svk) });
+  $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="pres">‹ 대선 기록</button><b>대통령실</b><small>${cmdr.name} 대통령</small></div>${admBar("potus")}${potusHTML()}${cab}`;
+}
 function potusResult(r) {
   setTheme(presTheme());
   if (r.toast) toast(r.toast, 3);
@@ -1624,7 +1634,9 @@ function restartCurrentCareer(keepAdmin = false) {
 
 function renderUsPres() {
   const admUs = profile.admin ? `<div class="adm-bar"><b>관리자 시험 (US 대선·백악관)</b><button data-usadm="pri">경선 승리</button><button data-usadm="night">선거일</button><button data-usadm="win">당선(POTUS)</button><button data-usadm="loss">낙선</button><button data-usadm="seats">의석 반전</button><button data-usadm="qtr">분기 스킵</button><button data-usadm="end">임기 종료</button><button data-uspres="reset">초기화</button></div>` : "";
-  $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="${career.minister ? "min" : "duty"}">‹ 복귀</button><b>미국 대통령 선거와 백악관</b><small>${cmdr.name}</small></div>${admUs}${usPresHTML()}`;
+  const svk = serviceOf(normBranch(staff.branch));
+  const cab = usPotusOn() ? classmateCabinetHTML({ mode: "potus_us", rivals: dutyState().rivals || [], appointed: career.cabinetAppointments?.potus_us || {}, rankLabelFn: (r) => rankLabel(r, svk) }) : "";
+  $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="${career.minister ? "min" : "duty"}">‹ 복귀</button><b>미국 대통령 선거와 백악관</b><small>${cmdr.name}</small></div>${admUs}${usPresHTML()}${cab}`;
 }
 function renderDischarged() {
   const dc = career.discharged, g = dc.g, br = normBranch(staff.branch), svk = serviceOf(br), sv = curServices()[svk] || curServices().navy;
@@ -2044,6 +2056,28 @@ $("#hqP").addEventListener("click", (e) => {
     const g0 = career.discharged?.g ?? myGrade(), br0 = normBranch(staff.branch), sv0 = serviceOf(br0), SV0 = curServices(), BR0 = curBranches(), dd0 = dutyState();
     downloadChroniclePNG({ cmdrName: cmdr.name, grade: g0, rankName: rankLabel(g0, sv0), post: postLabel(career.discharged?.title || postOf(g0)), svcName: (SV0[sv0] || SV0.navy).n, branchName: postLabel((BR0[br0] || BR0.sea).n), week: dd0.week || 1, medalsCount: Object.keys(career.medals || {}).length, log: career.log || [], rivals: dd0.rivals || [], timeline: dd0.timeline || [], boardHistory: career.boardHistory || [], tours: career.tours || {}, rankLabelFn: (r) => rankLabel(r, sv0), portraitFn: (r) => portraitHTML(r, { face: cmdr.face, service: sv0, name: cmdr.name, medals: career.medals }), chapterLabel: career.discharged ? "예비역 전역" : career.minister ? "국방부장관" : "현역 복무" });
     toast("전체 회고록 PNG 이미지를 저장했습니다", 2.5);
+    return;
+  }
+  const cabBtn = e.target.closest("[data-cab-app]");
+  if (cabBtn) {
+    sfx.click();
+    const [mode, slotId, riStr] = cabBtn.dataset.cabApp.split(":");
+    const ri = Number(riStr), d = dutyState(), svk = serviceOf(normBranch(staff.branch));
+    const res = buildClassmateAppointment({ mode, slotId, ri, rivals: d.rivals || [], rankLabelFn: (r) => rankLabel(r, svk) });
+    if (res) {
+      ((career.cabinetAppointments ??= {})[mode] ??= {})[slotId] = { ri: res.ri, name: res.name, origin: res.origin, quote: res.quote, title: res.slot.title };
+      if (d.rivals?.[ri]) {
+        d.rivals[ri].rel = Math.min(100, (d.rivals[ri].rel ?? 50) + 12);
+        d.rivals[ri].post = res.slot.title;
+        if (d.rivals[ri].retired) d.rivals[ri].retiredPost = res.slot.title;
+      }
+      saveCareer();
+      showBreakingPaper({ nation: isUS() ? "us" : "kr", headline: res.headline, body: `${res.quote} (지지율·국정 신뢰 +${res.bonus})`, dateline: careerDate(d.week || 1) });
+      toast(`${res.name}, ${res.slot.title} 임명 완료!`, 3.5);
+      if (mode.startsWith("min_")) renderMin();
+      else if (mode === "potus_kr") renderPotus();
+      else renderUsPres();
+    }
     return;
   }
   const rr = e.target.closest("[data-retire-route]"); if (rr && career.discharged && !career.discharged.routeConfirmed) { sfx.click(); career.discharged.routeId = rr.dataset.retireRoute; career.discharged.routeConfirmed = true; saveCareer(); renderDischarged(); return; }

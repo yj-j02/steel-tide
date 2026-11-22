@@ -160,6 +160,99 @@ export const RIVAL_EVENTS = [
   },
 ];
 
+export const CABINET_SLOTS = {
+  min_kr: [
+    { id: "vmod", title: "국방부 차관", desc: "국방 예산·인사·개혁 실무 총괄" },
+    { id: "jcs_nom", title: "합동참모의장 제청", desc: "전군 합동작전·대비태세 지휘" },
+    { id: "dapa", title: "방위사업청장", desc: "K-방산·차세대 전력 획득 총괄" },
+  ],
+  min_us: [
+    { id: "depsec", title: "Deputy Secretary of Defense (국방부 차관)", desc: "펜타곤 국방 예산·정책 총괄" },
+    { id: "cjcs_nom", title: "CJCS Nominee (합참의장 제청)", desc: "전 세계 미군 합동작전 총괄" },
+    { id: "usdas", title: "Under Secretary for Acquisition (획득차관)", desc: "차세대 스텔스·미사일 획득 총괄" },
+  ],
+  potus_kr: [
+    { id: "mod", title: "국방부장관", desc: "대한민국 국군 군정·국방개혁 총괄" },
+    { id: "nso", title: "국가안보실장", desc: "대통령실 외교·안보 컨트롤타워" },
+    { id: "nis", title: "국가정보원장", desc: "대북·해외 전략정보 총괄" },
+  ],
+  potus_us: [
+    { id: "secdef", title: "Secretary of Defense (미 국방장관)", desc: "펜타곤·전 세계 미군 총괄" },
+    { id: "nsa", title: "National Security Advisor (백악관 안보보좌관)", desc: "백악관 NSC 외교안보 컨트롤타워" },
+    { id: "cia", title: "Director of the CIA (중앙정보국장)", desc: "글로벌 전략정보·위기 대응 총괄" },
+  ],
+};
+
+/** Render the Classmate Cabinet/Command Appointment panel inside Ministry / Presidential Office. */
+export function classmateCabinetHTML({ mode, rivals = [], appointed = {}, rankLabelFn }) {
+  const slots = CABINET_SLOTS[mode];
+  if (!slots || !rivals?.length) return "";
+  const us = isUS();
+  const usedRivals = new Set(Object.values(appointed || {}).map((x) => x.ri));
+
+  const cards = slots.map((slot) => {
+    const cur = appointed?.[slot.id];
+    if (cur) {
+      return `<div style="padding:10px 12px;border-radius:8px;background:rgba(242,202,92,.12);border:1px solid rgba(242,202,92,.55);font-size:12px">
+        <div style="display:flex;justify-content:space-between;align-items:center"><b style="color:#ffe082">✔ ${slot.title}</b><span style="font-size:10.5px;color:#8ef07a">임명 완료</span></div>
+        <div style="margin-top:4px;color:#fff;font-weight:700">${cur.name} <small style="color:#a8c4d8">(${cur.origin})</small></div>
+        <div style="margin-top:4px;font-size:11.5px;color:#d6e6f2;line-height:1.45">${cur.quote}</div>
+      </div>`;
+    }
+    const opts = rivals.map((r, ri) => {
+      if (usedRivals.has(ri)) return "";
+      const nm = us ? usNpcName(r.name + ri) : r.name;
+      const rl = relLabel(r.rel ?? 50);
+      const tag = r.retired ? `예비역 · ${r.retiredPost || "민간"}` : `${rankLabelFn(r.g)} · ${r.style || "야전"}`;
+      return `<button data-cab-app="${mode}:${slot.id}:${ri}" style="width:100%;text-align:left;padding:6px 8px;margin-top:5px;border-radius:6px;background:rgba(16,28,42,.9);border:1px solid rgba(114,172,232,.35);color:#eaf2fa;cursor:pointer;font-size:11.5px">
+        <b>${nm}</b> 임명 <span style="color:#9fc5e2">(${tag})</span> · <b class="${rl.cls}">${rl.t}</b>
+      </button>`;
+    }).filter(Boolean).join("");
+    return `<div style="padding:10px 12px;border-radius:8px;background:rgba(12,20,30,.85);border:1px solid rgba(114,172,232,.3);font-size:12px">
+      <b style="color:#fff">${slot.title}</b>
+      <div style="font-size:11px;color:#93b0c4;margin-top:2px">${slot.desc}</div>
+      ${opts || `<div style="font-size:11px;color:#7f9bb0;margin-top:6px">임명 가능한 동기가 모두 주요 직위에 발탁되었습니다.</div>`}
+    </div>`;
+  }).join("");
+
+  return `<div class="mn-card" style="margin-top:12px;border-color:#72ace8;background:rgba(14,24,38,.9)">
+    <div class="mn-h">🤝 ${us ? "사관학교 동기 핵심 요직 발탁 · 내각 임명" : "임관 동기 핵심 요직 발탁 · 국정 파트너 임명"}</div>
+    <p style="font-size:11.5px;color:#b8d0e2;margin:4px 0 10px">초급장교 시절부터 함께 걸어온 동기(현역·전역 민간 전문가 포함)를 핵심 요직에 임명하면 전용 인선 스토리와 국정 지지율 보너스가 발동합니다.</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:10px">${cards}</div>
+  </div>`;
+}
+
+/** Execute a classmate cabinet/command appointment and return story headline, quote, and bonus. */
+export function buildClassmateAppointment({ mode, slotId, ri, rivals = [], rankLabelFn }) {
+  const slot = (CABINET_SLOTS[mode] || []).find((s) => s.id === slotId);
+  const r = rivals?.[ri];
+  if (!slot || !r) return null;
+  const us = isUS();
+  const name = us ? usNpcName(r.name + ri) : r.name;
+  const rel = r.rel ?? 50;
+  const origin = r.retired ? `예비역 ${rankLabelFn(r.g)} · ${r.retiredPost || "민간 전문가"}` : `${rankLabelFn(r.g)} · ${r.style || "현역 지휘관"}`;
+
+  let quote = "", bonus = 4, headline = "";
+  if (r.retired) {
+    bonus = 5;
+    quote = `“군복을 벗고 민간(${r.retiredPost || "산업계"})에서 쌓은 경험을 이제 자네와 함께 국가를 위해 쓰겠네.” — 민간 전문가 재영입 호평!`;
+    headline = `파격 인선! ${slot.title}에 민간 성공 신화 쓴 동기 ${name} 발탁`;
+  } else if (rel >= 75) {
+    bonus = 5;
+    quote = `“소위 때 당직실에서 나누던 약속을 결국 해냈군. 끝까지 곁에서 완벽히 보좌하겠네!” — 30년 전우애 인선 극찬!`;
+    headline = `30년 전우의 의기투합 — ${slot.title}에 핵심 우군 동기 ${name} 임명`;
+  } else if (rel < 40) {
+    bonus = 6;
+    quote = `“평생 치열하게 부딪혔던 나를 부르다니… 자네 배포는 인정하네. 오직 국가만 보고 뛰겠네.” — 숙적을 품은 대통합 탕평 인사!`;
+    headline = `대통합 파격 인사! 평생 라이벌 동기 ${name}, ${slot.title} 전격 기용`;
+  } else {
+    bonus = 4;
+    quote = `“선의의 경쟁을 펼치던 동기가 불러주니 감회가 새롭군. 실력으로 보답하겠네.” — 안정적 탕평 인선 호평!`;
+    headline = `${slot.title}에 임관 동기 ${name} 발탁 — 능력 중심 인선 호평`;
+  }
+  return { slot, ri, name, origin, quote, bonus, headline };
+}
+
 /** Pick an era-appropriate classmate & story event (including reunions with retired classmates!). */
 export function pickRivalEvent(rivals = [], grade = 0, week = 1) {
   if (!rivals.length) return null;
