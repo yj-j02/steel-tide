@@ -1059,6 +1059,61 @@ function portraitHTML(g, snapshot = null) {
     + `<g transform="translate(35 30) scale(2.3)">${face(F, 100).replace(/^<svg /, "<svg x=\"0\" y=\"0\" ")}</g>`
     + `<circle cx="255" cy="257" r="23" fill="#111a27" stroke="#e5c77c" stroke-width="1.3"/><image class="portrait-service-emblem" href="${serviceEmblemPath(svk)}" x="237" y="239" width="36" height="36"/></svg>`;
 }
+function ministerPortraitHTML(snapshot = null, square = false) {
+  const g = snapshot?.grade ?? myGrade();
+  const F = { ...agedFace(snapshot?.face ?? cmdr.face, Math.max(g, 9)), bare: true, civ: true };
+  const uid = `minp-${faceN++}`;
+  const us = isUS();
+  const H = square ? 240 : 300;
+  const shiftY = square ? -22 : 0;
+  const pin = us
+    ? `<g transform="translate(159 ${235 + shiftY}) rotate(-6)">
+        <rect x="-8" y="-5" width="16" height="10" rx="1.2" fill="#b22234" stroke="#e2be52" stroke-width="1"/>
+        <rect x="-8" y="-3.2" width="16" height="1.1" fill="#fff"/><rect x="-8" y="-0.6" width="16" height="1.1" fill="#fff"/><rect x="-8" y="2" width="16" height="1.1" fill="#fff"/>
+        <rect x="-8" y="-5" width="7" height="5.5" fill="#1d3566"/>
+      </g>`
+    : `<g transform="translate(162 ${240 + shiftY})">
+        <circle r="8.2" fill="#e5c258" stroke="#8a6a1c" stroke-width=".9"/>
+        <circle r="6.4" fill="#a81d24"/>
+        <circle r="3.4" fill="#f7de88"/>
+        <circle r="1.7" fill="#c9292f"/>
+        <path d="M-2.2 -1.2 Q0 -3.2 2.2 -1.2 Q0 0.8 -2.2 -1.2Z" fill="#1b4d9e" opacity=".88"/>
+      </g>`;
+  return `<svg role="img" aria-label="${us ? "Secretary of Defense" : "국방부장관"} 공식 초상" viewBox="0 0 240 ${H}" width="240" height="${H}">
+    <defs>
+      <radialGradient id="${uid}bg" cx=".5" cy=".36" r=".72">
+        <stop offset="0" stop-color="#dfe5ec"/>
+        <stop offset=".68" stop-color="#c3ccd6"/>
+        <stop offset="1" stop-color="#9faab7"/>
+      </radialGradient>
+      <linearGradient id="${uid}suit" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#1d222b"/>
+        <stop offset="1" stop-color="#0d1016"/>
+      </linearGradient>
+      <linearGradient id="${uid}tie" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#484d57"/>
+        <stop offset=".55" stop-color="#2c3038"/>
+        <stop offset="1" stop-color="#181b20"/>
+      </linearGradient>
+    </defs>
+    <rect width="240" height="${H}" fill="url(#${uid}bg)"/>
+    <g transform="translate(0 ${shiftY})">
+      <path d="M-8 310 C-4 244 26 206 80 192 L120 218 L160 192 C214 206 244 244 248 310Z" fill="url(#${uid}suit)" stroke="#090c10" stroke-width="1.2"/>
+      <path d="M90 190 L120 248 L150 190 L144 180 L120 206 L96 180Z" fill="#f7f9fc" stroke="#cfd5dc" stroke-width=".9"/>
+      <path d="M96 182 L120 212 L88 214 Z" fill="#ffffff" stroke="#d4dae2" stroke-width=".7"/>
+      <path d="M144 182 L120 212 L152 214 Z" fill="#ffffff" stroke="#d4dae2" stroke-width=".7"/>
+      <path d="M111 207 L120 202 L129 207 L126 221 L120 225 L114 221Z" fill="url(#${uid}tie)" stroke="#14171c" stroke-width=".7"/>
+      <path d="M114 222 L126 222 L132 308 L108 308Z" fill="url(#${uid}tie)" stroke="#14171c" stroke-width=".8"/>
+      <path d="M119 224 L117 306" stroke="#646a76" stroke-width=".9" opacity=".35"/>
+      <path d="M78 193 L94 190 L118 258 L95 250 L80 220Z" fill="#232833" stroke="#0c0f14" stroke-width=".9"/>
+      <path d="M162 193 L146 190 L122 258 L145 250 L160 220Z" fill="#232833" stroke="#0c0f14" stroke-width=".9"/>
+      <path d="M94 190 L118 258 M146 190 L122 258" stroke="#3c4352" stroke-width=".9" opacity=".55"/>
+    </g>
+    ${pin}
+    <g transform="translate(-8 ${-4 + shiftY}) scale(2.56)">${face(F, 100).replace(/^<svg /, "<svg x=\"0\" y=\"0\" ")}</g>
+    <rect x="1" y="1" width="238" height="${H - 2}" fill="none" stroke="#8a96a6" stroke-opacity=".45" stroke-width="1"/>
+  </svg>`;
+}
 /** Epilogue card after a story chapter (shown over the menu). */
 let storyQ = null;
 function storyCard(c) {
@@ -1121,9 +1176,57 @@ function ministerOrder() {
   saveFinalUniform(myGrade(), postOf(myGrade()));
   career.minister = true; saveCareer(); logPromotion({ g: myGrade(), t: isUS() ? "Secretary of Defense (SecDef)" : "국방부장관", b: "", why: isUS() ? "미 국방장관 임명" : "국방부장관 임명" }); minStart(cmdr.name);
   const dt = new Date(), mon = ["JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC"][dt.getMonth()];
+  const por = ministerPortraitHTML();
+  const svk = serviceOf(staff.branch), brNm = (curBranches()[normBranch(staff.branch)] || BRANCHES.sea).n;
+  const svcInfo = careerDate(dutyState().week);
   $("#promoM").innerHTML = isUS()
-    ? `<div class="pm-doc"><div class="pm-pg on" data-pg="1"><div class="pm-h">THE WHITE HOUSE · WASHINGTON</div><div class="pm-no">COMMISSION OF APPOINTMENT</div><div class="pm-rank">Secretary of Defense</div><div class="pm-name">${cmdr.name}</div><div class="pm-txt">By and with the advice and consent of the Senate, hereby appointed Secretary of Defense of the United States<br><b>Retired ${usRankFull(myGrade(), serviceOf(staff.branch))} (${US_PAY[myGrade()]})</b></div><div class="pm-sign"><div class="pm-date">${dt.getDate()} ${mon} ${dt.getFullYear()}</div><div class="pm-sg"><span>President of the United States</span><svg viewBox="0 0 160 54" width="160" height="54"><path d="M12 36 C22 10 34 14 28 32 C26 42 40 20 52 24 C60 28 62 36 74 28 C84 20 96 14 104 26 C112 36 124 20 146 22 M36 44 C72 40 112 40 148 36" stroke="#182a4a" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">POTUS<br>SEAL</i></div></div><button id="promoOk">I So Swear</button></div></div>`
-    : `<div class="pm-doc"><div class="pm-pg on" data-pg="1"><div class="pm-h">대한민국 정부</div><div class="pm-no">임명장</div><div class="pm-rank">국방부장관</div><div class="pm-name">${cmdr.name}</div><div class="pm-txt">위 사람을 국방부장관에 임명함<br><b>예비역 ${ECON_RANKS[myGrade()]}</b></div><div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>대통령</span><svg viewBox="0 0 150 54" width="150" height="54"><path d="M10 34 C22 12 34 14 30 32 C26 46 40 38 50 22 C58 12 62 30 70 28 C80 24 84 14 92 22 C100 30 110 26 122 16 M56 44 C84 40 112 40 140 36" stroke="#1d2340" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg><i>大統領印</i></div></div><button id="promoOk">명 받았습니다</button></div></div>`;
+    ? `<div class="pm-doc pm-min"><div class="pm-pg on" data-pg="1">
+        <div class="pm-min-crest">★ ★ ★</div>
+        <div class="pm-h">THE WHITE HOUSE · WASHINGTON</div>
+        <div class="pm-no">PRESIDENTIAL COMMISSION OF APPOINTMENT</div>
+        <div class="pm-min-body">
+          <div class="pm-min-por-wrap">
+            <div class="pm-min-por">${por}</div>
+            <div class="pm-min-cap">SECRETARY OF DEFENSE</div>
+          </div>
+          <div class="pm-min-info">
+            <div class="pm-rank">Secretary of Defense</div>
+            <div class="pm-name">${escapeTitle(cmdr.name)}</div>
+            <div class="pm-txt">By and with the advice and consent of the Senate, hereby appointed <b>Secretary of Defense of the United States</b>, vested with full civilian authority over the Department of Defense.</div>
+            <div class="pm-min-meta">
+              <span>Retired ${usRankFull(myGrade(), svk)} (${US_PAY[myGrade()]})</span>
+              <span>${brNm}</span>
+              <span>${svcInfo}</span>
+            </div>
+          </div>
+        </div>
+        <div class="pm-sign"><div class="pm-date">${dt.getDate()} ${mon} ${dt.getFullYear()}</div><div class="pm-sg"><span>President of the United States</span><svg viewBox="0 0 160 54" width="160" height="54"><path d="M12 36 C22 10 34 14 28 32 C26 42 40 20 52 24 C60 28 62 36 74 28 C84 20 96 14 104 26 C112 36 124 20 146 22 M36 44 C72 40 112 40 148 36" stroke="#182a4a" stroke-width="2.2" fill="none" stroke-linecap="round"/></svg><i style="border-color:#1c3d6e;color:#1c3d6e;border-radius:50%;padding:4px 6px;font-size:8px">POTUS<br>SEAL</i></div></div>
+        <button id="promoOk">I So Swear</button>
+      </div></div>`
+    : `<div class="pm-doc pm-min"><div class="pm-pg on" data-pg="1">
+        <div class="pm-min-crest">✦ 國 務 委 員 ✦</div>
+        <div class="pm-h">대 한 민 국 정 부</div>
+        <div class="pm-no">국방부장관 임명장</div>
+        <div class="pm-min-body">
+          <div class="pm-min-por-wrap">
+            <div class="pm-min-por">${por}</div>
+            <div class="pm-min-cap">국방부장관 ${escapeTitle(cmdr.name)}</div>
+          </div>
+          <div class="pm-min-info">
+            <div class="pm-rank">국방부장관</div>
+            <div class="pm-name">${escapeTitle(cmdr.name)}</div>
+            <div class="pm-txt">대한민국 헌법 제87조에 따라 위 사람을 <b>국방부장관</b>에 임명함.<br>국군 지휘·군정 및 국방 정책을 총괄하시오.</div>
+            <div class="pm-min-meta">
+              <span>예비역 ${ECON_RANKS[myGrade()]}</span>
+              <span>${originBadgeLabel()}</span>
+              <span>${brNm}</span>
+              <span>${svcInfo}</span>
+            </div>
+          </div>
+        </div>
+        <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>대통령</span><svg viewBox="0 0 150 54" width="150" height="54"><path d="M10 34 C22 12 34 14 30 32 C26 46 40 38 50 22 C58 12 62 30 70 28 C80 24 84 14 92 22 C100 30 110 26 122 16 M56 44 C84 40 112 40 140 36" stroke="#1d2340" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg><i>大統領印</i></div></div>
+        <button id="promoOk">명 받았습니다</button>
+      </div></div>`;
   pmPreview = true; $("#promoM").style.display = "flex"; initAudio(); playMinisterAnthem(); refreshMenus();
 }
 /** 내 정보: current posting, this rank's evaluations and the promotion board checklist. */
@@ -1300,10 +1403,11 @@ function renderRecord() { /* 인사기록: 좌측 고정 프로필 + 우측 4개
   const presMarkImg = usIsPotus() ? `<img src="img/us_potus_mark.png" alt="U.S. Presidential Seal" class="pmark-b">` : (!isUS() && isPotus()) ? `<img src="img/potus_mark.png" alt="" class="pmark-b">` : "";
   const recRankTitle = usPotusOn() ? "President of the United States" : usIsPotus() ? "Former U.S. President" : civil() ? (!isUS() && potusOn() ? "대한민국 대통령" : !isUS() && isPotus() ? "전 대통령" : "민간인") : career.minister ? `예비역 ${rl.name}` : isUS() ? `${rl.name} · ${US_PAY[rl.r]}` : `${rl.name} ${ps.step}호봉`;
   const recSubTitle = usPotusOn() ? `Commander-in-Chief · ${usPresTitle()} · Retired ${rl.name}` : usIsPotus() ? `${usPresTitle()} · Retired ${rl.name}` : career.minister ? (!isUS() && potusOn() ? `국군통수권자 · ${potusTitle().replace("대통령 · ", "")} · 전 국방부장관` : !isUS() && isPotus() ? `${potusTitle()} · 예비역 ${rl.name}` : civil() ? `전 ${mTitle} · 예비역 ${rl.name}` : mTitle) : `${postLabel(postOf(rl.r))}${staff.branch ? ` · ${(BR[br] || BRANCHES.sea).n} 보직` : ""}`;
+  const isMinView = !isCivView && !!career.minister;
   let h = `<div class="mi"><div class="mi-l">`
-    + `<div class="mi-por-w">${isCivView ? `<div class="mi-por civp">${face({ ...agedFace(cmdr.face, myGrade()), civ: true, bg: isAnyPres ? "#1d3b6e" : "#2b3446" }, 280)}${presMarkImg}</div>` : portraitHTML(career.finalUniform?.grade ?? rl.r, career.finalUniform)}</div><p class="uniform-caption">${usIsPotus() ? `${usPresTitle()} · The White House` : career.finalUniform ? `${rankLabel(career.finalUniform.grade)} · ${postLabel(career.finalUniform.title)} · ${career.finalUniform.date}` : `${rankLabel(rl.r)} · ${postLabel(postOf(rl.r))} · ${careerDate(dd.week)}`}</p><div class="mi-card"><div><div class="mi-rk">${badge(rl.r, 22)}<b>${recRankTitle}</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${recSubTitle}</div><div style="font-size:11px;color:#9fc5e2;margin-top:3px">임관 출신 · ${originBadgeLabel()}</div></div></div>`
+    + `<div class="mi-por-w">${isCivView ? `<div class="mi-por civp">${face({ ...agedFace(cmdr.face, myGrade()), civ: true, bg: isAnyPres ? "#1d3b6e" : "#2b3446" }, 280)}${presMarkImg}</div>` : isMinView ? `<div class="mi-por minp">${ministerPortraitHTML(null, true)}</div>` : portraitHTML(career.finalUniform?.grade ?? rl.r, career.finalUniform)}</div><p class="uniform-caption">${usIsPotus() ? `${usPresTitle()} · The White House` : isMinView ? `${mTitle} · ${escapeTitle(cmdr.name)}` : career.finalUniform ? `${rankLabel(career.finalUniform.grade)} · ${postLabel(career.finalUniform.title)} · ${career.finalUniform.date}` : `${rankLabel(rl.r)} · ${postLabel(postOf(rl.r))} · ${careerDate(dd.week)}`}</p><div class="mi-card"><div><div class="mi-rk">${badge(rl.r, 22)}<b>${recRankTitle}</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${recSubTitle}</div><div style="font-size:11px;color:#9fc5e2;margin-top:3px">임관 출신 · ${originBadgeLabel()}</div></div></div>`
     + (isCivView || career.minister ? `<p class="mi-note">${usPotusOn() ? "O-1 임관에서 미합중국 대통령까지 — 집무실 탭에서 백악관 국정을 운영합니다" : usIsPotus() ? "미합중국 대통령 임기를 명예롭게 마쳤습니다" : !isUS() && potusOn() ? "소위 임관에서 대통령까지 — 집무실 탭에서 국정을 운영합니다" : !isUS() && isPotus() ? "대통령 임기를 마쳤습니다" : civil() ? `${mTitle} 임기를 마치고 민간인이 되었습니다` : `전역 후 ${mTitle}으로 임명되어 호봉·진급이 없습니다`}</p>` : `<div class="mi-bar"><span>다음 호봉</span><div class="hbar"><i style="width:${Math.max(2, stepPct).toFixed(0)}%"></i></div></div><div class="mi-bar"><span>${rl.next ? `${rl.next} 진급` : "최고 계급"}</span><div class="hbar"><i style="width:${(rl.pct * 100).toFixed(0)}%;background:var(--gold)"></i></div><small>${rl.next ? `${fmt(rl.need - profile.xp)} XP 남음` : ""}</small></div>`)
-    + (isCivView && career.finalUniform ? `<details class="final-uniform"><summary>마지막 정복 초상 · ${postLabel(career.finalUniform.title)}</summary>${portraitHTML(career.finalUniform.grade, career.finalUniform)}</details>` : "")
+    + ((isCivView || isMinView) && career.finalUniform ? `<details class="final-uniform"><summary>마지막 정복 초상 · ${postLabel(career.finalUniform.title)}</summary>${portraitHTML(career.finalUniform.grade, career.finalUniform)}</details>` : "")
     + (isCivView || career.minister ? "" : evalHTML(rl)) + ministerHTML(rl)
     + (profile.admin ? `<div class="mi-adm">관리자 · 실제 계급 변경 <select id="setRank">${ECON_RANKS.map((_, i) => `<option value="${i}"${i === rl.r ? " selected" : ""}>${isUS() ? `${US_PAY[i]} · ` : ""}${rankLabel(i, svk)}</option>`).join("")}</select><button data-act="setrank">변경</button><small>경험치가 그 계급 기준으로 바뀌어 해금·직함·사령부·견장이 모두 실제로 바뀝니다.</small></div><div class="mi-adm">관리자 모드 · 진급 연출 미리보기 <select id="pvRank">${ECON_RANKS.slice(1).map((_, i) => `<option value="${i + 1}"${i + 1 === 6 ? " selected" : ""}>${isUS() ? `${US_PAY[i + 1]} · ` : ""}${rankLabel(i + 1, svk)}</option>`).join("")}</select><button data-act="pvpromo">보기</button><small>실제 계급·경험치는 바뀌지 않습니다</small></div>` : `<div class="hq-adm in"><input id="miAdmin" type="password" maxlength="32" placeholder="관리자 코드" autocomplete="off"><button data-act="miadmin">적용</button></div>`)
     + `</div><div class="mi-r">${recTabsHTML}${rBody}</div></div>`;

@@ -458,6 +458,21 @@
       .pm-ins { margin:10px 0 2px; padding:14px 22px; background:#1b2230; border:2px solid #8a6a22; animation:pmIns 1.1s ease .2s both; }
       .pm-rank { font:900 40px "Noto Sans KR",sans-serif; letter-spacing:.12em; color:#20180c; } .pm-name { font:700 20px "Noto Sans KR",sans-serif; }
       .pm-txt { font:15px/1.7 "Noto Sans KR",sans-serif; text-align:center; } .pm-txt b { color:#7a2a12; }
+      .pm-doc.pm-min { width:min(680px, 94vw); padding:30px 36px 26px; gap:12px; position:relative; }
+      .pm-min-crest { font-size:24px; line-height:1; color:#8a6a22; letter-spacing:.2em; }
+      .pm-min-body { display:grid; grid-template-columns:182px minmax(0,1fr); gap:24px; align-items:center; width:100%; margin:8px 0 4px; text-align:left; }
+      .pm-min-por-wrap { display:flex; flex-direction:column; align-items:center; gap:10px; }
+      .pm-min-por { box-sizing:border-box; width:176px; height:220px; padding:5px; background:linear-gradient(145deg,#d8b65c,#7c5e1c,#ebd07f); box-shadow:0 10px 24px rgba(24,18,8,.32); border-radius:4px; animation:pmPg .55s ease .1s both; overflow:hidden; }
+      .pm-min-por svg { display:block; width:100%; height:100%; border-radius:2px; }
+      .pm-min-cap { font:700 12px "Noto Sans KR",sans-serif; color:#5a4620; letter-spacing:.08em; margin-top:2px; }
+      .pm-min-info { display:flex; flex-direction:column; gap:8px; min-width:0; }
+      .pm-min-info .pm-rank { font-size:34px; line-height:1.15; letter-spacing:.08em; }
+      .pm-min-info .pm-name { font-size:22px; border-bottom:1px solid rgba(138,106,34,.45); padding-bottom:6px; }
+      .pm-min-info .pm-txt { text-align:left; font-size:14.5px; line-height:1.7; }
+      .pm-min-meta { display:flex; flex-wrap:wrap; gap:6px; margin-top:2px; }
+      .pm-min-meta span { font:600 11.5px "Noto Sans KR",sans-serif; color:#4e3c1b; background:rgba(138,106,34,.14); border:1px solid rgba(138,106,34,.42); padding:3px 8px; border-radius:3px; }
+      .mi-por.minp { display:block; width:280px; height:280px; margin:0 auto; border:2px solid #d8b247; border-radius:6px; overflow:hidden; box-shadow:0 10px 26px rgba(0,0,0,.45); }
+      .mi-por.minp svg { width:100%; height:100%; display:block; }
       #promoM .pm-doc{margin:auto}.pk-h.nudge{animation:pkNudge .5s 2;color:#c0392b}@keyframes pkNudge{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}.pk-done small{font-weight:400;opacity:.8}
 .pst-row{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:6px 0 10px;max-height:46vh;overflow:auto}.pst{flex:1 1 150px;max-width:190px;text-align:left;padding:8px 10px;background:#f3ead2;border:1px solid #b9a578;color:#3a2f1c;cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;flex-direction:column;gap:2px}.pst i{font-style:normal;font-size:10.5px;color:#8a6d2e}.pst b{font-size:14px}.pst small{font-size:11px;opacity:.75}.pst span{font-size:11px;color:#5a4a2a}.pst.on{background:#1f2d44;border-color:#d8b247;color:#fff4d6}.pst.on i,.pst.on span{color:#f2ca5c}.pst:hover{border-color:#7a6220}
 .mi-ev{border:1px solid var(--gline);background:rgba(10,14,12,.5);padding:10px 12px;margin-bottom:12px}.mi-ev .ev-top{display:flex;justify-content:space-between;gap:10px;align-items:center}.mi-ev .ev-top span{display:block;font-size:11px;color:var(--cream2);opacity:.75}.mi-ev .ev-top b{font-size:15px;color:#fff2c6}.mi-ev .ev-top small{display:block;font-size:11px;color:var(--cream2)}.ev-g{text-align:center;min-width:64px;border:1px solid var(--gline);padding:4px 6px}.ev-g b{display:block;font:800 26px/1.1 'Noto Sans KR',sans-serif}.ev-g.S b{color:#ffd166}.ev-g.A b{color:#9be06a}.ev-g.B b{color:#7cc4ff}.ev-g.C b{color:#ffb347}.ev-g.D b{color:#ff6b5e}.ev-l{display:flex;gap:4px;align-items:flex-end;height:42px;margin:8px 0;border-bottom:1px solid var(--gline-soft)}.ev-l i{flex:1;max-width:26px;background:linear-gradient(#f2ca5c,#a8862e)}.ev-l em{font-size:11px;opacity:.7;font-style:normal;align-self:center}.ev-ck{list-style:none;margin:0;padding:0;display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px}.ev-ck .ok{color:#9be06a}.ev-ck .no{color:#ff9b8a}.ev-warn{margin-top:6px;font-size:12px;color:#ffb347}.ev-max{font-size:12px;color:var(--gold)}
