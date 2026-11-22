@@ -12,7 +12,7 @@ import { automaticCaptain, boardCard, preview as boardPreview, settle, hint, int
  * connection to the captain's room (credits, ships, rank).
  */
 import { THREE, $, PI, TAU, DEG, KN, clamp, wrap, brg, fmt, params, rnd, gauss, G, camera, canvas, renderer, scene, ovScene, ovCam, makeIslands, MAPS, addIsland, clearFx, updateWorld, spray, spark, flash, spawnSplash } from "./js/core.js";
-import { A, initAudio, setMuted, setVolume, sfx, updateAudio, radio, bgm, setBgmOn, jetSound, droneSound, fanfare, stopFanfare, playMinisterAnthem, playPotusAnthem, setAmbienceMood } from "./js/audio.js";
+import { A, initAudio, setMuted, setVolume, sfx, updateAudio, radio, bgm, setBgmOn, jetSound, droneSound, fanfare, stopFanfare, playMinisterAnthem, playPotusAnthem, setAmbienceMood, playVO, stopVO, promoVoForGrade, VO_CATALOG } from "./js/audio.js";
 import { OPS, isModernOp, opsInit, opsStep, opsClear, opsCheck, opsMarks, opsShellLand, aswRocket, nearestSubContact, O as OPSO, opsDebug, opsStatus, jamDrones } from "./js/ops.js";
 import { cicStart, cicBigFeeds, cicStop, cicStep, cicToggle, cicExpand, cicPending, cicResolve, cicUsed, cicWcs, cicSetWcs, cicFeedInfo } from "./js/cic.js";
 import { post, renderFrame, renderPiP, renderToCanvas } from "./js/post.js";
@@ -848,8 +848,9 @@ function waveMastFlag() {
   for (let i = 0; i < pos.count; i++) { const x0 = F.base[i * 3], y0 = F.base[i * 3 + 1], k = -x0 / F.w; pos.setZ(i, Math.sin(x0 * 0.9 + G.time * 6) * 0.55 * k * (F.w / 8) + Math.sin(y0 * 1.3 + G.time * 4) * 0.12 * k); }
   pos.needsUpdate = true;
 }
+let pmCertKind = "promo";
 function buildPromo(before, after, unl = "", preview = false, review = null) {
-  pmPreview = preview; pmTook = 0; pmPage = 1; pmAfter = after; pmTakenL = []; pmPostG = -1; pmPostOpts = [];
+  pmCertKind = "promo"; pmPreview = preview; pmTook = 0; pmPage = 1; pmAfter = after; pmTakenL = []; pmPostG = -1; pmPostOpts = [];
   const svk = serviceOf(staff.branch), sv0 = curServices()[svk] || curServices().navy;
   const echUnit = isUS()
     ? (US_SVC_ORG[svk] || US_SVC_ORG.navy).ech[echOf(after)]
@@ -876,6 +877,8 @@ function buildPromo(before, after, unl = "", preview = false, review = null) {
   const pmRadio = after < 3 ? `<div class="pm-radio"><b>${isUS() ? "RADIO" : "무전"}</b> ${isUS() ? `Congratulations on your promotion to ${usRankFull(after, svk)}, ${radioAddr(after)}! All hands standing by for your orders.` : `${radioAddr(after)}, 진급을 축하드립니다!`}</div>` : "";
 $("#promoM").innerHTML = `<div class="pm-doc"><div class="pm-pg on" data-pg="1"><div class="pm-h">${pmHead}</div><div class="pm-no">${isUS() ? `SPECIAL ORDERS NO. ${yr}-${no}` : `인사명령 제${yr}-${no}호`}</div>${after >= 6 ? flagHTML(after, before) : `<div class="pm-ins">${insignia(after, 120)}</div>`}<div class="pm-rank">${isUS() ? `PROMOTED TO ${usRankFull(after, svk).toUpperCase()}` : `${rankLabel(after, svk)} 진급`}</div><div class="pm-name">${cmdr.name}</div><div class="pm-txt">${pmTxt}</div>${reviewNote}<div class="pm-u">${opens}</div>${handover}${pmRadio}${ministerSign()}<button class="pm-next" data-pmgo="2">${isUS() ? "Next ›" : "다음 ›"}</button></div><div class="pm-pg" data-pg="2"><div class="pm-h2">${isUS() ? "Decorations &amp; Medals" : "훈장 수여"}</div><div id="pmMed"></div><button class="pm-next" data-pmgo="3">${isUS() ? "Next ›" : "다음 ›"}</button></div><div class="pm-pg" data-pg="3"><div class="pm-h2">${isUS() ? "Next Assignment" : "보직 선택"}</div><div id="pmPost"></div><button id="promoOk">${isUS() ? "Yes, Sir!" : "명 받았습니다"}</button></div><div class="pm-dots">${[1, 2, 3].map((n) => `<i data-d="${n}"${n === 1 ? ' class="on"' : ""}></i>`).join("")}</div></div>`;
   renderPostPick(after);
+  const pVo = promoVoForGrade(after, isUS());
+  if (pVo) playVO(pVo, { delayMs: 260 });
   return handover;
 }
 const ministerSign = () => {
@@ -891,7 +894,12 @@ function pmGo(n) {
   if (n === 2 && !pmMedals.length && !pmPreview) n = 3; /* no medal this time: straight to the posting */
   pmPage = n; for (const el of document.querySelectorAll("#promoM .pm-pg")) el.classList.toggle("on", +el.dataset.pg === n);
   for (const d of document.querySelectorAll("#promoM .pm-dots i")) d.classList.toggle("on", +d.dataset.d === n);
-  if (n === 2) { const MD = curMedals(); $("#pmMed").innerHTML = (pmMedals.length ? pmMedals : pmPreview ? Object.keys(MD).filter((k) => career.medals?.[k]).slice(0, 3) : []).map((k) => `<div class="pm-md"><i>${MD[k].rb.map((col) => `<b style="background:${col}"></b>`).join("")}</i><div><b>${MD[k].n}</b><small>${MD[k].d}</small></div></div>`).join("") || `<div class="pm-none">이번에 받은 훈장이 없습니다</div>`; }
+  if (n === 2) {
+    const MD = curMedals();
+    const list = pmMedals.length ? pmMedals : pmPreview ? Object.keys(MD).filter((k) => career.medals?.[k]).slice(0, 3) : [];
+    $("#pmMed").innerHTML = list.map((k) => `<div class="pm-md"><i>${MD[k].rb.map((col) => `<b style="background:${col}"></b>`).join("")}</i><div><b>${MD[k].n}</b><small>${MD[k].d}</small></div></div>`).join("") || `<div class="pm-none">이번에 받은 훈장이 없습니다</div>`;
+    if (list.length && !isUS()) playVO(20);
+  }
   $("#promoM").scrollTop = 0; sfx.click();
 }
 /** 보직 순환: at each promotion pick the next posting — stay on your branch line or cross over (the career and its evaluation weights follow). */
@@ -1192,7 +1200,7 @@ function storyCard(c) {
 }
 /** 작전 지휘 (operation map): plan and run an operation on the chart; the result pays and is evaluated like a battle. */
 function startOpMap(airMode = false, c72 = false) {
-  initAudio(); bgm("battle"); sfx.click(); const g = myGrade(), br = normBranch(staff.branch), m = withMin(staffMods(hqGrade(), hqBranch())), pk = perkMods();
+  initAudio(); bgm("battle"); sfx.click(); playVO(airMode ? 29 : 28); const g = myGrade(), br = normBranch(staff.branch), m = withMin(staffMods(hqGrade(), hqBranch())), pk = perkMods();
   openOpMap({
     grade: g, branch: br, ops: br === "sea" || br === "arm", air: airMode, c72, scen: storyOp != null ? "intercept" : undefined,
     onLeave: () => {
@@ -1209,6 +1217,7 @@ function startOpMap(airMode = false, c72 = false) {
 function launchDirect3d(domain, fromDuty = false) {
   minDirect3d = !fromDuty; dutyDirect = fromDuty;
   campSel = null; natUs = "kr"; natFoe = "nk";
+  playVO(domain === "air" ? 29 : domain === "army" ? 30 : 28);
   if (domain === "air") { mission = "modern"; theater = "east"; start(false); setTimeout(() => { if (G.state === "playing") { modernKey("KeyF"); toast("영공 위기 3D 개입 — 전투기 긴급 발진! I 키로 직접 조종하십시오", 5); } }, 1200); }
   else if (domain === "army") { mission = "modern:shore"; theater = "west"; start(false); toast("접경 위기 3D 합동 화력 개입 — 해안포·적 화력 진지를 제압하십시오", 5); }
   else { mission = "modern"; theater = "west"; start(false); toast("해상 위기 3D 직접 개입 — 적 수상전단을 격멸하십시오", 5); }
@@ -1303,7 +1312,9 @@ function ministerOrder(preview = false) {
         <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>${potusSignKR}</span><img src="img/sign_pres.png" class="pm-sig-img" alt="서명"><i>大統領印</i></div></div>
         <button id="promoOk">${preview ? "미리보기 닫기" : "명 받았습니다"}</button>
       </div></div>`;
-  pmPreview = true; $("#promoM").style.display = "flex"; initAudio(); playMinisterAnthem(); if (!preview) refreshMenus();
+  pmCertKind = "min"; pmPreview = true; $("#promoM").style.display = "flex"; initAudio(); playMinisterAnthem();
+  playVO(isUS() ? 61 : 41, isUS() ? { delayMs: 260 } : { delayMs: 260, nextVo: 42 });
+  if (!preview) refreshMenus();
 }
 
 /** 🎖️ 소위 임관식 (2nd Lieutenant / Ensign Commissioning Ceremony & Oath of Office) */
@@ -1368,7 +1379,8 @@ function commissionOrder(preview = false) {
         <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 3월 1일</div><div class="pm-sg"><span>${potusSignKR}</span><img src="img/sign_pres.png" class="pm-sig-img" alt="서명"><i>大統領印</i></div></div>
         <button id="promoOk">${preview ? "미리보기 닫기" : "엄숙히 선서합니다 — 첫 부임지로 출발"}</button>
       </div></div>`;
-  pmPreview = true; $("#promoM").style.display = "flex"; initAudio(); fanfare(0, staff.branch);
+  pmCertKind = "comm"; pmPreview = true; $("#promoM").style.display = "flex"; initAudio(); fanfare(0, staff.branch);
+  playVO(isUS() ? 56 : 2, isUS() ? { delayMs: 260 } : { delayMs: 260, nextVo: 1 });
 }
 
 /** ⭐⭐⭐⭐⭐ 5성 원수 특별 추대장 (5-Star Marshal Special National Citation) */
@@ -1429,7 +1441,8 @@ function marshalOrder(preview = false) {
         <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>${potusSignKR}</span><img src="img/sign_pres.png" class="pm-sig-img" alt="서명"><i>國璽</i></div></div>
         <button id="promoOk">${preview ? "미리보기 닫기" : "구국의 원수봉을 받겠습니다"}</button>
       </div></div>`;
-  pmPreview = true; $("#promoM").style.display = "flex"; initAudio(); fanfare(10, staff.branch);
+  pmCertKind = "marshal"; pmPreview = true; $("#promoM").style.display = "flex"; initAudio(); fanfare(10, staff.branch);
+  playVO(isUS() ? 59 : 10, { delayMs: 260 });
 }
 
 /** 🏛️ 대통령 당선증 · 국군통수권자 취임 선서문 (Presidential Election Certificate & Inaugural Oath) */
@@ -1483,7 +1496,8 @@ function presidentOrder(preview = false) {
         <div class="pm-sign"><div class="pm-date">${dt.getFullYear()}년 ${dt.getMonth() + 1}월 ${dt.getDate()}일</div><div class="pm-sg"><span>중앙선거관리위원회 위원장</span><img src="img/sign_pres.png" class="pm-sig-img" alt="서명"><i>選管委印</i></div></div>
         <button id="promoOk">${preview ? "미리보기 닫기" : "대통령실 국정 운영 시작"}</button>
       </div></div>`;
-  pmPreview = true; $("#promoM").style.display = "flex"; initAudio(); playPotusAnthem();
+  pmCertKind = "pres"; pmPreview = true; $("#promoM").style.display = "flex"; initAudio(); playPotusAnthem();
+  playVO(isUS() ? 64 : 52, { delayMs: 260 });
 }
 /** 내 정보: current posting, this rank's evaluations and the promotion board checklist. */
 function evalHTML(rl) {
@@ -1547,6 +1561,7 @@ function renderCareerTimeline(record, duty, us, service) {
 function showMedal(key) {
   const medal = curMedals()[key];
   if (!medal || !career.medals?.[key] || $(".bd-modal[open]")) return;
+  if (!isUS()) playVO(20);
   const award = career.medalHistory?.[key];
   const dialog = document.createElement("dialog");
   dialog.className = "bd-modal";
@@ -1760,7 +1775,7 @@ function renderRecord() { /* 인사기록: 좌측 고정 프로필 + 우측 4개
     + (isCivView || career.minister ? `<p class="mi-note">${usPotusOn() ? "O-1 임관에서 미합중국 대통령까지 — 집무실 탭에서 백악관 국정을 운영합니다" : usIsPotus() ? "미합중국 대통령 임기를 명예롭게 마쳤습니다" : !isUS() && potusOn() ? "소위 임관에서 대통령까지 — 집무실 탭에서 국정을 운영합니다" : !isUS() && isPotus() ? "대통령 임기를 마쳤습니다" : civil() ? `${mTitle} 임기를 마치고 민간인이 되었습니다` : `전역 후 ${mTitle}으로 임명되어 호봉·진급이 없습니다`}</p>` : `<div class="mi-bar"><span>다음 호봉</span><div class="hbar"><i style="width:${Math.max(2, stepPct).toFixed(0)}%"></i></div></div><div class="mi-bar"><span>${rl.next ? `${rl.next} 진급` : "최고 계급"}</span><div class="hbar"><i style="width:${(rl.pct * 100).toFixed(0)}%;background:var(--gold)"></i></div><small>${rl.next ? `${fmt(rl.need - profile.xp)} XP 남음` : ""}</small></div>`)
     + ((isCivView || isMinView) && career.finalUniform ? `<details class="final-uniform"><summary>마지막 정복 초상 · ${postLabel(career.finalUniform.title)}</summary>${portraitHTML(career.finalUniform.grade, career.finalUniform)}</details>` : "")
     + (isCivView || career.minister ? "" : evalHTML(rl)) + ministerHTML(rl)
-    + (profile.admin ? `<div class="mi-adm">관리자 · 실제 계급 변경 <select id="setRank">${ECON_RANKS.map((_, i) => `<option value="${i}"${i === rl.r ? " selected" : ""}>${isUS() ? `${US_PAY[i]} · ` : ""}${rankLabel(i, svk)}</option>`).join("")}</select><button data-act="setrank">변경</button><small>경험치가 그 계급 기준으로 바뀌어 해금·직함·사령부·견장이 모두 실제로 바뀝니다.</small></div><div class="mi-adm">관리자 모드 · 진급 연출 미리보기 <select id="pvRank">${ECON_RANKS.slice(1).map((_, i) => `<option value="${i + 1}"${i + 1 === 6 ? " selected" : ""}>${isUS() ? `${US_PAY[i + 1]} · ` : ""}${rankLabel(i + 1, svk)}</option>`).join("")}</select><button data-act="pvpromo">보기</button><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"><button data-act="pvcomm">소위 임관식 보기</button><button data-act="pvinquiry">청문회 위기 보기</button><button data-act="pvmarshal">5성 원수 추대장 보기</button><button data-act="pvminoffer">장관 오퍼 보기</button><button data-act="pvmincert">장관 임명장 보기</button><button data-act="pvprescert">대통령 취임장 보기</button></div><small>실제 계급·경험치·전역 상태는 바뀌지 않습니다</small></div>` : `<div class="hq-adm in"><input id="miAdmin" type="password" maxlength="32" placeholder="관리자 코드" autocomplete="off"><button data-act="miadmin">적용</button></div>`)
+    + (profile.admin ? `<div class="mi-adm">관리자 · 실제 계급 변경 <select id="setRank">${ECON_RANKS.map((_, i) => `<option value="${i}"${i === rl.r ? " selected" : ""}>${isUS() ? `${US_PAY[i]} · ` : ""}${rankLabel(i, svk)}</option>`).join("")}</select><button data-act="setrank">변경</button><small>경험치가 그 계급 기준으로 바뀌어 해금·직함·사령부·견장이 모두 실제로 바뀝니다.</small></div><div class="mi-adm">관리자 모드 · 진급 연출 미리보기 <select id="pvRank">${ECON_RANKS.slice(1).map((_, i) => `<option value="${i + 1}"${i + 1 === 6 ? " selected" : ""}>${isUS() ? `${US_PAY[i + 1]} · ` : ""}${rankLabel(i + 1, svk)}</option>`).join("")}</select><button data-act="pvpromo">보기</button><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"><button data-act="pvcomm">소위 임관식 보기</button><button data-act="pvinquiry">청문회 위기 보기</button><button data-act="pvmarshal">5성 원수 추대장 보기</button><button data-act="pvminoffer">장관 오퍼 보기</button><button data-act="pvmincert">장관 임명장 보기</button><button data-act="pvprescert">대통령 취임장 보기</button></div><div style="margin-top:8px;padding-top:7px;border-top:1px dashed rgba(242,202,92,.3)"><b>🎙️ 음성 대사(VO) 65종 청취 테스트</b><div style="display:flex;gap:5px;margin-top:4px;flex-wrap:wrap"><select id="pvVo" style="flex:1;min-width:190px">${VO_CATALOG.map(([num, lbl]) => `<option value="${num}">${lbl}</option>`).join("")}</select><button data-act="pvvo">▶ 음성 재생</button><button data-act="pvstopvo">■ 정지</button></div></div><small>실제 계급·경험치·전역 상태는 바뀌지 않습니다</small></div>` : `<div class="hq-adm in"><input id="miAdmin" type="password" maxlength="32" placeholder="관리자 코드" autocomplete="off"><button data-act="miadmin">적용</button></div>`)
     + `</div><div class="mi-r">${recTabsHTML}${rBody}</div></div>`;
   $("#recordP").innerHTML = h;
 }
@@ -1887,6 +1902,7 @@ function openPromotionBoard(g, br, svk, automatic = false) {
     ${g===8?`<label style="display:block;margin:8px 0;font-size:12.5px">희망 4성 보직 <select>${v.posts.map(p=>`<option ${vacantTitles.has(p.t)?"":"disabled"} value="${p.t}">${postLabel(p.t)}${vacantTitles.has(p.t)?"":" · 동기 재임 중"}</option>`).join("")}</select></label>`:""}
     <button data-submit>심사 결과 확정</button><button data-dismiss>나중에</button>`;
   document.body.append(dialog);dialog.showModal();dialog.onclose=()=>dialog.remove();
+  if (!isUS()) playVO(13);
   dialog.querySelector("[data-dismiss]").onclick=()=>dialog.close();
   const preferred=()=>dialog.querySelector("select")?.value;
   const confirmBoard=()=>{
@@ -1894,6 +1910,7 @@ function openPromotionBoard(g, br, svk, automatic = false) {
     if(!result){dialog.close();renderDutyDesk();return;}
     if (career.discharged) saveFinalUniform(g, title, result.date);
     if (result.passed) recordBoardPromotion(result, g, br);
+    if (!isUS()) playVO(result.passed ? 14 : 15);
     const finish=()=>{ dialog.close();refreshMenus();
       if(result.passed)showBoardPromotion(result,g,br);
       if(career.discharged)renderHQ();else renderDutyDesk();
@@ -1906,6 +1923,7 @@ function openPromotionBoard(g, br, svk, automatic = false) {
       <button>확인</button>`;
     dialog.querySelector("button").onclick=()=>{
       if(result.passed&&g===5&&!isUS()){
+        playVO(7);
         dialog.innerHTML="<h2>삼정검 수여식</h2><p>가족과 동료들이 지켜보는 가운데 이름이 호명됩니다. 삼정검을 받아 들고 새 지휘 책임을 인수합니다.</p><button>장성 인사명령서 열기</button>";
         dialog.querySelector("button").onclick=finish;
       }else finish();
@@ -1919,6 +1937,7 @@ function openPromotionBoard(g, br, svk, automatic = false) {
   ];
   function question(step, record){
     if(step===hearing.length){career.hearing=record;confirmBoard();return;}
+    if(step===0) playVO(62);
     const [topic,prompt,...answers]=hearing[step];
     dialog.innerHTML=`<h2>상원 군사위원회 · 인준 청문회</h2><p>${step+1}/3 · ${topic}</p><p>${prompt}</p>${answers.map((a,i)=>`<button data-answer="${i}">${a}</button>`).join("")}`;
     for(const b of dialog.querySelectorAll("button"))b.onclick=()=>question(step+1,[...record,answers[Number(b.dataset.answer)]]);
@@ -1954,6 +1973,7 @@ function finishOfficerService(grade, reason, elapsed, voluntary = false) {
     at:new Date().toISOString().slice(0,10), date, turn:d.week, voluntary, reason, serviceMonths:elapsed};
   saveFinalUniform(grade, career.discharged.title, date);
   saveCareer();
+  playVO(38);
   hqView = "duty";
   renderDischarged();
 }
@@ -2084,12 +2104,12 @@ const admBar = (k) => adminBar(profile.admin, "관리자 시험", isUS() && k ==
 function admRun(a) {
   setTheme(presTheme());
   if (a === "reset0") { restartCurrentCareer(true); return; } /* 관리자 유지한 채 소위 1호봉부터 초기화 */
-  if (a === "minok" || a === "minbad") { if (!minState()) minStart(cmdr.name); if (!minAdminEnd(a === "minok")) return toast("이미 임기를 마쳤습니다", 2); hqView = "min"; renderMin(); const r = minClick("next"); if (r.retire) { playMinisterAnthem(); playCuts({ title: isUS() ? "Secretary of Defense Farewell" : "국방부장관 이임", place: isUS() ? "Pentagon · End of Term" : "국방부 · 임기 종료", cuts: r.retire, onClose: () => { stopFanfare(); renderMin(); refreshMenus(); } }); } refreshMenus(); return; }
+  if (a === "minok" || a === "minbad") { if (!minState()) minStart(cmdr.name); if (!minAdminEnd(a === "minok")) return toast("이미 임기를 마쳤습니다", 2); hqView = "min"; renderMin(); const r = minClick("next"); if (r.retire) { playMinisterAnthem(); playVO(45, { delayMs: 280 }); playCuts({ title: isUS() ? "Secretary of Defense Farewell" : "국방부장관 이임", place: isUS() ? "Pentagon · End of Term" : "국방부 · 임기 종료", cuts: r.retire, onClose: () => { stopFanfare(); renderMin(); refreshMenus(); } }); } refreshMenus(); return; }
   if (a === "topres" || a === "topotus") { if (isUS()) return toast("미국 모드에서는 한국 대통령 선거에 출마할 수 없습니다 (미 대선 추후 업데이트 예정)", 3.5); if (!minState()) minStart(cmdr.name); if (!minState().retired) { minAdminEnd(true); minClick("next"); }
     if (!presState()) presStart(cmdr.name);
     if (a === "topotus") { if (presState().stage !== "won") presAdmin("win"); if (!potusState()) potusStart(cmdr.name); hqView = "potus"; renderPotus(); } else { hqView = "pres"; renderPres(); }
     refreshMenus(); toast(a === "topotus" ? "관리자 · 대통령 취임" : "관리자 · 대선 시작", 3); return; }
-  const P = { pboost: "boost", pskip: "skip", ppri: "pri", pdday: "dday", pwin: "win", plose: "lose" }[a]; if (P) return presResult(presAdmin(P));
+  const P = { pboost: "boost", pskip: "skip", ppri: "pri", pdday: "dday", pwin: "win", plose: "lose" }[a]; if (P) { if (a === "ppri") playVO(47); return presResult(presAdmin(P)); }
   const U = { uap: "ap", uapd: "apd", ubud: "bud", useats: "seats", ucrisis: "crisis", usummit: "summit", uskip4: "skip4", uend: "end", uimp: "imp", ureset: "reset" }[a]; if (U) { const r = potusAdmin(U); if (U === "reset") { hqView = "pres"; renderPres(); refreshMenus(); return toast(r.toast, 3); } return potusResult(r); }
 }
 function renderPotus() {
@@ -2102,8 +2122,14 @@ function renderPotus() {
 function potusResult(r) {
   setTheme(presTheme());
   if (r.toast) toast(r.toast, 3);
-  if (r.scene) { const sc = r.scene; openScene({ kind: sc.kind, title: sc.title, place: sc.place, speaker: sc.speaker, questions: sc.questions, onPick: (qi, ai) => { const x = sc.pick?.(qi, ai); if (x?.toast) toast(x.toast, 3); }, onClose: () => { renderPotus(); refreshMenus(); } }); return; }
-  if (r.cuts) { renderPotus(); playCuts({ title: "대통령 퇴임", place: "대통령실", cuts: r.cuts, onClose: () => { renderPotus(); refreshMenus(); } }); return; }
+  if (r.scene) {
+    const sc = r.scene;
+    if (sc.kind === "nsc") playVO(isUS() ? 65 : 53);
+    else if (sc.kind === "summit") playVO(54);
+    openScene({ kind: sc.kind, title: sc.title, place: sc.place, speaker: sc.speaker, questions: sc.questions, onPick: (qi, ai) => { const x = sc.pick?.(qi, ai); if (x?.toast) toast(x.toast, 3); }, onClose: () => { renderPotus(); refreshMenus(); } });
+    return;
+  }
+  if (r.cuts) { renderPotus(); playVO(55, { delayMs: 260 }); playCuts({ title: "대통령 퇴임", place: "대통령실", cuts: r.cuts, onClose: () => { renderPotus(); refreshMenus(); } }); return; }
   if (r.redraw) { renderPotus(); refreshMenus(); }
 }
 function renderPres() { if (!presState()) presStart(cmdr.name); setAmbienceMood("presidential"); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="min">‹ 국방부 기록</button><b>대통령 선거</b><small>${cmdr.name}</small>${potusState() ? `<button data-hqv="potus" class="hq-tg2">대통령실 ›</button>` : ""}</div>${admBar("pres")}${presHTML()}`; }
@@ -2111,8 +2137,15 @@ function renderPres() { if (!presState()) presStart(cmdr.name); setAmbienceMood(
 function presResult(r) {
   setTheme(presTheme());
   if (r.toast) toast(r.toast, 3);
-  if (r.scene) { const sc = r.scene; openScene({ kind: sc.kind, title: sc.title, place: sc.place, speaker: sc.speaker, questions: sc.questions, onPick: (qi, ai) => { const x = sc.pick?.(qi, ai); if (x?.toast) toast(x.toast, 3); }, onClose: (qi) => { if (qi >= sc.questions.length) sc.close?.(); renderPres(); refreshMenus(); } }); return; }
-  if (r.cuts) { renderPres(); playCuts({ title: "대통령 선거", place: "선거일", cuts: r.cuts, onClose: () => { renderPres(); refreshMenus(); } }); return; }
+  if (r.scene) {
+    const sc = r.scene;
+    if (sc.kind === "debate") playVO(49);
+    else if (/수락|후보/.test(sc.title || "")) playVO(48);
+    else if (/출마/.test(sc.title || "")) playVO(46);
+    openScene({ kind: sc.kind, title: sc.title, place: sc.place, speaker: sc.speaker, questions: sc.questions, onPick: (qi, ai) => { const x = sc.pick?.(qi, ai); if (x?.toast) toast(x.toast, 3); }, onClose: (qi) => { if (qi >= sc.questions.length) sc.close?.(); renderPres(); refreshMenus(); } });
+    return;
+  }
+  if (r.cuts) { renderPres(); playVO(50, { nextVo: presState()?.stage === "won" ? 51 : null }); playCuts({ title: "대통령 선거", place: "선거일", cuts: r.cuts, onClose: () => { renderPres(); refreshMenus(); } }); return; }
   if (r.redraw) { renderPres(); refreshMenus(); }
 }
 function dischargeEndingOf(g, svName) {
@@ -2554,19 +2587,23 @@ $("#recordP").addEventListener("click", (e) => {
     return;
   }
   if (e.target.closest('[data-act="pvmincert"]') && profile.admin) { ministerOrder(true); return; }
+  if (e.target.closest('[data-act="pvvo"]') && profile.admin) { initAudio(); const num = +($("#pvVo")?.value || 1); playVO(num); toast(`🎙️ 음성 #${String(num).padStart(2, "0")} 재생 중`, 2.5); return; }
+  if (e.target.closest('[data-act="pvstopvo"]') && profile.admin) { stopVO(); toast("음성 재생을 정지했습니다", 1.8); return; }
   if (e.target.closest('[data-act="miadmin"]')) { if (act({ kind: "admin", code: $("#miAdmin").value })) { sfx.coin(); toast("관리자 모드 활성화"); renderRecord(); } }
 });
 
 function launchSpecialHearing(preview = false) {
   const c = HEARING_CASES[0], g = Math.max(myGrade(), 3), svk = serviceOf(normBranch(staff.branch));
+  playVO(isUS() ? 62 : 31);
   openScene({
     kind: isUS() ? "us_hearing" : "assembly",
     title: `${isUS() ? c.usTitle : c.title}${preview ? " (미리보기)" : ""}`,
     place: isUS() ? "U.S. Senate Armed Services Committee" : "국회 국방위원회 · 긴급 현안 청문회",
     speaker: `${rankLabel(g, svk)} ${cmdr.name}`,
     questions: c.questions,
-    onPick: () => {},
+    onPick: () => { if (!isUS()) playVO(32); },
     onClose: (qi, skipped) => {
+      if (!skipped && !isUS()) playVO(33);
       if (preview || skipped) return;
       career.hearingCleared = true;
       profile.xp += 450;
@@ -2588,7 +2625,11 @@ $("#promoM").addEventListener("click", (e) => {
   const fp = e.target.closest("[data-fpost]"); if (fp) { const p = pmPostOpts.find((x) => x.t === fp.dataset.fpost && x.g === pmPostG); if (!p) return; pmPostSel = p.t; $("#pmPostT").textContent = postLabel(p.t); if (!pmPreview) { career.post = { g: p.g, t: p.t }; setBranch(p.b); const last = career.log[career.log.length - 1]; if (last && last.g === p.g) { last.t = p.t; last.b = (curBranches()[p.b] || BRANCHES[p.b]).n; } saveCareer(); refreshMenus(); } sfx.click(); renderPostPick(pmPostG); return; }
   const go = e.target.closest("[data-pmgo]"); if (go) { pmGo(+go.dataset.pmgo); return; }
   const ps = e.target.closest("[data-post]"); if (ps) { const k = ps.dataset.post, BR = curBranches(); if (!BR[k]) return; pmPostSel = k; if (pmPreview) { $("#pmPostT").textContent = postLabel(BR[k].t[pmPostG]); sfx.click(); } else { career.post = null; setBranch(k); const g = myGrade(), last = career.log[career.log.length - 1]; if (last && last.g === g) { last.t = postOf(g); last.b = BR[normBranch(staff.branch)].n; } saveCareer(); $("#pmPostT").textContent = postLabel(postOf(g)); refreshMenus(); sfx.click(); } renderPostPick(pmPostG); return; }
-  if (e.target.closest("#promoOk")) { sfx.click(); stopFanfare(); $("#promoM").style.display = "none"; refreshMenus(); if (screen === "hq") renderHQ(); if (storyQ) { const q = storyQ; storyQ = null; setTimeout(() => storyCard(q), 300); } }
+  if (e.target.closest("#promoOk")) {
+    sfx.click(); stopFanfare();
+    if (!isUS() && pmCertKind === "comm" && career.heritageParent) playVO(37);
+    $("#promoM").style.display = "none"; refreshMenus(); if (screen === "hq") renderHQ(); if (storyQ) { const q = storyQ; storyQ = null; setTimeout(() => storyCard(q), 300); }
+  }
 });
 $("#hqP").addEventListener("keydown", (e) => { if (e.target.id === "hqAdmin" && e.key === "Enter") $('[data-act="hqadmin"]')?.click(); });
 addEventListener("keydown", (e) => {
@@ -2602,7 +2643,7 @@ addEventListener("keydown", (e) => {
 $("#hqP").addEventListener("click", (e) => {
   const ad = e.target.closest("[data-adm]"); if (ad && profile.admin) { sfx.click(); admRun(ad.dataset.adm); return; }
   const pu = e.target.closest("[data-potus]"); if (pu) { if (pu.disabled) return; sfx.click(); if (pu.dataset.potus === "start") { if (!potusState()) potusStart(cmdr.name); hqView = "potus"; renderPotus(); refreshMenus(); presidentOrder(false); return; } potusResult(potusClick(pu.dataset.potus)); return; }
-  const pz = e.target.closest("[data-pres]"); if (pz) { if (pz.disabled) return; sfx.click(); if (isUS()) { toast("미국 모드에서는 미국 대통령 선거(538 선거인단)로 출마합니다", 3); return; } if (pz.dataset.pres === "start") { if (!presState()) presStart(cmdr.name); hqView = "pres"; renderPres(); refreshMenus(); return; } const prRes = presClick(pz.dataset.pres); if (presState()?.stage === "won") { unlockEnding("kr_pres"); checkCareerAchievements(); } presResult(prRes); return; }
+  const pz = e.target.closest("[data-pres]"); if (pz) { if (pz.disabled) return; sfx.click(); if (isUS()) { toast("미국 모드에서는 미국 대통령 선거(538 선거인단)로 출마합니다", 3); return; } if (pz.dataset.pres === "start") { if (!presState()) presStart(cmdr.name); hqView = "pres"; renderPres(); refreshMenus(); return; } const prevStage = presState()?.stage; const prRes = presClick(pz.dataset.pres); if (prevStage === "pri" && presState()?.stage === "nominee") playVO(47); if (presState()?.stage === "won") { unlockEnding("kr_pres"); checkCareerAchievements(); } presResult(prRes); return; }
   const up = e.target.closest("[data-uspres]"); if (up) { if (up.disabled) return; sfx.click(); const a = up.dataset.uspres; if (a === "start" || a === "preview") {
     const preview = a === "preview" && profile.admin && isUS();
     if (!preview && !canEnterUsPres()) return;
@@ -2610,19 +2651,19 @@ $("#hqP").addEventListener("click", (e) => {
     const ministry = civil() ? minState() : null;
     usPresStart(cmdr.name, ministry?.term?.avg ?? 62, ministry);
     hqView = "uspres"; renderHQ(); refreshMenus(); return;
-  } const r = usPresClick(a); if (r.inaugurated) { initAudio(); playPotusAnthem(); checkCareerAchievements(); setTimeout(() => presidentOrder(false), 300); } if (r.toast) toast(r.toast, 4); if (r.cuts) { renderUsPres(); refreshMenus(); playCuts({ title: r.cutTitle || "U.S. Presidential Election", place: r.cutPlace || "Washington, D.C.", cuts: r.cuts, onClose: () => { stopFanfare(); renderUsPres(); refreshMenus(); } }); return; } if (r.redraw) { renderUsPres(); refreshMenus(); } return; }
+  } const r = usPresClick(a); if (a.startsWith("act:") || a.startsWith("cr:") || /nsc|crisis|strike|defcon/i.test(a)) playVO(65); if (r.inaugurated) { initAudio(); playPotusAnthem(); checkCareerAchievements(); setTimeout(() => presidentOrder(false), 300); } if (r.toast) toast(r.toast, 4); if (r.cuts) { renderUsPres(); refreshMenus(); if (usPresState()?.stage === "won" || usPresState()?.phase === "inauguration" || /Victory|Elect|당선/i.test(r.cutTitle || "")) playVO(63); playCuts({ title: r.cutTitle || "U.S. Presidential Election", place: r.cutPlace || "Washington, D.C.", cuts: r.cuts, onClose: () => { stopFanfare(); renderUsPres(); refreshMenus(); } }); return; } if (r.redraw) { renderUsPres(); refreshMenus(); } return; }
   const ust = e.target.closest("[data-usstate]"); if (ust && !ust.disabled) { sfx.click(); usPresClick(`state:${ust.dataset.usstate}`); renderUsPres(); return; }
   const uth = e.target.closest("[data-usth]"); if (uth) { sfx.click(); usPresClick(`th:${uth.dataset.usth}`); renderUsPres(); return; }
-  const uad = e.target.closest("[data-usadm]"); if (uad && profile.admin) { sfx.click(); const r = usPresAdmin(uad.dataset.usadm); if (r.inaugurated) { initAudio(); playPotusAnthem(); checkCareerAchievements(); } if (r.toast) toast(r.toast, 4); if (r.cuts) { renderUsPres(); refreshMenus(); playCuts({ title: r.cutTitle || "U.S. Presidential Election", place: r.cutPlace || "Washington, D.C.", cuts: r.cuts, onClose: () => { stopFanfare(); renderUsPres(); refreshMenus(); } }); return; } renderUsPres(); refreshMenus(); return; }
+  const uad = e.target.closest("[data-usadm]"); if (uad && profile.admin) { sfx.click(); const r = usPresAdmin(uad.dataset.usadm); if (uad.dataset.usadm === "win") playVO(63); if (r.inaugurated) { initAudio(); playPotusAnthem(); playVO(64, { delayMs: 260 }); checkCareerAchievements(); } if (r.toast) toast(r.toast, 4); if (r.cuts) { renderUsPres(); refreshMenus(); playCuts({ title: r.cutTitle || "U.S. Presidential Election", place: r.cutPlace || "Washington, D.C.", cuts: r.cuts, onClose: () => { stopFanfare(); renderUsPres(); refreshMenus(); } }); return; } renderUsPres(); refreshMenus(); return; }
   const hv = e.target.closest("[data-hqv]"); if (hv) { sfx.click(); hqView = hv.dataset.hqv; if (hqView !== "uspres") usPresPreview = false; setTab(hqView === "org" ? "org" : "hq"); renderHQ(); return; }
   const mn = e.target.closest("[data-min]"); if (mn) { if (mn.disabled) return; sfx.click();
     const doc = mn.dataset.min.startsWith("dk:") && mn.closest(".mn-paper"); if (doc && !doc.classList.contains("stamped")) { doc.classList.add("stamped"); mn.classList.add("pick"); doc.querySelector(".kj .me")?.insertAdjacentHTML("beforeend", `<span class="seal">결재</span>`); setTimeout(() => mn.click(), 750); return; }
     const r = minClick(mn.dataset.min); if (r.toast) toast(r.toast, 3);
     if (r.reset) { restartCurrentCareer(); return; }
-    if (r.scene) { const sc = r.scene; openScene({ kind: sc.kind, title: sc.title, questions: sc.questions, onPick: (qi, ai) => { const x = minClick(`dk:${sc.id}:${ai}`); if (x.toast) toast(x.toast, 3); }, onClose: () => renderMin() }); return; }
+    if (r.scene) { const sc = r.scene; if (sc.kind === "press") playVO(43); else if (sc.kind === "assembly") playVO(isUS() ? 62 : 31); openScene({ kind: sc.kind, title: sc.title, questions: sc.questions, onPick: (qi, ai) => { const x = minClick(`dk:${sc.id}:${ai}`); if (x.toast) toast(x.toast, 3); }, onClose: () => renderMin() }); return; }
     if (r.gallery) { const g = document.createElement("div"); g.id = "galM"; g.innerHTML = galleryHTML(); g.addEventListener("click", (ev) => { if (ev.target === g || ev.target.closest("[data-min=galx]")) g.remove(); }); document.body.appendChild(g); return; }
-    if (r.retire) { renderMin(); playMinisterAnthem(); playCuts({ title: isUS() ? "Secretary of Defense Farewell" : "국방부장관 이임", place: isUS() ? "Pentagon · End of Term" : "국방부 · 임기 종료", cuts: r.retire, onClose: () => { stopFanfare(); renderMin(); refreshMenus(); } }); return; }
-    if (r.nsc) { renderMin(); openScene({ kind: "nsc", title: r.nsc.title, questions: r.nsc.questions, onPick: (qi, ai) => minClick(`nsc:${ai}`), onClose: () => renderMin() }); return; }
+    if (r.retire) { renderMin(); playMinisterAnthem(); playVO(45, { delayMs: 280 }); playCuts({ title: isUS() ? "Secretary of Defense Farewell" : "국방부장관 이임", place: isUS() ? "Pentagon · End of Term" : "국방부 · 임기 종료", cuts: r.retire, onClose: () => { stopFanfare(); renderMin(); refreshMenus(); } }); return; }
+    if (r.nsc) { renderMin(); playVO(isUS() ? 65 : 53); openScene({ kind: "nsc", title: r.nsc.title, questions: r.nsc.questions, onPick: (qi, ai) => minClick(`nsc:${ai}`), onClose: () => renderMin() }); return; }
     if (r.direct) { minDirect = true; startOpMap(!!r.directAir); return; }
     if (r.direct3d) { launchDirect3d(r.direct3d.domain, false); return; }
     if (r.redraw) renderMin(); return; }
@@ -2672,6 +2713,7 @@ $("#hqP").addEventListener("click", (e) => {
       } catch {}
       saveCareer();
       checkCareerAchievements();
+      playVO(44);
       showBreakingPaper({
         nation: isUS() ? "us" : "kr",
         headline: `${cur.title} ${cur.name}, 수장과 독대 후 ‘30년 전우 합동 국정개혁안’ 전격 발표!`,
@@ -2700,6 +2742,7 @@ $("#hqP").addEventListener("click", (e) => {
       }
       saveCareer();
       checkCareerAchievements();
+      playVO(44);
       showBreakingPaper({ nation: isUS() ? "us" : "kr", headline: res.headline, body: `${res.quote} (지지율·국정 신뢰 +${res.bonus})`, dateline: careerDate(d.week || 1) });
       toast(`${res.name}, ${res.slot.title} 임명 완료!`, 3.5);
       if (mode.startsWith("min_")) renderMin();
@@ -2708,7 +2751,7 @@ $("#hqP").addEventListener("click", (e) => {
     }
     return;
   }
-  const rr = e.target.closest("[data-retire-route]"); if (rr && career.discharged && !career.discharged.routeConfirmed) { sfx.click(); career.discharged.routeId = rr.dataset.retireRoute; career.discharged.routeConfirmed = true; saveCareer(); checkCareerAchievements(career.discharged.g); renderDischarged(); return; }
+  const rr = e.target.closest("[data-retire-route]"); if (rr && career.discharged && !career.discharged.routeConfirmed) { sfx.click(); career.discharged.routeId = rr.dataset.retireRoute; career.discharged.routeConfirmed = true; saveCareer(); playVO(39); checkCareerAchievements(career.discharged.g); renderDischarged(); return; }
   const dy = e.target.closest("[data-duty]"); if (dy) { if (dy.disabled) return; sfx.click(); const a = dy.dataset.duty, g = myGrade(), br = normBranch(staff.branch), svk = serviceOf(br);
     if (a === "hearing") { launchSpecialHearing(false); return; }
     if (a.startsWith("overseas:")) {
@@ -2725,8 +2768,10 @@ $("#hqP").addEventListener("click", (e) => {
         if (career.overseasStep >= tour.stages.length) {
           (career.tours ??= {}).overseas = true;
           (career.serviceHistory ??= []).push({ turn: d.week || 1, date: careerDate(d.week || 1), title: `${tour.title} 완수`, message: outcome });
+          playVO(35);
           toast(`🌍 ${tour.title} 3단계 전원 무사 완수! (해외파병 기장 획득 · XP +200)`, 4.5);
         } else {
+          playVO(34);
           toast(`🌍 파병 ${step + 1}단계 완료 — ${choice} (XP +200 · 3안건 후 다음 파병 상황 발생)`, 3.5);
         }
         saveProfile(); saveCareer();
@@ -2746,6 +2791,7 @@ $("#hqP").addEventListener("click", (e) => {
         d.rep = Math.min(100, (d.rep ?? 55) + 4);
         (career.serviceHistory ??= []).push({ turn: d.week || 1, date: careerDate(d.week || 1), title: stg.title, message: stg.log });
         saveProfile(); saveCareer();
+        playVO(fStep >= 2 ? 37 : 36);
         toast(`🏡 ${stg.title} — ${stg.log}`, 4);
         checkCareerAchievements(g, d);
         refreshMenus(); renderDutyDesk();
@@ -2762,6 +2808,7 @@ $("#hqP").addEventListener("click", (e) => {
         (dc.civLog ??= []).push({ choice, outcome });
         dc.civStep = step + 1;
         saveCareer();
+        playVO(39);
         toast(`🌟 제2의 인생 ${step + 1}장 완료 — ${choice}`, 3.5);
         checkCareerAchievements(dc.g ?? g);
         renderDischarged();
@@ -2783,7 +2830,10 @@ $("#hqP").addEventListener("click", (e) => {
         const del = fireDeltas(res.xpGain || 0);
         showEventScene({ title: "합동 워룸 작전 결재", text: res.msg, nation: isUS() ? "us" : "kr", service: svk, kind: "warroom", xp: res.xpGain || 0, ...del });
         if ((res.xpGain || 0) >= 700) {
+          playVO(23);
           showBreakingPaper({ nation: isUS() ? "us" : "kr", headline: `${rankLabel(g, svk)} ${cmdr.name}, 워룸 안보 위기 완벽 제압!`, body: res.msg, dateline: careerDate(dutyState().week || 1) });
+        } else {
+          playVO(22);
         }
         toast(res.msg, 4.5); refreshMenus(); renderDutyDesk();
       }
@@ -2795,6 +2845,7 @@ $("#hqP").addEventListener("click", (e) => {
       if (res) {
         profile.xp += res.xpGain; saveProfile();
         const del = fireDeltas(res.xpGain || 0);
+        playVO(12);
         showEventScene({ title: "계급 시그니처 스토리", text: res.msg, nation: isUS() ? "us" : "kr", service: svk, kind: "arc", score: res.score, xp: res.xpGain || 0, ...del });
         if (res.completed) {
           showBreakingPaper({ nation: isUS() ? "us" : "kr", headline: `${rankLabel(g, svk)} ${cmdr.name}, 핵심 지휘 과업 완수`, body: res.msg, dateline: careerDate(dutyState().week || 1) });
@@ -2805,11 +2856,13 @@ $("#hqP").addEventListener("click", (e) => {
     }
     if (a.startsWith("rvev:")) {
       stampCard(cardEl, "회신 완료");
-      const res = resolveRivalEvent(+a.slice(5));
+      const optIdx = +a.slice(5);
+      const res = resolveRivalEvent(optIdx);
       if (res) {
         if (res.xpGain) { profile.xp += res.xpGain; saveProfile(); }
         const del = fireDeltas(res.xpGain || 0);
         lastRivalQuote = res.msg;
+        playVO(optIdx === 0 ? 18 : 19);
         checkCareerAchievements(g);
         showEventScene({ title: isUS() ? "사관학교 동기 인맥" : "임관 동기 인맥", text: res.msg, nation: isUS() ? "us" : "kr", service: svk, kind: "rival", xp: res.xpGain || 0, ...del });
         toast(res.msg, 4); refreshMenus(); renderDutyDesk();
@@ -2830,6 +2883,7 @@ $("#hqP").addEventListener("click", (e) => {
       if (result) {
         toast(result.message, 4);
         if (result.longTerm) {
+          playVO(3);
           showEventScene({ title: "⭐ 장기복무 선발 합격!", text: result.message, nation: "kr", service: svk, kind: "arc" });
           d.headlines = d.headlines || [];
           d.headlines.unshift(`${careerDate(d.week)} · [인사] ${rankLabel(g, svk)} ${cmdr.name}, 장기복무 선발 전형 최종 합격!`);
@@ -2847,7 +2901,7 @@ $("#hqP").addEventListener("click", (e) => {
       finishOfficerService(g, "의무복무 이행 후 본인 지원으로 전역", status.elapsed, true);
       return;
     }
-    if (a.startsWith("rep:")) { const res = resolveReport(+a.slice(4), g); if (res) { toast(res.msg, 4); renderDutyDesk(); } return; }
+    if (a.startsWith("rep:")) { const res = resolveReport(+a.slice(4), g); if (res) { playVO(12); toast(res.msg, 4); renderDutyDesk(); } return; }
     if (a.startsWith("ev:")) {
       stampCard(cardEl, "결재 완료");
       const [, id, idx] = a.split(":"), evMeta = dutyEventById(id), res = resolveDuty(id, +idx, g);
@@ -2858,7 +2912,10 @@ $("#hqP").addEventListener("click", (e) => {
         showEventScene({ title: evMeta?.[4] || res.label || "현장 지휘 결재", text: res.headline || `${res.label} — 평정 ${res.score}점`, nation: isUS() ? "us" : "kr", service: svk, kind: "duty", score: res.score, xp: res.xpGain || 0, ...del });
         const after = myGrade();
         if (after > g) { if (career.seen == null) careerInit(g, careerTitle(g), BRANCHES[br].n); career.picks += after - g; logPromotion({ g: after, t: postOf(after), b: BRANCHES[br].n, why: res.headline }); buildPromo(g, after); $("#promoM").style.display = "flex"; fanfare(after, br); }
-        else toast(`${res.label} — 평정 ${res.score}점 · +${fmt(res.xpGain)} XP`, 3.5);
+        else {
+          playVO(12, { nextVo: res.score >= 82 ? 16 : res.score < 66 ? 17 : null });
+          toast(`${res.label} — 평정 ${res.score}점 · +${fmt(res.xpGain)} XP`, 3.5);
+        }
         refreshMenus(); renderDutyDesk();
       }
       return;
@@ -2872,7 +2929,10 @@ $("#hqP").addEventListener("click", (e) => {
         showEventScene({ title: "안보 위기 작전 결과", text: res.msg, nation: isUS() ? "us" : "kr", service: svk, kind: "warroom", score: res.score, xp: res.xpGain || 0, ...del });
         const after = myGrade();
         if (after > g) { career.picks += after - g; logPromotion({ g: after, t: postOf(after), b: BRANCHES[br].n, why: res.msg }); buildPromo(g, after); $("#promoM").style.display = "flex"; fanfare(after, br); }
-        else toast(res.msg, 4);
+        else {
+          playVO((res.score || 0) >= 70 ? 23 : 21);
+          toast(res.msg, 4);
+        }
         refreshMenus(); renderDutyDesk();
       }
       return;
@@ -2887,6 +2947,13 @@ $("#hqP").addEventListener("click", (e) => {
         delete d.recentRivalRetire;
         lastRivalQuote = `${ret.rank} ${ret.name}, 전역 후 ${ret.post} 취임!`;
         showEventScene({ title: `🎖️ 동기 ${ret.rank} ${ret.name} 전역 · ${ret.post}`, text: ret.note, nation: isUS() ? "us" : "kr", service: svk, kind: "rival", customBg: ret.img });
+        playVO(19);
+      } else if (d.warroom && (d.warroom.stage || 0) === 0) {
+        playVO(22);
+      } else if (d.crisis || (d.tension ?? 0) >= 70) {
+        playVO(21);
+      } else {
+        playVO(11);
       }
       if (status.due && !(status.extension && status.qualifies)) {
         finishOfficerService(g, status.limit.title, status.limit.month);

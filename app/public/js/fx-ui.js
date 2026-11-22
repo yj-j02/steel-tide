@@ -7,6 +7,8 @@
  * 5) 집무실 안보 긴장도·계급 연동 분위기 클래스
  */
 
+const playVO = (...args) => globalThis.__playVO?.(...args);
+
 function injectFxStyles() {
   if (document.getElementById("fx-ui-style")) return;
   const s = document.createElement("style");
@@ -273,6 +275,7 @@ export function showMinisterOfferModal({ nation = "kr", rankName = "대장", cmd
     </div>
   </div>`;
   el.classList.add("on");
+  playVO(us ? 60 : 40);
   const close = () => { el.classList.remove("on"); };
   el.querySelector("#fxMoAccept").onclick = () => { close(); if (onAccept) onAccept(); };
   el.querySelector("#fxMoDecline").onclick = () => { close(); if (onDecline) onDecline(); };

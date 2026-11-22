@@ -4,6 +4,8 @@
  * 완전 승전 시 국회·대통령 특별 의결로 5성 원수(Marshal / O-11)에 추대됩니다.
  */
 
+const playVO = (...args) => globalThis.__playVO?.(...args);
+
 export const MARSHAL_WARS = {
   kr: {
     code: "OPERATION IRON DAWN",
@@ -506,6 +508,10 @@ export function openMarshalWar({ nation = "kr", rankName = "대장", cmdrName = 
 
     el.querySelectorAll(".mw-btn").forEach((btn) => {
       btn.onclick = () => {
+        if (nation !== "us") {
+          if (state.idx <= 1) playVO(25);
+          else if (state.idx <= 3) playVO(26);
+        }
         const c = ph.choices[Number(btn.dataset.ci)];
         const coalBonus = state.coal >= 85 ? 4 : state.coal < 55 ? -6 : 0;
         const pts = c.score + coalBonus;
@@ -528,7 +534,11 @@ export function openMarshalWar({ nation = "kr", rankName = "대장", cmdrName = 
       nextBtn.onclick = () => {
         state.sitrep = null;
         if (state.idx + 1 < war.phases.length) state.idx++;
-        else state.finished = true;
+        else {
+          state.finished = true;
+          const isWin = state.score >= 380 && state.front >= 70 && state.force >= 40;
+          if (isWin && nation !== "us") playVO(27);
+        }
         render();
       };
     }
@@ -546,5 +556,6 @@ export function openMarshalWar({ nation = "kr", rankName = "대장", cmdrName = 
   }
 
   el.classList.add("on");
+  playVO(nation === "us" ? 58 : 24);
   render();
 }

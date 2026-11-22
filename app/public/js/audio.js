@@ -552,3 +552,132 @@ export function setAmbienceMood(mood = "office") {
   const track = (mood === "ministry" || mood === "presidential") ? "state" : mood === "defcon" ? "battle" : "menu";
   if (A.bgmWant !== track) bgm(track);
 }
+
+export const VO_CATALOG = [
+  [1, "01 · 소위 임관 선서 (KR)"],
+  [2, "02 · 소위 임관 명령 (KR)"],
+  [3, "03 · 장기복무 선발 최종 합격 (KR)"],
+  [4, "04 · 대위 진급 · 중대 지휘관 (KR)"],
+  [5, "05 · 소령·중령 영관 진급 (KR)"],
+  [6, "06 · 대령 진급 · 연대/전대 지휘관 (KR)"],
+  [7, "07 · 준장 진급 · 삼정검 수여 (KR)"],
+  [8, "08 · 소장·중장 진급 · 사단/군단 지휘 (KR)"],
+  [9, "09 · 4성 대장 진급 (KR)"],
+  [10, "10 · 5성 원수 특별 추대 (KR)"],
+  [11, "11 · 부관 — 금주 결재 안건·정례 보고 도착"],
+  [12, "12 · 주인공 — 이 방침대로 결재한다"],
+  [13, "13 · 정기 진급심사위원회 개회"],
+  [14, "14 · 진급심사 최종 선발 합격"],
+  [15, "15 · 진급심사 보류·탈락"],
+  [16, "16 · 직속 상관 칭찬 (고평정)"],
+  [17, "17 · 직속 상관 질책 (저평정)"],
+  [18, "18 · 임관 동기 우군 지지"],
+  [19, "19 · 임관 동기 선의의 경쟁"],
+  [20, "20 · 무공훈장 수여"],
+  [21, "21 · 상황병 — 긴급 적 도발 징후 포착"],
+  [22, "22 · 작전참모 — 합동 워룸 가동"],
+  [23, "23 · 주인공 — 적 도발 원점 완벽 제압"],
+  [24, "24 · DEFCON 1 발령 · 작전명 철의 여명 (KR)"],
+  [25, "25 · 전시 총사령관 — 방공망·선제타격 명령 (KR)"],
+  [26, "26 · 전시 총사령관 — 전 전선 총반격 개시 (KR)"],
+  [27, "27 · 작전명 철의 여명 완전 승리 (KR)"],
+  [28, "28 · 전술 작전지도 연결 완료"],
+  [29, "29 · 공군 비상 출격 스크램블"],
+  [30, "30 · 포병 전 포대 효력사 사격 개시"],
+  [31, "31 · 국회 국방위 특별청문회 추궁 (KR)"],
+  [32, "32 · 주인공 — 청문회 소신 증언 (KR)"],
+  [33, "33 · 청문회 위원장 — 의혹 해소·종결 (KR)"],
+  [34, "34 · 해외파병단 출정 신고"],
+  [35, "35 · 해외파병단 임무 완수 무사 귀환"],
+  [36, "36 · 예도 결혼식 축복"],
+  [37, "37 · 2세 사관생도 삼정검 가문 계승"],
+  [38, "38 · 주인공 — 정든 군복을 벗습니다 (전역사)"],
+  [39, "39 · 민간 제2의 인생 새 출발"],
+  [40, "40 · 대통령비서실장 — 국방부장관 지명 오퍼 (KR)"],
+  [41, "41 · 대통령 — 국방부장관 임명장 수여 (KR)"],
+  [42, "42 · 문민 국방부장관 취임 선서 (KR)"],
+  [43, "43 · 국방부장관 정례 언론 브리핑"],
+  [44, "44 · 임관 동기 합동 국정개혁 보고"],
+  [45, "45 · 국방부장관 임기 완수 이임사"],
+  [46, "46 · 대선 출마 선언"],
+  [47, "47 · 당내 경선 승리 · 대선 후보 확정"],
+  [48, "48 · 전당대회 대선 후보 수락 연설"],
+  [49, "49 · 중앙선거방송토론위 법정 TV 토론"],
+  [50, "50 · 오후 8시 대선 출구조사 발표"],
+  [51, "51 · 대한민국 대통령 당선 확실 속보 (KR)"],
+  [52, "52 · 헌법 제69조 대통령 취임 선서 (KR)"],
+  [53, "53 · 대통령 국가안전보장회의(NSC) 주재 (KR)"],
+  [54, "54 · 대통령 정상회담 공동 성명"],
+  [55, "55 · 대통령 5년 임기 완수 퇴임 연설"],
+  [56, "56 · US O-1 Officer Commissioning Oath"],
+  [57, "57 · US General/Flag Officer Promotion (O-7~O-10)"],
+  [58, "58 · US DEFCON 1 · Operation Pacific Vanguard"],
+  [59, "59 · US 5-Star Marshal Special Act of Congress"],
+  [60, "60 · US White House SecDef Nomination Offer"],
+  [61, "61 · US Secretary of Defense Oath of Office"],
+  [62, "62 · US Senate Armed Services Committee Hearing"],
+  [63, "63 · US 270 Electoral Votes · President-Elect"],
+  [64, "64 · US Presidential Inaugural Oath (POTUS)"],
+  [65, "65 · US White House Situation Room NSC Command"],
+];
+
+let voEl = null, voTimer = null;
+export function stopVO() {
+  if (voTimer) { clearTimeout(voTimer); voTimer = null; }
+  if (voEl) {
+    const el = voEl;
+    voEl = null;
+    try { el.pause(); } catch {}
+    el.onended?.();
+  }
+}
+
+/** Play one of the 65 recorded voice-over lines (sfx/vo/vo_01.mp3 .. vo_65.mp3) with automatic BGM/fanfare ducking. */
+export function playVO(num, { delayMs = 0, nextVo = null } = {}) {
+  if (A.muted || !num) return;
+  stopVO();
+  const id = String(num).padStart(2, "0");
+  const start = () => {
+    if (A.muted) return;
+    const el = new Audio(`sfx/vo/vo_${id}.mp3`);
+    el.volume = Math.min(1, (A.vol?.sfx ?? 0.85) * 1.15);
+    voEl = el;
+    const bgGain = A.bgmGain, bgV0 = bgGain ? bgGain.gain.value : 0.3;
+    const pr = promoEl, prV0 = pr ? pr.volume : 0;
+    if (bgGain && A.ctx) bgGain.gain.setTargetAtTime(0.09, A.ctx.currentTime, 0.08);
+    if (pr) pr.volume = prV0 * 0.32;
+    let restored = false;
+    const restore = () => {
+      if (restored) return;
+      restored = true;
+      if (bgGain && A.ctx) bgGain.gain.setTargetAtTime(bgV0, A.ctx.currentTime, 0.18);
+      if (pr && promoEl === pr) pr.volume = prV0;
+      if (voEl === el) voEl = null;
+      el.onended = null;
+      if (nextVo) playVO(nextVo, { delayMs: 280 });
+    };
+    el.onended = restore;
+    el.onerror = restore;
+    el.play().catch(restore);
+  };
+  if (delayMs > 0) voTimer = setTimeout(start, delayMs);
+  else start();
+}
+globalThis.__playVO = playVO;
+
+export function promoVoForGrade(grade, isUsMode = false) {
+  if (isUsMode) {
+    if (grade >= 10) return 59;
+    if (grade >= 6) return 57;
+    if (grade === 0) return 56;
+    return null;
+  }
+  if (grade >= 10) return 10;
+  if (grade === 9) return 9;
+  if (grade === 7 || grade === 8) return 8;
+  if (grade === 6) return 7;
+  if (grade === 5) return 6;
+  if (grade === 3 || grade === 4) return 5;
+  if (grade === 1 || grade === 2) return 4;
+  return 2;
+}
