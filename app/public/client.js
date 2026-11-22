@@ -1230,7 +1230,9 @@ function renderRecord() { /* 인사기록: 좌측 고정 프로필 + 우측 4개
       week: dd.week || 1, medalsCount: Object.keys(career.medals || {}).length,
       log: career.log || [], rivals: dd.rivals || [], timeline: dd.timeline || [],
       boardHistory: career.boardHistory || [], tours: career.tours || {},
-      rankLabelFn: (r) => rankLabel(r, sv0), chapterLabel: chap,
+      rankLabelFn: (r) => rankLabel(r, sv0),
+      portraitFn: (r) => portraitHTML(r, { face: cmdr.face, service: sv0, name: cmdr.name, medals: career.medals }),
+      chapterLabel: chap,
     };
   };
   const rBody = recTab === "ladder"
@@ -1666,7 +1668,7 @@ function renderDischarged() {
       ${g >= 6 ? (isUS() ? `<button class="mn-pres" data-uspres="start"><b>🇺🇸 예비역 장성 · 미국 대통령 선거 출마 (538 선거인단) ›</b><small>군복을 벗고 미 합중국 대통령 선거에 도전합니다.</small></button>` : `<button class="mn-pres" data-pres="start"><b>예비역 장성 · 대통령 선거 출마 ›</b><small>군복을 벗고 민간인 예비역 장성으로 정계에 도전합니다.</small></button>`) : ""}
       <button class="mn-go" data-duty="restart">↺ 2회차 시작 (소위 재임관)</button>
     </div>
-  </div>${chronicleHTML({ cmdrName: cmdr.name, grade: g, rankName: rankLabel(g, svk), post: postLabel(dc.title || postOf(g)), svcName: sv.n, branchName: postLabel((curBranches()[br] || curBranches().sea).n), week: dutyState().week || 1, medalsCount: Object.keys(career.medals || {}).length, log: career.log || [], rivals: dutyState().rivals || [], timeline: dutyState().timeline || [], boardHistory: career.boardHistory || [], tours: career.tours || {}, rankLabelFn: (r) => rankLabel(r, svk), chapterLabel: curRoute.short })}</div></div>`;
+  </div>${chronicleHTML({ cmdrName: cmdr.name, grade: g, rankName: rankLabel(g, svk), post: postLabel(dc.title || postOf(g)), svcName: sv.n, branchName: postLabel((curBranches()[br] || curBranches().sea).n), week: dutyState().week || 1, medalsCount: Object.keys(career.medals || {}).length, log: career.log || [], rivals: dutyState().rivals || [], timeline: dutyState().timeline || [], boardHistory: career.boardHistory || [], tours: career.tours || {}, rankLabelFn: (r) => rankLabel(r, svk), portraitFn: (r) => portraitHTML(r, { face: cmdr.face, service: svk, name: cmdr.name, medals: career.medals }), chapterLabel: curRoute.short })}</div></div>`;
 }
 function renderHQ() {
   if (!staff.branch) return renderBranchPick();
@@ -1929,11 +1931,29 @@ $("#recordP").addEventListener("keydown", e => {
 $("#recordP").addEventListener("click", (e) => {
   const ribbon = e.target.closest("[data-medal]"); if (ribbon) { showMedal(ribbon.dataset.medal); return; }
   const rt = e.target.closest("[data-rectab]"); if (rt) { sfx.click(); recTab = rt.dataset.rectab; renderRecord(); return; }
+  const uniBtn = e.target.closest("[data-uni-rank]");
+  if (uniBtn) {
+    sfx.click();
+    const r = Number(uniBtn.dataset.uniRank), sv0 = serviceOf(normBranch(staff.branch));
+    const rec = [...(career.log || [])].reverse().find((x) => x.g === r);
+    const dlg = document.createElement("dialog");
+    dlg.className = "bd-modal";
+    dlg.style.textAlign = "center";
+    dlg.innerHTML = `<h2 style="margin-bottom:8px">${rankLabel(r, sv0)} 정복 초상</h2>
+      <div style="margin:0 auto 10px;width:300px">${portraitHTML(r, { face: cmdr.face, service: sv0, name: cmdr.name, medals: career.medals })}</div>
+      <p style="margin:4px 0;color:#d6e4ee">${rec?.t ? postLabel(rec.t) : postLabel(careerTitle(r))}${rec?.serviceDate ? ` · ${rec.serviceDate}` : ""}</p>
+      <button type="button" id="uniCloseBtn">닫기</button>`;
+    document.body.append(dlg);
+    dlg.showModal();
+    dlg.onclose = () => dlg.remove();
+    dlg.querySelector("#uniCloseBtn").onclick = () => dlg.close();
+    return;
+  }
   if (e.target.closest('[data-chron="png"]')) {
     sfx.click();
     const g0 = career.discharged?.g ?? myGrade(), br0 = normBranch(staff.branch), sv0 = serviceOf(br0), SV0 = curServices(), BR0 = curBranches(), dd0 = dutyState();
-    downloadChroniclePNG({ cmdrName: cmdr.name, rankName: rankLabel(g0, sv0), post: postLabel(career.discharged?.title || postOf(g0)), svcName: (SV0[sv0] || SV0.navy).n, branchName: postLabel((BR0[br0] || BR0.sea).n), week: dd0.week || 1, medalsCount: Object.keys(career.medals || {}).length, log: career.log || [], rivals: dd0.rivals || [], rankLabelFn: (r) => rankLabel(r, sv0), chapterLabel: career.discharged ? "예비역 전역" : career.minister ? "국방부장관" : "현역 복무" });
-    toast("회고록 PNG 이미지를 저장했습니다", 2.5);
+    downloadChroniclePNG({ cmdrName: cmdr.name, grade: g0, rankName: rankLabel(g0, sv0), post: postLabel(career.discharged?.title || postOf(g0)), svcName: (SV0[sv0] || SV0.navy).n, branchName: postLabel((BR0[br0] || BR0.sea).n), week: dd0.week || 1, medalsCount: Object.keys(career.medals || {}).length, log: career.log || [], rivals: dd0.rivals || [], timeline: dd0.timeline || [], boardHistory: career.boardHistory || [], tours: career.tours || {}, rankLabelFn: (r) => rankLabel(r, sv0), portraitFn: (r) => portraitHTML(r, { face: cmdr.face, service: sv0, name: cmdr.name, medals: career.medals }), chapterLabel: career.discharged ? "예비역 전역" : career.minister ? "국방부장관" : "현역 복무" });
+    toast("전체 회고록 PNG 이미지를 저장했습니다", 2.5);
     return;
   }
   if (e.target.closest('[data-act="setrank"]') && profile.admin) {
@@ -1991,11 +2011,29 @@ $("#hqP").addEventListener("click", (e) => {
     if (r.direct3d) { launchDirect3d(r.direct3d.domain, false); return; }
     if (r.redraw) renderMin(); return; }
   const svb = e.target.closest("[data-svc]"); if (svb) { sfx.click(); svcDraft = svb.dataset.svc; setService(svcDraft); showcase(flagshipId()); renderBranchPick(); return; }
+  const uniBtn = e.target.closest("[data-uni-rank]");
+  if (uniBtn) {
+    sfx.click();
+    const r = Number(uniBtn.dataset.uniRank), sv0 = serviceOf(normBranch(staff.branch));
+    const rec = [...(career.log || [])].reverse().find((x) => x.g === r);
+    const dlg = document.createElement("dialog");
+    dlg.className = "bd-modal";
+    dlg.style.textAlign = "center";
+    dlg.innerHTML = `<h2 style="margin-bottom:8px">${rankLabel(r, sv0)} 정복 초상</h2>
+      <div style="margin:0 auto 10px;width:300px">${portraitHTML(r, { face: cmdr.face, service: sv0, name: cmdr.name, medals: career.medals })}</div>
+      <p style="margin:4px 0;color:#d6e4ee">${rec?.t ? postLabel(rec.t) : postLabel(careerTitle(r))}${rec?.serviceDate ? ` · ${rec.serviceDate}` : ""}</p>
+      <button type="button" id="uniCloseBtn">닫기</button>`;
+    document.body.append(dlg);
+    dlg.showModal();
+    dlg.onclose = () => dlg.remove();
+    dlg.querySelector("#uniCloseBtn").onclick = () => dlg.close();
+    return;
+  }
   if (e.target.closest('[data-chron="png"]')) {
     sfx.click();
     const g0 = career.discharged?.g ?? myGrade(), br0 = normBranch(staff.branch), sv0 = serviceOf(br0), SV0 = curServices(), BR0 = curBranches(), dd0 = dutyState();
-    downloadChroniclePNG({ cmdrName: cmdr.name, rankName: rankLabel(g0, sv0), post: postLabel(career.discharged?.title || postOf(g0)), svcName: (SV0[sv0] || SV0.navy).n, branchName: postLabel((BR0[br0] || BR0.sea).n), week: dd0.week || 1, medalsCount: Object.keys(career.medals || {}).length, log: career.log || [], rivals: dd0.rivals || [], rankLabelFn: (r) => rankLabel(r, sv0), chapterLabel: career.discharged ? "예비역 전역" : career.minister ? "국방부장관" : "현역 복무" });
-    toast("회고록 PNG 이미지를 저장했습니다", 2.5);
+    downloadChroniclePNG({ cmdrName: cmdr.name, grade: g0, rankName: rankLabel(g0, sv0), post: postLabel(career.discharged?.title || postOf(g0)), svcName: (SV0[sv0] || SV0.navy).n, branchName: postLabel((BR0[br0] || BR0.sea).n), week: dd0.week || 1, medalsCount: Object.keys(career.medals || {}).length, log: career.log || [], rivals: dd0.rivals || [], timeline: dd0.timeline || [], boardHistory: career.boardHistory || [], tours: career.tours || {}, rankLabelFn: (r) => rankLabel(r, sv0), portraitFn: (r) => portraitHTML(r, { face: cmdr.face, service: sv0, name: cmdr.name, medals: career.medals }), chapterLabel: career.discharged ? "예비역 전역" : career.minister ? "국방부장관" : "현역 복무" });
+    toast("전체 회고록 PNG 이미지를 저장했습니다", 2.5);
     return;
   }
   const rr = e.target.closest("[data-retire-route]"); if (rr && career.discharged) { sfx.click(); career.discharged.routeId = rr.dataset.retireRoute; saveCareer(); renderDischarged(); return; }

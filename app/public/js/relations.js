@@ -253,16 +253,47 @@ export function decisionImpactHTML({ log = [], timeline = [], boardHistory = [],
   </div>`;
 }
 
+/** Render a gallery of every rank uniform portrait worn from commissioning (0) up to current/final grade. */
+export function uniformGalleryHTML({ grade = 0, log = [], rankLabelFn, portraitFn }) {
+  if (!portraitFn) return "";
+  const maxG = Math.max(0, Math.min(10, grade | 0));
+  const byGrade = new Map();
+  for (const e of log) {
+    if (e.g != null) byGrade.set(e.g, e);
+  }
+  const cards = [];
+  for (let r = 0; r <= maxG; r++) {
+    const rec = byGrade.get(r);
+    const svg = portraitFn(r);
+    const postTxt = rec?.t ? fmtPost(rec.t) : "";
+    const yrTxt = rec ? logServiceLabel(rec, r) : "";
+    cards.push(`<button type="button" class="chron-uni-card" data-uni-rank="${r}" title="클릭하여 정복 확대 보기" style="background:rgba(12,20,30,.85);border:1px solid ${r === maxG ? "#f2ca5c" : "rgba(114,172,232,.32)"};border-radius:8px;padding:7px;text-align:center;cursor:pointer;color:#eaf2fa;width:118px;flex:0 0 auto">
+      <div style="width:102px;height:102px;margin:0 auto 5px;border-radius:6px;overflow:hidden;border:1px solid rgba(242,202,92,.35)">${svg.replace(/width="300" height="300"/, 'width="102" height="102"')}</div>
+      <div style="font-size:11.5px;font-weight:800;color:${r === maxG ? "#ffe082" : "#fff"}">${rankLabelFn(r)}</div>
+      ${postTxt ? `<div style="font-size:10px;color:#9fc5e2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px">${postTxt}</div>` : ""}
+      ${yrTxt ? `<div style="font-size:9.5px;color:#7f9db3;margin-top:1px">${yrTxt}</div>` : ""}
+    </button>`);
+  }
+  return `<div style="margin-bottom:14px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:7px">
+      <b style="color:#f2ca5c;font-size:12.5px">🎖️ 계급별 정복 초상 갤러리 (${maxG + 1}계급 · 클릭 시 확대)</b>
+      <small style="color:#8faec0;font-size:11px">소위부터 현재까지 착용한 정복·계급장·노화 변화</small>
+    </div>
+    <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:6px">${cards.join("")}</div>
+  </div>`;
+}
+
 /** Build the Career Chronicle (장군 회고록) HTML for endings and 인사기록 modal. */
-export function chronicleHTML({ cmdrName, grade, rankName, post, svcName, branchName, initBranchName = "", week, medalsCount, log = [], rivals = [], timeline = [], boardHistory = [], tours = {}, rankLabelFn, chapterLabel }) {
+export function chronicleHTML({ cmdrName, grade, rankName, post, svcName, branchName, initBranchName = "", week, medalsCount, log = [], rivals = [], timeline = [], boardHistory = [], tours = {}, rankLabelFn, portraitFn = null, chapterLabel }) {
   const ep = rivalEpilogues(rivals, rankLabelFn);
-  const milestones = log.slice(-10).map((e, idx) => `<li><b>${logServiceLabel(e, idx)}</b> · ${rankLabelFn(e.g)} · ${fmtPost(e.t)}${e.why && !["임관", "보직 변경"].includes(e.why) ? ` <small>(${e.why})</small>` : ""}</li>`).join("") || "<li>임관 기록 준비 중</li>";
+  const milestones = log.slice(-12).map((e, idx) => `<li><b>${logServiceLabel(e, idx)}</b> · ${rankLabelFn(e.g)} · ${fmtPost(e.t)}${e.why && !["임관", "보직 변경"].includes(e.why) ? ` <small>(${e.why})</small>` : ""}</li>`).join("") || "<li>임관 기록 준비 중</li>";
+  const uniBox = uniformGalleryHTML({ grade, log, rankLabelFn, portraitFn });
   const pathBox = careerPathHTML({ log, grade, initBranchName: initBranchName || log[0]?.b || branchName, curBranchName: branchName, rankLabelFn, tours });
   const impactBox = decisionImpactHTML({ log, timeline, boardHistory, rivals, tours, grade });
-  return `<div class="mn-card" style="text-align:left;border-color:#f2ca5c;background:rgba(16,22,30,.92);padding:18px 20px">
+  return `<div class="mn-card" style="text-align:left;border-color:#f2ca5c;background:rgba(16,22,30,.92);padding:18px 20px;min-width:0;max-width:100%;box-sizing:border-box;overflow:hidden">
     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(242,202,92,.35);padding-bottom:10px;margin-bottom:12px">
       <div><small style="color:#f2ca5c;letter-spacing:.14em;font-weight:700">THE GENERAL · CAREER CHRONICLE</small><h3 style="margin:3px 0 0;color:#fff;font-size:19px">📜 ${cmdrName} 회고록</h3></div>
-      <button class="mn-go" data-chron="png" style="width:auto;padding:8px 14px;font-size:12px">🖼 회고록 PNG 저장</button>
+      <button class="mn-go" data-chron="png" style="width:auto;padding:8px 14px;font-size:12px">🖼 전체 회고록 PNG 저장</button>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;font-size:12px">
       <div style="padding:8px;background:rgba(255,255,255,.04);border-radius:6px"><small style="color:#8faec0;display:block">최종 계급·직책</small><b>${rankName} · ${post}</b></div>
@@ -270,6 +301,7 @@ export function chronicleHTML({ cmdrName, grade, rankName, post, svcName, branch
       <div style="padding:8px;background:rgba(255,255,255,.04);border-radius:6px"><small style="color:#8faec0;display:block">복무 기간</small><b>${careerDate(week)} (${week}안건)</b></div>
       <div style="padding:8px;background:rgba(255,255,255,.04);border-radius:6px"><small style="color:#8faec0;display:block">훈장 · 최종 단계</small><b>${medalsCount}/10 · ${chapterLabel}</b></div>
     </div>
+    ${uniBox}
     ${pathBox}
     ${impactBox}
     <div style="margin-bottom:12px"><b style="color:#f2ca5c;font-size:12.5px">📌 주요 복무 연대기</b><ul style="margin:6px 0 0;padding-left:18px;font-size:12px;color:#d6e4ee;line-height:1.65">${milestones}</ul></div>
@@ -279,50 +311,198 @@ export function chronicleHTML({ cmdrName, grade, rankName, post, svcName, branch
   </div>`;
 }
 
-/** Render a crisp 1200x780 PNG Career Chronicle postcard and trigger browser download. */
-export function downloadChroniclePNG({ cmdrName, rankName, post, svcName, branchName, week, medalsCount, log = [], rivals = [], rankLabelFn, chapterLabel }) {
-  const c = document.createElement("canvas");
-  c.width = 1200; c.height = 780;
-  const ctx = c.getContext("2d");
-  const us = isUS();
-  const bg = ctx.createLinearGradient(0, 0, 1200, 780);
-  bg.addColorStop(0, us ? "#0b1626" : "#121a18");
-  bg.addColorStop(1, "#070b10");
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, 1200, 780);
-  ctx.strokeStyle = us ? "#5da8e8" : "#f2ca5c"; ctx.lineWidth = 4; ctx.strokeRect(24, 24, 1152, 732);
-  ctx.fillStyle = us ? "#7ec2f8" : "#f2ca5c";
-  ctx.font = "bold 18px sans-serif";
-  ctx.fillText("THE GENERAL · OFFICIAL CAREER CHRONICLE", 56, 74);
-  ctx.fillStyle = "#ffffff";
-  ctx.font = "bold 42px sans-serif";
-  ctx.fillText(`${rankName} ${cmdrName}`, 56, 128);
-  ctx.fillStyle = "#b8d0e0";
-  ctx.font = "22px sans-serif";
-  ctx.fillText(`${svcName} · ${branchName} · ${post}  |  ${careerDate(week)}  |  훈장 ${medalsCount}/10 (${chapterLabel})`, 56, 168);
-  ctx.strokeStyle = "rgba(255,255,255,0.18)"; ctx.lineWidth = 1;
-  ctx.beginPath(); ctx.moveTo(56, 192); ctx.lineTo(1144, 192); ctx.stroke();
+/** Rasterize an inline SVG string (stripping external <image> refs to keep canvas taint-free) into an Image object. */
+function svgToImage(svgStr) {
+  return new Promise((resolve) => {
+    try {
+      const clean = svgStr.replace(/<image\b[^>]*>/gi, "").replace(/^<svg /, '<svg xmlns="http://www.w3.org/2000/svg" ');
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => resolve(null);
+      img.src = "data:image/svg+xml;charset=utf-8," + encodeURIComponent(clean);
+    } catch {
+      resolve(null);
+    }
+  });
+}
 
-  ctx.fillStyle = us ? "#7ec2f8" : "#f2ca5c"; ctx.font = "bold 20px sans-serif";
-  ctx.fillText("주요 복무 연대기", 56, 232);
-  ctx.fillStyle = "#e2edf5"; ctx.font = "17px sans-serif";
-  let y = 266;
-  const recentLogs = log.slice(-7);
+/** Render a complete, dynamic-height high-res PNG Career Chronicle containing ALL Chronicle sections & rank uniforms. */
+export async function downloadChroniclePNG({ cmdrName, grade = 0, rankName, post, svcName, branchName, initBranchName = "", week, medalsCount, log = [], rivals = [], timeline = [], boardHistory = [], tours = {}, rankLabelFn, portraitFn = null, chapterLabel }) {
+  const us = isUS();
+  const maxG = Math.max(0, Math.min(10, grade | 0));
+  const recentLogs = log.slice(-12);
+  const keyDecisions = (timeline || []).slice(-5).reverse();
+  const ep = rivalEpilogues(rivals, rankLabelFn).slice(0, 5);
+
+  const uniRows = portraitFn ? Math.ceil((maxG + 1) / 6) : 0;
+  const uniH = uniRows ? 44 + uniRows * 144 : 0;
+  const pathH = 175;
+  const impactH = 88 + Math.max(1, keyDecisions.length) * 56;
+  const logH = 54 + Math.max(1, recentLogs.length) * 28;
+  const rivalH = 56 + Math.max(1, ep.length) * 44;
+  const W = 1280;
+  const H = 220 + uniH + pathH + impactH + logH + rivalH + 70;
+
+  const c = document.createElement("canvas");
+  c.width = W; c.height = H;
+  const ctx = c.getContext("2d");
+
+  const bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, us ? "#0b1626" : "#101a18");
+  bg.addColorStop(1, "#070b10");
+  ctx.fillStyle = bg; ctx.fillRect(0, 0, W, H);
+  ctx.strokeStyle = us ? "#5da8e8" : "#f2ca5c"; ctx.lineWidth = 4; ctx.strokeRect(22, 22, W - 44, H - 44);
+
+  // 1. Header
+  ctx.fillStyle = us ? "#7ec2f8" : "#f2ca5c";
+  ctx.font = "bold 17px sans-serif";
+  ctx.fillText("THE GENERAL · OFFICIAL COMPLETE CAREER CHRONICLE", 56, 68);
+  ctx.fillStyle = "#ffffff";
+  ctx.font = "bold 40px sans-serif";
+  ctx.fillText(`${rankName} ${cmdrName} 회고록`, 56, 120);
+  ctx.fillStyle = "#b8d0e0";
+  ctx.font = "19px sans-serif";
+  ctx.fillText(`${svcName} · ${branchName} · ${post}  |  ${careerDate(week)} (${week}안건)  |  훈장 ${medalsCount}/10 · ${chapterLabel}`, 56, 158);
+  ctx.strokeStyle = "rgba(255,255,255,0.18)"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(56, 180); ctx.lineTo(W - 56, 180); ctx.stroke();
+
+  let y = 212;
+
+  // 2. Rank Uniform Portrait Gallery
+  if (portraitFn) {
+    ctx.fillStyle = "#f2ca5c"; ctx.font = "bold 19px sans-serif";
+    ctx.fillText(`계급별 정복 초상 (${maxG + 1}계급)`, 56, y);
+    y += 16;
+    const imgs = await Promise.all(Array.from({ length: maxG + 1 }, (_, r) => svgToImage(portraitFn(r))));
+    const byG = new Map();
+    for (const e of log) if (e.g != null) byG.set(e.g, e);
+    for (let r = 0; r <= maxG; r++) {
+      const col = r % 6, row = Math.floor(r / 6);
+      const bx = 56 + col * 196, by = y + row * 144;
+      ctx.fillStyle = "rgba(18,30,44,0.88)";
+      ctx.fillRect(bx, by, 182, 132);
+      ctx.strokeStyle = r === maxG ? "#f2ca5c" : "rgba(114,172,232,0.38)";
+      ctx.lineWidth = 1.5;
+      ctx.strokeRect(bx, by, 182, 132);
+      if (imgs[r]) ctx.drawImage(imgs[r], bx + 8, by + 8, 86, 86);
+      ctx.fillStyle = r === maxG ? "#ffe082" : "#ffffff";
+      ctx.font = "bold 14px sans-serif";
+      ctx.fillText(rankLabelFn(r), bx + 102, by + 34);
+      ctx.fillStyle = "#9fc5e2";
+      ctx.font = "11.5px sans-serif";
+      const pTxt = byG.get(r)?.t ? fmtPost(byG.get(r).t) : "";
+      ctx.fillText(pTxt.slice(0, 9), bx + 102, by + 56);
+      ctx.fillStyle = "#7f9db3";
+      ctx.font = "11px sans-serif";
+      ctx.fillText(byG.get(r) ? logServiceLabel(byG.get(r), r).slice(0, 10) : "", bx + 102, by + 76);
+    }
+    y += uniRows * 144 + 24;
+  }
+
+  // 3. Career Route Path Diagram (Classic vs Rotation)
+  ctx.fillStyle = "#7ec2f8"; ctx.font = "bold 19px sans-serif";
+  let switches = 0, prevB = null;
+  const byGPath = new Map();
+  for (const e of log) {
+    if (e.g == null) continue;
+    const bn = e.b || initBranchName;
+    if (prevB && bn && bn !== prevB) switches++;
+    if (bn) prevB = bn;
+    byGPath.set(e.g, bn);
+  }
+  const baseB = log.find((e) => e.b)?.b || initBranchName || branchName;
+  const archLabel = switches === 0 ? "정통 단일 병과 라인" : switches <= 2 ? "야전·합동 균형 엘리트" : "다병과 순환 제너럴리스트";
+  ctx.fillText(`커리어 보직 경로도 · ${archLabel} (전과 ${switches}회)`, 56, y);
+  y += 16;
+  ctx.fillStyle = "#08111b"; ctx.fillRect(56, y, W - 112, 118);
+  ctx.strokeStyle = "#1f354d"; ctx.lineWidth = 1.2; ctx.strokeRect(56, y, W - 112, 118);
+  const pathCount = Math.max(2, maxG + 1);
+  const px0 = 110, pxSpan = W - 220, yStd = y + 38, yRot = y + 84;
+  ctx.strokeStyle = "rgba(126,184,232,0.35)"; ctx.setLineDash([5, 4]);
+  ctx.beginPath(); ctx.moveTo(px0, yStd); ctx.lineTo(px0 + pxSpan, yStd); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = "#7eb8e8"; ctx.font = "bold 12px sans-serif"; ctx.fillText("정석", 68, yStd + 4);
+  ctx.fillStyle = "#c29bff"; ctx.fillText("순환", 68, yRot + 4);
+  for (let r = 0; r < pathCount; r++) {
+    const x = px0 + (pathCount > 1 ? (r * pxSpan) / (pathCount - 1) : 0);
+    const bCur = byGPath.get(r) || (r === maxG ? branchName : baseB);
+    const shifted = Boolean(baseB && bCur && bCur !== baseB);
+    const ny = shifted ? yRot : yStd;
+    if (r > 0) {
+      const px = px0 + ((r - 1) * pxSpan) / (pathCount - 1);
+      const bPrev = byGPath.get(r - 1) || baseB;
+      const py = Boolean(baseB && bPrev && bPrev !== baseB) ? yRot : yStd;
+      ctx.strokeStyle = py !== ny ? "#f59e42" : shifted ? "#b084f5" : "#4cd97b";
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(x, ny); ctx.stroke();
+    }
+    ctx.fillStyle = r === maxG ? "#f2ca5c" : shifted ? "#b084f5" : "#4cd97b";
+    ctx.beginPath(); ctx.arc(x, ny, r === maxG ? 7 : 5.5, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#eaf2fa"; ctx.font = "bold 12px sans-serif"; ctx.textAlign = "center";
+    ctx.fillText(rankLabelFn(r), x, ny - 12);
+    ctx.fillStyle = "#9ab8cf"; ctx.font = "11px sans-serif";
+    ctx.fillText(fmtPost(bCur || "").slice(0, 8), x, ny + 18);
+    ctx.textAlign = "left";
+  }
+  y += 146;
+
+  // 4. Decision Impact Analysis
+  ctx.fillStyle = "#8ef07a"; ctx.font = "bold 19px sans-serif";
+  ctx.fillText("내 선택과 커리어 영향 분석", 56, y);
+  y += 26;
+  const ab = allyBonus(rivals, maxG);
+  const passedB = boardHistory.filter((b) => b.passed).length;
+  ctx.fillStyle = "#cce8d6"; ctx.font = "14px sans-serif";
+  ctx.fillText(
+    `• 야전·합동 균형: ${tours?.cmd && tours?.joint ? "달성(+5점)" : "미달성"}   |   고등군사교육: ${tours?.edu ? "이수(+3~6점)" : "미이수"}   |   우군 동기: ${ab.allies}명(+${ab.crisisWinBonus}%)   |   정기심사: ${passedB}/${boardHistory.length}회 통과`,
+    64, y,
+  );
+  y += 28;
+  if (keyDecisions.length) {
+    for (const ev of keyDecisions) {
+      ctx.fillStyle = "rgba(255,255,255,0.04)"; ctx.fillRect(56, y - 16, W - 112, 46);
+      ctx.fillStyle = "#ffffff"; ctx.font = "bold 14px sans-serif";
+      ctx.fillText(`${ev.date || ""} · ${ev.title}${ev.score != null ? ` (평정 ${ev.score}점)` : ""}`, 68, y);
+      ctx.fillStyle = "#e8d294"; ctx.font = "13px sans-serif";
+      ctx.fillText(`선택: ${String(ev.choice || "").slice(0, 44)}  →  영향: ${String(ev.outcome || "").slice(0, 48)}`, 68, y + 20);
+      y += 54;
+    }
+  } else {
+    ctx.fillStyle = "#8faec0"; ctx.font = "14px sans-serif";
+    ctx.fillText("• 기록된 주요 분기 선택이 아직 없습니다.", 64, y);
+    y += 40;
+  }
+  y += 12;
+
+  // 5. Major Service Milestones
+  ctx.fillStyle = "#f2ca5c"; ctx.font = "bold 19px sans-serif";
+  ctx.fillText("주요 복무 연대기", 56, y);
+  y += 28;
+  ctx.fillStyle = "#e2edf5"; ctx.font = "15px sans-serif";
   recentLogs.forEach((e, idx) => {
-    ctx.fillText(`• ${logServiceLabel(e, idx)}  ${rankLabelFn(e.g)} — ${fmtPost(e.t)}`, 64, y);
-    y += 30;
+    ctx.fillText(`• ${logServiceLabel(e, idx)}  |  ${rankLabelFn(e.g)} — ${fmtPost(e.t)}${e.why && !["임관", "보직 변경"].includes(e.why) ? ` (${e.why})` : ""}`, 64, y);
+    y += 27;
   });
-  ctx.fillStyle = "#72ace8"; ctx.font = "bold 20px sans-serif";
-  ctx.fillText(us ? "사관학교 동기 후일담" : "임관 동기 후일담", 56, 510);
-  const ep = rivalEpilogues(rivals, rankLabelFn);
-  ctx.fillStyle = "#d4e6f4"; ctx.font = "15px sans-serif";
-  ep.slice(0, 5).forEach((x, i) => {
-    ctx.fillText(`• ${x.rank} ${x.name} [${x.routeTag}] (${x.post}, 관계도 ${x.rel}): ${x.bond}`, 64, 544 + i * 36);
+  y += 18;
+
+  // 6. All 5 Classmate Epilogues
+  ctx.fillStyle = "#72ace8"; ctx.font = "bold 19px sans-serif";
+  ctx.fillText(`${us ? "사관학교 동기 후일담" : "임관 동기 후일담"} (${ep.length}명)`, 56, y);
+  y += 28;
+  ctx.fillStyle = "#d4e6f4"; ctx.font = "14.5px sans-serif";
+  ep.forEach((x) => {
+    ctx.fillStyle = "#ffffff"; ctx.font = "bold 14.5px sans-serif";
+    ctx.fillText(`• ${x.rank} ${x.name} [${x.routeTag}] · ${x.post} (관계도 ${x.rel})`, 64, y);
+    ctx.fillStyle = "#b8d0e2"; ctx.font = "13.5px sans-serif";
+    ctx.fillText(`   ${x.bond}`, 64, y + 19);
+    y += 42;
   });
-  ctx.fillStyle = "#7c95a6"; ctx.font = "14px sans-serif";
-  ctx.fillText("Generated by THE GENERAL", 960, 738);
+
+  ctx.fillStyle = "#7c95a6"; ctx.font = "13px sans-serif";
+  ctx.fillText("Generated by THE GENERAL · Official Career Archive", W - 360, H - 38);
 
   const a = document.createElement("a");
-  a.download = `THE_GENERAL_${cmdrName}_chronicle.png`;
+  a.download = `THE_GENERAL_${cmdrName}_full_chronicle.png`;
   a.href = c.toDataURL("image/png");
   a.click();
 }
