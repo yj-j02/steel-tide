@@ -2061,7 +2061,7 @@ function marshalCardHTML(g) {
     <button class="mn-go" data-duty="marshal" ${q.ok || profile.admin ? "" : "disabled"}>${q.ok ? "⚔️ 전시 총력전 개전 · 원수(5성) 특별진급 도전 ›" : profile.admin ? "⚔️ [관리자] 전시 총력전 시나리오 즉시 개전 ›" : "전시 총사령관 임명 요건 미달"}</button></div>`;
 }
 let retireArm = false;
-let lastBossQuote = "", lastRivalQuote = "";
+let lastBossQuote = "", lastRivalQuote = "", dutyFocusKey = null;
 function tierAuthHTML(g) {
   if (g <= 2) return `<div class="mn-card" style="padding:8px 12px;border-left:3px solid #72ace8"><b>⚡ 위관 권한 (소위~대위)</b><small style="display:block;color:#b8d4e6">현장 실무 지휘 · 현 계급 복무 기간과 경험치·평정 횟수 조건을 채우면 진급심사를 받습니다.</small></div>`;
   if (g <= 5) return `<div class="mn-card" style="padding:8px 12px;border-left:3px solid #f2ca5c"><b>📋 영관 권한 해금 (소령~대령)</b><small style="display:block;color:#e4d9b5">부대 운영 · 공통 융합 트랙 전과 가능 · 진급 심사에서 주요 보직 경력과 평정이 크게 작용합니다.</small></div>`;
@@ -2211,18 +2211,21 @@ function renderDutyDesk() {
     <button data-duty="rep:0"><b>① 사실대로 솔직 보고</b><small>군내 신뢰·부대 사기 확보 · 단기 평정은 보수적</small></button>
     <button data-duty="rep:1"><b>② 성과 강조 · 미흡점 축소 보고</b><small>단기 고평가 기대 · 상급부대 감찰 적발 시 치명적 감점</small></button>
     <button data-duty="rep:2"><b>③ 현장 실무자 책임으로 선 긋기</b><small>단기 평정 방어 · 부하 신뢰 및 부대 사기 하락</small></button></div>` : "";
-  const evCards = items.map((id) => {
+  const evCardItems = items.map((id) => {
     const event = openingEvent(id);
     if (event) {
       const previous = openingCarryover(d, event);
-      return `<div id="duty-${id}" class="mn-card mn-dk mn-paper"><div class="dh"><div class="dt"><small>${postLabel(B.n)} · 초임 과정 · ${date} · ${event.week}/10</small><b>${event.title}</b></div></div>
+      const html = `<div id="duty-${id}" class="mn-card mn-dk mn-paper"><div class="dh"><div class="dt"><small>${postLabel(B.n)} · 초임 과정 · ${date} · ${event.week}/10</small><b>${event.title}</b></div></div>
         <p>${event.description}</p>${previous ? `<p><b>이전 안건의 결정</b> · ${previous.text} ${previous.followup} <strong>이번 안건 평정 ${previous.points > 0 ? "+" : ""}${previous.points}점</strong></p>` : ""}
         ${event.options.map((option, index) => `<button data-duty="ev:${id}:${index}"><b>${option}</b></button>`).join("")}</div>`;
+      return { id, title: event.title, html };
     }
-    const E = dutyEventById(id); if (!E) return "";
+    const E = dutyEventById(id); if (!E) return null;
     const order = d.optOrder?.[id] || [0, 1, 2];
-    return `<div id="duty-${id}" class="mn-card mn-dk mn-paper"><div class="dh"><div class="dt"><small>${sv.icon} ${sv.n} ${postLabel(B.n)} · ${date}</small><b>${E[4]}</b><span>부대 사기·긴장도에 따라 결과와 평정이 달라집니다 (선택 후 결과 공개)</span></div></div><p>${E[5]}</p>${order.map((origIdx) => { const opt = E[6][origIdx]; return opt ? `<button data-duty="ev:${id}:${origIdx}"><b>${opt[0]}</b><small>${dutyOptionHint(origIdx)}</small></button>` : ""; }).join("")}</div>`;
-  }).join("");
+    const html = `<div id="duty-${id}" class="mn-card mn-dk mn-paper"><div class="dh"><div class="dt"><small>${sv.icon} ${sv.n} ${postLabel(B.n)} · ${date}</small><b>${E[4]}</b><span>부대 사기·긴장도에 따라 결과와 평정이 달라집니다 (선택 후 결과 공개)</span></div></div><p>${E[5]}</p>${order.map((origIdx) => { const opt = E[6][origIdx]; return opt ? `<button data-duty="ev:${id}:${origIdx}"><b>${opt[0]}</b><small>${dutyOptionHint(origIdx)}</small></button>` : ""; }).join("")}</div>`;
+    return { id, title: E[4], html };
+  }).filter(Boolean);
+  const evCards = evCardItems.map((x) => x.html).join("");
   const cr = d.crisis ? dutyCrisisById(d.crisis) : null;
   const crFmRec = cr && cr.domain !== "navy";
   const crCard = cr ? `<div id="duty-crisis" class="mn-card mn-dk mn-nsc"><b>🚨 ${cr.tag} — ${cr.title}</b><p>${cr.desc}</p><div class="dm-ops"><button class="dm-op" data-duty="del">① 자동 위임</button><button class="dm-op fm" data-duty="fm">② FM 합동 작전 지휘${crFmRec ? " ★추천" : ""}</button><button class="dm-op d3" data-duty="3d">③ 3D 직접 개입${!crFmRec ? " ★추천" : ""}</button></div></div>` : "";
@@ -2275,6 +2278,23 @@ function renderDutyDesk() {
       <div><b style="color:#ffd166">④ 장관·대통령 & 다회차</b><br>전역 후 국방부장관(36주)·대통령까지 도전할 수 있으며 최대 10명(한/미)의 가문을 이어갑니다.</div>
     </div>
   </div>` : "";
+  const dutyQueue = [];
+  if (warroomCard) dutyQueue.push({ key: "warroom", label: "🚨 합동 워룸", urgent: true, html: `<span class="dm-pri-badge">🔥 최우선 긴급 결재 · 합동 워룸</span>${warroomCard}` });
+  if (crCard) dutyQueue.push({ key: "crisis", label: "🚨 안보 위기", urgent: true, html: `<span class="dm-pri-badge">🔥 최우선 긴급 결재 · 안보 위기</span>${crCard}` });
+  if (arcCard) dutyQueue.push({ key: "arc", label: "📖 계급 스토리", urgent: true, html: `<span class="dm-pri-badge">📖 계급 시그니처 스토리</span>${arcCard}` });
+  if (rvEvCard) dutyQueue.push({ key: "rival", label: "🤝 동기 요청", html: rvEvCard });
+  evCardItems.forEach((ev, idx) => {
+    const shortT = ev.title.length > 14 ? `${ev.title.slice(0, 14)}…` : ev.title;
+    dutyQueue.push({ key: `ev:${ev.id}`, label: `📋 안건 ${idx + 1} · ${shortT}`, html: ev.html });
+  });
+  if (repCard) dutyQueue.push({ key: "report", label: "📝 정례 보고", html: repCard });
+  const activeDuty = dutyQueue.find((q) => q.key === dutyFocusKey) || dutyQueue[0] || null;
+  if (activeDuty) dutyFocusKey = activeDuty.key;
+  const queueBarHTML = dutyQueue.length
+    ? `<div class="dm-queue"><span class="dm-queue-lbl">결재 대기 ${dutyQueue.length}건</span>${dutyQueue.map((q) => `<button type="button" class="dm-qtab${q.urgent ? " urg" : ""}${q.key === activeDuty?.key ? " on" : ""}" data-qfocus="${q.key}">${q.label}</button>`).join("")}</div>`
+    : `<div class="dm-done-card"><b>✅ ${date} 결재를 모두 마쳤습니다</b><p>다음 복무 주차로 넘어가 새 안건과 인사 동향을 확인하세요.</p><button type="button" data-duty="next">다음 안건 진행 ▶ (Enter)</button></div>`;
+  const lifeCards = `${hearingCardHTML(g, d.week || 1, career, isUS())}${overseasCardHTML(g, d.week || 1, career, svk, isUS())}${familyCardHTML(g, d.week || 1, career)}`;
+  const promoFoldOpen = !dutyQueue.length || review.ready ? " open" : "";
   $("#hqP").innerHTML = `<div class="hq-tog"><b>${sv.icon} ${sv.n} 장교 커리어 · ${rankLabel(g, svk)} ${cmdr.name}</b><small>${officeAmbienceLabel(g, isUS())} · ${postLabel(postOf(g))}</small>${d.tension >= 70 ? `<span class="fx-defcon">🚨 DEFCON 주의 · 긴장 ${d.tension}</span>` : ""}<button data-duty="showguide" class="hq-tg2">? 가이드</button><button data-hqv="org" class="hq-tg2">지휘 계통도 · 참모 ›</button>${career.minister ? `<button data-hqv="min" class="hq-tg2">국방부 집무실 ›</button>` : ""}</div>${admDuty}${onboardBanner}
     <div class="mn dm-shell${d.tension >= 70 ? " mood-alert" : ""}">
       <div class="mn-top dm-top">
@@ -2288,7 +2308,6 @@ function renderDutyDesk() {
       <div class="dm-status-strip">
         <div class="dm-chips">
           <span class="dm-chip${agenda.length ? " hot" : ""}">📋 ${date} · ${agenda.length ? `결재 대기 ${agenda.length}건` : "이번 단계 결재 완료"}</span>
-          ${agenda.slice(0, 3).map(([id, title]) => `<a class="dm-chip" href="#${id}">${title}</a>`).join("")}
           <a class="dm-chip" href="#duty-promotion">🎖️ ${promotionSummary}${!automaticCaptain(g) && g < 9 ? ` (${review.score}/${review.cutoff}점)` : ""}</a>
         </div>
         ${serviceTerms.obligationLeft ? `<span class="dm-chip" title="의무복무 잔여">⏳ ${serviceTerms.obligationLeft}</span>` : `<span class="dm-chip">✔ 장기/전역 가능</span>`}
@@ -2311,7 +2330,7 @@ function renderDutyDesk() {
         <button type="button" class="dm-st-btn" data-duty="retire_now" ${serviceTerms.obligationLeft ? "disabled" : ""} style="border-color:rgba(255,140,120,.35);color:#f2b8b0">${serviceTerms.obligationLeft ? "의무복무 이행 중" : retireArm ? "⚠ 한 번 더 클릭: 전역" : "🚪 전역 신청"}</button>
       </div>
       <div class="dm-grid-2">
-        <div class="dm-main">${warroomCard ? `<span class="dm-pri-badge">🔥 최우선 긴급 결재 · 합동 워룸</span>` + warroomCard : crCard ? `<span class="dm-pri-badge">🔥 최우선 긴급 결재 · 안보 위기</span>` + crCard : arcCard ? `<span class="dm-pri-badge">📖 최우선 결재 · 계급 시그니처 스토리</span>` + arcCard : ""}${warroomCard ? crCard : ""}${warroomCard || crCard ? arcCard : ""}${rvEvCard}${evCards}${repCard}${hearingCardHTML(g, d.week || 1, career, isUS())}${overseasCardHTML(g, d.week || 1, career, svk, isUS())}${familyCardHTML(g, d.week || 1, career)}<div id="duty-promotion">${g < 9 ? reviewCard : marshalCardHTML(g)}</div>${g >= 9 ? reviewCard : ""}${minBtn}<details class="mn-card mn-fold"><summary><span>⭐ 계급 권한 안내${d.last ? " · 최근 결재 결과" : ""}</span><small style="color:#9fc0d8;font-weight:500">펼치기 ▾</small></summary>${tierAuthHTML(g)}${d.last ? `<div style="font-size:11.5px;color:#b8d0e2;margin-top:6px">최근 결과: ${d.last}</div>` : ""}</details></div>
+        <div class="dm-main">${queueBarHTML}${activeDuty ? activeDuty.html : ""}${lifeCards}<details id="duty-promotion" class="mn-card mn-fold"${promoFoldOpen}><summary><span>🎖️ 진급심사 · 보직 현황</span><small style="color:#9fc0d8;font-weight:500">${promotionSummary} ▾</small></summary>${g < 9 ? reviewCard : marshalCardHTML(g)}${g >= 9 ? reviewCard : ""}${minBtn}</details><details class="mn-card mn-fold"><summary><span>⭐ 계급 권한 안내${d.last ? " · 최근 결재 결과" : ""}</span><small style="color:#9fc0d8;font-weight:500">펼치기 ▾</small></summary>${tierAuthHTML(g)}${d.last ? `<div style="font-size:11.5px;color:#b8d0e2;margin-top:6px">최근 결과: ${d.last}</div>` : ""}</details></div>
         <aside class="dm-side">${globalThis.__careerProfileHTML()}${bossCard}${rivalsHTML}<div class="mn-card dm-news"><div class="mn-h">📰 군 내부 · 언론 헤드라인</div>${(d.headlines || []).slice(0, 7).map((h) => `<small>• ${h.replace(/^(\d+)주차 ·/, "안건 $1 ·")}</small>`).join("")}</div></aside>
       </div>
     </div>`;
@@ -3019,6 +3038,7 @@ $("#hqP").addEventListener("click", (e) => {
     return;
   }
   const rr = e.target.closest("[data-retire-route]"); if (rr && career.discharged && !career.discharged.routeConfirmed) { sfx.click(); career.discharged.routeId = rr.dataset.retireRoute; career.discharged.routeConfirmed = true; saveCareer(); playVO(39); checkCareerAchievements(career.discharged.g); renderDischarged(); return; }
+  const qf = e.target.closest("[data-qfocus]"); if (qf) { sfx.click(); dutyFocusKey = qf.dataset.qfocus; renderDutyDesk(); return; }
   const dy = e.target.closest("[data-duty]"); if (dy) { if (dy.disabled) return; sfx.click(); const a = dy.dataset.duty, g = myGrade(), br = normBranch(staff.branch), svk = serviceOf(br);
     if (a === "hideguide") { try { careerStorage.setItem("steeltide:onboard", "hide"); } catch {} renderDutyDesk(); return; }
     if (a === "showguide") { try { const cur = careerStorage.getItem("steeltide:onboard"); careerStorage.setItem("steeltide:onboard", cur === "show" ? "hide" : "show"); } catch {} renderDutyDesk(); return; }
