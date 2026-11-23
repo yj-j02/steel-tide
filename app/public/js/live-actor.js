@@ -62,12 +62,12 @@ export function initLiveActorStyles() {
       transition: transform .35s ease;
     }
     .live-fullbody .fb-arm-r {
-      transform-origin: 122px 104px;
+      transform-origin: 120px 102px;
       transform: rotate(0deg);
       transition: transform .42s cubic-bezier(.22, .85, .36, 1);
     }
     .live-fullbody .fb-forearm-r {
-      transform-origin: 132px 152px;
+      transform-origin: 127px 148px;
       transform: rotate(0deg);
       transition: transform .42s cubic-bezier(.22, .85, .36, 1);
     }
@@ -78,10 +78,10 @@ export function initLiveActorStyles() {
       animation: fbSpeakForearm 1.15s ease-in-out infinite;
     }
     .live-fullbody.mood-salute .fb-arm-r {
-      transform: rotate(-74deg);
+      transform: rotate(-112deg);
     }
     .live-fullbody.mood-salute .fb-forearm-r {
-      transform: rotate(-122deg);
+      transform: rotate(-128deg);
     }
     .live-fullbody.mood-smile .fb-arm-l {
       transform: rotate(3deg);
@@ -434,18 +434,18 @@ export function fullBodyActorHTML({
         `}
       </g>
 
-      <!-- Head (existing rigged SVG portrait) -->
-      <g transform="translate(40 6) scale(1)">
+      <!-- Head (existing rigged SVG portrait, seated directly into shirt collar) -->
+      <g transform="translate(40 19) scale(1)">
         ${cleanHead}
       </g>
 
-      <!-- Right arm (2-joint: upper arm + forearm/hand for crisp salute & speech) -->
+      <!-- Right arm (2-joint: rounded shoulder + forearm + extended salute hand) -->
       <g class="fb-arm-r">
-        <path d="M121 96 L136 150 L124 153 L112 104 Z" fill="${pal.coat2}" stroke="#080c12" stroke-width="1"/>
+        <path d="M113 102 C113 94 127 94 128 104 L133 148 C133 153 121 153 121 148 L113 106 Z" fill="${pal.coat2}" stroke="#080c12" stroke-width="1"/>
         <g class="fb-forearm-r">
-          <path d="M124 152 L136 150 L138 196 L126 197 Z" fill="${pal.coat}" stroke="#080c12" stroke-width="1"/>
-          <rect x="126" y="189" width="11.5" height="2.4" fill="${pal.cuff}" opacity="0.85"/>
-          <path d="M127 197 L137 197 L136 211 Q131 214 127 210 Z" fill="${skin}" stroke="${skinDark}" stroke-width="0.8"/>
+          <path d="M121 148 C121 143 133 143 133 148 L134 193 L122 193 Z" fill="${pal.coat}" stroke="#080c12" stroke-width="1"/>
+          <rect x="122" y="186" width="12" height="2.4" fill="${pal.cuff}" opacity="0.85"/>
+          <path d="M123 193 L133 193 L132 208 Q128 212 123 207 Z" fill="${skin}" stroke="${skinDark}" stroke-width="0.8"/>
         </g>
       </g>
     </g>
