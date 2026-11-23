@@ -4,6 +4,7 @@ import { koreanPostName } from "./js/us-post-labels.js";
 import { careerStorage, characters, activeCharacterId, createCharacter, selectCharacter, removeCharacter } from "./js/characters.js";
 import { calendarLabel, careerDate, rankMonths, serviceDuration } from "./js/service-calendar.js";
 import { openingEvent } from "./js/army-opening.js";
+import { initLiveActorStyles, openLiveActorPreview } from "./js/live-actor.js";
 import { automaticCaptain, boardCard, preview as boardPreview, settle, hint, interact } from "./js/promotion-board.js";
 /**
  * Steel Tide — game flow: missions and battles, the shipyard and the commander's rank,
@@ -342,21 +343,23 @@ function face(i, s = 64) {
   const pool = facePool(), f = (typeof i === "object" ? i : pool[i]) || pool[0], u = `fc${typeof i === "object" ? "s" : i}_${faceN++}`, [sk, sh, dk] = f.skin, j = f.jaw || 1, ch = f.chin || 1;
   const jx = 50 - 16.5 * j, jx2 = 50 + 16.5 * j, cx1 = 50 - 8.5 * ch, cx2 = 50 + 8.5 * ch;
   const hi = mixHex(sk, "#fff6ee", 0.36), mw = f.mouthW || 1, ey = 41, my = ey + 18, uMap = isUS() ? US_SVC_UNI : SVC_UNI, U = uMap[f.svc] || uMap.navy;
-  let o = `<svg role="img" aria-label="${f.n} 초상" width="${s}" height="${s}"${f.bare ? ' overflow="visible"' : ""} viewBox="${f.zoom ? "16 8 68 68" : "0 0 100 100"}"><defs>`
+  let o = `<svg class="${f.live ? `live-actor ${f.live}` : ""}" role="img" aria-label="${f.n} 초상" width="${s}" height="${s}"${f.bare ? ' overflow="visible"' : ""} viewBox="${f.zoom ? "16 8 68 68" : "0 0 100 100"}"><defs>`
     + `<radialGradient id="${u}b" cx=".35" cy=".3" r=".9"><stop offset="0" stop-color="${f.bg}"/><stop offset="1" stop-color="#0d1114"/></radialGradient>`
     + `<radialGradient id="${u}s" cx=".4" cy=".34" r=".72"><stop offset="0" stop-color="${hi}"/><stop offset=".28" stop-color="${sk}"/><stop offset=".76" stop-color="${sh}"/><stop offset="1" stop-color="${dk}"/></radialGradient>`
     + `<linearGradient id="${u}u" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${f.civ ? "#1c2638" : U.u0}"/><stop offset="1" stop-color="${f.civ ? "#0b0f18" : U.u1}"/></linearGradient>`
     + `<linearGradient id="${u}c" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${U.cap0}"/><stop offset="1" stop-color="${U.cap1}"/></linearGradient>`
     + `</defs>${f.bare ? "" : `<rect width="100" height="100" rx="6" fill="url(#${u}b)"/>`}`;
   // shoulders: service dress uniform (Army olive / Navy dark blue / Air Force royal blue)
-  if (!f.bare) o += `<path d="M6 100 C8 82 20 75 34 72 L50 80 L66 72 C80 75 92 82 94 100Z" fill="url(#${u}u)"/>`
+  if (!f.bare) o += `<g class="fa-torso"><path d="M6 100 C8 82 20 75 34 72 L50 80 L66 72 C80 75 92 82 94 100Z" fill="url(#${u}u)"/>`
     + `<path d="M40 70 L50 86 L60 70 L56 68 L50 76 L44 68Z" fill="${f.civ ? "#f1f1ee" : U.sh}"/><path d="M48 76 L50 74 L52 76 L51.5 92 L50 95 L48.5 92Z" fill="${f.civ ? "#111" : U.tie}"/>`
     + `<path d="M34 72 L46 90 L44 100 M66 72 L54 90 L56 100" stroke="#05080d" stroke-width="1.2" fill="none"/>`
     + (f.civ ? "" : `<g transform="translate(60 84)"><rect width="5" height="2.6" fill="#b03a2e"/><rect x="5" width="5" height="2.6" fill="#2a5aa0"/><rect x="10" width="5" height="2.6" fill="#d8b23a"/><rect y="2.8" width="5" height="2.6" fill="#3b7a3e"/><rect x="5" y="2.8" width="5" height="2.6" fill="#c9c9c9"/><rect x="10" y="2.8" width="5" height="2.6" fill="#8a1f1f"/></g>`
     + (isUS()
       ? `<g transform="translate(13 80) rotate(-8)"><rect width="11" height="6.5" rx=".6" fill="#b22234" stroke="#d8b247" stroke-width=".4"/><rect y="1.1" width="11" height=".9" fill="#fff"/><rect y="2.8" width="11" height=".9" fill="#fff"/><rect y="4.5" width="11" height=".9" fill="#fff"/><rect width="4.6" height="3.6" fill="#233b6e"/></g>`
       : `<g transform="translate(13 80) rotate(-8)">${FLAGSVG.kr(11)}</g>`)
-    + `<rect x="10" y="89" width="18" height="2" fill="${U.sleeve}"/><rect x="10" y="92.2" width="18" height="2" fill="${U.sleeve}"/>`);
+    + `<rect x="10" y="89" width="18" height="2" fill="${U.sleeve}"/><rect x="10" y="92.2" width="18" height="2" fill="${U.sleeve}"/>`)
+    + `</g>`;
+  o += `<g class="fa-head">`;
   // back hair (female smooth bob silhouette)
   if (f.fem) o += `<path d="M31 24 C25 35 25 54 31.5 66 Q41 70 50 69 Q59 70 68.5 66 C75 54 75 35 69 24 C64 13.5 36 13.5 31 24Z" fill="${f.hair}"/>`
     + `<path d="M33 48 C34 58 39 66 50 67 C61 66 66 58 67 48 L67 65 Q58 69 50 68 Q42 69 33 65Z" fill="${mixHex(f.hair, "#000000", 0.28)}" opacity=".55"/>`;
@@ -381,20 +384,22 @@ function face(i, s = 64) {
   o += `<path d="M37.5 ${ey - 3.2} Q42.5 ${ey - 5.4} 47.2 ${ey - 3} M52.8 ${ey - 3} Q57.5 ${ey - 5.4} 62.5 ${ey - 3.2}" stroke="${dk}" stroke-width="2.2" opacity=".28" fill="none"/>`;
   const eyeScale = f.eye || 1;
   for (const x of [42.5, 57.5]) {
-    o += `<g transform="translate(${x} ${ey}) scale(1 ${eyeScale}) translate(${-x} ${-ey})">`
+    o += `<g class="fa-eye" style="transform-origin:${x}px ${ey}px"><g transform="translate(${x} ${ey}) scale(1 ${eyeScale}) translate(${-x} ${-ey})">`
       + `<path d="M${x - 4.3} ${ey} Q${x} ${ey - 2.7} ${x + 4.3} ${ey} Q${x} ${ey + 1.9} ${x - 4.3} ${ey}Z" fill="#f1ece4"/>`
       + `<circle cx="${x}" cy="${ey - 0.15}" r="1.95" fill="${f.eyeCol || "#3a281d"}"/><circle cx="${x}" cy="${ey - 0.15}" r="1.0" fill="#100b08"/>`
       + `<circle cx="${x - 0.65}" cy="${ey - 0.75}" r="0.52" fill="#ffffff" opacity=".88"/>`
       + `<path d="M${x - 4.6} ${ey - 0.1} Q${x} ${ey - 3.3} ${x + 4.6} ${ey - 0.1}" stroke="#1d140f" stroke-width="${f.fem ? 1.35 : 1.15}" fill="none" stroke-linecap="round"/>`
       + `<path d="M${x - 3.8} ${ey - 2.4} Q${x} ${ey - 4.2} ${x + 3.8} ${ey - 2.4}" stroke="${dk}" stroke-width=".6" opacity=".48" fill="none"/>`
-      + `<path d="M${x - 3.4} ${ey + 2.3} Q${x} ${ey + 3.4} ${x + 3.4} ${ey + 2.3}" stroke="${dk}" stroke-width=".65" opacity=".45" fill="none"/></g>`;
+      + `<path d="M${x - 3.4} ${ey + 2.3} Q${x} ${ey + 3.4} ${x + 3.4} ${ey + 2.3}" stroke="${dk}" stroke-width=".65" opacity=".45" fill="none"/></g></g>`;
   }
   // distinct eyebrow styles
   const bs = f.browStyle || (f.fem ? "fem" : "flat");
+  o += `<g class="fa-brows">`;
   if (bs === "thick") o += `<path d="M36 ${ey - 4.6} L47.8 ${ey - 3.5} L47.5 ${ey - 1.7} L36.4 ${ey - 2.4}Z M52.2 ${ey - 3.5} L64 ${ey - 4.6} L63.6 ${ey - 2.4} L52.5 ${ey - 1.7}Z" fill="${f.brow}"/>`;
   else if (bs === "arched") o += `<path d="M36.8 ${ey - 4.2} Q42 ${ey - 6.2} 47.4 ${ey - 4.5} L47.2 ${ey - 3.4} Q42 ${ey - 4.8} 37 ${ey - 3.2}Z M52.6 ${ey - 4.5} Q58 ${ey - 6.2} 63.2 ${ey - 4.2} L63 ${ey - 3.2} Q58 ${ey - 4.8} 52.8 ${ey - 3.4}Z" fill="${f.brow}"/>`;
   else if (bs === "fem") o += `<path d="M37 ${ey - 4.4} Q42.5 ${ey - 6.4} 47.4 ${ey - 4.7} Q42.5 ${ey - 5.2} 37.2 ${ey - 3.6}Z M52.6 ${ey - 4.7} Q57.5 ${ey - 6.4} 63 ${ey - 4.4} Q57.5 ${ey - 5.2} 52.8 ${ey - 3.6}Z" fill="${f.brow}"/>`;
   else o += `<path d="M36.5 ${ey - 4.9} L47.6 ${ey - 4.3} L47.5 ${ey - 3.0} L36.9 ${ey - 3.3}Z M52.4 ${ey - 4.3} L63.5 ${ey - 4.9} L63.1 ${ey - 3.3} L52.5 ${ey - 3.0}Z" fill="${f.brow}"/>`;
+  o += `</g>`;
   // distinct nose styles
   const ns = f.nose || (f.fem ? "delicate" : "straight"), nw = ns === "broad" ? 4.4 : ns === "slim" ? 2.7 : ns === "delicate" ? 2.4 : 3.4;
   o += `<path d="M50 ${ey + 0.5} L${50 - nw * 0.45} ${ey + 10.6} Q50 ${ey + 12.6} ${50 + nw * 0.72} ${ey + 11.1}" stroke="${dk}" stroke-width="${ns === "delicate" ? 0.85 : 1.05}" fill="none" opacity=".68"/>`
@@ -407,8 +412,11 @@ function face(i, s = 64) {
   if (f.age >= 3) o += `<path d="M35.5 ${ey + 0.8} L33.2 ${ey + 2.4} M35.5 ${ey + 2.2} L33.8 ${ey + 3.5} M64.5 ${ey + 0.8} L66.8 ${ey + 2.4} M64.5 ${ey + 2.2} L66.2 ${ey + 3.5} M39.8 ${ey + 4.8} Q42.5 ${ey + 6.4} 45.2 ${ey + 4.8} M54.8 ${ey + 4.8} Q57.5 ${ey + 6.4} 60.2 ${ey + 4.8}" stroke="${dk}" stroke-width=".72" fill="none" opacity=".68"/>`;
   // mouth & lips
   const mx1 = 50 - 5.4 * mw, mx2 = 50 + 5.4 * mw;
-  o += `<path d="M${mx1} ${my} Q50 ${my + (f.fem ? 0.9 : 0.4)} ${mx2} ${my}" stroke="${f.fem ? "#7a3934" : "#5a3226"}" stroke-width="1.35" fill="none" stroke-linecap="round"/>`
-    + `<path d="M${50 - 3.6 * mw} ${my + 2.1} Q50 ${my + 3.5} ${50 + 3.6 * mw} ${my + 2.1}" stroke="${dk}" stroke-width=".95" opacity=".52" fill="none"/>`;
+  o += `<g class="fa-mouth" style="transform-origin:50px ${my}px">`
+    + `<path class="fa-mouth-closed" d="M${mx1} ${my} Q50 ${my + (f.fem ? 0.9 : 0.4)} ${mx2} ${my}" stroke="${f.fem ? "#7a3934" : "#5a3226"}" stroke-width="1.35" fill="none" stroke-linecap="round"/>`
+    + `<path class="fa-mouth-smile" d="M${mx1 - 0.5} ${my - 0.6} Q50 ${my + 3.2} ${mx2 + 0.5} ${my - 0.6}" stroke="${f.fem ? "#8c3c36" : "#5a3226"}" stroke-width="1.5" fill="none" stroke-linecap="round"/>`
+    + `<ellipse class="fa-mouth-open" cx="50" cy="${my + 0.8}" rx="${(3.8 * mw).toFixed(1)}" ry="2.2" fill="#4a1c1a" stroke="${f.fem ? "#8c3c36" : "#5a3226"}" stroke-width=".75"/>`
+    + `<path d="M${50 - 3.6 * mw} ${my + 2.1} Q50 ${my + 3.5} ${50 + 3.6 * mw} ${my + 2.1}" stroke="${dk}" stroke-width=".95" opacity=".52" fill="none"/></g>`;
   if (f.fem) o += `<path d="M${mx1 + 0.4} ${my} Q50 ${my - 1.5} ${mx2 - 0.4} ${my} Q50 ${my + 2.3} ${mx1 + 0.4} ${my}Z" fill="${f.age >= 2 ? "#9a4541" : "#b35852"}" opacity=".72"/>`;
   if (f.must === "full") o += `<path d="M42 ${my - 1.8} Q46 ${my - 5.2} 50 ${my - 3.4} Q54 ${my - 5.2} 58 ${my - 1.8} Q54 ${my - 0.3} 50 ${my - 1.5} Q46 ${my - 0.3} 42 ${my - 1.8}Z" fill="${f.hair}"/>`;
   if (f.must === "trim") o += `<path d="M44.5 ${my - 2.1} Q50 ${my - 4.1} 55.5 ${my - 2.1} L55 ${my - 1} Q50 ${my - 2.3} 45 ${my - 1}Z" fill="${f.hair}"/><path d="M${jx + 3} 50 Q50 ${my + 9} ${jx2 - 3} 50" stroke="${f.hair}" stroke-width="1.2" opacity=".24" fill="none"/>`;
@@ -443,6 +451,13 @@ function face(i, s = 64) {
     o += `<path d="M24 25 C26 11 74 11 76 25 L74 28 L26 28Z" fill="url(#${u}c)"/><rect x="${jx - 1}" y="26" width="${(jx2 - jx) + 2}" height="6" fill="${U.band}"/>`
       + `<path d="M${jx - 1} 32 L${jx2 + 1} 32 L${jx2 - 3} 37 Q50 39 ${jx + 3} 37Z" fill="#07090b"/><path d="M${jx + 1} 35.5 Q50 37.8 ${jx2 - 1} 35.5" stroke="${U.strap}" stroke-width="1.3" fill="none"/>`
       + `<path d="M${jx - 1} 31.5 L${jx2 + 1} 31.5" stroke="${U.strap}" stroke-width="1.1"/>${capEmblem}`;
+  }
+  o += `</g>`;
+  if (!f.bare) {
+    o += `<g class="fa-salute-hand">`
+      + `<path d="M88 100 L82 62 L71 42 L77 38 L91 60 L96 100Z" fill="${f.civ ? "#1b2432" : U.u0}" stroke="#05080d" stroke-width="1.1"/>`
+      + `<path d="M71 42 L61 36 Q59 34 62 32.5 L75 37.5Z" fill="${sk}" stroke="${dk}" stroke-width=".8"/>`
+      + `</g>`;
   }
   return o + `</svg>`;
 }
@@ -1060,8 +1075,9 @@ function ceremonialBackdrop(grade, svc) {
 }
 
 function portraitHTML(g, snapshot = null) {
+  initLiveActorStyles();
   const MD = curMedals(), svk = snapshot?.service || serviceOf(staff.branch);
-  const F = { ...agedFace(snapshot?.face ?? cmdr.face, g), bare: true, svc: svk };
+  const F = { ...agedFace(snapshot?.face ?? cmdr.face, g), bare: true, svc: svk, live: snapshot?.live ?? "self-actor" };
   const awards = snapshot?.medals ?? career.medals;
   const coatId = `portrait-coat-${faceN++}`;
   const meds = Object.keys(MD).filter((k) => awards?.[k]), per = 3, rows = [];
@@ -1106,8 +1122,9 @@ function portraitHTML(g, snapshot = null) {
     + `<circle cx="255" cy="257" r="23" fill="#111a27" stroke="#e5c77c" stroke-width="1.3"/><image class="portrait-service-emblem" href="${serviceEmblemPath(svk)}" x="237" y="239" width="36" height="36"/></svg>`;
 }
 function ministerPortraitHTML(snapshot = null, square = false) {
+  initLiveActorStyles();
   const g = snapshot?.grade ?? myGrade();
-  const F = { ...agedFace(snapshot?.face ?? cmdr.face, Math.max(g, 9)), bare: true, civ: true };
+  const F = { ...agedFace(snapshot?.face ?? cmdr.face, Math.max(g, 9)), bare: true, civ: true, live: snapshot?.live ?? "self-actor" };
   const uid = `minp-${faceN++}`;
   const us = isUS();
   const H = square ? 240 : 300;
@@ -1161,8 +1178,9 @@ function ministerPortraitHTML(snapshot = null, square = false) {
   </svg>`;
 }
 function presidentPortraitHTML(snapshot = null, square = false) {
+  initLiveActorStyles();
   const g = snapshot?.grade ?? myGrade();
-  const F = { ...agedFace(snapshot?.face ?? cmdr.face, Math.max(g, 10)), bare: true, civ: true };
+  const F = { ...agedFace(snapshot?.face ?? cmdr.face, Math.max(g, 10)), bare: true, civ: true, live: snapshot?.live ?? "self-actor" };
   const uid = `presp-${faceN++}`;
   const us = isUS();
   const H = square ? 240 : 300;
@@ -1807,7 +1825,7 @@ function renderRecord() { /* 인사기록: 좌측 고정 프로필 + 우측 4개
   const recSubTitle = usPotusOn() ? `Commander-in-Chief · ${usPresTitle()} · Retired ${rl.name}` : usIsPotus() ? `${usPresTitle()} · Retired ${rl.name}` : career.minister ? (!isUS() && potusOn() ? `국군통수권자 · ${potusTitle().replace("대통령 · ", "")} · 전 국방부장관` : !isUS() && isPotus() ? `${potusTitle()} · 예비역 ${rl.name}` : civil() ? `전 ${mTitle} · 예비역 ${rl.name}` : mTitle) : `${postLabel(postOf(rl.r))}${staff.branch ? ` · ${(BR[br] || BRANCHES.sea).n} 보직` : ""}`;
   const isMinView = !isCivView && !!career.minister;
   let h = `<div class="mi"><div class="mi-l">`
-    + `<div class="mi-por-w">${isAnyPres ? `<div class="mi-por minp">${presidentPortraitHTML(null, true)}</div>` : isCivView ? `<div class="mi-por civp">${face({ ...agedFace(cmdr.face, myGrade()), civ: true, bg: "#2b3446" }, 280)}${presMarkImg}</div>` : isMinView ? `<div class="mi-por minp">${ministerPortraitHTML(null, true)}</div>` : portraitHTML(career.finalUniform?.grade ?? rl.r, career.finalUniform)}</div><p class="uniform-caption">${usIsPotus() ? `${usPresTitle()} · The White House` : isAnyPres ? `대한민국 대통령 · ${escapeTitle(cmdr.name)}` : isMinView ? `${mTitle} · ${escapeTitle(cmdr.name)}` : career.finalUniform ? `${rankLabel(career.finalUniform.grade)} · ${postLabel(career.finalUniform.title)} · ${career.finalUniform.date}` : `${rankLabel(rl.r)} · ${postLabel(postOf(rl.r))} · ${careerDate(dd.week)}`}</p><div class="mi-card"><div><div class="mi-rk">${badge(rl.r, 22)}<b>${recRankTitle}</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${recSubTitle}</div><div style="font-size:11px;color:#9fc5e2;margin-top:3px">임관 출신 · ${originBadgeLabel()}</div><button data-act="pvcomm" style="margin-top:6px;padding:4px 9px;font-size:11px;border-radius:4px;background:rgba(242,202,92,.14);border:1px solid rgba(242,202,92,.45);color:#ffe082;cursor:pointer;font-weight:700">🎖️ 초임 소위 임관장 · 선서문 보기</button></div></div>`
+    + `<div class="mi-por-w">${isAnyPres ? `<div class="mi-por minp">${presidentPortraitHTML(null, true)}</div>` : isCivView ? `<div class="mi-por civp">${face({ ...agedFace(cmdr.face, myGrade()), civ: true, bg: "#2b3446", live: "self-actor" }, 280)}${presMarkImg}</div>` : isMinView ? `<div class="mi-por minp">${ministerPortraitHTML(null, true)}</div>` : portraitHTML(career.finalUniform?.grade ?? rl.r, career.finalUniform)}</div><p class="uniform-caption">${usIsPotus() ? `${usPresTitle()} · The White House` : isAnyPres ? `대한민국 대통령 · ${escapeTitle(cmdr.name)}` : isMinView ? `${mTitle} · ${escapeTitle(cmdr.name)}` : career.finalUniform ? `${rankLabel(career.finalUniform.grade)} · ${postLabel(career.finalUniform.title)} · ${career.finalUniform.date}` : `${rankLabel(rl.r)} · ${postLabel(postOf(rl.r))} · ${careerDate(dd.week)}`}</p><div class="mi-card"><div><div class="mi-rk">${badge(rl.r, 22)}<b>${recRankTitle}</b></div><div class="mi-nm">${cmdr.name}</div><div class="mi-t">${recSubTitle}</div><div style="font-size:11px;color:#9fc5e2;margin-top:3px">임관 출신 · ${originBadgeLabel()}</div><div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"><button data-act="pvcomm" style="padding:4px 9px;font-size:11px;border-radius:4px;background:rgba(242,202,92,.14);border:1px solid rgba(242,202,92,.45);color:#ffe082;cursor:pointer;font-weight:700">🎖️ 초임 소위 임관장 · 선서문 보기</button><button data-act="pvlive" style="padding:4px 9px;font-size:11px;border-radius:4px;background:rgba(96,165,250,.16);border:1px solid rgba(96,165,250,.5);color:#bfdbfe;cursor:pointer;font-weight:700">🎭 내 캐릭터 라이브 모션 테스트</button></div></div></div>`
     + cameoBannerHTML()
     + (isCivView || career.minister ? `<p class="mi-note">${usPotusOn() ? "O-1 임관에서 미합중국 대통령까지 — 집무실 탭에서 백악관 국정을 운영합니다" : usIsPotus() ? "미합중국 대통령 임기를 명예롭게 마쳤습니다" : !isUS() && potusOn() ? "소위 임관에서 대통령까지 — 집무실 탭에서 국정을 운영합니다" : !isUS() && isPotus() ? "대통령 임기를 마쳤습니다" : civil() ? `${mTitle} 임기를 마치고 민간인이 되었습니다` : `전역 후 ${mTitle}으로 임명되어 호봉·진급이 없습니다`}</p>` : `<div class="mi-bar"><span>다음 호봉</span><div class="hbar"><i style="width:${Math.max(2, stepPct).toFixed(0)}%"></i></div></div><div class="mi-bar"><span>${rl.next ? `${rl.next} 진급` : "최고 계급"}</span><div class="hbar"><i style="width:${(rl.pct * 100).toFixed(0)}%;background:var(--gold)"></i></div><small>${rl.next ? `${fmt(rl.need - profile.xp)} XP 남음` : ""}</small></div>`)
     + ((isCivView || isMinView) && career.finalUniform ? `<details class="final-uniform"><summary>마지막 정복 초상 · ${postLabel(career.finalUniform.title)}</summary>${portraitHTML(career.finalUniform.grade, career.finalUniform)}</details>` : "")
@@ -2618,6 +2636,22 @@ $("#recordP").addEventListener("click", (e) => {
   }
   if (e.target.closest('[data-act="minister"]') && (myGrade() >= 9 || (career.discharged?.g ?? 0) >= 9) && ministerOk(career.discharged?.g ?? myGrade()) && !career.minister) { career.minister = true; openHQ("min"); ministerOrder(); return; }
   if (e.target.closest('[data-act="pvcomm"]')) { commissionOrder(true); return; }
+  if (e.target.closest('[data-act="pvlive"]')) {
+    const rl = rankLine(), svk = serviceOf(staff.branch);
+    openLiveActorPreview({
+      name: cmdr.name,
+      rankTitle: `${rankLabel(rl.r, svk)} · ${postLabel(postOf(rl.r))}`,
+      getPortraitHTML: (outfit, size, moodCls) => {
+        const g = outfit === "president" ? Math.max(rl.r, 10) : outfit === "minister" ? Math.max(rl.r, 9) : rl.r;
+        const civ = outfit !== "uniform";
+        const bg = outfit === "president" ? "#1a2538" : outfit === "minister" ? "#202b3b" : undefined;
+        return face({ ...agedFace(cmdr.face, g), svc: svk, civ, bg, live: moodCls }, size);
+      },
+      onSpeakSample: () => { initAudio(); playVO(promoVoForGrade(myGrade()) || 2); },
+      onClose: () => stopVO(),
+    });
+    return;
+  }
   if (e.target.closest('[data-act="pvinquiry"]') && profile.admin) { launchSpecialHearing(true); return; }
   if (e.target.closest('[data-act="pvmarshal"]') && profile.admin) { marshalOrder(true); return; }
   if (e.target.closest('[data-act="pvprescert"]') && profile.admin) { presidentOrder(true); return; }

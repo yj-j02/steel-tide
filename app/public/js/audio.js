@@ -637,6 +637,7 @@ export function stopVO() {
     el.onerror = null;
     try { el.pause(); el.currentTime = 0; } catch {}
   }
+  if (typeof document !== "undefined") document.body?.classList.remove("vo-speaking");
   if (voRestore) {
     const fn = voRestore;
     voRestore = null;
@@ -670,7 +671,10 @@ export function playVO(num, { delayMs = 0, nextVo = null } = {}) {
     const finish = (allowChain) => {
       restoreGain();
       if (voRestore === restoreGain) voRestore = null;
-      if (voEl === el) voEl = null;
+      if (voEl === el) {
+        voEl = null;
+        if (typeof document !== "undefined") document.body?.classList.remove("vo-speaking");
+      }
       el.onended = null;
       el.onerror = null;
       if (allowChain && nextVo && mySeq === voSeq && !A.muted && A.voOn) {
@@ -682,7 +686,9 @@ export function playVO(num, { delayMs = 0, nextVo = null } = {}) {
     el.play().then(() => {
       if (mySeq !== voSeq || !A.voOn || A.muted) {
         try { el.pause(); el.currentTime = 0; } catch {}
+        return;
       }
+      if (typeof document !== "undefined") document.body?.classList.add("vo-speaking");
     }).catch(() => finish(false));
   };
   if (delayMs > 0) voTimer = setTimeout(start, delayMs);
