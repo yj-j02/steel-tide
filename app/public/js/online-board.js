@@ -179,10 +179,10 @@ export async function syncLeaderboardScore(entry, { force = false } = {}) {
   }
 }
 
-export async function fetchLeaderboard({ force = false } = {}) {
+export async function fetchLeaderboard({ force = false, requireFresh = false } = {}) {
   if (typeof window === "undefined") return [];
   const now = Date.now();
-  if (!force && cachedRows.length && now - lastFetchAt < 12000) return cachedRows;
+  if (!force && !requireFresh && cachedRows.length && now - lastFetchAt < 12000) return cachedRows;
   try {
     const sb = await getClient();
     if (sb) {
@@ -208,5 +208,5 @@ export async function fetchLeaderboard({ force = false } = {}) {
       notify();
     }
   } catch {}
-  return cachedRows;
+  return requireFresh ? null : cachedRows;
 }
