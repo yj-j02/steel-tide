@@ -87,19 +87,37 @@ export async function syncLeaderboardScore(entry, { force = false } = {}) {
   const hash = JSON.stringify([
     entry.player_id, entry.nation, entry.service, entry.name,
     entry.grade, entry.xp, entry.wins, entry.battles, entry.medals,
-    entry.ending_title, entry.chapter,
+    entry.ending_title, entry.chapter, entry.board_avg, entry.promo_week,
+    entry.approval, entry.hardcore,
   ]);
   if (!force && hash === lastSyncHash) return true;
   lastSyncHash = hash;
 
   const payload = { ...entry, updated_at: new Date().toISOString() };
+  const basePayload = {
+    player_id: entry.player_id,
+    nation: entry.nation,
+    service: entry.service,
+    name: entry.name,
+    grade: entry.grade,
+    rank_name: entry.rank_name,
+    xp: entry.xp,
+    wins: entry.wins,
+    battles: entry.battles,
+    medals: entry.medals,
+    ending_title: entry.ending_title,
+    chapter: entry.chapter,
+    updated_at: payload.updated_at,
+  };
   try {
     const sb = await getClient();
     if (sb) {
       const { error } = await sb.from("leaderboard").upsert(payload, { onConflict: "player_id" });
       if (!error) return true;
+      const { error: err2 } = await sb.from("leaderboard").upsert(basePayload, { onConflict: "player_id" });
+      if (!err2) return true;
     }
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/leaderboard?on_conflict=player_id`, {
+    const post = (body) => fetch(`${SUPABASE_URL}/rest/v1/leaderboard?on_conflict=player_id`, {
       method: "POST",
       headers: {
         apikey: SUPABASE_KEY,
@@ -107,9 +125,15 @@ export async function syncLeaderboardScore(entry, { force = false } = {}) {
         "Content-Type": "application/json",
         Prefer: "resolution=merge-duplicates",
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     });
-    return res.ok;
+    const res = await post(payload);
+    if (res.ok) return true;
+    if (res.status === 400) {
+      const res2 = await post(basePayload);
+      return res2.ok;
+    }
+    return false;
   } catch {
     return false;
   }
