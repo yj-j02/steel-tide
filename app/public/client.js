@@ -5,7 +5,7 @@ import { careerStorage, characters, activeCharacterId, createCharacter, selectCh
 import { calendarLabel, careerDate, careerMonths, rankMonths, serviceDuration } from "./js/service-calendar.js";
 import { openingEvent } from "./js/army-opening.js";
 import { initLiveActorStyles, openLiveActorPreview, fullBodyActorHTML } from "./js/live-actor.js";
-import { startPresence, updatePresence, syncLeaderboardScore, fetchLeaderboard, onOnlineBoardUpdate, getOnlineState } from "./js/online-board.js";
+import { claimNickname, nicknameKey, startPresence, updatePresence, syncLeaderboardScore, fetchLeaderboard, onOnlineBoardUpdate, getOnlineState } from "./js/online-board.js";
 import { automaticCaptain, boardCard, preview as boardPreview, settle, hint, interact } from "./js/promotion-board.js";
 /**
  * Steel Tide — game flow: missions and battles, the shipyard and the commander's rank,
@@ -466,16 +466,37 @@ function face(i, s = 64) {
   return o + `</svg>`;
 }
 let goalMk = null; /* destination beacon (see goalBeacon) */
-let cmdr = { name: "", face: 0 }; try { const c = JSON.parse(careerStorage.getItem("steeltide:cmdr") || "null"); if (c && c.name) cmdr = { name: String(c.name).slice(0, 12), face: clamp(c.face | 0, 0, 3) }; } catch {}
+let cmdr = { name: "", face: 0 }; try { const c = JSON.parse(careerStorage.getItem("steeltide:cmdr") || "null"); if (c && c.name) cmdr = { rankId:c.rankId, name: String(c.name).slice(0, 12), face: clamp(c.face | 0, 0, 3) }; } catch {}
 const cmdrSet = !!cmdr.name; if (!cmdr.name) cmdr.name = "무명";
 let cmdrDraft = cmdr.face;
 function renderCmdr() {
   $("#cmdrFaces").innerHTML = facePool().map((f, i) => `<button class="fc${i === cmdrDraft ? " on" : ""}" data-face="${i}">${face(agedFace(i, 0), 84)}<small>${f.n}</small></button>`).join("");
 }
 function openCmdr() { cmdrDraft = cmdr.face; $("#cmdrInput").value = cmdrSet || cmdr.name !== "무명" ? cmdr.name : ""; renderCmdr(); $("#cmdrErr").textContent = ""; $("#cmdrM").style.display = "grid"; setTimeout(() => $("#cmdrInput").focus(), 30); }
-function saveCmdr() {
+let nameRequestPending = false;
+async function registerName(name, record, previousId = null) {
+  if (previousId) {
+    const saved = JSON.parse(careerStorage.getItem("steeltide:cmdr") || "null");
+    if (saved && (saved.rankId !== cmdr.rankId || saved.name !== cmdr.name)) return {error:"다른 탭에서 이름이 바뀌었습니다. 새로고침 후 다시 시도하세요."};
+  }
+  const taken = characters().some(slot => !slot.archived && (!previousId || slot.id !== activeCharacterId()) && nicknameKey(slot.commander.name || "") === nicknameKey(name));
+  if (taken) return {error:"이미 사용 중인 닉네임입니다. 다른 이름을 입력하세요."};
+  if (nameRequestPending) return {error:"닉네임 확인 중입니다."};
+  nameRequestPending = true;
+  try { return await claimNickname({...record, name}, previousId); }
+  finally { nameRequestPending = false; }
+}
+async function saveCmdr() {
   const n = $("#cmdrInput").value.trim(); if (!n) { $("#cmdrErr").textContent = "이름을 입력하세요"; return; } if (n.length > 12) { $("#cmdrErr").textContent = "12자 이내로 입력하세요"; return; }
-  cmdr = { name: n, face: cmdrDraft }; try { careerStorage.setItem("steeltide:cmdr", JSON.stringify(cmdr)); } catch {}
+  let rankId = cmdr.rankId;
+  if (n !== cmdr.name || !cmdrSet && !rankId) {
+    const { player_id, nation, service, grade, rank_name, xp, wins, battles, medals, ending_title, chapter } = currentOnlineRecord();
+    $("#cmdrErr").textContent = "닉네임 확인 중…";
+    const result = await registerName(n, {nation, service, grade, rank_name, xp, wins, battles, medals, ending_title, chapter}, player_id);
+    if (result.error) { $("#cmdrErr").textContent = result.error; return; }
+    rankId = result.id;
+  }
+  cmdr = { name: n, rankId, face: cmdrDraft }; try { careerStorage.setItem("steeltide:cmdr", JSON.stringify(cmdr)); } catch {}
   $("#cmdrM").style.display = "none"; sfx.click(); refreshMenus();
   if (screen === "record") renderRecord();
   if (screen === "hq") renderHQ();
@@ -1817,7 +1838,7 @@ function currentOnlineRecord() {
   const chap = career.discharged ? "예비역 전역" : (!isUS() && potusOn()) ? "대통령 재임" : usPotusOn() ? "U.S. President" : career.minister ? (isUS() ? "SecDef" : "국방부장관") : "현역 복무";
   const promoEntry = (career.log || []).findLast((e) => e.g === g);
   return {
-    player_id: `${myId}:${activeCharacterId() || "main"}`,
+    player_id: cmdr.rankId || `${myId}:${activeCharacterId() || "main"}`,
     nation: isUS() ? "us" : "kr",
     service: svk,
     name: cmdr.name || "지휘관",
@@ -1859,7 +1880,7 @@ function rankSorted(rows) {
 
 function globalRankHTML() {
   const { onlinePlayers, rows } = getOnlineState();
-  const myPid = `${myId}:${activeCharacterId() || "main"}`;
+  const myPid = cmdr.rankId || `${myId}:${activeCharacterId() || "main"}`;
   const onlineList = onlinePlayers.length
     ? onlinePlayers.map((p) => `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);color:#a7f3d0;font-size:11px">${p.nation === "us" ? "🇺🇸" : "🇰🇷"} <b>${escapeTitle(p.name || "지휘관")}</b> <small style="opacity:.8">${escapeTitle(p.rank_name || "")}</small></span>`).join("")
     : `<span style="font-size:11.5px;color:#8ea4b8">실시간 접속 정보를 불러오는 중...</span>`;
@@ -2691,7 +2712,8 @@ function openTitleHub(enlist = false, nation = isUS() ? "us" : "kr") {
   renderTitleHub();
   showcase(flagshipId());
 }
-$("#titleHub")?.addEventListener("click", (e) => {
+$("#titleHub")?.addEventListener("click", async (e) => {
+  if (nameRequestPending) return;
   const b = e.target.closest("[data-th]"); if (!b) return;
   sfx.click(); const a = b.dataset.th;
   function reloadCharacter(enter) {
@@ -2740,10 +2762,18 @@ $("#titleHub")?.addEventListener("click", (e) => {
     const routes = commissionRoutes(thNation === "us", thBr, thSvc);
     const route = routes.find(entry => entry.id === thRoute) ?? routes[0];
     const hParent = ($("#thHeritage")?.value || "").trim();
+    if (characters().filter(slot => !slot.archived).length >= 10) { toast("플레이 슬롯 10개가 모두 사용 중입니다"); return; }
+    b.disabled = true;
+    const input = $("#thName");
+    input.readOnly = true;
+    const result = await registerName(name, {nation:thNation, service:thSvc, grade:0, rank_name:thNation === "us" ? usRankName(0, thSvc) : "소위", xp:0, wins:0, battles:0, medals:0, ending_title:"", chapter:"현역 복무"});
+    input.readOnly = false;
+    b.disabled = false;
+    if (result.error) { input.setCustomValidity(result.error); input.reportValidity(); input.setCustomValidity(""); input.focus(); return; }
     const created = createCharacter(thNation, {
       "steeltide:career": {log:[], serviceContract: contractFor(route), justCommissioned: true, ...(hParent ? { heritageParent: hParent } : {})},
       [CACHE]: { ...econNewProfile(), admin: !!profile.admin },
-      "steeltide:cmdr": { name: name.slice(0, 12), face: thFace },
+      "steeltide:cmdr": { name, rankId:result.id, face: thFace },
       "steeltide:staff": { branch: thBr, service: thSvc, nation: thNation, a: {}, byE: {}, x: {}, e: 0 },
     });
     if (created) reloadCharacter(true);
