@@ -1991,7 +1991,11 @@ function renderRecord() { /* 인사기록: 좌측 고정 프로필 + 우측 4개
     + `</div><div class="mi-r">${recTabsHTML}${rBody}</div></div>`;
   $("#recordP").innerHTML = h;
 }
-function setTab(t) { for (const [id, k] of [["#tabPort", "menu"], ["#yardBtn", "yard"], ["#tabRecord", "record"], ["#tabHQ", "hq"], ["#tabOrg", "org"]]) $(id)?.classList.toggle("on", k === t); }
+function setTab(t) {
+  for (const [id, k] of [["#tabPort", "menu"], ["#yardBtn", "yard"], ["#tabHQ", "hq"], ["#tabOrg", "org"]]) $(id)?.classList.toggle("on", k === t);
+  $("#tabRecord")?.classList.toggle("on", t === "record" && recTab !== "global");
+  $("#tabRank")?.classList.toggle("on", t === "record" && recTab === "global");
+}
 // ── fleet headquarters (modern staff) ───────────────────────────────────────
 let hqRole = "ops";
 const pctTxt = (k, inv) => { const v = Math.round((k - 1) * 100) * (inv ? -1 : 1); return `${v > 0 ? "+" : v < 0 ? "−" : "±"}${Math.abs(v)}%`; };
@@ -3308,7 +3312,13 @@ $("#hqP").addEventListener("click", (e) => {
   const br = e.target.closest("[data-branch]"); if (br) { sfx.click(); const had = career.seen != null; if (!had) hqView = "duty"; setBranch(br.dataset.branch); svcDraft = null; showcase(flagshipId()); if (had) logPromotion({ g: myGrade(), t: careerTitle(myGrade()), b: BRANCHES[br.dataset.branch].n, why: "보직 변경" }); else careerInit(myGrade(), careerTitle(myGrade()), BRANCHES[br.dataset.branch].n); refreshMenus(); renderHQ(); toast(`${BRANCHES[br.dataset.branch].n} 보직 — ${careerTitle(myGrade())}`); return; } if (e.target.closest("[data-rebranch]")) { sfx.click(); staff.branch = null; hqView = "duty"; usPresPreview = false; renderHQ(); return; } const r = e.target.closest("[data-role]"); if (r) { sfx.click(); hqRole = r.dataset.role; renderHQ(); return; } const a = e.target.closest("[data-appoint]"); if (a) { sfx.click(); appoint(hqRole, a.dataset.appoint); renderHQ(); toast(`${STAFF_ROLES.find((x) => x.k === hqRole).n} 임명 — ${officer(a.dataset.appoint).rk} ${officer(a.dataset.appoint).nm}`); } });
 $("#tabPort").addEventListener("click", () => { sfx.click(); openMenu(); });
 function openRecord() { initAudio(); bgm((career.minister || (!isUS() && isPotus()) || usIsPotus()) ? "state" : "menu"); hideAll(); screen = "record"; G.state = "menu"; setTab("record"); $("#topbar").style.display = "flex"; renderRecord(); $("#recordP").style.display = "block"; showcase(flagshipId()); }
-$("#tabRecord").addEventListener("click", () => { sfx.click(); openRecord(); });
+$("#tabRecord").addEventListener("click", () => { sfx.click(); if (recTab === "global") recTab = "log"; openRecord(); });
+$("#tabRank")?.addEventListener("click", () => {
+  sfx.click();
+  recTab = "global";
+  openRecord();
+  syncLeaderboardScore(currentOnlineRecord()).then(() => fetchLeaderboard({ force: true })).then(() => renderRecord());
+});
 function hideAll() { if (typeof md !== "undefined" && md.fly) { md.fly.pilot = false; md.fly = null; } document.body.classList.remove("jetfly"); jetSound(0); sel = []; $("#cmdrM").style.display = "none"; $("#titleHub")?.classList.remove("on"); capClear(); aa.on = false; aaGun.visible = false; paused = false; $("#pause").style.display = "none"; $("#start").style.display = "none"; $("#end").style.display = "none"; $("#yard").style.display = "none"; $("#recordP").style.display = "none"; $("#hqP").style.display = "none"; $("#promoM").style.display = "none"; document.body.classList.remove("playing", "flying", "auto", "firstp"); if (goalMk) goalMk.visible = false; }
 function openYard() { return openRecord(); }
 function openMenu() { G.kc = null; cicStop(); droneSound(0); setMapLook(theater); bgm("menu"); hideAll(); screen = "menu"; G.state = "menu"; setTab("menu"); $("#topbar").style.display = "flex"; $("#start").style.display = "block"; showcase(flagshipId()); refreshMenus(); }
