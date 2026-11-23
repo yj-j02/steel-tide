@@ -2,7 +2,7 @@ import { commissionRoutes, contractFor, serviceStatus, noteServiceNotice, applyS
 import { dutyHistory } from "./js/career-timeline.js";
 import { koreanPostName } from "./js/us-post-labels.js";
 import { careerStorage, characters, activeCharacterId, createCharacter, selectCharacter, removeCharacter } from "./js/characters.js";
-import { calendarLabel, careerDate, rankMonths, serviceDuration } from "./js/service-calendar.js";
+import { calendarLabel, careerDate, careerMonths, rankMonths, serviceDuration } from "./js/service-calendar.js";
 import { openingEvent } from "./js/army-opening.js";
 import { initLiveActorStyles, openLiveActorPreview, fullBodyActorHTML } from "./js/live-actor.js";
 import { startPresence, updatePresence, syncLeaderboardScore, fetchLeaderboard, onOnlineBoardUpdate, getOnlineState } from "./js/online-board.js";
