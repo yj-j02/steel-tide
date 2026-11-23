@@ -2303,7 +2303,7 @@ function renderDutyDesk() {
         </div>
         <button type="button" class="dm-st-btn" data-duty="retire_now" ${serviceTerms.obligationLeft ? "disabled" : ""} style="border-color:rgba(255,140,120,.35);color:#f2b8b0">${serviceTerms.obligationLeft ? "의무복무 이행 중" : retireArm ? "⚠ 한 번 더 클릭: 전역" : "🚪 전역 신청"}</button>
       </div>
-      <div class="dm-grid">
+      <div class="dm-grid-2">
         <div class="dm-main">${warroomCard ? `<span class="dm-pri-badge">🔥 최우선 긴급 결재 · 합동 워룸</span>` + warroomCard : crCard ? `<span class="dm-pri-badge">🔥 최우선 긴급 결재 · 안보 위기</span>` + crCard : arcCard ? `<span class="dm-pri-badge">📖 최우선 결재 · 계급 시그니처 스토리</span>` + arcCard : ""}${warroomCard ? crCard : ""}${warroomCard || crCard ? arcCard : ""}${rvEvCard}${evCards}${repCard}${hearingCardHTML(g, d.week || 1, career, isUS())}${overseasCardHTML(g, d.week || 1, career, svk, isUS())}${familyCardHTML(g, d.week || 1, career)}<div id="duty-promotion">${g < 9 ? reviewCard : marshalCardHTML(g)}</div>${g >= 9 ? reviewCard : ""}${minBtn}<details class="mn-card mn-fold"><summary><span>⭐ 계급 권한 안내${d.last ? " · 최근 결재 결과" : ""}</span><small style="color:#9fc0d8;font-weight:500">펼치기 ▾</small></summary>${tierAuthHTML(g)}${d.last ? `<div style="font-size:11.5px;color:#b8d0e2;margin-top:6px">최근 결과: ${d.last}</div>` : ""}</details></div>
         <aside class="dm-side">${globalThis.__careerProfileHTML()}${bossCard}${rivalsHTML}<div class="mn-card dm-news"><div class="mn-h">📰 군 내부 · 언론 헤드라인</div>${(d.headlines || []).slice(0, 7).map((h) => `<small>• ${h.replace(/^(\d+)주차 ·/, "안건 $1 ·")}</small>`).join("")}</div></aside>
       </div>
