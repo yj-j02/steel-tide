@@ -5,7 +5,7 @@ import { careerStorage, characters, activeCharacterId, createCharacter, selectCh
 import { calendarLabel, careerDate, careerMonths, rankMonths, serviceDuration } from "./js/service-calendar.js";
 import { openingEvent } from "./js/army-opening.js";
 import { initLiveActorStyles, openLiveActorPreview, fullBodyActorHTML } from "./js/live-actor.js";
-import { startPresence, updatePresence, syncLeaderboardScore, fetchLeaderboard, onOnlineBoardUpdate, getOnlineState } from "./js/online-board.js";
+import { startPresence, updatePresence, syncLeaderboardScore, fetchLeaderboard, onOnlineBoardUpdate, getOnlineState, isExcludedLeaderboardName, isNameTaken } from "./js/online-board.js";
 import { automaticCaptain, boardCard, preview as boardPreview, settle, hint, interact } from "./js/promotion-board.js";
 /**
  * Steel Tide — game flow: missions and battles, the shipyard and the commander's rank,
@@ -473,8 +473,19 @@ function renderCmdr() {
   $("#cmdrFaces").innerHTML = facePool().map((f, i) => `<button class="fc${i === cmdrDraft ? " on" : ""}" data-face="${i}">${face(agedFace(i, 0), 84)}<small>${f.n}</small></button>`).join("");
 }
 function openCmdr() { cmdrDraft = cmdr.face; $("#cmdrInput").value = cmdrSet || cmdr.name !== "무명" ? cmdr.name : ""; renderCmdr(); $("#cmdrErr").textContent = ""; $("#cmdrM").style.display = "grid"; setTimeout(() => $("#cmdrInput").focus(), 30); }
-function saveCmdr() {
+async function saveCmdr() {
   const n = $("#cmdrInput").value.trim(); if (!n) { $("#cmdrErr").textContent = "이름을 입력하세요"; return; } if (n.length > 12) { $("#cmdrErr").textContent = "12자 이내로 입력하세요"; return; }
+  const okBtn = $("#cmdrOk");
+  if (okBtn) okBtn.disabled = true;
+  const myPid = `${myId}:${activeCharacterId() || "main"}`;
+  try {
+    if (await isNameTaken(n, myPid)) {
+      $("#cmdrErr").textContent = "이미 사용 중인 이름입니다. 다른 이름을 입력하세요.";
+      return;
+    }
+  } finally {
+    if (okBtn) okBtn.disabled = false;
+  }
   cmdr = { name: n, face: cmdrDraft }; try { careerStorage.setItem("steeltide:cmdr", JSON.stringify(cmdr)); } catch {}
   $("#cmdrM").style.display = "none"; sfx.click(); refreshMenus();
   if (screen === "record") renderRecord();
@@ -1847,7 +1858,7 @@ const RANK_CATS = [
 ];
 
 function rankSorted(rows) {
-  let list = (rows || []).filter((r) => r?.name && r.name !== "무명");
+  let list = (rows || []).filter((r) => !isExcludedLeaderboardName(r?.name));
   if (globalFilter !== "all") list = list.filter((r) => r.nation === globalFilter);
   if (globalHardcoreOnly) list = list.filter((r) => r.hardcore);
   const bavg = (r) => Number(r.board_avg || 0), pw = (r) => Number(r.promo_week || 9999);
@@ -1856,7 +1867,13 @@ function rankSorted(rows) {
   else if (globalSort === "pres") list = list.filter((r) => Number(r.approval || 0) > 0).sort((a, b) => b.approval - a.approval || bavg(b) - bavg(a));
   else if (globalSort === "medals") list.sort((a, b) => b.medals - a.medals || b.grade - a.grade || bavg(b) - bavg(a));
   else list.sort((a, b) => b.grade - a.grade || bavg(b) - bavg(a) || pw(a) - pw(b) || b.xp - a.xp);
-  return list;
+  const seen = new Set();
+  return list.filter((r) => {
+    const k = String(r.name || "").trim().toLowerCase();
+    if (!k || seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
 }
 
 function globalRankHTML() {
@@ -2659,7 +2676,7 @@ function renderTitleHub() {
   const fList = facePool(us);
   const routes = commissionRoutes(us, thBr, thSvc);
   if (!routes.some(route => route.id === thRoute)) thRoute = routes[0].id;
-  const defNm = thName || (us ? "James Vance" : "김태훈");
+  const defNm = thName || "";
   el.innerHTML = `<div class="th-card" data-enlist-nation="${thNation}">
     <div class="th-kicker">${us ? "OFFICER COMMISSIONING · SELECT YOUR SERVICE" : "신임 장교 임관 · 군종 및 병과 선택"}</div>
     <h1 class="th-title">THE GENERAL</h1>
@@ -2696,7 +2713,7 @@ function openTitleHub(enlist = false, nation = isUS() ? "us" : "kr") {
   renderTitleHub();
   showcase(flagshipId());
 }
-$("#titleHub")?.addEventListener("click", (e) => {
+$("#titleHub")?.addEventListener("click", async (e) => {
   const b = e.target.closest("[data-th]"); if (!b) return;
   sfx.click(); const a = b.dataset.th;
   function reloadCharacter(enter) {
@@ -2741,7 +2758,18 @@ $("#titleHub")?.addEventListener("click", (e) => {
   if (a === "new") { thEnlist = true; thSvc = "army"; thName = ""; renderTitleHub(); return; }
   if (a === "back") { thEnlist = false; renderTitleHub(); return; }
   if (a === "enlist") {
-    const name = thName.replace(/[<>&"`]/g, "").trim() || (thNation === "us" ? "James Vance" : "김태훈");
+    const name = thName.replace(/[<>&"`]/g, "").trim();
+    if (!name) { toast("지휘관 이름을 입력하세요", 2.5); $("#thName")?.focus(); return; }
+    b.disabled = true;
+    try {
+      if (await isNameTaken(name, "")) {
+        toast("이미 사용 중인 이름입니다. 다른 이름을 입력하세요.", 3);
+        $("#thName")?.focus();
+        return;
+      }
+    } finally {
+      b.disabled = false;
+    }
     const routes = commissionRoutes(thNation === "us", thBr, thSvc);
     const route = routes.find(entry => entry.id === thRoute) ?? routes[0];
     const hParent = ($("#thHeritage")?.value || "").trim();
