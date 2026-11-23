@@ -19,7 +19,7 @@ export function commissionRoutes(us, branch, service) {
   }
   const standard = [
     {id:"academy", title:"사관학교 · 장기복무 (진급 우대)", years:10},
-    {id:"short", title:"학사장교·사관후보생 · 단기복무 (진급 난이도 ↑↑)", years:3},
+    {id:"short", title:"학사장교·사관후보생 · 단기복무 (진급 난이도 ↑↑)", years:4},
   ];
   if (service === "army") standard.push({id:"army3", title:"육군3사관학교 · 단기복무 (진급 난이도 ↑)", years:6});
   if (flight) standard.unshift(
@@ -84,7 +84,7 @@ export function serviceStatus({us, grade, turn, service, branch, rep = 0, averag
       add(approved?.until ?? end, approved ? "연장된 계급정년" : "장성 계급정년", 8, !approved ?
         {action:"defer", label:"장성 계급정년 연장 심의", until:end + YEAR, section:8} : null);
     }
-    if (contract.short && grade < 3) add(contract.obligation, "단기복무 기간 만료", 36, {
+    if (contract.short && grade === 2) add(contract.obligation, "단기복무 기간 만료", 36, {
       action:"short", label:"단기복무 1년 연장 전형", until:contract.obligation + YEAR, section:6,
     });
   }

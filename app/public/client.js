@@ -2293,6 +2293,13 @@ function renderDutyDesk() {
         </div>
         ${serviceTerms.obligationLeft ? `<span class="dm-chip" title="의무복무 잔여">⏳ ${serviceTerms.obligationLeft}</span>` : `<span class="dm-chip">✔ 장기/전역 가능</span>`}
       </div>
+      ${(serviceTerms.longTermWindow || serviceTerms.extension || serviceTerms.earlyWindow) ? `<div class="dm-status-strip" style="border-color:rgba(242,202,92,.45);background:rgba(48,36,12,.35)">
+        <div class="dm-chips">
+          ${serviceTerms.longTermWindow ? `<span class="dm-chip hot">⭐ 장기복무 선발 전형 가능 (평판 ${serviceTerms.longTermReq.rep}+ · 평정 ${serviceTerms.longTermReq.avg}+)</span><button type="button" class="dm-st-btn" data-duty="service:longterm" style="border-color:#f2ca5c;color:#fde68a">⭐ 장기복무 지원</button>` : ""}
+          ${serviceTerms.extension ? `<button type="button" class="dm-st-btn" data-duty="service:${serviceTerms.extension.action}">${serviceTerms.extension.label}</button>` : ""}
+          ${serviceTerms.earlyWindow ? `<button type="button" class="dm-st-btn" data-duty="service:early">임용 5년 경과 · 전역 지원</button>` : ""}
+        </div>
+      </div>` : ""}
       <div class="dm-toolbar">
         <div class="dm-stances">
           <span>지휘 방침</span>
@@ -4045,7 +4052,29 @@ $("#againBtn").addEventListener("click", () => start(G.auto)); $("#endYardBtn").
 $("#takeBtn").addEventListener("click", takeOver); $("#spdBtns").addEventListener("click", (e) => { const b = e.target.closest("[data-spd]"); if (b) { e.stopPropagation(); setAutoSpeed(+b.dataset.spd); } }); $("#autoModeBtn").addEventListener("click", (e) => { e.stopPropagation(); toAuto(); });
 for (const k of ["sfx", "music"]) { const el = $("#vol_" + k); el.value = A.vol?.[k] ?? el.value; el.addEventListener("input", () => setVolume(k, +el.value)); }
 $("#bgmOn").checked = A.bgmOn; $("#bgmOn").addEventListener("change", (e) => { initAudio(); setBgmOn(e.target.checked); });
-if ($("#voOn")) { $("#voOn").checked = A.voOn; $("#voOn").addEventListener("change", (e) => { initAudio(); setVoOn(e.target.checked); }); }
+function syncVoQuickBtn() {
+  const b = $("#voQuickBtn");
+  if (!b) return;
+  b.textContent = A.voOn ? "🔊 나레이션 ON" : "🔇 나레이션 OFF";
+  b.style.borderColor = A.voOn ? "rgba(148,163,184,.38)" : "rgba(239,68,68,.55)";
+  b.style.color = A.voOn ? "#e2e8f0" : "#fca5a5";
+  b.style.background = A.voOn ? "rgba(148,163,184,.12)" : "rgba(239,68,68,.14)";
+}
+if ($("#voOn")) {
+  $("#voOn").checked = A.voOn;
+  $("#voOn").addEventListener("change", (e) => { initAudio(); setVoOn(e.target.checked); syncVoQuickBtn(); });
+}
+if ($("#voQuickBtn")) {
+  syncVoQuickBtn();
+  $("#voQuickBtn").addEventListener("click", () => {
+    initAudio();
+    const next = !A.voOn;
+    setVoOn(next);
+    if ($("#voOn")) $("#voOn").checked = next;
+    syncVoQuickBtn();
+    toast(next ? "🔊 나레이션을 켰습니다" : "🔇 나레이션을 껐습니다", 1.8);
+  });
+}
 let glassOn = true; try { glassOn = careerStorage.getItem("steeltide:glass") !== "0"; } catch {} document.body.classList.toggle("noglass", !glassOn); $("#glassOn").checked = glassOn;
 $("#postOn").checked = post.on; $("#postOn").addEventListener("change", (e) => { post.on = e.target.checked; try { careerStorage.setItem("steeltide:post", post.on ? "1" : "0"); } catch {} });
 $("#glassOn").addEventListener("change", (e) => { glassOn = e.target.checked; document.body.classList.toggle("noglass", !glassOn); try { careerStorage.setItem("steeltide:glass", glassOn ? "1" : "0"); } catch {} });

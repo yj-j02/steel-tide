@@ -15,13 +15,14 @@ const status = (grade, rankWeeks, record = {}, us = false, service = "army") =>
   });
 
 const short = contractFor(commissionRoutes(false, "eng", "army")[1]);
-const shortEnd = status(1, { 0: 10, 1: 8 }, { serviceContract: short });
-assert.equal(shortEnd.elapsed, 36);
+assert.equal(status(1, { 0: 10, 1: 8 }, { serviceContract: short }).due, false);
+const shortEnd = status(2, { 0: 10, 1: 10, 2: 2 }, { serviceContract: short });
+assert.equal(shortEnd.elapsed, 48);
 assert.equal(shortEnd.due, true);
-assert.equal(shortEnd.extension.until, 48);
-assert.ok(applyServiceAction("short", shortEnd, 1, 16));
-assert.equal(career.serviceContract.obligation, 48);
-assert.equal(career.serviceContract.initialObligation, 36);
+assert.equal(shortEnd.extension.until, 60);
+assert.ok(applyServiceAction("short", shortEnd, 2, 22));
+assert.equal(career.serviceContract.obligation, 60);
+assert.equal(career.serviceContract.initialObligation, 48);
 assert.equal(shortEnd.longTermWindow, true);
 assert.equal(shortEnd.longTermQualifies, true);
 const ltRes = applyServiceAction("longterm", shortEnd, 1, 16);
