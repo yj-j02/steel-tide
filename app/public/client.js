@@ -1816,6 +1816,7 @@ function currentOnlineRecord() {
   const endT = usPotusOn() ? "미국 대통령" : (!isUS() && potusOn()) ? "대한민국 대통령" : career.minister ? minT : (career.discharged ? "예비역 전역" : "");
   const chap = career.discharged ? "예비역 전역" : (!isUS() && potusOn()) ? "대통령 재임" : usPotusOn() ? "U.S. President" : career.minister ? (isUS() ? "SecDef" : "국방부장관") : "현역 복무";
   const promoEntry = (career.log || []).findLast((e) => e.g === g);
+  const postTitle = usPotusOn() ? "미국 대통령" : (!isUS() && potusOn()) ? "대한민국 대통령" : career.minister ? minT : career.discharged?.title ? postLabel(career.discharged.title) : postLabel(postOf(g));
   return {
     player_id: `${myId}:${activeCharacterId() || "main"}`,
     nation: isUS() ? "us" : "kr",
@@ -1823,6 +1824,7 @@ function currentOnlineRecord() {
     name: cmdr.name || "지휘관",
     grade: g,
     rank_name: rankLabel(g, svk),
+    post_name: postTitle,
     xp: Math.round(profile.xp || 0),
     wins: profile.wins || 0,
     battles: profile.battles || 0,
@@ -1877,7 +1879,7 @@ function globalRankHTML() {
       <td style="padding:7px 8px;text-align:center;font-weight:800;color:${idx < 3 ? "#fde68a" : "#cbd5e1"}">${medalRank}</td>
       <td style="padding:7px 8px">${r.nation === "us" ? "🇺🇸" : "🇰🇷"} <span style="font-size:10.5px;color:#93c5fd">${svcBadge(r.service)}</span></td>
       <td style="padding:7px 8px;font-weight:700;color:${isMe ? "#fff4c2" : "#f1f5f9"}">${escapeTitle(r.name)}${isMe ? " <small style='color:#fde68a'>(나)</small>" : ""}${tags}</td>
-      <td style="padding:7px 8px;color:#e2e8f0">${escapeTitle(r.rank_name)}</td>
+      <td style="padding:7px 8px;color:#e2e8f0">${escapeTitle(r.rank_name)}${r.post_name ? `<div style="font-size:10.5px;color:#93c5fd;margin-top:1px">${escapeTitle(r.post_name)}</div>` : ""}</td>
       <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums;${hi("board")}">${Number(r.board_avg || 0) > 0 ? `${Number(r.board_avg).toFixed(1)}점` : "—"}</td>
       <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums;${hi("speed")}">${speed}</td>
       <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums;${hi("pres")}">${Number(r.approval || 0) > 0 ? `${r.approval}%` : "—"}</td>
@@ -1917,7 +1919,7 @@ function globalRankHTML() {
             <th style="padding:8px;text-align:center;width:46px">순위</th>
             <th style="padding:8px;width:72px">소속</th>
             <th style="padding:8px">지휘관</th>
-            <th style="padding:8px">계급</th>
+            <th style="padding:8px">계급 · 보직</th>
             <th style="padding:8px;text-align:right">심사 평균</th>
             <th style="padding:8px;text-align:right">도달 연차</th>
             <th style="padding:8px;text-align:right">지지율</th>

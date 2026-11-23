@@ -88,7 +88,7 @@ export async function syncLeaderboardScore(entry, { force = false } = {}) {
     entry.player_id, entry.nation, entry.service, entry.name,
     entry.grade, entry.xp, entry.wins, entry.battles, entry.medals,
     entry.ending_title, entry.chapter, entry.board_avg, entry.promo_week,
-    entry.approval, entry.hardcore,
+    entry.approval, entry.hardcore, entry.post_name,
   ]);
   if (!force && hash === lastSyncHash) return true;
   lastSyncHash = hash;
