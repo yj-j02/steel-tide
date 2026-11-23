@@ -2285,25 +2285,25 @@ function renderDutyDesk() {
         <div class="mt"><span>안보 긴장도</span><b class="${d.tension >= 65 ? "r" : "y"}">${d.tension}</b>${bar(d.tension, d.tension >= 65 ? "r" : "y")}</div>
         <button class="mn-next" data-duty="next" ${nextDisabled ? "disabled" : ""}>${nextDisabled ? "직무·보고 처리 필요" : `다음 안건 ▶ (Enter)`}</button>
       </div>
-      <div class="duty-overview">
-        <section class="mn-card"><h3>${date} 안건${agenda.length ? ` · ${agenda.length}건` : ""}</h3>
-          ${agenda.length ? `<ul>${agenda.map(([id, title]) => `<li><a href="#${id}">${title}</a></li>`).join("")}</ul>` : "<p>이번 단계 안건을 모두 처리했습니다.</p>"}
-        </section>
-        <section class="mn-card"><h3>다음 진급</h3><p>${promotionSummary}</p>
-          ${automaticCaptain(g) ? `<p>조건 충족 시 ${g === 0 ? "중위" : "대위"} 자동진급</p>` : g < 9 ? `<p>예상 심사 ${review.score} / ${review.cutoff}점</p>` : ""}
-          ${g < 10 ? `<a href="#duty-promotion">진급심사 상세 보기</a>` : ""}
-        </section>
+      <div class="dm-status-strip">
+        <div class="dm-chips">
+          <span class="dm-chip${agenda.length ? " hot" : ""}">📋 ${date} · ${agenda.length ? `결재 대기 ${agenda.length}건` : "이번 단계 결재 완료"}</span>
+          ${agenda.slice(0, 3).map(([id, title]) => `<a class="dm-chip" href="#${id}">${title}</a>`).join("")}
+          <a class="dm-chip" href="#duty-promotion">🎖️ ${promotionSummary}${!automaticCaptain(g) && g < 9 ? ` (${review.score}/${review.cutoff}점)` : ""}</a>
+        </div>
+        ${serviceTerms.obligationLeft ? `<span class="dm-chip" title="의무복무 잔여">⏳ ${serviceTerms.obligationLeft}</span>` : `<span class="dm-chip">✔ 장기/전역 가능</span>`}
       </div>
-      ${serviceRulesCard(serviceTerms)}
-      <div class="dm-grid">
-        <nav class="dm-nav">
-          <button class="dm-tab on" data-hqv="duty"><span>📋 복무 안건·위기</span>${agenda.length ? `<em>${agenda.length}</em>` : ""}</button>
-          <div class="dm-goals" style="margin-top:4px"><b>부대 지휘 방침</b>${Object.entries(STANCES).map(([sk, S]) => {
+      <div class="dm-toolbar">
+        <div class="dm-stances">
+          <span>지휘 방침</span>
+          ${Object.entries(STANCES).map(([sk, S]) => {
             const on = (d.stance || "bal") === sk;
-            return `<button class="dm-tab${on ? " on" : ""}" data-duty="stance:${sk}" style="width:100%;margin-top:4px;text-align:left;padding:6px 8px"><span>${S.n}</span><small style="display:block;font-size:10px;color:${on ? "#d8eef8" : "#88a4b6"};margin-top:2px">${S.d}</small></button>`;
-          }).join("")}</div>
-          <button class="dm-tab" data-duty="retire_now" ${serviceTerms.obligationLeft ? "disabled" : ""} style="margin-top:6px;border-color:rgba(255,140,120,.35);color:#f2b8b0"><span>${serviceTerms.obligationLeft ? "의무복무 이행 중" : retireArm ? "⚠ 한 번 더 클릭: 전역" : "🚪 전역 신청"}</span></button>
-        </nav>
+            return `<button type="button" class="dm-st-btn${on ? " on" : ""}" data-duty="stance:${sk}" title="${S.d}">${S.n}</button>`;
+          }).join("")}
+        </div>
+        <button type="button" class="dm-st-btn" data-duty="retire_now" ${serviceTerms.obligationLeft ? "disabled" : ""} style="border-color:rgba(255,140,120,.35);color:#f2b8b0">${serviceTerms.obligationLeft ? "의무복무 이행 중" : retireArm ? "⚠ 한 번 더 클릭: 전역" : "🚪 전역 신청"}</button>
+      </div>
+      <div class="dm-grid">
         <div class="dm-main">${warroomCard ? `<span class="dm-pri-badge">🔥 최우선 긴급 결재 · 합동 워룸</span>` + warroomCard : crCard ? `<span class="dm-pri-badge">🔥 최우선 긴급 결재 · 안보 위기</span>` + crCard : arcCard ? `<span class="dm-pri-badge">📖 최우선 결재 · 계급 시그니처 스토리</span>` + arcCard : ""}${warroomCard ? crCard : ""}${warroomCard || crCard ? arcCard : ""}${rvEvCard}${evCards}${repCard}${hearingCardHTML(g, d.week || 1, career, isUS())}${overseasCardHTML(g, d.week || 1, career, svk, isUS())}${familyCardHTML(g, d.week || 1, career)}<div id="duty-promotion">${g < 9 ? reviewCard : marshalCardHTML(g)}</div>${g >= 9 ? reviewCard : ""}${minBtn}<details class="mn-card mn-fold"><summary><span>⭐ 계급 권한 안내${d.last ? " · 최근 결재 결과" : ""}</span><small style="color:#9fc0d8;font-weight:500">펼치기 ▾</small></summary>${tierAuthHTML(g)}${d.last ? `<div style="font-size:11.5px;color:#b8d0e2;margin-top:6px">최근 결과: ${d.last}</div>` : ""}</details></div>
         <aside class="dm-side">${globalThis.__careerProfileHTML()}${bossCard}${rivalsHTML}<div class="mn-card dm-news"><div class="mn-h">📰 군 내부 · 언론 헤드라인</div>${(d.headlines || []).slice(0, 7).map((h) => `<small>• ${h.replace(/^(\d+)주차 ·/, "안건 $1 ·")}</small>`).join("")}</div></aside>
       </div>
