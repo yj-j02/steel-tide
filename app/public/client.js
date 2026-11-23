@@ -1847,7 +1847,7 @@ const RANK_CATS = [
 ];
 
 function rankSorted(rows) {
-  let list = (rows || []).slice();
+  let list = (rows || []).filter((r) => r?.name && r.name !== "무명");
   if (globalFilter !== "all") list = list.filter((r) => r.nation === globalFilter);
   if (globalHardcoreOnly) list = list.filter((r) => r.hardcore);
   const bavg = (r) => Number(r.board_avg || 0), pw = (r) => Number(r.promo_week || 9999);

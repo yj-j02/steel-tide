@@ -83,7 +83,7 @@ export async function updatePresence(myMeta) {
 }
 
 export async function syncLeaderboardScore(entry, { force = false } = {}) {
-  if (typeof window === "undefined" || !entry?.player_id || !entry?.name) return false;
+  if (typeof window === "undefined" || !entry?.player_id || !entry?.name || entry.name === "무명") return false;
   const hash = JSON.stringify([
     entry.player_id, entry.nation, entry.service, entry.name,
     entry.grade, entry.xp, entry.wins, entry.battles, entry.medals,
