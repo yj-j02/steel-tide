@@ -2321,7 +2321,7 @@ function renderDutyDesk() {
         </div>
         ${serviceTerms.obligationLeft ? `<span class="dm-chip" title="의무복무 잔여">⏳ ${serviceTerms.obligationLeft}</span>` : `<span class="dm-chip">✔ 장기/전역 가능</span>`}
       </div>
-      ${(serviceTerms.longTermWindow || serviceTerms.extension || serviceTerms.earlyWindow) ? `<div class="dm-status-strip" style="border-color:rgba(242,202,92,.45);background:rgba(48,36,12,.35)">
+      ${(serviceTerms.longTermWindow || serviceTerms.extension || serviceTerms.earlyWindow) ? `<div class="dm-status-strip dm-service-strip" style="border-color:rgba(242,202,92,.45);background:rgba(48,36,12,.35)">
         <div class="dm-chips">
           ${serviceTerms.longTermWindow ? `<span class="dm-chip hot">⭐ 장기복무 선발 전형 가능 (평판 ${serviceTerms.longTermReq.rep}+ · 평정 ${serviceTerms.longTermReq.avg}+)</span><button type="button" class="dm-st-btn" data-duty="service:longterm" style="border-color:#f2ca5c;color:#fde68a">⭐ 장기복무 지원</button>` : ""}
           ${serviceTerms.extension ? `<button type="button" class="dm-st-btn" data-duty="service:${serviceTerms.extension.action}">${serviceTerms.extension.label}</button>` : ""}
