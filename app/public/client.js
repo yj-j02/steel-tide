@@ -5,6 +5,7 @@ import { careerStorage, characters, activeCharacterId, createCharacter, selectCh
 import { calendarLabel, careerDate, rankMonths, serviceDuration } from "./js/service-calendar.js";
 import { openingEvent } from "./js/army-opening.js";
 import { initLiveActorStyles, openLiveActorPreview, fullBodyActorHTML } from "./js/live-actor.js";
+import { startPresence, updatePresence, syncLeaderboardScore, fetchLeaderboard, onOnlineBoardUpdate, getOnlineState } from "./js/online-board.js";
 import { automaticCaptain, boardCard, preview as boardPreview, settle, hint, interact } from "./js/promotion-board.js";
 /**
  * Steel Tide — game flow: missions and battles, the shipyard and the commander's rank,
@@ -809,6 +810,11 @@ function refreshMenus() {
   $("#camp").innerHTML = kcampHTML();
   $("#maps").innerHTML = Object.entries(MAPS).filter(([k]) => k !== "uswest").map(([k, m]) => `<button class="mp${theater === k ? " on" : ""}" data-map="${k}"><b>${m.n}</b><small>${m.d}</small></button>`).join("");
   $("#cmdrFace").innerHTML = face(myFace(), 46); $("#cmdrName").textContent = civil() ? cmdr.name : career.minister ? `장관 ${cmdr.name}` : `${rankLabel(rl.r)} ${cmdr.name}`;
+  if (cmdr.name) {
+    const rec = currentOnlineRecord();
+    updatePresence(rec);
+    syncLeaderboardScore(rec);
+  }
 }
 $("#rankLang").addEventListener("click", () => {
   toggleUsRankLanguage();
@@ -1774,6 +1780,94 @@ function hallOfFameHTML() {
 }
 
 let recTab = "log";
+let globalFilter = "all";
+let globalSort = "grade";
+
+function currentOnlineRecord() {
+  const svk = serviceOf(staff.branch);
+  const g = career.discharged?.g ?? myGrade();
+  const minT = isUS() ? "미 국방장관" : "국방부장관";
+  const endT = usPotusOn() ? "미국 대통령" : (!isUS() && potusOn()) ? "대한민국 대통령" : career.minister ? minT : (career.discharged ? "예비역 전역" : "");
+  const chap = career.discharged ? "예비역 전역" : (!isUS() && potusOn()) ? "대통령 재임" : usPotusOn() ? "U.S. President" : career.minister ? (isUS() ? "SecDef" : "국방부장관") : "현역 복무";
+  return {
+    player_id: `${myId}:${activeCharacterId() || "main"}`,
+    nation: isUS() ? "us" : "kr",
+    service: svk,
+    name: cmdr.name || "지휘관",
+    grade: g,
+    rank_name: rankLabel(g, svk),
+    xp: Math.round(profile.xp || 0),
+    wins: profile.wins || 0,
+    battles: profile.battles || 0,
+    medals: Object.keys(career.medals || {}).length,
+    ending_title: endT,
+    chapter: chap,
+  };
+}
+
+function globalRankHTML() {
+  const { onlinePlayers, rows } = getOnlineState();
+  const myPid = `${myId}:${activeCharacterId() || "main"}`;
+  const onlineList = onlinePlayers.length
+    ? onlinePlayers.map((p) => `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);color:#a7f3d0;font-size:11px">${p.nation === "us" ? "🇺🇸" : "🇰🇷"} <b>${escapeTitle(p.name || "지휘관")}</b> <small style="opacity:.8">${escapeTitle(p.rank_name || "")}</small></span>`).join("")
+    : `<span style="font-size:11.5px;color:#8ea4b8">실시간 접속 정보를 불러오는 중...</span>`;
+
+  let list = (rows || []).slice();
+  if (globalFilter !== "all") list = list.filter((r) => r.nation === globalFilter);
+  if (globalSort === "wins") list.sort((a, b) => (b.wins - a.wins) || (b.xp - a.xp));
+  else if (globalSort === "medals") list.sort((a, b) => (b.medals - a.medals) || (b.grade - a.grade) || (b.xp - a.xp));
+  else list.sort((a, b) => (b.grade - a.grade) || (b.xp - a.xp) || (b.wins - a.wins));
+
+  const myRankIdx = list.findIndex((r) => r.player_id === myPid);
+  const svcBadge = (s) => (s === "army" ? "육군" : s === "air" ? "공군" : "해군");
+  const tableRows = list.slice(0, 50).map((r, idx) => {
+    const isMe = r.player_id === myPid;
+    const medalRank = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}`;
+    const wr = r.battles ? `${Math.round((r.wins / r.battles) * 100)}%` : "0%";
+    const roleTag = r.ending_title ? `<span style="margin-left:5px;padding:1px 6px;border-radius:4px;background:rgba(242,202,92,.18);border:1px solid rgba(242,202,92,.45);color:#fde68a;font-size:10px">${escapeTitle(r.ending_title)}</span>` : "";
+    return `<tr style="background:${isMe ? "rgba(242,202,92,.14)" : idx % 2 ? "rgba(255,255,255,.02)" : "transparent"};${isMe ? "outline:1px solid rgba(242,202,92,.6);" : ""}">
+      <td style="padding:7px 8px;text-align:center;font-weight:800;color:${idx < 3 ? "#fde68a" : "#cbd5e1"}">${medalRank}</td>
+      <td style="padding:7px 8px">${r.nation === "us" ? "🇺🇸" : "🇰🇷"} <span style="font-size:10.5px;color:#93c5fd">${svcBadge(r.service)}</span></td>
+      <td style="padding:7px 8px;font-weight:700;color:${isMe ? "#fff4c2" : "#f1f5f9"}">${escapeTitle(r.name)}${isMe ? " <small style='color:#fde68a'>(나)</small>" : ""}${roleTag}</td>
+      <td style="padding:7px 8px;color:#e2e8f0">${escapeTitle(r.rank_name)}</td>
+      <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums;color:#93c5fd">${fmt(r.xp)}</td>
+      <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums;color:#cbd5e1">${r.wins}승/${r.battles}전 <small style="opacity:.75">(${wr})</small></td>
+      <td style="padding:7px 8px;text-align:center;color:#fde68a">🏅 ${r.medals}</td>
+    </tr>`;
+  }).join("");
+
+  return `<div style="display:flex;flex-direction:column;gap:12px">
+    <div style="padding:10px 12px;border-radius:8px;background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.3)">
+      <div style="font-size:12.5px;font-weight:800;color:#6ee7b7;margin-bottom:6px">🟢 실시간 작전 중인 지휘관 (${Math.max(1, onlinePlayers.length)}명)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${onlineList}</div>
+    </div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between">
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        ${[["all", "전체"], ["kr", "🇰🇷 한국군"], ["us", "🇺🇸 미군"]].map(([k, l]) => `<button type="button" data-gfilter="${k}" style="padding:5px 10px;border-radius:6px;border:1px solid ${globalFilter === k ? "#f2ca5c" : "rgba(148,163,184,.3)"};background:${globalFilter === k ? "rgba(242,202,92,.2)" : "rgba(15,23,42,.6)"};color:${globalFilter === k ? "#fde68a" : "#cbd5e1"};font-size:11.5px;cursor:pointer;font-weight:700">${l}</button>`).join("")}
+        <span style="width:1px;background:rgba(148,163,184,.25);margin:0 3px"></span>
+        ${[["grade", "계급·XP순"], ["wins", "전투 승수순"], ["medals", "훈장순"]].map(([k, l]) => `<button type="button" data-gsort="${k}" style="padding:5px 10px;border-radius:6px;border:1px solid ${globalSort === k ? "#60a5fa" : "rgba(148,163,184,.3)"};background:${globalSort === k ? "rgba(96,165,250,.2)" : "rgba(15,23,42,.6)"};color:${globalSort === k ? "#bfdbfe" : "#cbd5e1"};font-size:11.5px;cursor:pointer;font-weight:700">${l}</button>`).join("")}
+      </div>
+      <button type="button" data-gsync="1" style="padding:5px 11px;border-radius:6px;border:1px solid rgba(242,202,92,.55);background:rgba(242,202,92,.16);color:#ffe082;font-size:11.5px;font-weight:700;cursor:pointer">🔄 내 기록 등록 · 새로고침</button>
+    </div>
+    ${myRankIdx >= 0 ? `<div style="font-size:12px;color:#fde68a">내 현재 순위: <b>${myRankIdx + 1}위</b> / ${list.length}명</div>` : ""}
+    <div style="overflow-x:auto;border:1px solid rgba(148,163,184,.22);border-radius:8px;background:rgba(10,16,26,.72)">
+      <table style="width:100%;border-collapse:collapse;font-size:12px">
+        <thead>
+          <tr style="border-bottom:1px solid rgba(148,163,184,.25);color:#94a3b8;text-align:left">
+            <th style="padding:8px;text-align:center;width:46px">순위</th>
+            <th style="padding:8px;width:72px">소속</th>
+            <th style="padding:8px">지휘관</th>
+            <th style="padding:8px">계급</th>
+            <th style="padding:8px;text-align:right">XP</th>
+            <th style="padding:8px;text-align:right">전적</th>
+            <th style="padding:8px;text-align:center">훈장</th>
+          </tr>
+        </thead>
+        <tbody>${tableRows || `<tr><td colspan="7" style="padding:18px;text-align:center;color:#94a3b8">아직 등록된 기록이 없습니다. 상단 '내 기록 등록 · 새로고침'을 눌러 첫 기록을 올려보세요!</td></tr>`}</tbody>
+      </table>
+    </div>
+  </div>`;
+}
 function renderRecord() { /* 인사기록: 좌측 고정 프로필 + 우측 4개 서브탭 (약력 / 계급 로드맵 / 훈장 / 엔딩 도감) */
   const rl = rankLine(), acc = profile.shots ? ((profile.hits / profile.shots) * 100).toFixed(1) : "0.0", best = profile.bestSeconds ? `${Math.floor(profile.bestSeconds / 60)}분 ${profile.bestSeconds % 60}초` : "—";
   const br = normBranch(staff.branch), svk = serviceOf(br), BR = curBranches(), SV = curServices();
@@ -1815,10 +1909,11 @@ function renderRecord() { /* 인사기록: 좌측 고정 프로필 + 우측 4개
     : recTab === "medals" ? medalsHTML
     : recTab === "endings" ? endingsHTML(hallOfFameHTML())
     : recTab === "chron" ? chronicleHTML(chronCtx())
+    : recTab === "global" ? `<h3>🌐 글로벌 랭킹 · 실시간 기록 경쟁</h3>${globalRankHTML()}`
     : `<h3>장교 복무 요약</h3><div class="rstats"><div><span>임관 출신</span><b>${originBadgeLabel()}</b></div><div><span>누적 복무</span><b>${careerDate(dd.week)}</b></div><div><span>군내 평판</span><b>${dd.rep ?? 55}</b></div><div><span>부대 사기</span><b>${dd.morale ?? 72}</b></div><div><span>보유 훈장</span><b>${Object.keys(career.medals || {}).length}/10</b></div></div>`
       + `<h3>${(SV[svk] || SV.navy).n} 장교 인사기록 · 약력</h3><div class="mi-log">${log}</div>`
       + `<h3>내 참모진 · ${echUnit}</h3><div class="mi-st">${STAFF_ROLES.map((r) => `<span>${roleTitle(r.k, rl.r)}</span><b>${of(r.k).rk} ${of(r.k).nm}</b>`).join("")}</div>`;
-  const recTabsHTML = `<div class="rec-tabs">${[["log", "📋 요약 · 약력"], ["timeline", "복무 연표"], ["ladder", "🎖 계급 로드맵"], ["medals", "🏅 훈장 · 표창"], ["endings", "🏆 엔딩 · 업적"], ["chron", "📜 회고록"]].map(([k, lbl]) => `<button class="rec-tab${recTab === k ? " on" : ""}" data-rectab="${k}">${lbl}</button>`).join("")}</div>`;
+  const recTabsHTML = `<div class="rec-tabs">${[["log", "📋 요약 · 약력"], ["timeline", "복무 연표"], ["ladder", "🎖 계급 로드맵"], ["medals", "🏅 훈장 · 표창"], ["endings", "🏆 엔딩 · 업적"], ["chron", "📜 회고록"], ["global", "🌐 글로벌 랭킹"]].map(([k, lbl]) => `<button class="rec-tab${recTab === k ? " on" : ""}" data-rectab="${k}">${lbl}</button>`).join("")}</div>`;
   const isAnyPres = (!isUS() && isPotus()) || usIsPotus();
   const isCivView = civil() || usIsPotus();
   const presMarkImg = usIsPotus() ? `<img src="img/us_potus_mark.png" alt="U.S. Presidential Seal" class="pmark-b">` : (!isUS() && isPotus()) ? `<img src="img/potus_mark.png" alt="" class="pmark-b">` : "";
@@ -2594,7 +2689,10 @@ $("#recordP").addEventListener("click", (e) => {
   const ribbon = e.target.closest("[data-medal]"); if (ribbon) { showMedal(ribbon.dataset.medal); return; }
   const hofT = e.target.closest("[data-hof-toggle]"); if (hofT) { sfx.click(); hofOpen = !hofOpen; renderRecord(); return; }
   const hofN = e.target.closest("[data-hof-nat]"); if (hofN) { sfx.click(); hofNat = hofN.dataset.hofNat; renderRecord(); return; }
-  const rt = e.target.closest("[data-rectab]"); if (rt) { sfx.click(); recTab = rt.dataset.rectab; renderRecord(); return; }
+  const rt = e.target.closest("[data-rectab]"); if (rt) { sfx.click(); recTab = rt.dataset.rectab; renderRecord(); if (recTab === "global") { syncLeaderboardScore(currentOnlineRecord()).then(() => fetchLeaderboard({ force: true })).then(() => renderRecord()); } return; }
+  const gf = e.target.closest("[data-gfilter]"); if (gf) { sfx.click(); globalFilter = gf.dataset.gfilter; renderRecord(); return; }
+  const gs = e.target.closest("[data-gsort]"); if (gs) { sfx.click(); globalSort = gs.dataset.gsort; renderRecord(); return; }
+  const gsync = e.target.closest("[data-gsync]"); if (gsync) { sfx.click(); toast("글로벌 랭킹 동기화 중..."); syncLeaderboardScore(currentOnlineRecord(), { force: true }).then(() => fetchLeaderboard({ force: true })).then(() => { renderRecord(); toast("글로벌 랭킹을 최신화했습니다."); }); return; }
   const uniBtn = e.target.closest("[data-uni-rank]");
   if (uniBtn) {
     sfx.click();
@@ -4613,6 +4711,23 @@ function frameOnce(dt) {
 window.__st = { opMapAdvance, opMapState, opMapAir, startOpMap, cicWcs, cicSetWcs, cicFeedInfo, aimAAAt: (p) => { const o = aaMount(), v = p.clone().sub(o); aa.yaw = Math.atan2(v.z, v.x); aa.pitch = Math.atan2(v.y, Math.hypot(v.x, v.z)); }, aaMslFire, KCAMP, openBrief, get kProg() { return kProg; }, opsDebug, setJetRole, setFlyAuto, get kc() { return G.kc; }, setWx: (t, w) => { todSel = t; wxSel = w; }, conceal, get tut() { return tut; }, setKey, get keyPhys() { return keyPhys; }, flyControl, flyFlare, MSL2: MSL, frameOnce, takeJet, releaseFly, flyFire, flyStrike, get flyLock() { return md.flyLock; }, know, sortieJets, myAir, landAt, setSel, get sel() { return sel; }, setLock: (v) => { lock = v; }, sensorStep, bestContact, SR, WPN, G, air, cam, aa, MSL, md, fireSalvo, modernKey, setNat: (a, b) => { natUs = a; natFoe = b; }, toAuto, takeOver, setTheater: (t) => { theater = t; }, get cmdr() { return cmdr; }, toggleAA, cap, startBoard, toggleCapFps, canBoard, fc, get profile() { return profile; }, start, step, frame: (dt) => { step(dt); updateCamera(dt); }, tryFire, openYard, openMenu, act, setPause, forfeit,
   moveOrder, aimAtPoint, lockShip, setSpeed, cycleCam, pick, useRepair, setMission: (m) => { mission = m; }, get lock() { return lock; }, get weapon() { return weapon; }, setWeapon: (w) => { weapon = w; },
   get paused() { return paused; }, get torpThreat() { return torpThreat; }, get radioSub() { return radioSub; }, keys, fireTorps, intercept, leadPoint, myRank, setLockOn: (t) => { lockOn = t; }, get lockOn() { return lockOn; }, help: (v) => { helpOn = v; } };
+$("#onlineBadge")?.addEventListener("click", () => {
+  sfx.click();
+  recTab = "global";
+  openRecord();
+  syncLeaderboardScore(currentOnlineRecord()).then(() => fetchLeaderboard({ force: true })).then(() => renderRecord());
+});
+onOnlineBoardUpdate(({ onlinePlayers }) => {
+  const txt = $("#onlineCountTxt");
+  if (txt) txt.textContent = `${Math.max(1, onlinePlayers.length)}명 작전 중`;
+  if (screen === "record" && recTab === "global") renderRecord();
+});
+if (cmdr.name) {
+  const rec0 = currentOnlineRecord();
+  startPresence(rec0);
+  syncLeaderboardScore(rec0);
+  fetchLeaderboard();
+}
 loadModels(); showcase(flagshipId()); refreshMenus(); connect(); bgm("menu"); /* the first port screen is not opened through openMenu, so ask for its music here (it starts on the first click) */
 if (params.has("autostart")) {
   if (MISSIONS[params.get("mission")] && isModernOp(params.get("mission"))) mission = params.get("mission");
