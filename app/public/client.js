@@ -4,7 +4,7 @@ import { koreanPostName } from "./js/us-post-labels.js";
 import { careerStorage, characters, activeCharacterId, createCharacter, selectCharacter, removeCharacter } from "./js/characters.js";
 import { calendarLabel, careerDate, rankMonths, serviceDuration } from "./js/service-calendar.js";
 import { openingEvent } from "./js/army-opening.js";
-import { initLiveActorStyles, openLiveActorPreview } from "./js/live-actor.js";
+import { initLiveActorStyles, openLiveActorPreview, fullBodyActorHTML } from "./js/live-actor.js";
 import { automaticCaptain, boardCard, preview as boardPreview, settle, hint, interact } from "./js/promotion-board.js";
 /**
  * Steel Tide — game flow: missions and battles, the shipyard and the commander's rank,
@@ -454,9 +454,12 @@ function face(i, s = 64) {
   }
   o += `</g>`;
   if (!f.bare) {
+    const cuff = f.civ ? "#94a3b8" : U.sleeve;
     o += `<g class="fa-salute-hand">`
-      + `<path d="M88 100 L82 62 L71 42 L77 38 L91 60 L96 100Z" fill="${f.civ ? "#1b2432" : U.u0}" stroke="#05080d" stroke-width="1.1"/>`
-      + `<path d="M71 42 L61 36 Q59 34 62 32.5 L75 37.5Z" fill="${sk}" stroke="${dk}" stroke-width=".8"/>`
+      + `<path d="M96 100 L84 61 L73 41 L82 37 L96 62 L103 100Z" fill="${f.civ ? "#1b2432" : U.u0}" stroke="#05080d" stroke-width="1.1"/>`
+      + `<path d="M75 45 L83 41" stroke="${cuff}" stroke-width="2.2" stroke-linecap="round"/>`
+      + `<path d="M73 41 L64 36 Q61 33.5 64 31.5 L75 33 L81 37 Z" fill="${sk}" stroke="${dk}" stroke-width=".85"/>`
+      + `<path d="M64 33 L73 34.5" stroke="${dk}" stroke-width=".6" opacity=".55"/>`
       + `</g>`;
   }
   return o + `</svg>`;
@@ -789,13 +792,11 @@ function refreshMenus() {
   renderRecord();
   document.body.classList.add("modern");
   const brk = normBranch(staff.branch), svcK = serviceOf(brk), svc = curServices()[svcK] || curServices().navy;
-  $("#modeSel").innerHTML = `<button class="er hero" data-mode="career"><b>🎖️ ${isUS() ? "미국 3군 장교 커리어 (U.S. Armed Forces)" : "국방 경영 &amp; 3군 장교 커리어"} (${staff.branch ? `${svc.icon} ${svc.n} ${rankLabel(myGrade(), svcK)}` : isUS() ? "O-1 임관 시작" : "소위 임관 시작"})</b><small>${isUS() ? "미 육·해·공군 O-1 임관 → 계급장·보직 성장 → 펜타곤·합참(JCS) → 미 국방장관(SecDef · 36주)" : "육·해·공 소위 임관 → 복무 안건·위기 결재·계급장 성장 → 장성·국방부장관(36주) → 대선 → 대통령"}</small></button>`
-    + `<div class="mode-sep">전술 시나리오 (3D 전투 · 2D FM 작전)</div>`
-    + `<button class="er" data-mode="camp"><b>한반도 시나리오 (3D)</b><small>서해부터 제주 남방까지 5단계 + 보너스 · 브리핑과 별점</small></button>`
-    + `<button class="er" data-mode="ops"><b>3군 합동 전술 훈련 (3D)</b><small>합동 전술 시나리오를 선택해 직접 기동·요격·타격을 지휘합니다</small></button>`
-    + `<button class="er" data-mode="opmap"><b>FM 작전 지휘 · 작전지도</b><small>서해 해상 차단 작전 — 전단 기동·지원 배정을 계획하고 실시간으로 지휘</small></button>`
-    + `<button class="er" data-mode="c72"><b>캠페인 · 서해 72시간</b><small>해상·항공 합동 4연속 작전 — 결과에 따라 다음 작전이 갈리고 신뢰도·피로가 이어짐</small></button>`
-    + (brk === "mar" || brk === "plt" || brk === "tac" ? `<button class="er" data-mode="airmap"><b>항공 작전 · 작전지도</b><small>항공·조종 특화 — 전투기·초계기·헬기 편대에 임무를 주고 출격·귀환·재무장을 지휘</small></button>` : "");
+  $("#modeSel").innerHTML = `<button class="er hero" data-mode="camp"><b>⚓ 한반도 시나리오 (3D)</b><small>서해부터 제주 남방까지 5단계 + 보너스 · 브리핑과 별점</small></button>`
+    + `<button class="er" data-mode="ops"><b>🎯 3군 합동 전술 (3D)</b><small>합동 전술 시나리오를 선택해 직접 기동·요격·타격을 지휘합니다</small></button>`
+    + `<button class="er" data-mode="c72"><b>⏱️ 캠페인 · 서해 72시간</b><small>해상·항공 합동 4연속 작전 — 결과에 따라 다음 작전이 갈림</small></button>`
+    + `<button class="er" data-mode="opmap"><b>🗺️ FM 작전 지휘 · 작전지도</b><small>서해 해상 차단 작전 — 전단 기동·지원 배정을 실시간 지휘</small></button>`
+    + (brk === "mar" || brk === "plt" || brk === "tac" ? `<button class="er" data-mode="airmap"><b>✈️ 항공 작전 · 작전지도</b><small>전투기·초계기·헬기 편대 임무 및 출격·귀환·재무장 지휘</small></button>` : "");
   $("#wzSum").innerHTML = `선택: <b>${MISSIONS[mission]?.n || ""}</b>${isModernOp(mission) ? ` · <b>${NATIONS[natUs].n} vs ${NATIONS[natFoe].n}</b>` : ""} · <b>${MAPS[theater]?.n || ""}</b> · ${todSel === "night" ? "야간" : "주간"}/${wxSel === "storm" ? "폭풍" : "맑음"}<button class="go" type="button" data-wzgo="1">이대로 출항</button>`;
   if (typeof wzCrumb === "function" && document.querySelector("#opsP .wz.on")) wzCrumb();
   $("#campBox").style.display = ""; $("#campBox .ph span:last-child").textContent = "한반도 시나리오 (가상)"; $("#opsTitle").textContent = "작전 선택";
@@ -2457,7 +2458,7 @@ function renderTitleHub() {
       <button class="th-go" data-th="new" ${available.length >= 10 ? "disabled" : ""}>새 캐릭터 임관</button>
       ${available.length >= 10 ? "<p>캐릭터는 최대 10명까지 플레이할 수 있습니다.</p>" : ""}
       ${archived.length ? `<details class="th-archive"><summary>보관 기록 ${archived.length}건</summary>${archived.map(characterCard).join("")}</details>` : ""}
-      <button class="th-sec" data-th="tac">전술 훈련</button>
+      <button class="th-sec" data-th="tac">3D 전투체험</button>
     </div>`;
     return;
   }
@@ -2646,6 +2647,24 @@ $("#recordP").addEventListener("click", (e) => {
         const civ = outfit !== "uniform";
         const bg = outfit === "president" ? "#1a2538" : outfit === "minister" ? "#202b3b" : undefined;
         return face({ ...agedFace(cmdr.face, g), svc: svk, civ, bg, live: moodCls }, size);
+      },
+      getFullBodyHTML: (outfit, moodCls) => {
+        const g = outfit === "president" ? Math.max(rl.r, 10) : outfit === "minister" ? Math.max(rl.r, 9) : rl.r;
+        const civ = outfit !== "uniform";
+        const fData = agedFace(cmdr.face, g);
+        const headSVG = face({ ...fData, bare: true, svc: svk, civ, live: moodCls }, 100);
+        return fullBodyActorHTML({
+          headSVG,
+          svc: svk,
+          us: isUS(),
+          outfit,
+          grade: g,
+          skin: fData.skin?.[0] || "#e3b695",
+          skinDark: fData.skin?.[2] || "#b88262",
+          name: cmdr.name,
+          moodCls,
+          height: 335,
+        });
       },
       onSpeakSample: () => { initAudio(); playVO(promoVoForGrade(myGrade()) || 2); },
       onClose: () => stopVO(),

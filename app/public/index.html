@@ -1161,8 +1161,8 @@ body.us-nat .rec-tab.on { background:rgba(93,168,232,.22); border-color:#6cb6f5;
         <button id="tabHQ" class="tab on">집무실</button>
         <button id="tabOrg" class="tab">지휘 계통</button>
         <button id="tabRecord" class="tab">인사기록</button>
-        <button id="tabPort" class="tab">전술 훈련</button>
         <button id="setBtn" class="tab">설정</button>
+        <button id="tabPort" class="tab">3D 전투체험</button>
       </nav>
       <div id="natSw" class="nat-sw" role="group" aria-label="국가 선택">
         <button data-nat="kr" class="on">🇰🇷 한국군</button>
@@ -1179,17 +1179,17 @@ body.us-nat .rec-tab.on { background:rgba(93,168,232,.22); border-color:#6cb6f5;
     <div id="start">
       <section id="opsP" class="g"><div class="wz-nav"><button class="wz-back" type="button">‹ 이전</button><div class="wz-crumb"></div></div>
         <div class="wz" data-step="era"><div class="ph"><span>STEP 1</span><span>시대 선택</span></div><div id="era"></div></div>
-        <div class="wz" data-step="mode"><div class="ph"><span>STEP 1</span><span>진행 방식</span></div><div id="modeSel"></div></div>
+        <div class="wz" data-step="mode"><div class="ph"><span>3D BATTLE</span><span>3D 전투체험 · 작전 선택</span></div><div id="modeSel"></div></div>
         <div class="wz" data-step="camp"><div id="campBox"><div class="ph"><span>STEP 2</span><span>한반도 시나리오</span></div><div id="camp"></div></div></div>
         <div class="wz" data-step="ops"><div class="ph"><span>STEP 2</span><span id="opsTitle">작전 선택</span></div><div id="missions"></div></div>
         <div class="wz" data-step="nat"><div id="nations" style="display:none"></div><button class="go wz-next" type="button" data-wzto="map">다음 · 전장 선택 ›</button></div>
         <div class="wz" data-step="map"><div class="ph"><span>LAST STEP</span><span>전장 · 시간 · 날씨</span></div><div id="maps"></div><div class="ph"><span>CONDITIONS</span><span>시간 · 날씨</span></div><div id="wx"></div><div id="wzSum"></div></div></section>
       <section id="flagP" class="g"><div id="shipLine"></div></section>
-      <div id="launchBar" class="g">
-        <div class="lb cmdr"><div id="cmdrFace"></div><div><span>사령관</span><b id="cmdrName"></b></div><button id="cmdrEdit" class="ghost">변경</button></div>
-        <div class="lb"><span>전적</span><b id="record"></b></div>
-        <div class="lb"><span>계급 진행</span><div id="rankTxt"></div></div>
-        <div class="btns"><button id="watchBtn" class="ghost">관 전</button><button id="goBtn" class="launch">출 항</button></div>
+      <div id="launchBar" class="g" style="left:auto;right:24px;min-height:58px;padding:8px 16px;gap:12px">
+        <div class="lb cmdr" style="display:none"><div id="cmdrFace"></div><div><span>사령관</span><b id="cmdrName"></b></div><button id="cmdrEdit" class="ghost">변경</button></div>
+        <div class="lb" style="display:none"><span>전적</span><b id="record"></b></div>
+        <div class="lb" style="display:none"><span>계급 진행</span><div id="rankTxt"></div></div>
+        <div class="btns" style="margin-left:0"><button id="watchBtn" class="ghost">관 전</button><button id="goBtn" class="launch">출 항</button></div>
       </div>
     </div>
 
