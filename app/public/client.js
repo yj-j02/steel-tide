@@ -2,7 +2,7 @@ import { commissionRoutes, contractFor, serviceStatus, noteServiceNotice, applyS
 import { dutyHistory } from "./js/career-timeline.js";
 import { koreanPostName } from "./js/us-post-labels.js";
 import { careerStorage, characters, activeCharacterId, createCharacter, selectCharacter, removeCharacter } from "./js/characters.js";
-import { calendarLabel, careerDate, careerMonths, rankMonths, serviceDuration } from "./js/service-calendar.js";
+import { calendarLabel, careerDate, careerMonths, rankReachedMonths, rankMonths, serviceDuration } from "./js/service-calendar.js";
 import { openingEvent } from "./js/army-opening.js";
 import { initLiveActorStyles, openLiveActorPreview, fullBodyActorHTML } from "./js/live-actor.js";
 import { claimNickname, nicknameKey, startPresence, updatePresence, syncLeaderboardScore, fetchLeaderboard, onOnlineBoardUpdate, getOnlineState } from "./js/online-board.js";
@@ -1813,7 +1813,7 @@ let globalHardcoreOnly = false;
 
 function boardAverage() {
   const boards = (career.boardHistory || []).filter((b) => !b.automatic && typeof b.score === "number");
-  if (!boards.length) return 0;
+  if (!boards.length) return null;
   return Math.round((boards.reduce((s, b) => s + b.score, 0) / boards.length) * 10) / 10;
 }
 
@@ -1836,7 +1836,7 @@ function currentOnlineRecord() {
   const minT = isUS() ? "미 국방장관" : "국방부장관";
   const endT = usPotusOn() ? "미국 대통령" : (!isUS() && potusOn()) ? "대한민국 대통령" : career.minister ? minT : (career.discharged ? "예비역 전역" : "");
   const chap = career.discharged ? "예비역 전역" : (!isUS() && potusOn()) ? "대통령 재임" : usPotusOn() ? "U.S. President" : career.minister ? (isUS() ? "SecDef" : "국방부장관") : "현역 복무";
-  const promoEntry = (career.log || []).findLast((e) => e.g === g);
+  const promotionMonths = rankReachedMonths(g, career);
   return {
     player_id: cmdr.rankId || `${myId}:${activeCharacterId() || "main"}`,
     nation: isUS() ? "us" : "kr",
@@ -1851,7 +1851,7 @@ function currentOnlineRecord() {
     ending_title: endT,
     chapter: chap,
     board_avg: boardAverage(),
-    promo_week: promoEntry?.turn || dutyState().week || 1,
+    promotion_months: promotionMonths,
     approval: presidentApproval(),
     hardcore: hardcoreValid(),
   };
@@ -1869,12 +1869,12 @@ function rankSorted(rows) {
   let list = (rows || []).slice();
   if (globalFilter !== "all") list = list.filter((r) => r.nation === globalFilter);
   if (globalHardcoreOnly) list = list.filter((r) => r.hardcore);
-  const bavg = (r) => Number(r.board_avg || 0), pw = (r) => Number(r.promo_week || 9999);
-  if (globalSort === "board") list = list.filter((r) => bavg(r) > 0).sort((a, b) => bavg(b) - bavg(a) || b.grade - a.grade || pw(a) - pw(b));
-  else if (globalSort === "speed") list.sort((a, b) => b.grade - a.grade || pw(a) - pw(b) || bavg(b) - bavg(a));
+  const bavg = (r) => r.board_avg ?? -1, reached = (r) => r.promotion_months ?? Number.MAX_SAFE_INTEGER;
+  if (globalSort === "board") list = list.filter((r) => bavg(r) >= 0).sort((a, b) => bavg(b) - bavg(a) || b.grade - a.grade || reached(a) - reached(b));
+  else if (globalSort === "speed") list.sort((a, b) => b.grade - a.grade || reached(a) - reached(b) || bavg(b) - bavg(a));
   else if (globalSort === "pres") list = list.filter((r) => Number(r.approval || 0) > 0).sort((a, b) => b.approval - a.approval || bavg(b) - bavg(a));
   else if (globalSort === "medals") list.sort((a, b) => b.medals - a.medals || b.grade - a.grade || bavg(b) - bavg(a));
-  else list.sort((a, b) => b.grade - a.grade || bavg(b) - bavg(a) || pw(a) - pw(b) || b.xp - a.xp);
+  else list.sort((a, b) => b.grade - a.grade || bavg(b) - bavg(a) || reached(a) - reached(b) || b.xp - a.xp);
   return list;
 }
 
@@ -1885,7 +1885,11 @@ function globalRankHTML() {
   const onlineList = onlinePlayers.length
     ? onlinePlayers.map((p) => `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);color:#a7f3d0;font-size:11px">${p.nation === "us" ? "🇺🇸" : "🇰🇷"} <b>${escapeTitle(p.name || "지휘관")}</b> <small style="opacity:.8">${escapeTitle(p.rank_name || "")}</small></span>`).join("")
     : `<span style="font-size:11.5px;color:#8ea4b8">실시간 접속 정보를 불러오는 중...</span>`;
-  const list = rankSorted(rows);
+  const me = currentOnlineRecord();
+  const list = rankSorted(rows.map(row => row.player_id === myPid && row.grade === me.grade ? {
+    ...row, board_avg: me.board_avg, promotion_months: me.promotion_months,
+    approval: me.approval, hardcore: me.hardcore,
+  } : row));
   const myRankIdx = list.findIndex((r) => r.player_id === myPid);
   const svcBadge = (s) => (s === "army" ? "육군" : s === "air" ? "공군" : "해군");
   const hi = (k) => (globalSort === k ? "color:#fde68a;font-weight:800" : "color:#cbd5e1");
@@ -1894,19 +1898,18 @@ function globalRankHTML() {
     const isMe = r.player_id === myPid;
     const medalRank = idx === 0 ? "🥇" : idx === 1 ? "🥈" : idx === 2 ? "🥉" : `${idx + 1}`;
     const tags = `${r.hardcore ? `<span style="margin-left:5px;padding:1px 6px;border-radius:4px;background:rgba(239,68,68,.18);border:1px solid rgba(239,68,68,.5);color:#fca5a5;font-size:10px">🔥 하드코어</span>` : ""}${r.ending_title ? `<span style="margin-left:5px;padding:1px 6px;border-radius:4px;background:rgba(242,202,92,.18);border:1px solid rgba(242,202,92,.45);color:#fde68a;font-size:10px">${escapeTitle(r.ending_title)}</span>` : ""}`;
-    const speed = r.promo_week ? serviceDuration(careerMonths(r.promo_week)) : "—";
+    const speed = r.promotion_months == null ? "—" : serviceDuration(r.promotion_months);
     return `<tr style="background:${isMe ? "rgba(242,202,92,.14)" : idx % 2 ? "rgba(255,255,255,.02)" : "transparent"};${isMe ? "outline:1px solid rgba(242,202,92,.6);" : ""}">
       <td style="padding:7px 8px;text-align:center;font-weight:800;color:${idx < 3 ? "#fde68a" : "#cbd5e1"}">${medalRank}</td>
       <td style="padding:7px 8px">${r.nation === "us" ? "🇺🇸" : "🇰🇷"} <span style="font-size:10.5px;color:#93c5fd">${svcBadge(r.service)}</span></td>
       <td style="padding:7px 8px;font-weight:700;color:${isMe ? "#fff4c2" : "#f1f5f9"}">${escapeTitle(r.name)}${isMe ? " <small style='color:#fde68a'>(나)</small>" : ""}${tags}</td>
       <td style="padding:7px 8px;color:#e2e8f0">${escapeTitle(r.rank_name)}</td>
-      <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums;${hi("board")}">${Number(r.board_avg || 0) > 0 ? `${Number(r.board_avg).toFixed(1)}점` : "—"}</td>
+      <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums;${hi("board")}">${r.board_avg != null ? `${Number(r.board_avg).toFixed(1)}점` : "—"}</td>
       <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums;${hi("speed")}">${speed}</td>
       <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums;${hi("pres")}">${Number(r.approval || 0) > 0 ? `${r.approval}%` : "—"}</td>
       <td style="padding:7px 8px;text-align:center;${hi("medals")}">🏅 ${r.medals}</td>
     </tr>`;
   }).join("");
-  const me = currentOnlineRecord();
   const hcCanStart = !career.hardcore && !career.discharged && myGrade() === 0 && (dutyState().week || 1) <= 4;
   const hcBox = career.hardcore
     ? `<div style="padding:9px 12px;border-radius:8px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.45);font-size:12px;color:#fecaca">🔥 <b>하드코어 모드 진행 중</b> · 진급 커트라인 +4점 · 진급심사 2회 탈락 시 즉시 강제 전역${hardcoreValid() ? "" : ` · <b style="color:#fca5a5">관리자 기능 사용으로 하드코어 랭킹 무효</b>`}</div>`
@@ -1931,7 +1934,7 @@ function globalRankHTML() {
         <button type="button" data-gsync="1" style="padding:5px 11px;border-radius:6px;border:1px solid rgba(242,202,92,.55);background:rgba(242,202,92,.16);color:#ffe082;font-size:11.5px;font-weight:700;cursor:pointer">🔄 내 기록 등록 · 새로고침</button>
       </div>
     </div>
-    <div style="font-size:11.5px;color:#94a3b8">${cat[2]}${myRankIdx >= 0 ? ` · <b style="color:#fde68a">내 순위 ${myRankIdx + 1}위 / ${list.length}명</b>` : ""} · 내 기록: 심사 평균 ${me.board_avg ? `${me.board_avg}점` : "—"} · 도달 ${serviceDuration(careerMonths(me.promo_week))}${me.approval ? ` · 지지율 ${me.approval}%` : ""}</div>
+    <div style="font-size:11.5px;color:#94a3b8">${cat[2]}${myRankIdx >= 0 ? ` · <b style="color:#fde68a">내 순위 ${myRankIdx + 1}위 / ${list.length}명</b>` : ""} · 내 기록: 심사 평균 ${me.board_avg == null ? "기록 없음" : `${me.board_avg}점`} · 도달 ${me.promotion_months == null ? "기록 없음" : serviceDuration(me.promotion_months)}${me.approval ? ` · 지지율 ${me.approval}%` : ""}</div>
     <div style="overflow-x:auto;border:1px solid rgba(148,163,184,.22);border-radius:8px;background:rgba(10,16,26,.72)">
       <table style="width:100%;border-collapse:collapse;font-size:12px">
         <thead>

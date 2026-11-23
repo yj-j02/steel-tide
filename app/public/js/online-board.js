@@ -120,6 +120,24 @@ export async function claimNickname(record, previousId = null) {
   }
 }
 
+// Store detailed records in the existing text column until the leaderboard schema has dedicated fields.
+const CAREER_RECORD_PREFIX = "the-general:career:1:";
+function decodeLeaderboardRow(row) {
+  if (!row.chapter?.startsWith(CAREER_RECORD_PREFIX)) return row;
+  try {
+    const { chapter, board_avg, promotion_months, approval, hardcore } = JSON.parse(row.chapter.slice(CAREER_RECORD_PREFIX.length));
+    return {
+      ...row, chapter,
+      board_avg: Number.isFinite(board_avg) && board_avg >= 0 ? board_avg : null,
+      promotion_months: Number.isSafeInteger(promotion_months) && promotion_months >= 0 ? promotion_months : null,
+      approval: Number.isFinite(approval) && approval > 0 && approval <= 100 ? approval : 0,
+      hardcore: hardcore === true,
+    };
+  } catch {
+    return row;
+  }
+}
+
 export async function syncLeaderboardScore(entry, { force = false } = {}) {
   if (typeof window === "undefined" || !entry?.player_id || !entry?.name) return false;
   const saved = JSON.parse(careerStorage.getItem("steeltide:cmdr") || "null");
@@ -127,14 +145,13 @@ export async function syncLeaderboardScore(entry, { force = false } = {}) {
   const hash = JSON.stringify([
     entry.player_id, entry.nation, entry.service, entry.name,
     entry.grade, entry.xp, entry.wins, entry.battles, entry.medals,
-    entry.ending_title, entry.chapter, entry.board_avg, entry.promo_week,
+    entry.ending_title, entry.chapter, entry.board_avg, entry.promotion_months,
     entry.approval, entry.hardcore,
   ]);
   if (!force && hash === lastSyncHash) return true;
 
 
-  const payload = { ...entry, updated_at: new Date().toISOString() };
-  const basePayload = {
+  const payload = {
     player_id: entry.player_id,
     nation: entry.nation,
     service: entry.service,
@@ -146,16 +163,20 @@ export async function syncLeaderboardScore(entry, { force = false } = {}) {
     battles: entry.battles,
     medals: entry.medals,
     ending_title: entry.ending_title,
-    chapter: entry.chapter,
-    updated_at: payload.updated_at,
+    chapter: CAREER_RECORD_PREFIX + JSON.stringify({
+      chapter: entry.chapter,
+      board_avg: entry.board_avg,
+      promotion_months: entry.promotion_months,
+      approval: entry.approval,
+      hardcore: entry.hardcore,
+    }),
+    updated_at: new Date().toISOString(),
   };
   try {
     const sb = await getClient();
     if (sb) {
       const { error } = await sb.from("leaderboard").upsert(payload, { onConflict: "player_id" });
       if (!error) { lastSyncHash = hash; return true; }
-      const { error: err2 } = await sb.from("leaderboard").upsert(basePayload, { onConflict: "player_id" });
-      if (!err2) { lastSyncHash = hash; return true; }
     }
     const post = (body) => fetch(`${SUPABASE_URL}/rest/v1/leaderboard?on_conflict=player_id`, {
       method: "POST",
@@ -169,10 +190,6 @@ export async function syncLeaderboardScore(entry, { force = false } = {}) {
     });
     const res = await post(payload);
     if (res.ok) { lastSyncHash = hash; return true; }
-    if (res.status === 400) {
-      const res2 = await post(basePayload);
-      return res2.ok;
-    }
     return false;
   } catch {
     return false;
@@ -193,7 +210,7 @@ export async function fetchLeaderboard({ force = false, requireFresh = false } =
         .order("xp", { ascending: false })
         .limit(100);
       if (!error && Array.isArray(data)) {
-        cachedRows = data;
+        cachedRows = data.map(decodeLeaderboardRow);
         lastFetchAt = now;
         notify();
         return cachedRows;
@@ -203,7 +220,7 @@ export async function fetchLeaderboard({ force = false, requireFresh = false } =
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
     });
     if (res.ok) {
-      cachedRows = await res.json();
+      cachedRows = (await res.json()).map(decodeLeaderboardRow);
       lastFetchAt = now;
       notify();
     }

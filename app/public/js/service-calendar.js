@@ -28,6 +28,24 @@ export function careerMonths(turn = 1, rankWeeks = career.rankWeeks ?? {}) {
   return total + rankMonths(0, Math.max(0, turn - 1 - counted));
 }
 
+export function rankReachedMonths(grade, record = career) {
+  if (grade === 0) return 0;
+  const entry = (record.log ?? []).find(e => e.g === grade && !["보직 변경", "기존 경력 승계", "국방부장관 임명", "미 국방장관 임명"].includes(e.why));
+  const receipt = (record.boardHistory ?? []).find(b => b.passed && b.grade === grade - 1 && (!entry?.turn || b.week === entry.turn));
+  if (Number.isSafeInteger(receipt?.careerMonths) && receipt.careerMonths >= 0) return receipt.careerMonths;
+  if (Number.isSafeInteger(entry?.turn) && entry.turn >= 1) {
+    let remaining = entry.turn - 1;
+    let months = 0;
+    for (const [previousGrade, steps] of Object.entries(record.rankWeeks ?? {})) {
+      const counted = Math.min(remaining, steps);
+      months += rankMonths(previousGrade, counted);
+      remaining -= counted;
+    }
+    if (!remaining) return months;
+  }
+  return null;
+}
+
 export function careerDate(turn = 1, rankWeeks = career.rankWeeks ?? {}) {
   return calendarLabel(careerMonths(turn, rankWeeks));
 }
