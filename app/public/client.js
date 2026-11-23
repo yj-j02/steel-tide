@@ -3156,7 +3156,11 @@ $("#hqP").addEventListener("click", (e) => {
         delete d.recentRivalRetire;
         lastRivalQuote = `${ret.rank} ${ret.name}, 전역 후 ${ret.post} 취임!`;
         showEventScene({ title: `🎖️ 동기 ${ret.rank} ${ret.name} 전역 · ${ret.post}`, text: ret.note, nation: isUS() ? "us" : "kr", service: svk, kind: "rival", customBg: ret.img });
-        playVO(19);
+        if (!career.vo19Played) {
+          career.vo19Played = true;
+          saveCareer();
+          playVO(19);
+        }
       } else if (d.warroom && (d.warroom.stage || 0) === 0) {
         playVO(22);
       } else if (d.crisis) {
