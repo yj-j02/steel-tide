@@ -477,9 +477,8 @@ async function saveCmdr() {
   const n = $("#cmdrInput").value.trim(); if (!n) { $("#cmdrErr").textContent = "이름을 입력하세요"; return; } if (n.length > 12) { $("#cmdrErr").textContent = "12자 이내로 입력하세요"; return; }
   const okBtn = $("#cmdrOk");
   if (okBtn) okBtn.disabled = true;
-  const myPid = `${myId}:${activeCharacterId() || "main"}`;
   try {
-    if (await isNameTaken(n, myPid)) {
+    if (await isNameTaken(n, `${myId}:`)) {
       $("#cmdrErr").textContent = "이미 사용 중인 이름입니다. 다른 이름을 입력하세요.";
       return;
     }
@@ -2691,7 +2690,7 @@ function renderTitleHub() {
       return `<label class="th-service-contract">🧬 가문 계승 <select id="thHeritage"><option value="">독자 가문 (1대 창업)</option>${elders.map((s) => `<option value="${escapeTitle(s.commander.name)}">🗡️ ${escapeTitle(s.commander.name)} 장군 가문 2세 계승 (삼정검·명문가)</option>`).join("")}</select></label>`;
     })()}
     <div class="th-id">
-      <div class="th-faces">${fList.map((_, i) => `<button class="th-face${thFace === i ? " on" : ""}" data-th="face:${i}">${face(agedFace(i, 0, us), 48)}</button>`).join("")}</div>
+      <div class="th-faces">${fList.map((_, i) => `<button class="th-face${thFace === i ? " on" : ""}" data-th="face:${i}">${face({ ...agedFace(i, 0, us), svc: thSvc }, 48)}</button>`).join("")}</div>
       <input id="thName" type="text" maxlength="12" value="${escapeTitle(defNm)}" placeholder="${us ? "Officer Name" : "지휘관 이름"}">
     </div>
     <div class="th-acts">
@@ -2762,7 +2761,7 @@ $("#titleHub")?.addEventListener("click", async (e) => {
     if (!name) { toast("지휘관 이름을 입력하세요", 2.5); $("#thName")?.focus(); return; }
     b.disabled = true;
     try {
-      if (await isNameTaken(name, "")) {
+      if (await isNameTaken(name, `${myId}:`)) {
         toast("이미 사용 중인 이름입니다. 다른 이름을 입력하세요.", 3);
         $("#thName")?.focus();
         return;

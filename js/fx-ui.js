@@ -102,16 +102,16 @@ function pickSceneVisual({ title = "", text = "", nation = "kr", service = "army
   const us = nation === "us";
   const svcBg = us
     ? (service === "army" ? "img/bg/us_bg_army.jpg" : service === "air" ? "img/bg/us_bg_air.jpg" : "img/bg/us_bg_navy.jpg")
-    : (service === "army" ? "img/bg/kr_bg_army.jpg" : service === "air" ? "img/bg/kr_bg_air.jpg" : "img/bg/kr_bg_navy.jpg");
+    : (service === "army" ? "img/bg/kr_bg_army.jpg" : service === "air" ? "img/bg/kr_bg_air.jpg" : "img/bg/us_bg_navy.jpg" /* TODO: 한국 해군 전용 배경 필요 */);
 
   if (kind === "warroom" || /도발|미사일|침투|교전|요격|위기|경보|발진|포격|nll|kadiz|adiz|scramble/i.test(hay)) {
-    return { bg: us ? "img/bg/warroom_us.jpg" : "img/bg/warroom_kr.jpg", cat: "🚨 안보 위기 · 작전 상황" };
+    return { bg: us ? "img/bg/us_war_room.jpg" : "img/bg/war_room.jpg", cat: "🚨 안보 위기 · 작전 상황" };
   }
   if (/청문회|국회|의회|감찰|언론|기자|보도|감사|비리|사고/i.test(hay)) {
-    return { bg: us ? "img/bg/us_capitol_hearing.jpg" : "img/bg/press_briefing.jpg", cat: "🎙️ 언론 · 의회 · 감찰 대응" };
+    return { bg: us ? "img/bg/us_capitol_hearing.jpg" : "img/bg/press_journalist.jpg", cat: "🎙️ 언론 · 의회 · 감찰 대응" };
   }
   if (/외교|연합|동맹|정상|주외무관|협정|방문|회의|nsc|백악관|펜타곤/i.test(hay)) {
-    return { bg: us ? "img/bg/us_pentagon_office.jpg" : "img/bg/ministry_office.jpg", cat: "🌐 전략 · 연합 · 정책 조율" };
+    return { bg: us ? "img/bg/us_pentagon_office.jpg" : "img/bg/office.jpg", cat: "🌐 전략 · 연합 · 정책 조율" };
   }
   if (kind === "rival" || /동기|인맥|공조|추천|브리핑/i.test(hay)) {
     return { bg: svcBg, cat: "🤝 동기 · 지휘부 인맥" };
