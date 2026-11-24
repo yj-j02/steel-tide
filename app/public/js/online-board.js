@@ -89,32 +89,33 @@ export function isExcludedLeaderboardName(name = "") {
   return !n || EXCLUDED_NAME_RE.test(n);
 }
 
+/** 3초 안에 끝나지 않으면 null (느린 네트워크에서 임관·이름 변경이 멈추지 않게) */
+const withTimeout = (p, ms = 3000) => Promise.race([p, new Promise((r) => setTimeout(() => r(null), ms))]);
+
+/** myPlayerId가 ':'로 끝나면 접두사로 보고, 같은 브라우저의 내 다른 캐릭터 기록은 '남의 이름'으로 치지 않는다 */
 export async function isNameTaken(name, myPlayerId = "") {
   const n = String(name || "").trim();
   if (!n || typeof window === "undefined") return false;
-  const localHit = (cachedRows || []).some((r) => String(r?.name || "").trim().toLowerCase() === n.toLowerCase() && r.player_id !== myPlayerId);
+  const mine = (pid) => !!myPlayerId && (myPlayerId.endsWith(":") ? String(pid || "").startsWith(myPlayerId) : pid === myPlayerId);
+  const hit = (rows) => Array.isArray(rows) && rows.some((r) => String(r?.name || "").trim().toLowerCase() === n.toLowerCase() && !mine(r.player_id));
+  const localHit = hit(cachedRows || []);
   try {
-    const sb = await getClient();
+    const sb = await withTimeout(getClient());
     if (sb) {
-      const { data, error } = await sb.from("leaderboard").select("player_id,name").ilike("name", n).limit(5);
-      if (!error && Array.isArray(data)) {
-        return data.some((r) => String(r?.name || "").trim().toLowerCase() === n.toLowerCase() && r.player_id !== myPlayerId);
-      }
+      const out = await withTimeout(sb.from("leaderboard").select("player_id,name").ilike("name", n).limit(5));
+      if (out && !out.error && Array.isArray(out.data)) return hit(out.data);
     }
-    const res = await fetch(`${SUPABASE_URL}/rest/v1/leaderboard?select=player_id,name&name=ilike.${encodeURIComponent(n)}&limit=5`, {
+    const res = await withTimeout(fetch(`${SUPABASE_URL}/rest/v1/leaderboard?select=player_id,name&name=ilike.${encodeURIComponent(n)}&limit=5`, {
       headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` },
-    });
-    if (res.ok) {
-      const rows = await res.json();
-      return Array.isArray(rows) && rows.some((r) => String(r?.name || "").trim().toLowerCase() === n.toLowerCase() && r.player_id !== myPlayerId);
-    }
+    }));
+    if (res && res.ok) return hit(await res.json());
   } catch {}
   return localHit;
 }
 
 export async function syncLeaderboardScore(entry, { force = false } = {}) {
   if (typeof window === "undefined" || !entry?.player_id || isExcludedLeaderboardName(entry?.name)) return false;
-  if (await isNameTaken(entry.name, entry.player_id)) return false;
+  if (await isNameTaken(entry.name, `${String(entry.player_id).split(":")[0]}:`)) return false;
   const hash = JSON.stringify([
     entry.player_id, entry.nation, entry.service, entry.name,
     entry.grade, entry.xp, entry.wins, entry.battles, entry.medals,

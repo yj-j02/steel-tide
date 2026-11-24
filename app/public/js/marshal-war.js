@@ -11,7 +11,7 @@ export const MARSHAL_WARS = {
     code: "OPERATION IRON DAWN",
     title: "제2차 한반도 전면전 · 작전명 「철의 여명」",
     subtitle: "DEFCON 1 발령 · 전시 작전통제권 전환 · 한미연합전구사령관 임명",
-    bg: "img/bg/warroom_kr.jpg",
+    bg: "img/bg/war_room.jpg",
     medal: "태극무공훈장",
     marshalTitle: "대한민국 국군 원수 (★★★★★)",
     nodes: [
@@ -174,7 +174,7 @@ export const MARSHAL_WARS = {
     code: "OPERATION PACIFIC VANGUARD",
     title: "인도태평양 전면전 · Operation Pacific Vanguard",
     subtitle: "DEFCON 1 발령 · 미 인도태평양 전시 총사령관 (Supreme Theater Commander) 임명",
-    bg: "img/bg/warroom_us.jpg",
+    bg: "img/bg/us_war_room.jpg",
     medal: "Medal of Honor (명예훈장)",
     marshalTitle: "미합중국 5성 원수 (★★★★★ · O-11)",
     nodes: [

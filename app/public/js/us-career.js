@@ -15,6 +15,8 @@ import {
 } from "./content/us.js";
 
 const clamp = (n, lo, hi) => Math.max(lo, Math.min(hi, n));
+/** 국방장관 임기 목표 (게임용 값) */
+export const DEPT_GOAL = 42;
 export function newCareer() {
   return {
     phase: "service",
@@ -74,6 +76,8 @@ function inaugurate(s) {
   log(s, "Inauguration · Term " + s.term);
 }
 function nextQuarter(s, rng) {
+  /* 분기마다 여론 변동: 무작위 사건 + 임기 피로 + 평균 회귀 (게임용 값) */
+  s.trust = clamp(Math.round(s.trust + (rng() - 0.5) * 10 - 0.8 - (s.trust - 50) * 0.1), 0, 100);
   if (s.quarter === 8) {
     const shift = Math.round((s.trust - 50) / 2 + (rng() - 0.5) * 18);
     s.house = clamp(s.house + shift, 0, 435);
@@ -323,7 +327,7 @@ export function decide(s, i, rng = Math.random) {
       break;
     case "defense": {
       const funded = i === 0 && s.funds >= 2;
-      const gain = funded ? 3 : i === 1 ? 2 : -2;
+      const gain = funded ? 3 : i === 1 ? 2 : -1;
       s.funds += funded ? -2 : 1;
       s.record += gain;
       s.trust = clamp(s.trust + Math.sign(gain), 0, 100);
@@ -338,7 +342,7 @@ export function decide(s, i, rng = Math.random) {
         s.phase = "party";
         log(
           s,
-          s.record >= 55 ? "Department goals met" : "Department goals missed",
+          s.record >= DEPT_GOAL ? "Department goals met" : "Department goals missed",
         );
       }
       break;

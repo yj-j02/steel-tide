@@ -9,8 +9,7 @@ import {
   brief,
   choices,
   decide,
-  election,
-} from "./us-career.js";
+  election, DEPT_GOAL } from "./us-career.js";
 import { playCuts, setTheme } from "./scene.js";
 const KEY = "steeltide:us:career";
 const phases = [
@@ -81,7 +80,7 @@ function electionMap(s) {
 }
 function status(s) {
   if (s.phase === "defense")
-    return `Decision ${s.turn + 1}/30 · Budget ${s.funds} · Service record ${s.record} (goal 55)`;
+    return `Decision ${s.turn + 1}/30 · Budget ${s.funds} · Service record ${s.record} (goal ${DEPT_GOAL})`;
   if (s.phase === "service")
     return `U.S. Navy · O-${s.rank + 1} · ${s.xp || 0} XP · ${stations[s.station][0]}`;
   if (s.phase === "campaign")

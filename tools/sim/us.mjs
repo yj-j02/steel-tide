@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { newCareer, choices, decide } from "../../app/public/js/us-career.js";
+import { newCareer, choices, decide, DEPT_GOAL } from "../../app/public/js/us-career.js";
 import { electors, tiles } from "../../app/public/js/content/us.js";
 assert.equal(
   Object.values(electors).reduce((a, b) => a + b),
@@ -41,7 +41,7 @@ function run(style, n) {
               ? 2
               : Math.floor(rng() * 3);
       if (s.phase === "party") {
-        tally.departmentGoals += Number(s.record >= 55);
+        tally.departmentGoals += Number(s.record >= DEPT_GOAL);
         i = k % 2;
       }
       if (s.phase === "convention" && s.delegates > 50) tally.nominees++;
