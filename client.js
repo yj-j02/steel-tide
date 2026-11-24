@@ -2371,7 +2371,7 @@ function renderMin() {
   setAmbienceMood("ministry");
   const mode = isUS() ? "min_us" : "min_kr", svk = serviceOf(normBranch(staff.branch));
   const cab = classmateCabinetHTML({ mode, rivals: dutyState().rivals || [], appointed: career.cabinetAppointments?.[mode] || {}, rankLabelFn: (r) => rankLabel(r, svk) });
-  $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="org">‹ 지휘 계통도</button><b>${isUS() ? "펜타곤 집무실 (Pentagon)" : "국방부 집무실"}</b><small>${isUS() ? `SecDef ${cmdr.name}` : `${cmdr.name} ${civil() ? "전 장관" : "장관"}`}</small><button data-act="opensig" class="hq-tg2">✍️ ${career.customSign ? "공식 서명 수정" : "공식 서명 그리기"}</button><button data-min="gal" class="hq-tg2">🖼 역대 장관</button>${!isUS() && presState() ? `<button data-hqv="pres">대선 캠프 ›</button>` : ""}</div>${admBar("min")}${minHTML()}${cab}`;
+  $("#hqP").innerHTML = `<div class="dsr-page dsr-state"><div class="hq-tog"><button data-hqv="org">‹ 지휘 계통도</button><b>${isUS() ? "펜타곤 집무실 (Pentagon)" : "국방부 집무실"}</b><small>${isUS() ? `SecDef ${cmdr.name}` : `${cmdr.name} ${civil() ? "전 장관" : "장관"}`}</small><button data-act="opensig" class="hq-tg2">✍️ ${career.customSign ? "공식 서명 수정" : "공식 서명 그리기"}</button><button data-min="gal" class="hq-tg2">🖼 역대 장관</button>${!isUS() && presState() ? `<button data-hqv="pres">대선 캠프 ›</button>` : ""}</div>${admBar("min")}${minHTML()}${cab}</div>`;
 }
 /** 관리자 시험 바 (국방부·대선·대통령실 공통) */
 const ADM = { min: [["minok", "장관 명예 퇴임 즉시"], ["minbad", "장관 임기 종료(목표 미달)"], ["topres", "→ 대선 바로 시작"], ["topotus", "→ 대통령 바로 취임"], ["reset0", "↺ 소위부터 다시 시작"]],
@@ -2394,7 +2394,7 @@ function renderPotus() {
   setAmbienceMood("presidential");
   const svk = serviceOf(normBranch(staff.branch));
   const cab = classmateCabinetHTML({ mode: "potus_kr", rivals: dutyState().rivals || [], appointed: career.cabinetAppointments?.potus_kr || {}, rankLabelFn: (r) => rankLabel(r, svk) });
-  $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="pres">‹ 대선 기록</button><b>대통령실</b><small>${cmdr.name} 대통령</small><button data-act="opensig" class="hq-tg2">✍️ ${career.customSign ? "공식 서명 수정" : "공식 서명 그리기"}</button></div>${admBar("potus")}${potusHTML()}${cab}`;
+  $("#hqP").innerHTML = `<div class="dsr-page dsr-state"><div class="hq-tog"><button data-hqv="pres">‹ 대선 기록</button><b>대통령실</b><small>${cmdr.name} 대통령</small><button data-act="opensig" class="hq-tg2">✍️ ${career.customSign ? "공식 서명 수정" : "공식 서명 그리기"}</button></div>${admBar("potus")}${potusHTML()}${cab}</div>`;
 }
 function potusResult(r) {
   setTheme(presTheme());
@@ -2407,7 +2407,7 @@ function potusResult(r) {
   if (r.cuts) { renderPotus(); playCuts({ title: "대통령 퇴임", place: "대통령실", cuts: r.cuts, onClose: () => { renderPotus(); refreshMenus(); } }); return; }
   if (r.redraw) { renderPotus(); refreshMenus(); }
 }
-function renderPres() { if (!presState()) presStart(cmdr.name); setAmbienceMood("presidential"); $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="min">‹ 국방부 기록</button><b>대통령 선거</b><small>${cmdr.name}</small>${potusState() ? `<button data-hqv="potus" class="hq-tg2">대통령실 ›</button>` : ""}</div>${admBar("pres")}${presHTML()}`; }
+function renderPres() { if (!presState()) presStart(cmdr.name); setAmbienceMood("presidential"); $("#hqP").innerHTML = `<div class="dsr-page dsr-state"><div class="hq-tog"><button data-hqv="min">‹ 국방부 기록</button><b>대통령 선거</b><small>${cmdr.name}</small>${potusState() ? `<button data-hqv="potus" class="hq-tg2">대통령실 ›</button>` : ""}</div>${admBar("pres")}${presHTML()}</div>`; }
 /** 대선 화면 클릭 결과 처리 (장면·컷·다시 그리기) */
 function presResult(r) {
   setTheme(presTheme());
@@ -2453,7 +2453,7 @@ function renderUsPres() {
   const svk = serviceOf(normBranch(staff.branch));
   const cab = usPotusOn() ? classmateCabinetHTML({ mode: "potus_us", rivals: dutyState().rivals || [], appointed: career.cabinetAppointments?.potus_us || {}, rankLabelFn: (r) => rankLabel(r, svk) }) : "";
   const sigBtn = usIsPotus() ? `<button data-act="opensig" class="hq-tg2">✍️ ${career.customSign ? "공식 서명 수정" : "공식 서명 그리기"}</button>` : "";
-  $("#hqP").innerHTML = `<div class="hq-tog"><button data-hqv="${career.minister ? "min" : "duty"}">‹ 복귀</button><b>미국 대통령 선거와 백악관</b><small>${cmdr.name}</small>${sigBtn}</div>${admUs}${usPresHTML()}${cab}`;
+  $("#hqP").innerHTML = `<div class="dsr-page dsr-state"><div class="hq-tog"><button data-hqv="${career.minister ? "min" : "duty"}">‹ 복귀</button><b>미국 대통령 선거와 백악관</b><small>${cmdr.name}</small>${sigBtn}</div>${admUs}${usPresHTML()}${cab}</div>`;
 }
 function renderDischarged() {
   const dc = career.discharged, g = dc.g, br = normBranch(staff.branch), svk = serviceOf(br), sv = curServices()[svk] || curServices().navy;

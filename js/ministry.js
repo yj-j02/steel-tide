@@ -412,7 +412,7 @@ export function minClick(a) {
   if (a === "next") {
     if (m.docket.length) return { toast: "결재 안건을 먼저 처리하십시오" };
     endWeek(m); m.support = clamp(m.support, 0, 100);
-    const hot = !m.retired && (m.week - (m.lastNsc || -9) >= 3) ? Object.keys(AREAS).find((k) => m.war.areas[k].lvl === 2) : null;
+    const hot = !m.retired && (m.week - (m.lastNsc || -9) >= 6) ? Object.keys(AREAS).find((k) => m.war.areas[k].lvl === 2) : null;
     m.nsc = hot || null; if (hot) m.lastNsc = m.week; save(m);
     return { redraw: true, retire: m.retired ? retireCuts(m) : null, toast: m.retired ? "" : `${m.week}주차 — 새 위기와 결재 안건`, nsc: hot && scenesOn() ? { kind: "nsc", title: `${areaName(hot)} 위협 '높음'`, id: hot, questions: [{ who: "국가안보실장", q: `${areaName(hot)}에서 적 도발 징후가 급증했습니다. 이번 주 위기 대응 방침을 정해 주십시오.`, opts: councilOptions().map(([n, e, l]) => [n, e, l]) }] } : null };
   }

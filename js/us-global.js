@@ -1,3 +1,4 @@
+import { WORLD, wxy } from "./geo-maps.js";
 // White House Global Situation Room: 6 World Theaters & Presidential Foreign/Economic/Security Directives.
 
 export const STATE_NAMES = {
@@ -15,7 +16,7 @@ export const SWING_STATES = ["PA", "MI", "WI", "GA", "NC", "AZ", "NV"];
 
 export const WORLD_THEATERS = [
   {
-    id: "indopac", icon: "🌏", name: "인도-태평양", en: "INDOPACOM", x: 84, y: 46,
+    id: "indopac", icon: "🌏", name: "인도-태평양", en: "INDOPACOM", lon: 128, lat: 22,
     sub: "대만해협 · 한미일 동맹 · 남중국해",
     actions: [
       { l: "제7함대 항모전단 전진 배치 · 항행의 자유", d: "전구 안보 +7 · 동맹 신뢰 +4 · 경제 −2", world: 4, sec: 7, econ: -2, trust: 2, log: "인도-태평양 항모전단 전진 배치로 대만해협 억제력 강화" },
@@ -24,7 +25,7 @@ export const WORLD_THEATERS = [
     ],
   },
   {
-    id: "europe", icon: "🇪🇺", name: "유럽 · NATO", en: "EUCOM / NATO", x: 55, y: 36,
+    id: "europe", icon: "🇪🇺", name: "유럽 · NATO", en: "EUCOM / NATO", lon: 24, lat: 50,
     sub: "NATO 동부전선 · 방위비 · 대서양 동맹",
     actions: [
       { l: "NATO 동부전선 미 육군 기갑여단 순환 증원", d: "전구 안보 +6 · 동맹 신뢰 +6 · 경제 −3", world: 6, sec: 6, econ: -3, trust: 2, log: "NATO 동부전선 미군 증원 — 유럽 집단방위 공약 재확인" },
@@ -33,7 +34,7 @@ export const WORLD_THEATERS = [
     ],
   },
   {
-    id: "mideast", icon: "🕌", name: "중동 · 홍해", en: "CENTCOM", x: 60, y: 64,
+    id: "mideast", icon: "🕌", name: "중동 · 홍해", en: "CENTCOM", lon: 46, lat: 22,
     sub: "호르무즈·홍해 호송 · 휴전 중재 · 유가",
     actions: [
       { l: "홍해·호르무즈 다국적 해군 호송작전 지휘", d: "전구 안보 +6 · 미국 경제 +4 · 지지율 +2", world: 4, sec: 6, econ: 4, trust: 2, log: "다국적 해상 호송작전으로 홍해·호르무즈 해상교통로 안전 확보" },
@@ -42,7 +43,7 @@ export const WORLD_THEATERS = [
     ],
   },
   {
-    id: "americas", icon: "🌎", name: "미주 · 본토", en: "NORTHCOM", x: 18, y: 42,
+    id: "americas", icon: "🌎", name: "미주 · 본토", en: "NORTHCOM", lon: -98, lat: 40,
     sub: "USMCA · 국경 안보 · 제조업 리쇼어링",
     actions: [
       { l: "첨단 제조업·반도체 본토 리쇼어링 세제 지원", d: "미국 경제 +7 · 지지율 +4", world: 1, sec: 2, econ: 7, trust: 4, log: "미국 본토 첨단 반도체·방산 제조 클러스터 대규모 투자 유치" },
@@ -51,7 +52,7 @@ export const WORLD_THEATERS = [
     ],
   },
   {
-    id: "econ", icon: "💵", name: "글로벌 경제 · G7", en: "G7 / TRADE", x: 30, y: 74,
+    id: "econ", icon: "💵", name: "글로벌 경제 · G7", en: "G7 / TRADE", lon: -32, lat: 22,
     sub: "달러 패권 · 관세 협상 · AI 수출통제",
     actions: [
       { l: "G7 정상회의 주도 · AI·양자컴퓨팅 국제 규범 선도", d: "동맹 신뢰 +6 · 미국 경제 +5 · 지지율 +2", world: 6, sec: 2, econ: 5, trust: 2, log: "G7 정상회의서 미국 주도 첨단 AI·기술 표준 채택" },
@@ -60,7 +61,7 @@ export const WORLD_THEATERS = [
     ],
   },
   {
-    id: "space", icon: "🛰️", name: "우주 · 사이버", en: "USSF / CYBER", x: 50, y: 14,
+    id: "space", icon: "🛰️", name: "우주 · 사이버", en: "USSF / CYBER", lon: 10, lat: 76,
     sub: "저궤도 방어망 · 핵우산 · 사이버전",
     actions: [
       { l: "미 우주군(USSF) 저궤도 미사일 추적 위성망 확충", d: "전구 안보 +8 · 경제 −2 · 지지율 +2", world: 3, sec: 8, econ: -2, trust: 2, log: "미 우주군 차세대 극초음속 미사일 조기경보 위성망 배치" },
@@ -87,35 +88,46 @@ export function worldMapHTML(s) {
   const usedThisQ = s.globalActQ === `${s.term}:${s.quarter}`;
   const stColor = (v) => (v >= 70 ? "#3fb97a" : v >= 50 ? "#e8b948" : "#e85d5d");
   const stLabel = (v) => (v >= 70 ? "안정" : v >= 50 ? "긴장" : "위기");
-
+  const [dcX, dcY] = wxy(-77, 38.9);
+  /* 경위선: 30도 간격 */
+  let grid = "";
+  for (let lon = -150; lon <= 150; lon += 30) { const [x] = wxy(lon, 0); grid += `<line x1="${x}" y1="0" x2="${x}" y2="400"/>`; }
+  for (let lat = -30; lat <= 60; lat += 30) { const [, y] = wxy(0, lat); grid += `<line x1="0" y1="${y}" x2="1000" y2="${y}"/>`; }
+  /* 전구별 국가 색: 안정도에 따라 */
+  const regions = ["americas", "europe", "mideast", "indopac"].map((id) => {
+    const v = s.theaters[id] ?? 65, on = id === sel.id;
+    return `<path d="${WORLD[id]}" fill="${stColor(v)}" fill-opacity="${on ? 0.55 : 0.28}" stroke="${on ? "#fff" : "none"}" stroke-width="${on ? 0.8 : 0}" data-usth="${id}" class="wh-reg"/>`;
+  }).join("");
+  /* 워싱턴 → 각 전구 지휘선 */
+  const arcs = WORLD_THEATERS.filter((t) => t.id !== "americas").map((t) => {
+    const [x, y] = wxy(t.lon, t.lat), mx = (dcX + x) / 2, my = Math.min(dcY, y) - 40;
+    const on = t.id === sel.id;
+    return `<path d="M${dcX.toFixed(0)},${dcY.toFixed(0)} Q${mx.toFixed(0)},${my.toFixed(0)} ${x.toFixed(0)},${y.toFixed(0)}" fill="none" stroke="${on ? "#ffd166" : "rgba(150,200,240,.35)"}" stroke-width="${on ? 1.6 : 1}" stroke-dasharray="4 4"/>`;
+  }).join("");
   const pins = WORLD_THEATERS.map((t) => {
     const v = s.theaters[t.id] ?? 65;
     const on = t.id === sel.id;
-    return `<button class="wh-pin${on ? " on" : ""}" data-usth="${t.id}" style="left:${t.x}%;top:${t.y}%;border-color:${stColor(v)}" title="${t.name} (${t.en}) · 안정도 ${v}%">
+    const [x, y] = wxy(t.lon, t.lat);
+    return `<button class="wh-pin${on ? " on" : ""}" data-usth="${t.id}" style="left:${(x / 10).toFixed(1)}%;top:${(y / 4).toFixed(1)}%;border-color:${stColor(v)}" title="${t.name} (${t.en}) · 안정도 ${v}%">
       <span>${t.icon}</span><b>${t.name}</b><em style="color:${stColor(v)}">${v}% · ${stLabel(v)}</em>
     </button>`;
   }).join("");
 
-  const acts = sel.actions.map((a, i) => `<button class="us-ch" data-uspres="glob:${sel.id}:${i}" ${usedThisQ ? "disabled" : ""}><b>${a.l}</b><small style="display:block;color:#98b6c8;font-size:11px;margin-top:2px">${a.d}</small></button>`).join("");
+  const acts = sel.actions.map((a, i) => `<button class="us-ch" data-uspres="glob:${sel.id}:${i}" ${usedThisQ ? "disabled" : ""}><b>${a.l}</b><small style="display:block;color:#5b6773;font-size:11px;margin-top:2px">${a.d}</small></button>`).join("");
 
   return `<div class="mn-card wh-sitroom">
     <div class="mn-h">🌐 백악관 상황실 (White House Situation Room) <small>${usedThisQ ? "이번 분기 글로벌 지침 발령 완료" : "전 세계 6대 전구 중 1곳을 선택해 대통령 지침 발령"}</small></div>
     <div class="wh-world">
-      <svg viewBox="0 0 1000 440" class="wh-svg" aria-hidden="true">
-        <rect width="1000" height="440" fill="#091320"/>
-        <g stroke="rgba(93,168,232,.12)" stroke-width="1">
-          <line x1="0" y1="110" x2="1000" y2="110"/><line x1="0" y1="220" x2="1000" y2="220"/><line x1="0" y1="330" x2="1000" y2="330"/>
-          <line x1="200" y1="0" x2="200" y2="440"/><line x1="400" y1="0" x2="400" y2="440"/><line x1="600" y1="0" x2="600" y2="440"/><line x1="800" y1="0" x2="800" y2="440"/>
-        </g>
-        <!-- Simplified stylized continents -->
-        <g fill="rgba(48,88,128,.38)" stroke="rgba(120,180,235,.32)" stroke-width="1.2">
-          <path d="M90,95 L255,85 L295,145 L245,215 L175,210 L130,175 Z"/>
-          <path d="M210,235 L290,255 L320,340 L265,410 L225,360 L205,285 Z"/>
-          <path d="M445,88 L590,82 L610,165 L540,185 L455,165 Z"/>
-          <path d="M465,195 L575,195 L615,280 L555,390 L485,355 L455,255 Z"/>
-          <path d="M605,95 L875,95 L905,195 L815,250 L685,235 L605,175 Z"/>
-          <path d="M775,295 L890,295 L905,375 L800,380 Z"/>
-        </g>
+      <svg viewBox="0 0 1000 400" class="wh-svg" aria-hidden="true">
+        <defs><radialGradient id="whOcean" cx="50%" cy="45%" r="70%"><stop offset="0" stop-color="#10263a"/><stop offset="1" stop-color="#060f19"/></radialGradient></defs>
+        <rect width="1000" height="400" fill="url(#whOcean)"/>
+        <g stroke="rgba(120,180,235,.10)" stroke-width="1">${grid}</g>
+        <path d="${WORLD.land}" fill="#22384a"/>
+        ${regions}
+        <path d="${WORLD.borders}" fill="none" stroke="rgba(6,15,25,.85)" stroke-width=".6"/>
+        <g>${arcs}</g>
+        <circle cx="${dcX.toFixed(0)}" cy="${dcY.toFixed(0)}" r="4" fill="#ffd166" stroke="#fff" stroke-width="1"/>
+        <text x="${(dcX + 7).toFixed(0)}" y="${(dcY + 14).toFixed(0)}" font-size="10" fill="#ffd166" font-weight="700">백악관</text>
       </svg>
       ${pins}
     </div>

@@ -33,7 +33,7 @@
 .dsr-page .hq-tog button { background: var(--ds-paper) !important; color: var(--ds-navy) !important; border: 1px solid var(--ds-navy) !important; border-radius: 6px !important; font-weight: 700; }
 
 /* ── 밝은 종이 카드: 어두운 연출용 카드는 제외 ── */
-.dsr-page :where(.mn-card:not(.mn-nsc, #duty-warroom, #duty-arc, .dm-done-card), .dm-top, .dm-status-strip, .dm-toolbar, .dm-queue, .mn-fold) {
+.dsr-page :where(.mn-card:not(.mn-nsc, #duty-warroom, #duty-arc, .dm-done-card, .mn-trend, .wh-sitroom, .mn-dk:not(.mn-paper), [style*="url("]), .mn-top, .dm-status-strip, .dm-toolbar, .dm-queue, .mn-fold) {
   background: var(--ds-paper) !important;
   border: 1px solid var(--ds-line) !important;
   border-radius: 8px !important;
@@ -42,9 +42,9 @@
   background-image: none !important;
 }
 /* 인라인으로 박혀 있던 어두운 배경용 밝은 글자색을 잉크색으로 통일 */
-.dsr-page :where(.mn-card:not(.mn-nsc, #duty-warroom, #duty-arc, .dm-done-card), .dm-top, .dm-status-strip, .dm-toolbar, .dm-queue, .mn-fold) :where(*) { color: inherit !important; }
+.dsr-page :where(.mn-card:not(.mn-nsc, #duty-warroom, #duty-arc, .dm-done-card, .mn-trend, .wh-sitroom, .mn-dk:not(.mn-paper), [style*="url("]), .mn-top, .dm-status-strip, .dm-toolbar, .dm-queue, .mn-fold) :where(*) { color: inherit !important; }
 .dsr-page :where(.mn-card, .dm-top, .dm-status-strip, .dm-toolbar, .mn-fold) :where(small, .mn-h small) { color: var(--ds-mute) !important; }
-.dsr-page :where(.mn-card:not(.mn-nsc, #duty-warroom, #duty-arc)) [style*="background"]:not(button):not(.mn-bar):not(em):not(i) { background: transparent !important; }
+.dsr-page :where(.mn-card:not(.mn-nsc, #duty-warroom, #duty-arc, .dm-done-card, .mn-trend, .wh-sitroom, .mn-dk:not(.mn-paper), [style*="url("])) [style*="background"]:not(button):not(.mn-bar):not(em):not(i):not([style*="url("]) { background: transparent !important; }
 .dsr-page .mn-h { color: var(--ds-mute) !important; font-size: 12px !important; letter-spacing: .08em; font-weight: 700; }
 .dsr-page .g, .dsr-page b.g { color: var(--ds-green) !important; }
 .dsr-page .y, .dsr-page b.y { color: var(--ds-amber) !important; }
@@ -135,3 +135,281 @@
   .dsr-page .dm-qtab { white-space: nowrap; min-height: 40px; font-size: 13px !important; }
   .dsr-page .dm-st-btn { min-height: 40px !important; font-size: 13px !important; }
 }
+
+/* ── 인사기록 (#recordP) : 같은 서류 테마 ──
+   기존 스타일이 --cream/--gold/--gline 변수를 쓰므로 변수를 잉크색으로 바꿔 한 번에 뒤집는다. */
+#recordP {
+  --cream: #1d1b17; --cream2: #4d473d; --gold: #1f3a5f; --gline: #d6cfc0; --gline-soft: #e1dace; --fg: #1d1b17;
+  background: var(--ds-ground) !important; color: var(--ds-ink) !important;
+  border: 1px solid #c9c1b0 !important; border-top: 3px solid var(--ds-navy) !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, .35) !important;
+  font-family: "Noto Sans KR", sans-serif;
+}
+#recordP h3 { color: var(--ds-navy) !important; font-family: "Noto Serif KR", "Noto Sans KR", serif; font-size: 15px !important; border-bottom: 1px solid var(--ds-line); padding-bottom: 6px; }
+#recordP :where(.mi-card, .mi-ev, .mi-min, .rstats div, .mi-pk li, .mi-md .md, .mi-log > *, .ladder, details, .cr) { background: var(--ds-paper) !important; border-color: var(--ds-line) !important; color: var(--ds-ink); }
+#recordP .mi-card { border-top: 3px solid var(--ds-navy) !important; border-radius: 8px; }
+#recordP .mi-ev .ev-top b, #recordP .mi-min b, #recordP .mi-nm { color: var(--ds-ink) !important; }
+#recordP .mi-rk { color: var(--ds-navy) !important; }
+#recordP .mi-note { color: var(--ds-ink2) !important; }
+#recordP .mi-por, #recordP .mi-por.minp { border-color: var(--ds-line) !important; box-shadow: 0 10px 24px rgba(40, 30, 10, .18) !important; border-radius: 8px; }
+#recordP .hbar { background: #e3ddd0 !important; }
+#recordP .hbar > * { background: var(--ds-navy) !important; }
+#recordP .uniform-caption { color: var(--ds-ink2) !important; }
+#recordP button:not(.rec-tab):not([disabled]) { color: var(--ds-navy); }
+#recordP .mi-adm select, #recordP input { background: var(--ds-paper) !important; color: var(--ds-ink) !important; border: 1px solid var(--ds-line) !important; }
+#recordP .mi-adm { color: var(--ds-red) !important; }
+#recordP .mi-adm button { background: var(--ds-navy) !important; color: #fff !important; }
+#recordP .pk { background: var(--ds-paper) !important; color: var(--ds-ink) !important; }
+/* 요약 카드: 긴 글자가 잘리거나 한 글자씩 꺾이지 않게 */
+#recordP .rstats { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)) !important; }
+#recordP .rstats div { border-radius: 8px; padding: 12px 14px !important; min-width: 0; }
+#recordP .rstats span { color: var(--ds-mute) !important; }
+#recordP .rstats b { font: 700 18px/1.35 "Noto Sans KR", sans-serif !important; color: var(--ds-ink) !important; word-break: keep-all; overflow-wrap: anywhere; letter-spacing: 0 !important; }
+#recordP :where(.mi, .mi-r, .mi-l) :where(b, span, small, em, li, p, div) { word-break: keep-all; overflow-wrap: anywhere; }
+/* 탭 */
+#recordP .rec-tabs { border-bottom-color: var(--ds-line) !important; }
+#recordP .rec-tab { background: var(--ds-paper) !important; border: 1px solid var(--ds-line) !important; color: var(--ds-ink2) !important; border-radius: 999px !important; }
+#recordP .rec-tab.on { background: var(--ds-navy) !important; border-color: var(--ds-navy) !important; color: #fff !important; }
+/* 인라인으로 박힌 밝은 글자색(어두운 배경용)을 잉크색으로 */
+#recordP [style*="color:#f"], #recordP [style*="color:#e"], #recordP [style*="color:#d"], #recordP [style*="color:#c"], #recordP [style*="color:#b"], #recordP [style*="color:#9"], #recordP [style*="color: #f"], #recordP [style*="color:#8"] { color: var(--ds-ink) !important; }
+#recordP [style*="background:rgba(0"], #recordP [style*="background:rgba(1"], #recordP [style*="background:#0"], #recordP [style*="background:#1"], #recordP [style*="background: rgba(0"], #recordP [style*="background:linear-gradient"] { background: var(--ds-paper) !important; }
+#recordP .g { color: var(--ds-green) !important; } #recordP .y { color: var(--ds-amber) !important; } #recordP .r { color: var(--ds-red) !important; }
+@media (max-width: 720px) {
+  #recordP { bottom: 66px !important; padding: 10px !important; border-radius: 0 !important; }
+  #recordP .mi { grid-template-columns: 1fr !important; }
+  #recordP .mi-por.minp { width: min(240px, 70vw); height: auto; aspect-ratio: 1; }
+  #recordP .rec-tabs { flex-wrap: nowrap !important; overflow-x: auto; }
+  #recordP .rec-tab { white-space: nowrap; min-height: 38px; }
+  #recordP .rstats { grid-template-columns: 1fr 1fr !important; }
+  #recordP .rstats b { font-size: 16px !important; }
+  #recordP .mi-md { grid-template-columns: 1fr !important; }
+}
+#recordP .cr { grid-template-columns: minmax(120px, auto) 28px 1fr !important; align-items: center !important; border-radius: 6px; }
+#recordP .cr .d { font: 12px "Noto Sans KR", sans-serif !important; color: var(--ds-mute) !important; white-space: nowrap; }
+#recordP .cr .ins { background: transparent !important; }
+#recordP .cr.gen { background: #fbf4e2 !important; border-left-color: var(--ds-gold) !important; }
+#recordP .cr .sub.pkl { color: var(--ds-green) !important; }
+#recordP .mi-st { grid-template-columns: max-content 1fr !important; gap: 4px 14px !important; font-size: 12.5px !important; }
+#recordP .rstats { grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)) !important; }
+#recordP [style*="color:#a"], #recordP [style*="color:#7"], #recordP [style*="color:#6"], #recordP [style*="color:#5"], #recordP [style*="color:#4"], #recordP [style*="color:rgb"] { color: var(--ds-navy) !important; }
+#recordP [style*="background:#2"], #recordP [style*="background:#3"], #recordP [style*="background: #1"], #recordP [style*="background:rgba(2"], #recordP [style*="background:rgba(3"] { background: var(--ds-paper2) !important; }
+@media (max-width: 720px) { #recordP .cr { grid-template-columns: 1fr 28px !important; } #recordP .cr > div { grid-column: 1 / -1; } }
+
+/* ── 미국 선거인단 지도 · 백악관 상황실 세계 지도 ── */
+.us-map { display: block; width: 100%; height: auto; margin-top: 8px; background: #0f2332; border-radius: 8px; border: 1px solid rgba(143, 184, 196, .35); }
+.us-map .us-shp { stroke: rgba(255, 255, 255, .75); stroke-width: .8; transition: filter .12s; }
+.us-map.live .us-shp, .us-map.live .us-lbl { cursor: pointer; }
+.us-map.live .us-shp:hover { filter: brightness(1.25); stroke: #ffd166; stroke-width: 1.6; }
+.us-map .us-shp.on { stroke: #ffd166; stroke-width: 2.4; }
+.us-map .us-shp.swing { stroke: #ffe08a; }
+.us-map .us-lbl { font: 700 11px "Noto Sans KR", sans-serif; fill: #fff; paint-order: stroke; stroke: rgba(0, 0, 0, .45); stroke-width: 2px; }
+.us-map .us-lbl rect { stroke-width: 1; paint-order: normal; }
+.us-map .us-lbl text { font-size: 10px; }
+.wh-world { background: #060f19 !important; }
+.wh-svg .wh-reg { cursor: pointer; transition: fill-opacity .15s; }
+.wh-svg .wh-reg:hover { fill-opacity: .6; }
+@media (max-width: 720px) {
+  .wh-pin { padding: 2px 4px !important; }
+  .wh-pin b { font-size: 9px !important; }
+  .wh-pin em { display: none !important; }
+  .us-map .us-lbl tspan + tspan { display: none; }
+}
+
+/* ── 지휘 계통도 · 군종 선택 (#hqP 안 .hq-head 화면) ── */
+#hqP:has(> .hq-head) {
+  --cream: #1d1b17; --cream2: #4d473d; --gold: #1f3a5f; --gline: #b9ae98; --gline-soft: #d6cfc0; --fg: #1d1b17;
+  background: var(--ds-ground) !important; color: var(--ds-ink) !important; border: 1px solid #c9c1b0 !important; border-top: 3px solid var(--ds-navy) !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important; box-shadow: 0 20px 60px rgba(0, 0, 0, .35) !important;
+}
+#hqP:has(> .hq-head) .hq-head h3 { color: var(--ds-navy) !important; font-family: "Noto Serif KR", "Noto Sans KR", serif; font-size: 20px !important; }
+#hqP:has(> .hq-head) .hq-head p, #hqP:has(> .hq-head) .hq-me { color: var(--ds-ink2) !important; }
+#hqP:has(> .hq-head) .hq-tog { background: transparent; }
+#hqP:has(> .hq-head) .hq-tog b { color: var(--ds-ink) !important; }
+#hqP:has(> .hq-head) button { color: var(--ds-navy); }
+#hqP:has(> .hq-head) .hq-tog button, #hqP:has(> .hq-head) .hq-me button { background: var(--ds-paper) !important; border: 1px solid var(--ds-navy) !important; color: var(--ds-navy) !important; border-radius: 6px; }
+#hqP:has(> .hq-head) input { background: var(--ds-paper) !important; color: var(--ds-ink) !important; border: 1px solid var(--ds-line) !important; }
+#hqP:has(> .hq-head) .hq-grid { background: var(--ds-paper) !important; border-color: var(--ds-line) !important; border-radius: 8px; }
+#hqP:has(> .hq-head) .hq-ch { background: var(--ds-paper2) !important; color: var(--ds-ink) !important; border-bottom-color: var(--ds-line) !important; }
+#hqP:has(> .hq-head) .hq-ch.c { background: #e7edf5 !important; color: var(--ds-navy) !important; }
+#hqP:has(> .hq-head) .hq-band { background: var(--ds-paper2) !important; color: var(--ds-ink2) !important; }
+#hqP:has(> .hq-head) .hq-band.alt { background: #efebe2 !important; }
+#hqP:has(> .hq-head) .hq-band.mine, #hqP:has(> .hq-head) .hq-band.hq-min { background: #fbf1d6 !important; color: var(--ds-ink) !important; }
+#hqP:has(> .hq-head) .hq-band.hq-min b { color: #8a5a00 !important; }
+#hqP:has(> .hq-head) .hq-cell.zzln::before, #hqP:has(> .hq-head) .hq-cell.bus::after, #hqP:has(> .hq-head) .hq-cell.bus-l::after, #hqP:has(> .hq-head) .hq-cell.bus-r::after { background: #c9a24a !important; }
+#hqP:has(> .hq-head) .hq-post, #hqP:has(> .hq-head) .hq-cell .hq-post { background: var(--ds-paper) !important; border: 1px solid var(--ds-line) !important; border-left: 3px solid var(--ds-navy) !important; box-shadow: 0 2px 6px rgba(40, 30, 10, .08); }
+#hqP:has(> .hq-head) .hq-post b { color: var(--ds-ink) !important; }
+#hqP:has(> .hq-head) .hq-post span { color: var(--ds-mute) !important; }
+#hqP:has(> .hq-head) .hq-post.min { background: #fbf4e2 !important; border-left-color: var(--ds-gold) !important; }
+#hqP:has(> .hq-head) .hq-post.jt { border-left: 3px dashed #3f7fbf !important; }
+#hqP:has(> .hq-head) .hq-post.vac { opacity: .6; }
+#hqP:has(> .hq-head) .hq-eff { color: var(--ds-green) !important; }
+#hqP:has(> .hq-head) .hq-legend, #hqP:has(> .hq-head) .hq-legend * { color: var(--ds-ink2) !important; }
+#hqP:has(> .hq-head) [style*="color:#f"], #hqP:has(> .hq-head) [style*="color:#e"], #hqP:has(> .hq-head) [style*="color:#d"], #hqP:has(> .hq-head) [style*="color:#c"], #hqP:has(> .hq-head) [style*="color:#9"], #hqP:has(> .hq-head) [style*="color:#8"] { color: var(--ds-ink) !important; }
+/* 군종·병과 선택 카드 */
+#hqP:has(> .hq-head) :where(.svc-grid > *, .hq-brs > *) { background: var(--ds-paper) !important; border: 1px solid var(--ds-line) !important; color: var(--ds-ink) !important; border-radius: 8px; }
+#hqP:has(> .hq-head) :where(.svc-grid > *, .hq-brs > *) :where(*) { color: inherit; }
+#hqP:has(> .hq-head) :where(.svc-grid > *, .hq-brs > *):hover { border-color: var(--ds-navy) !important; }
+@media (max-width: 720px) {
+  #hqP:has(> .hq-head) { padding: 10px !important; border-radius: 0 !important; }
+  #hqP:has(> .hq-head) .hq-head { flex-direction: column; align-items: stretch; }
+  #hqP:has(> .hq-head) .hq-head h3 { font-size: 17px !important; }
+  #hqP:has(> .hq-head) .hq-grid { grid-template-columns: 64px repeat(8, minmax(118px, 1fr)) !important; }
+}
+
+/* ── 결재 서류 종이 질감 (모든 화면의 .mn-paper 공통) ──
+   이미지 파일 없이 SVG 노이즈로 종이 결을 만들고, 모서리는 각지게, 뒤에 한 장 더 겹친 그림자를 준다. */
+body .mn-paper:not(#duty-warroom):not(#duty-arc) {
+  background-color: #f7f2e5 !important;
+  background-image:
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .36 0 0 0 0 .29 0 0 0 0 .18 0 0 0 .11 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='400' height='400'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='.012 .35' numOctaves='2' seed='7'/><feColorMatrix values='0 0 0 0 .45 0 0 0 0 .38 0 0 0 0 .25 0 0 0 .06 0'/></filter><rect width='100%' height='100%' filter='url(%23f)'/></svg>"),
+    linear-gradient(180deg, rgba(255, 255, 255, .55), rgba(255, 255, 255, 0) 40%, rgba(120, 95, 50, .05)) !important;
+  border: 1px solid #c8bc9f !important;
+  border-radius: 0 !important;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, .5),
+    inset 0 0 40px rgba(150, 120, 60, .10),
+    5px 5px 0 -1px #efe7d3,
+    5px 5px 0 0 #c8bc9f,
+    0 14px 26px rgba(40, 30, 10, .22) !important;
+  color: #1f1a14 !important;
+}
+/* 위쪽 철끈 구멍 두 개 + 오른쪽 위 접힌 모서리 */
+body .mn-paper:not(#duty-warroom):not(#duty-arc)::before {
+  content: ""; position: absolute; top: 8px; left: 50%; width: 46px; height: 7px; margin-left: -23px; pointer-events: none;
+  background: radial-gradient(circle at 3.5px 3.5px, rgba(60, 45, 20, .35) 2.4px, transparent 3px) 0 0 / 39px 7px repeat-x;
+}
+body .mn-paper:not(#duty-warroom):not(#duty-arc)::after {
+  content: ""; position: absolute; top: -1px; right: -1px; width: 22px; height: 22px; pointer-events: none;
+  background: linear-gradient(225deg, var(--ds-ground, #ece8df) 50%, #ddd2b8 50%, #efe6cf 100%);
+  box-shadow: -2px 2px 3px rgba(60, 45, 20, .18);
+}
+/* 서류 안 선택지는 각진 서식 칸처럼 */
+body .mn-paper:not(#duty-warroom):not(#duty-arc) button {
+  border-radius: 0 !important;
+  background: rgba(255, 253, 246, .78) !important;
+  border: 1px solid #b9ac8e !important;
+  box-shadow: inset 3px 0 0 #1f3a5f;
+}
+body .mn-paper:not(#duty-warroom):not(#duty-arc) button:hover:not(:disabled) { background: #fffdf5 !important; box-shadow: inset 5px 0 0 #a8322a; border-color: #a8322a !important; }
+body .mn-paper:not(#duty-warroom):not(#duty-arc) button.pick { background: #fdece6 !important; box-shadow: inset 5px 0 0 #a8322a; }
+body .mn-paper:not(#duty-warroom):not(#duty-arc) .dh { border-bottom: 3px double #1f1a14 !important; }
+body .mn-paper:not(#duty-warroom):not(#duty-arc) .kj th, body .mn-paper:not(#duty-warroom):not(#duty-arc) .kj td { border-radius: 0; }
+/* 집무실 서류 제목 아래 이중선 */
+.dsr-page .mn-paper .dt b { letter-spacing: -.01em; }
+@media (max-width: 720px) {
+  body .mn-paper:not(#duty-warroom):not(#duty-arc) { box-shadow: inset 0 0 30px rgba(150, 120, 60, .1), 3px 3px 0 -1px #efe7d3, 3px 3px 0 0 #c8bc9f, 0 8px 16px rgba(40, 30, 10, .2) !important; }
+}
+
+/* ── 상단 바: 1280~1440 폭에서 메뉴 글자가 잘리지 않게 ── */
+@media (min-width: 721px) and (max-width: 1480px) {
+  #topbar .logo { font-size: 17px !important; letter-spacing: .06em !important; }
+  #topbar nav { flex: 0 1 auto; margin-left: 4px !important; }
+  #topbar .tab { font-size: 13px !important; padding: 0 7px !important; white-space: nowrap; }
+  #topbar .tb-right { min-width: 0; flex-shrink: 1 !important; }
+  #topbar .tb-rank { min-width: 0; }
+  #tbRank { max-width: 170px; overflow: hidden; text-overflow: ellipsis; font-size: 13px !important; }
+  #topbar .tb-rank > :last-child { min-width: 0; }
+  #voQuickBtn { font-size: 10.5px !important; padding: 4px 7px !important; white-space: nowrap; }
+}
+@media (min-width: 721px) and (max-width: 1300px) {
+  #onlineBadge { display: none !important; }
+}
+#hqP:has(> .hq-head) .hq-node, #hqP:has(> .hq-head) .hq-mine .hq-node { background: #fbf1d6 !important; border: 1.5px solid var(--ds-gold) !important; color: var(--ds-ink) !important; }
+#hqP:has(> .hq-head) .hq-node :where(b, span, em, small) { color: var(--ds-ink) !important; }
+
+/* ── 장관·대선·대통령 화면 (.dsr-state) 보정 ── */
+.dsr-page [style*="url("]:not(:has(.mn-card, .mn-paper)), .dsr-page [style*="url("]:not(:has(.mn-card, .mn-paper)) * { color: #fff !important; text-shadow: 0 1px 3px rgba(0, 0, 0, .6); }
+.dsr-page .mn-top .mt span, .dsr-page .mn-top span { color: var(--ds-mute) !important; }
+.dsr-page .mn-top b { color: var(--ds-ink) !important; }
+.dsr-page .mn-top b.g { color: var(--ds-green) !important; } .dsr-page .mn-top b.y { color: var(--ds-amber) !important; } .dsr-page .mn-top b.r { color: var(--ds-red) !important; }
+.dsr-state .mn-card:not(.mn-paper, .mn-nsc, .mn-dk, .wh-sitroom, .mn-trend) button:not(.mn-next) { background: var(--ds-paper2) !important; color: var(--ds-navy) !important; border: 1px solid var(--ds-navy) !important; border-radius: 4px !important; }
+.dsr-state .mn-card:not(.mn-paper, .mn-nsc, .mn-dk, .wh-sitroom, .mn-trend) button:not(.mn-next):hover:not(:disabled) { background: var(--ds-navy) !important; color: #fff !important; }
+.dsr-state .mn-card:not(.mn-paper, .mn-nsc, .mn-dk, .wh-sitroom, .mn-trend) button:disabled { opacity: .5; }
+.dsr-page .mn-pg .lvs div { color: var(--ds-mute) !important; }
+.dsr-page .mn-pg .lvs i { background: #e3ddd0 !important; color: var(--ds-ink2) !important; }
+.dsr-page .mn-pg .lvs .done { color: var(--ds-green) !important; } .dsr-page .mn-pg .lvs .done i { background: #d7ead9 !important; color: var(--ds-green) !important; }
+.dsr-page .mn-pg .lvs .next { color: var(--ds-ink) !important; font-weight: 700; } .dsr-page .mn-pg .lvs .next i { background: #fbecc4 !important; color: #8a5a00 !important; }
+.dsr-state > .hq-tog b { font-size: 20px; }
+.dsr-page .adm-bar { background: #f7e3df !important; border-color: #d9a49c !important; }
+.dsr-page .adm-bar button { background: #fff !important; color: var(--ds-red) !important; border: 1px solid #d9a49c !important; }
+@media (max-width: 720px) {
+  .dsr-page .hq-tog { flex-wrap: wrap; gap: 6px; }
+  .dsr-page .hq-tog b { font-size: 16px !important; flex: 1 1 100%; order: -1; }
+  .dsr-page .hq-tog button { font-size: 12px !important; padding: 6px 9px !important; }
+  .dsr-page .hq-tog small { display: none; }
+}
+
+/* ── 밝은 화면 안에 남아 있던 어두운 카드들을 종이색으로 (가독성) ── */
+.dsr-page .dm-tab { background: var(--ds-paper) !important; border: 1px solid var(--ds-line) !important; color: var(--ds-ink) !important; border-radius: 6px; }
+.dsr-page .dm-tab:hover { border-color: var(--ds-navy) !important; color: var(--ds-navy) !important; }
+.dsr-page .dm-tab.on { background: #e7edf5 !important; border-color: var(--ds-navy) !important; border-left: 4px solid var(--ds-navy) !important; color: var(--ds-navy) !important; font-weight: 700; }
+.dsr-page .dm-goals, .dsr-page .dm-goals * { color: var(--ds-ink2) !important; }
+.dsr-page .dm-goals .g { color: var(--ds-green) !important; }
+.dsr-page .mn-doc { background: var(--ds-paper) !important; border: 1px solid var(--ds-line) !important; color: var(--ds-ink) !important; border-radius: 6px !important; }
+.dsr-page .mn-doc.on { background: #fbf4e2 !important; border-color: var(--ds-gold) !important; box-shadow: inset 4px 0 0 var(--ds-gold); }
+.dsr-page .mn-doc small { color: var(--ds-mute) !important; }
+.dsr-page .mn-doc em { background: #e3eedf !important; color: var(--ds-green) !important; }
+.dsr-page .mn-doc em.r { background: #f6e1dd !important; color: var(--ds-red) !important; }
+.dsr-page .mn-area { background: var(--ds-paper) !important; border: 1px solid var(--ds-line) !important; color: var(--ds-ink) !important; }
+.dsr-page .mn-area.t2 { border-color: var(--ds-red) !important; box-shadow: inset 4px 0 0 var(--ds-red) !important; }
+.dsr-page .mn-area.t1 { border-color: #c9a24a !important; }
+.dsr-page .mn-area :where(b, small, span, div, p) { color: inherit; }
+.dsr-page .mn-area .pw { color: var(--ds-mute) !important; }
+.dsr-page .mn-area .lv.l0 { background: #e3eedf !important; color: var(--ds-green) !important; }
+.dsr-page .mn-area .lv.l1 { background: #fbecc4 !important; color: #8a5a00 !important; }
+.dsr-page .mn-area .lv.l2 { background: #f6e1dd !important; color: var(--ds-red) !important; }
+.dsr-page .mn-area .dr.g { color: var(--ds-green) !important; } .dsr-page .mn-area .dr.y { color: var(--ds-amber) !important; } .dsr-page .mn-area .dr.r { color: var(--ds-red) !important; }
+.dsr-page .mn-area button, .dsr-page .mn-ng { background: var(--ds-paper2) !important; color: var(--ds-navy) !important; border: 1px solid var(--ds-navy) !important; }
+.dsr-page .mn-ng.arm { background: var(--ds-red) !important; color: #fff !important; border-color: var(--ds-red) !important; }
+.dsr-page .mn-go { background: var(--ds-navy) !important; color: #fff !important; }
+/* 위기 NSC·워룸 외 어두운 보조 카드(.mn-dk 중 서류 아닌 것), 그래프 카드 */
+.dsr-page .mn-card.mn-dk:not(.mn-paper), .dsr-page .mn-card.mn-trend { background: var(--ds-paper) !important; background-image: none !important; border: 1px solid var(--ds-line) !important; color: var(--ds-ink) !important; }
+.dsr-page .mn-card.mn-nsc { border: 2px solid var(--ds-red) !important; box-shadow: inset 5px 0 0 var(--ds-red) !important; }
+.dsr-page .mn-card.mn-dk:not(.mn-paper) :where(b, small, span, p, div) { color: var(--ds-ink) !important; }
+.dsr-page .mn-card.mn-dk:not(.mn-paper) p { color: var(--ds-ink2) !important; }
+.dsr-page .mn-card.mn-dk:not(.mn-paper) button { background: var(--ds-paper2) !important; color: var(--ds-ink) !important; border: 1px solid var(--ds-line) !important; }
+.dsr-page .mn-card.mn-dk:not(.mn-paper) button:hover { border-color: var(--ds-navy) !important; }
+.dsr-page .mn-card.mn-dk:not(.mn-paper) button small { color: #8a4a12 !important; }
+.dsr-page .mn-trend text { fill: var(--ds-mute) !important; }
+.dsr-page .mn-trend .gx { stroke: #00000014 !important; }
+.dsr-page .mn-trend .sp { stroke: var(--ds-navy) !important; } .dsr-page .mn-trend .spd { fill: var(--ds-navy) !important; }
+/* 백악관 상황실: 지도는 어둡게 두고 카드 몸통·버튼만 종이색 */
+.dsr-page .wh-sitroom { background: var(--ds-paper) !important; border: 1px solid var(--ds-line) !important; color: var(--ds-ink) !important; }
+.dsr-page .wh-sitroom .mn-h, .dsr-page .wh-sitroom .mn-h small { color: var(--ds-ink2) !important; }
+.dsr-page .wh-sitroom > div:last-child { background: var(--ds-paper2) !important; border-color: var(--ds-line) !important; }
+.dsr-page .wh-sitroom > div:last-child b { color: var(--ds-ink) !important; }
+.dsr-page .us-ch { background: var(--ds-paper) !important; color: var(--ds-ink) !important; border: 1px solid var(--ds-line) !important; }
+.dsr-page .us-ch:hover:not(:disabled) { border-color: var(--ds-navy) !important; }
+
+/* ── 오른쪽 아래 팝업 제거 (사용자 요청): 장면 카드 + 메뉴 화면 알림 ──
+   타이틀(캐릭터 선택) 화면에서는 이름 중복 같은 안내가 필요해 알림을 남긴다. */
+#fxSceneCard { display: none !important; }
+body:not(.playing):not(:has(#titleHub.on)) #toast { display: none !important; }
+
+/* ── 임관(타이틀·캐릭터 선택) 카드 ── */
+#titleHub .th-card {
+  background-color: #f7f2e5 !important; color: var(--ds-ink) !important; border: 1px solid #c8bc9f !important; border-radius: 2px !important;
+  border-top: 4px solid var(--ds-navy) !important;
+  box-shadow: 6px 6px 0 -1px #efe7d3, 6px 6px 0 0 #c8bc9f, 0 24px 60px rgba(0, 0, 0, .55) !important;
+  backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+}
+#titleHub .th-card :where(h1, h2, h3, b, label, p, span, small, div) { color: inherit; }
+#titleHub .th-title { color: var(--ds-ink) !important; text-shadow: none !important; }
+#titleHub .th-kicker { color: var(--ds-red) !important; }
+#titleHub .th-sub, #titleHub .th-slot span, #titleHub .th-slot small, #titleHub .th-prof .th-pi small { color: var(--ds-mute) !important; }
+#titleHub .th-prof .th-pi b { color: var(--ds-ink) !important; }
+#titleHub .th-slot, #titleHub .th-prof { background: var(--ds-paper) !important; border: 1px solid var(--ds-line) !important; border-radius: 4px !important; }
+#titleHub .th-nat { background: var(--ds-paper2) !important; border-color: var(--ds-line) !important; }
+#titleHub .th-nat button { color: var(--ds-ink2) !important; }
+#titleHub .th-nat button.on { background: var(--ds-navy) !important; color: #fff !important; box-shadow: none !important; }
+#titleHub :where(.th-svc, .th-br, .th-face, .th-sec) { background: var(--ds-paper) !important; border: 1px solid var(--ds-line) !important; color: var(--ds-ink) !important; border-radius: 4px !important; }
+#titleHub :where(.th-svc, .th-br, .th-face).on { background: #e7edf5 !important; border: 1.5px solid var(--ds-navy) !important; color: var(--ds-navy) !important; }
+#titleHub .th-br small { color: var(--ds-mute) !important; }
+#titleHub .th-sec:hover { border-color: var(--ds-navy) !important; }
+#titleHub .th-sec.dng { color: var(--ds-red) !important; border-color: #d9a49c !important; }
+#titleHub .th-go { background: var(--ds-red) !important; color: #fff !important; border-radius: 4px !important; }
+#titleHub .th-go:disabled { background: #cfc7b6 !important; color: var(--ds-ink2) !important; }
+#titleHub input, #titleHub select { background: #fffdf8 !important; color: var(--ds-ink) !important; border: 1px solid #b9ac8e !important; border-radius: 3px !important; }
+#titleHub .th-service-contract { color: var(--ds-ink2) !important; }
