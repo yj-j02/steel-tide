@@ -384,11 +384,11 @@ function drawEvents(d, svc, grade) {
   d.optOrder = Object.fromEntries(out.map((id) => [id, shuffle3()]));
   d.nat = us ? "us" : "kr";
   d.tier = rankTier(gClamped);
-  d.crisis = grade >= 2 && d.week >= 3 && (d.week % 4 === 0 || Math.random() < 0.2) ? pick(crSrc).id : null; /* 합동 위기: 대위 이상부터 발생 */
+  d.crisis = grade >= 2 && d.week >= 3 && (d.week % 8 === 0 || ((d.tension || 0) >= 70 && Math.random() < 0.25)) ? pick(crSrc).id : null; /* 합동 위기: 대위 이상, 8주마다 또는 긴장도 70 이상일 때만 */
   if (d.week >= 2 && d.week % 4 === 2 && d.rivals?.length && d.rivalEventWeek !== d.week) {
     d.rivalEvent = pickRivalEvent(d.rivals, gClamped, d.week);
   }
-  if (grade >= 6 && d.week >= 3 && d.week % 5 === 0 && !d.warroom && d.warroomWeek !== d.week) {
+  if (grade >= 6 && d.week >= 3 && !d.warroom && d.week - (d.warroomWeek || -99) >= 8 && ((d.tension || 0) >= 75 || Math.random() < 0.05)) { /* 합동 워룸: 긴장도 75 이상 비상사태 위주, 평시엔 드물게, 8주 쿨다운 */
     const wrs = pickWarroom(d.week);
     if (wrs) d.warroom = { id: wrs.id, stage: 0, score: 0 };
   }

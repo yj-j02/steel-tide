@@ -12,10 +12,10 @@ export function ministryContent(fx, chain, note) {
     log: { n: "군수·정비 인프라 자동화", ic: "⚙", lv: [[2000, "함정 수리 기간 −1작전"], [4000, "주간 유지비 −20%"], [6000, "작전 후 30% 확률 자동 정비"], [9000, "긴급 수리 신뢰도 비용 10 → 5"], [15000, "작전마다 1회 — 침몰 직전 함정 현장 즉시 수리"]] },
   };
   const AREAS = {
-    dmz: { n: "접경 DMZ", domain: "army", fleet: "army1", base: 76, w: [5, 2, 1] },
-    west: { n: "서해 NLL", domain: "navy", fleet: "f2", base: 80, w: [4, 3, 1] },
-    east: { n: "동해 북방", domain: "navy", fleet: "f1", base: 72, w: [5, 2, 1] },
-    kadiz: { n: "방공식별구역", domain: "air", fleet: "air1", base: 74, w: [5, 2, 1] },
+    dmz: { n: "접경 DMZ", domain: "army", fleet: "army1", base: 76, w: [12, 4, 0.3] },
+    west: { n: "서해 NLL", domain: "navy", fleet: "f2", base: 80, w: [10, 5, 0.4] },
+    east: { n: "동해 북방", domain: "navy", fleet: "f1", base: 72, w: [12, 4, 0.3] },
+    kadiz: { n: "방공식별구역", domain: "air", fleet: "air1", base: 74, w: [12, 4, 0.3] },
   };
   const FLEETS = { army1: "지상작전사", f1: "제1함대", f2: "제2함대", air1: "공군작전사", f3: "제3함대" };
   const REINF = { mob: ["기동함대", 35], sub: ["잠수함사령부", 28], airc: ["전투비행단", 32], art: ["화력여단", 30] };

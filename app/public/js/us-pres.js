@@ -3,6 +3,7 @@ import { dutyState } from "./duty.js";
 import { careerStorage } from "./characters.js";
 import { chapter } from "./us-story.js";
 import { civicMap } from "./civic-map.js";
+import { US_STATES } from "./geo-maps.js";
 // U.S. Presidential Election (538 Electoral College) & White House Chapter integrated into THE GENERAL (#hqP).
 import { tiles, electors } from "./content/us.js";
 import { newCareer, decide, election } from "./us-career.js";
@@ -62,6 +63,7 @@ function tileMapHTML(s) {
   const myCol = isRed ? "#b82e36" : "#1f62b0", myLean = isRed ? "#cf5c62" : "#4b89d4";
   const oppCol = isRed ? "#1f62b0" : "#b82e36", oppLean = isRed ? "#4b89d4" : "#cf5c62";
   let myEv = 0, oppEv = 0, swingEv = 0;
+  const info = {};
   const cells = tiles
     .join(" ")
     .split(" ")
@@ -88,9 +90,26 @@ function tileMapHTML(s) {
       const sel = s.target === code ? " on" : "";
       const vis = s.visits?.[code] || 0;
       const tip = `${STATE_NAMES[code] || code} (${code}) · 선거인단 ${ev}명 · ${count != null ? `확보 ${count}/${ev}` : `예상 격차 ${margin >= 0 ? "+" : ""}${margin}%`}${vis ? ` · 유세 ${vis}회` : ""}`;
-      return `<button class="us-st${sel}${cls}" data-usstate="${code}" style="background:${bg}" title="${esc(tip)}" ${s.phase !== "campaign" ? "disabled" : ""}><b>${code}${isKey ? "★" : ""}</b><small>${val}</small></button>`;
+      info[code] = { bg, sel, cls, tip, val, isKey };
+      return "";
     })
     .join("");
+  void cells;
+  /* 실제 주 경계 지도 (앨버스 투영). 작은 동북부 주는 바깥에 이름표를 단다. */
+  const live = s.phase === "campaign";
+  const SMALL = { VT: [945, 178], NH: [945, 198], MA: [945, 218], RI: [945, 238], CT: [945, 258], NJ: [945, 278], DE: [945, 298], MD: [945, 318], DC: [945, 338] };
+  const shapes = Object.entries(US_STATES).map(([code, g]) => {
+    const it = info[code]; if (!it) return "";
+    return `<path d="${g.d}" fill="${it.bg}" class="us-shp${it.sel}${it.cls}"${live ? ` data-usstate="${code}"` : ""}><title>${esc(it.tip)}</title></path>`;
+  }).join("");
+  const labels = Object.entries(US_STATES).map(([code, g]) => {
+    const it = info[code]; if (!it) return "";
+    const sm = SMALL[code];
+    if (sm) return `<line x1="${g.x}" y1="${g.y}" x2="${sm[0] - 14}" y2="${sm[1] - 4}" stroke="rgba(255,255,255,.45)" stroke-width=".8"/><g${live ? ` data-usstate="${code}"` : ""} class="us-lbl"><rect x="${sm[0] - 14}" y="${sm[1] - 13}" width="40" height="17" rx="3" fill="${it.bg}" stroke="rgba(255,255,255,.6)"/><text x="${sm[0] + 6}" y="${sm[1]}" text-anchor="middle">${code} ${it.val}</text></g>`;
+    return `<text x="${g.x}" y="${g.y}" text-anchor="middle" class="us-lbl"${live ? ` data-usstate="${code}"` : ""}><tspan x="${g.x}" font-weight="800">${code}${it.isKey ? "★" : ""}</tspan><tspan x="${g.x}" dy="12" font-size="10">${it.val}</tspan></text>`;
+  }).join("");
+  const dc = info.DC ? `<g${live ? ' data-usstate="DC"' : ""} class="us-lbl"><rect x="${SMALL.DC[0] - 14}" y="${SMALL.DC[1] - 13}" width="40" height="17" rx="3" fill="${info.DC.bg}" stroke="rgba(255,255,255,.6)"/><text x="${SMALL.DC[0] + 6}" y="${SMALL.DC[1]}" text-anchor="middle">DC ${info.DC.val}</text></g>` : "";
+  const mapSvg = `<svg viewBox="0 0 975 610" class="us-map${live ? " live" : ""}" role="img" aria-label="미국 선거인단 지도">${shapes}${labels}${dc}</svg>`;
   const myPct = ((myEv / 538) * 100).toFixed(1), swPct = ((swingEv / 538) * 100).toFixed(1), opPct = ((oppEv / 538) * 100).toFixed(1);
   const bar = `<div class="us-ec-wrap">
     <div class="us-ec-nums"><b style="color:${isRed ? "#ff8a8a" : "#7ec2f8"}">${isRed ? "리버티당" : "유니언당"} (나) ${myEv}</b><span style="color:#ffd166">경합 ${swingEv} · 270 과반</span><b style="color:${isRed ? "#7ec2f8" : "#ff8a8a"}">상대 ${oppEv}</b></div>
@@ -100,7 +119,7 @@ function tileMapHTML(s) {
     ? `<div class="us-swing-bar"><small>핵심 7대 경합주:</small>${SWING_STATES.map((code) => `<button data-usstate="${code}" class="${s.target === code ? "on" : ""}">${code} (${electors[code]})</button>`).join("")}</div>`
     : "";
   const legend = `<div class="us-ec-leg"><span><i style="background:${myCol}"></i>우세</span><span><i style="background:#b88724"></i>경합주(★)</span><span><i style="background:${oppCol}"></i>열세</span></div>`;
-  return `${bar}<div class="us-tiles">${cells}</div>${quickSwings}${legend}`;
+  return `${bar}${mapSvg}${quickSwings}${legend}`;
 }
 
 export function usPresHTML() {
