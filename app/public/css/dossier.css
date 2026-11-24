@@ -1,0 +1,137 @@
+/* B+ '결재 서류 중심' 화면 스타일 (2026-11 UI 개편).
+   적용 범위: .dsr-page 로 감싼 화면(현재 집무실 복무 데스크)과 상단 바·모바일 하단 탭.
+   위기·워룸·스토리 카드처럼 일부러 어둡게 만든 카드는 그대로 둔다. */
+:root {
+  --ds-ground: #ece8df;
+  --ds-paper: #fffdf8;
+  --ds-paper2: #f4f1ea;
+  --ds-ink: #1d1b17;
+  --ds-ink2: #4d473d;
+  --ds-mute: #6b6457;
+  --ds-line: #d6cfc0;
+  --ds-navy: #1f3a5f;
+  --ds-red: #a8322a;
+  --ds-gold: #d9a441;
+  --ds-green: #3f7a4f;
+  --ds-amber: #9a6a12;
+}
+
+/* ── 상단 바 ── */
+#topbar { background: var(--ds-ink) !important; border-bottom: 1px solid #000 !important; box-shadow: none !important; }
+#topbar .logo { font-family: "Noto Serif KR", "Noto Sans KR", serif; color: #ece8df !important; letter-spacing: .14em; }
+#topbar .tab { color: #bdb5a6 !important; background: transparent !important; border: 0 !important; border-bottom: 2px solid transparent !important; border-radius: 0 !important; }
+#topbar .tab.on { color: #fff !important; border-bottom-color: var(--ds-gold) !important; font-weight: 700; }
+#topbar .tab:hover { color: #fff !important; }
+#tabMore { display: none; }
+
+/* ── 페이지 바탕 ── */
+#hqP:has(.dsr-page) { background: var(--ds-ground) !important; border: 1px solid #c9c1b0 !important; box-shadow: 0 20px 60px rgba(0, 0, 0, .35) !important; color: var(--ds-ink); }
+.dsr-page { color: var(--ds-ink); font-family: "Noto Sans KR", sans-serif; }
+.dsr-page .hq-tog { background: var(--ds-paper2); border: 1px solid var(--ds-line); border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; align-items: center; }
+.dsr-page .hq-tog b { color: var(--ds-ink) !important; font-family: "Noto Serif KR", "Noto Sans KR", serif; font-size: 18px; }
+.dsr-page .hq-tog small { color: var(--ds-mute) !important; }
+.dsr-page .hq-tog button { background: var(--ds-paper) !important; color: var(--ds-navy) !important; border: 1px solid var(--ds-navy) !important; border-radius: 6px !important; font-weight: 700; }
+
+/* ── 밝은 종이 카드: 어두운 연출용 카드는 제외 ── */
+.dsr-page :where(.mn-card:not(.mn-nsc, #duty-warroom, #duty-arc, .dm-done-card), .dm-top, .dm-status-strip, .dm-toolbar, .dm-queue, .mn-fold) {
+  background: var(--ds-paper) !important;
+  border: 1px solid var(--ds-line) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+  color: var(--ds-ink) !important;
+  background-image: none !important;
+}
+/* 인라인으로 박혀 있던 어두운 배경용 밝은 글자색을 잉크색으로 통일 */
+.dsr-page :where(.mn-card:not(.mn-nsc, #duty-warroom, #duty-arc, .dm-done-card), .dm-top, .dm-status-strip, .dm-toolbar, .dm-queue, .mn-fold) :where(*) { color: inherit !important; }
+.dsr-page :where(.mn-card, .dm-top, .dm-status-strip, .dm-toolbar, .mn-fold) :where(small, .mn-h small) { color: var(--ds-mute) !important; }
+.dsr-page :where(.mn-card:not(.mn-nsc, #duty-warroom, #duty-arc)) [style*="background"]:not(button):not(.mn-bar):not(em):not(i) { background: transparent !important; }
+.dsr-page .mn-h { color: var(--ds-mute) !important; font-size: 12px !important; letter-spacing: .08em; font-weight: 700; }
+.dsr-page .g, .dsr-page b.g { color: var(--ds-green) !important; }
+.dsr-page .y, .dsr-page b.y { color: var(--ds-amber) !important; }
+.dsr-page .r, .dsr-page b.r { color: var(--ds-red) !important; }
+.dsr-page .mn-bar { background: #e3ddd0 !important; border-radius: 3px; }
+.dsr-page .mn-bar em { background: var(--ds-navy) !important; border-radius: 3px; }
+.dsr-page .mn-bar em.g { background: var(--ds-green) !important; }
+.dsr-page .mn-bar em.y { background: #b07d1f !important; }
+.dsr-page .mn-bar em.r { background: var(--ds-red) !important; }
+
+.dsr-page .mn { background: transparent !important; padding: 0 !important; color: var(--ds-ink); }
+.dsr-page .dm-rkrow { background: var(--ds-paper2) !important; border: 1px solid var(--ds-line) !important; border-radius: 6px; }
+.dsr-page .dm-rkrow span { color: var(--ds-ink2) !important; }
+.dsr-page .dm-prof-top b { color: var(--ds-ink) !important; }
+.dsr-page .dm-prof-top small { color: var(--ds-mute) !important; }
+
+/* ── 지표 줄 ── */
+.dsr-page .dm-top .mt span { color: var(--ds-mute) !important; font-size: 12px; }
+.dsr-page .dm-top .mt b { font-size: 18px; }
+.dsr-page .mn-next { background: var(--ds-red) !important; color: #fff !important; border: 0 !important; border-radius: 6px !important; font-weight: 700; min-height: 44px; }
+.dsr-page .mn-next:disabled { background: #cfc7b6 !important; color: var(--ds-ink2) !important; }
+
+/* ── 칩·방침·대기열 ── */
+.dsr-page .dm-chip { background: var(--ds-paper2) !important; border: 1px solid var(--ds-line) !important; color: var(--ds-ink) !important; border-radius: 999px !important; }
+.dsr-page .dm-chip.hot { background: var(--ds-navy) !important; color: #fff !important; border-color: var(--ds-navy) !important; }
+.dsr-page .dm-st-btn { background: var(--ds-paper) !important; border: 1px solid var(--ds-line) !important; color: var(--ds-ink) !important; border-radius: 6px !important; }
+.dsr-page .dm-st-btn.on { background: #f2f5fa !important; border: 1.5px solid var(--ds-navy) !important; color: var(--ds-navy) !important; font-weight: 700; }
+.dsr-page .dm-st-btn:disabled { color: var(--ds-mute) !important; }
+.dsr-page .dm-qtab { background: var(--ds-paper2) !important; border: 1px solid var(--ds-line) !important; color: var(--ds-ink2) !important; border-radius: 999px !important; }
+.dsr-page .dm-qtab.on { background: var(--ds-navy) !important; color: #fff !important; border-color: var(--ds-navy) !important; }
+.dsr-page .dm-qtab.urg { border-color: var(--ds-red) !important; color: var(--ds-red) !important; }
+.dsr-page .dm-qtab.urg.on { background: var(--ds-red) !important; color: #fff !important; }
+.dsr-page .dm-queue-lbl { color: var(--ds-mute) !important; }
+
+/* ── 결재 서류 ── */
+.dsr-page .mn-paper:not(#duty-warroom, #duty-arc) { padding: 28px 32px !important; box-shadow: 0 14px 34px rgba(40, 30, 10, .12) !important; }
+.dsr-page .mn-paper .dt b { font-family: "Noto Serif KR", "Noto Sans KR", serif; font-size: 26px !important; color: var(--ds-ink) !important; }
+.dsr-page .mn-paper .dt small { color: var(--ds-mute) !important; letter-spacing: .14em; }
+.dsr-page .mn-paper p { font-size: 15.5px !important; line-height: 1.75 !important; color: #2d2a24 !important; }
+.dsr-page .mn-paper button { background: var(--ds-paper) !important; border: 1.5px solid #cfc7b6 !important; border-radius: 4px !important; color: var(--ds-ink) !important; text-align: left; padding: 14px 16px !important; min-height: 48px; }
+.dsr-page .mn-paper button:hover:not(:disabled) { border-color: var(--ds-navy) !important; background: #f2f5fa !important; }
+.dsr-page .mn-paper button small { color: var(--ds-mute) !important; }
+.dsr-page .dm-pri-badge { background: var(--ds-red) !important; color: #fff !important; }
+.dsr-page .dm-done-card { background: var(--ds-paper) !important; border: 1.5px solid var(--ds-green) !important; color: var(--ds-ink) !important; }
+.dsr-page .dm-done-card * { color: inherit !important; }
+.dsr-page .dm-done-card button { background: var(--ds-red) !important; color: #fff !important; border: 0 !important; border-radius: 6px; min-height: 44px; }
+
+.dsr-page .dm-result { background: #eef6ef !important; border: 1px solid #9cc5a6 !important; color: #23432c !important; font-size: 13px !important; }
+.dsr-page .dm-result b { color: #1d3a26 !important; }
+
+/* ── 오른쪽 기둥 ── */
+.dsr-page .dm-grid-2 { grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; }
+.dsr-page .dm-prof-top b { font-size: 16px; }
+.dsr-page .fx-bubble { background: var(--ds-paper2) !important; border: 1px solid var(--ds-line) !important; }
+
+/* ── 모바일: 하단 탭바 + 한 줄 흐름 ── */
+@media (max-width: 720px) {
+  #topbar { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }
+  body:not(.playing) #toast { bottom: 76px !important; }
+  #topbar nav { position: fixed !important; left: 0 !important; right: 0 !important; bottom: 0 !important; top: auto !important; order: 0 !important; width: auto !important; height: 62px; margin: 0 !important; padding: 0 !important; display: grid !important; grid-template-columns: repeat(5, minmax(0, 1fr)); background: var(--ds-paper) !important; border-top: 1px solid var(--ds-line) !important; z-index: 60; }
+  #topbar nav .tab { color: var(--ds-mute) !important; font-size: 12px !important; min-height: 62px !important; padding: 0 2px !important; border-bottom: 0 !important; border-top: 3px solid transparent !important; white-space: nowrap; }
+  #topbar nav .tab:hover { color: var(--ds-ink) !important; }
+  #topbar nav .tab.on { color: var(--ds-navy) !important; border-top-color: var(--ds-navy) !important; }
+  #tabCharacters, #tabRank, #tabPort { display: none !important; }
+  #tabMore { display: block !important; }
+  body.more-open #tabCharacters, body.more-open #tabRank, body.more-open #tabPort { display: block !important; position: fixed; right: 8px; width: 180px; height: 48px !important; min-height: 48px !important; background: var(--ds-paper) !important; border: 1px solid var(--ds-line) !important; border-radius: 8px !important; color: var(--ds-ink) !important; z-index: 61; }
+  body.more-open #tabCharacters { bottom: 178px; }
+  body.more-open #tabRank { bottom: 124px; }
+  body.more-open #tabPort { bottom: 70px; }
+  #hqP, #recordP { bottom: 66px !important; }
+  #hqP:has(.dsr-page) { padding: 10px !important; border-radius: 0 !important; }
+  .dsr-page .hq-tog { padding: 10px 12px; }
+  .dsr-page .hq-tog b { font-size: 16px; }
+  .dsr-page .dm-top { grid-template-columns: repeat(3, minmax(0, 1fr)) !important; gap: 6px !important; padding: 8px !important; }
+  .dsr-page .dm-top .mt:first-child, .dsr-page .dm-top .mt:nth-child(2) { grid-column: span 3; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; text-align: left !important; }
+  .dsr-page .dm-top .mt span { font-size: 11px !important; }
+  .dsr-page .dm-top .mt b { font-size: 16px !important; }
+  .dsr-page .dm-top .mt small { display: inline !important; }
+  .dsr-page .dm-top .mn-next { grid-column: 1 / -1; min-height: 48px; font-size: 15px; }
+  .dsr-page .dm-grid-2 { grid-template-columns: 1fr !important; }
+  .dsr-page .dm-side { display: flex !important; position: static; }
+  .dsr-page .dm-side > .dm-news:last-child { display: none; }
+  .dsr-page .mn-paper:not(#duty-warroom, #duty-arc) { padding: 18px 16px !important; }
+  .dsr-page .mn-paper .dt b { font-size: 21px !important; }
+  .dsr-page .mn-paper p { font-size: 15px !important; }
+  .dsr-page .mn-paper button { font-size: 14.5px !important; min-height: 52px; }
+  .dsr-page .dm-queue { overflow-x: auto; flex-wrap: nowrap !important; }
+  .dsr-page .dm-qtab { white-space: nowrap; min-height: 40px; font-size: 13px !important; }
+  .dsr-page .dm-st-btn { min-height: 40px !important; font-size: 13px !important; }
+}

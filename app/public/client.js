@@ -2287,7 +2287,7 @@ function renderDutyDesk() {
   const promotionSummary = g === 9 ? "원수 특별진급 조건 보기" : g > 9 ? "최고 계급 도달" :
     needs.length ? `남은 조건 · ${needs.join(" · ")}` : automaticCaptain(g) ? `${g === 0 ? "중위" : "대위"} 자동진급 조건 충족` : review.seats ? "심사 신청 조건 충족" : "상위 보직 공석 대기";
   let onboardOpen = false;
-  try { onboardOpen = careerStorage.getItem("steeltide:onboard") === "show" || (g === 0 && (d.week || 1) <= 3 && careerStorage.getItem("steeltide:onboard") !== "hide"); } catch {}
+  try { onboardOpen = careerStorage.getItem("steeltide:onboard") === "show"; } catch {}
   const onboardBanner = onboardOpen ? `<div class="mn-card" style="margin-bottom:10px;border-color:rgba(114,172,232,.55);background:linear-gradient(135deg,rgba(18,38,62,.86),rgba(11,21,34,.92))">
     <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:6px">
       <b style="color:#8fd3ff;font-size:13.5px">🧭 신임 장교 복무 가이드 · 이렇게 플레이하세요</b>
@@ -2316,11 +2316,11 @@ function renderDutyDesk() {
     ? `<div class="dm-queue"><span class="dm-queue-lbl">결재 대기 ${dutyQueue.length}건</span>${dutyQueue.map((q) => `<button type="button" class="dm-qtab${q.urgent ? " urg" : ""}${q.key === activeDuty?.key ? " on" : ""}" data-qfocus="${q.key}">${q.label}</button>`).join("")}</div>`
     : `<div class="dm-done-card"><b>✅ ${date} 결재를 모두 마쳤습니다</b><p>다음 복무 주차로 넘어가 새 안건과 인사 동향을 확인하세요.</p><button type="button" data-duty="next">다음 안건 진행 ▶ (Enter)</button></div>`;
   const bannerHTML = lastDutyBanner
-    ? `<div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 11px;border-radius:7px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.38);font-size:12px;color:#d1fae5"><span>✅ <b>${escapeTitle(lastDutyBanner.title)}</b> · ${escapeTitle(lastDutyBanner.text)}</span>${lastDutyBanner.meta ? `<b style="color:#fde68a;white-space:nowrap">${escapeTitle(lastDutyBanner.meta)}</b>` : ""}</div>`
+    ? `<div class="dm-result" style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 11px;border-radius:7px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.38);font-size:12px;color:#d1fae5"><span>✅ <b>${escapeTitle(lastDutyBanner.title)}</b> · ${escapeTitle(lastDutyBanner.text)}</span>${lastDutyBanner.meta ? `<b style="color:#fde68a;white-space:nowrap">${escapeTitle(lastDutyBanner.meta)}</b>` : ""}</div>`
     : "";
   const lifeCards = `${hearingCardHTML(g, d.week || 1, career, isUS())}${overseasCardHTML(g, d.week || 1, career, svk, isUS())}${familyCardHTML(g, d.week || 1, career)}`;
   const promoFoldOpen = !dutyQueue.length || review.ready ? " open" : "";
-  $("#hqP").innerHTML = `<div class="hq-tog"><b>${sv.icon} ${sv.n} 장교 커리어 · ${rankLabel(g, svk)} ${cmdr.name}</b><small>${officeAmbienceLabel(g, isUS())} · ${postLabel(postOf(g))}</small>${d.tension >= 70 ? `<span class="fx-defcon">🚨 DEFCON 주의 · 긴장 ${d.tension}</span>` : ""}<button data-duty="showguide" class="hq-tg2">? 가이드</button><button data-hqv="org" class="hq-tg2">지휘 계통도 · 참모 ›</button>${career.minister ? `<button data-hqv="min" class="hq-tg2">국방부 집무실 ›</button>` : ""}</div>${admDuty}${onboardBanner}
+  $("#hqP").innerHTML = `<div class="dsr-page"><div class="hq-tog"><b>${sv.icon} ${sv.n} 장교 커리어 · ${rankLabel(g, svk)} ${cmdr.name}</b><small>${officeAmbienceLabel(g, isUS())} · ${postLabel(postOf(g))}</small>${d.tension >= 70 ? `<span class="fx-defcon">🚨 DEFCON 주의 · 긴장 ${d.tension}</span>` : ""}<button data-duty="showguide" class="hq-tg2">? 가이드</button><button data-hqv="org" class="hq-tg2">지휘 계통도 · 참모 ›</button>${career.minister ? `<button data-hqv="min" class="hq-tg2">국방부 집무실 ›</button>` : ""}</div>${admDuty}${onboardBanner}
     <div class="mn dm-shell${d.tension >= 70 ? " mood-alert" : ""}">
       <div class="mn-top dm-top">
         <div class="mt"><span>계급 성장</span><b>${insignia(g, 18)} ${rankLabel(g, svk)}${g < 9 ? ` → ${rankLabel(g + 1, svk)}` : g === 9 ? " (★특별진급)" : " ★"}</b>${bar(rl.pct * 100, "g")}</div>
@@ -2358,7 +2358,7 @@ function renderDutyDesk() {
         <div class="dm-main">${bannerHTML}${queueBarHTML}${activeDuty ? activeDuty.html : ""}${lifeCards}<details id="duty-promotion" class="mn-card mn-fold"${promoFoldOpen}><summary><span>🎖️ 진급심사 · 보직 현황</span><small style="color:#9fc0d8;font-weight:500">${promotionSummary} ▾</small></summary>${g < 9 ? reviewCard : marshalCardHTML(g)}${g >= 9 ? reviewCard : ""}${minBtn}</details><details class="mn-card mn-fold"><summary><span>⭐ 계급 권한 안내${d.last ? " · 최근 결재 결과" : ""}</span><small style="color:#9fc0d8;font-weight:500">펼치기 ▾</small></summary>${tierAuthHTML(g)}${d.last ? `<div style="font-size:11.5px;color:#b8d0e2;margin-top:6px">최근 결과: ${d.last}</div>` : ""}</details></div>
         <aside class="dm-side">${globalThis.__careerProfileHTML()}${bossCard}${rivalsHTML}<div class="mn-card dm-news"><div class="mn-h">📰 군 내부 · 언론 헤드라인</div>${(d.headlines || []).slice(0, 7).map((h) => `<small>• ${h.replace(/^(\d+)주차 ·/, "안건 $1 ·")}</small>`).join("")}</div></aside>
       </div>
-    </div>`;
+    </div></div>`;
   setAmbienceMood(d.tension >= 70 || d.warroom ? "defcon" : "office");
   openPromotionBoard(g, br, svk, true);
 }
@@ -3349,6 +3349,8 @@ $("#hqP").addEventListener("click", (e) => {
 $("#tabPort").addEventListener("click", () => { sfx.click(); openMenu(); });
 function openRecord() { initAudio(); bgm((career.minister || (!isUS() && isPotus()) || usIsPotus()) ? "state" : "menu"); hideAll(); screen = "record"; G.state = "menu"; setTab("record"); $("#topbar").style.display = "flex"; renderRecord(); $("#recordP").style.display = "block"; showcase(flagshipId()); }
 $("#tabRecord").addEventListener("click", () => { sfx.click(); if (recTab === "global") recTab = "log"; openRecord(); });
+$("#tabMore")?.addEventListener("click", (e) => { e.stopPropagation(); document.body.classList.toggle("more-open"); });
+document.addEventListener("click", (e) => { if (document.body.classList.contains("more-open") && !e.target.closest?.("#tabMore")) document.body.classList.remove("more-open"); });
 $("#tabRank")?.addEventListener("click", () => {
   sfx.click();
   recTab = "global";
