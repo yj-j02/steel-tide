@@ -123,12 +123,13 @@ export async function syncLeaderboardScore(entry, { force = false } = {}) {
     entry.player_id, entry.nation, entry.service, entry.name,
     entry.grade, entry.xp, entry.wins, entry.battles, entry.medals,
     entry.ending_title, entry.chapter, entry.board_avg, entry.promo_week,
-    entry.approval, entry.hardcore, entry.post_name,
+    entry.approval, entry.hardcore, entry.post_name, entry.route_info,
   ]);
   if (!force && hash === lastSyncHash) return true;
   lastSyncHash = hash;
 
   const payload = { ...entry, updated_at: new Date().toISOString() };
+  const { route_info: _ri, ...midPayload } = payload; /* route_info 칸이 아직 없는 서버용 */
   const basePayload = {
     player_id: entry.player_id,
     nation: entry.nation,
@@ -150,7 +151,10 @@ export async function syncLeaderboardScore(entry, { force = false } = {}) {
       const { error } = await sb.from("leaderboard").upsert(payload, { onConflict: "player_id" });
       if (!error) return true;
       /* 서버 표에 심사평균·도달연차 등 칸이 없으면 여기서 실패하고 기본 정보만 저장된다 → docs/supabase_leaderboard_columns.md */
-      console.warn("[leaderboard] 전체 정보 저장 실패, 기본 정보만 저장합니다:", error.message || error);
+      console.warn("[leaderboard] 전체 정보 저장 실패, 일부 칸 없이 다시 저장합니다:", error.message || error);
+      const { error: errMid } = await sb.from("leaderboard").upsert(midPayload, { onConflict: "player_id" });
+      if (!errMid) return true;
+      console.warn("[leaderboard] 기본 정보만 저장합니다:", errMid.message || errMid);
       const { error: err2 } = await sb.from("leaderboard").upsert(basePayload, { onConflict: "player_id" });
       if (!err2) return true;
     }
@@ -167,6 +171,8 @@ export async function syncLeaderboardScore(entry, { force = false } = {}) {
     const res = await post(payload);
     if (res.ok) return true;
     if (res.status === 400) {
+      const resMid = await post(midPayload);
+      if (resMid.ok) return true;
       const res2 = await post(basePayload);
       return res2.ok;
     }
