@@ -8,9 +8,33 @@ const DONE = (k) => `steeltide:tour:${k}`;
 export const tourDone = (key) => { try { return careerStorage.getItem(DONE(key)) === "1"; } catch { return true; } };
 export function resetTour(key) { try { careerStorage.removeItem(DONE(key)); } catch { /* 저장 불가 */ } }
 
-/** steps: [{ sel, title, text }] — 화면에 없는 대상은 건너뛴다. */
+/* 임관장·진급 명령서·장면 연출·경보·청문회 같은 창이 떠 있으면 튜토리얼을 미룬다 */
+const BLOCKERS = ["#promoM", "#emAlert", "#hearingOv", "#summitOv", "#balOv", "#scene2d", "#setM", "dialog[open]", ".la-modal"];
+export function tourBlocked() {
+  if (typeof document === "undefined") return true;
+  return BLOCKERS.some((sel) => [...document.querySelectorAll(sel)].some((el) => {
+    if (el.closest("#tourLayer")) return false;
+    const cs = getComputedStyle(el);
+    return cs.display !== "none" && cs.visibility !== "hidden" && Number(cs.opacity) > 0.05 && el.getClientRects().length > 0;
+  }));
+}
+const waiting = new Set();
+
+/** steps: [{ sel, title, text }] — 화면에 없는 대상은 건너뛴다. 다른 창이 떠 있으면 닫힐 때까지 기다린다. */
 export function startTour(key, steps) {
-  if (typeof document === "undefined" || tourDone(key) || document.querySelector("#tourLayer") || document.querySelector("#emAlert")) return false;
+  if (typeof document === "undefined" || tourDone(key) || document.querySelector("#tourLayer")) return false;
+  if (tourBlocked()) {
+    if (waiting.has(key)) return false;
+    waiting.add(key);
+    let tries = 0;
+    const t = setInterval(() => {
+      tries += 1;
+      if (tourBlocked() && tries < 400) return;
+      clearInterval(t); waiting.delete(key);
+      if (tries < 400) setTimeout(() => startTour(key, steps), 350);
+    }, 600);
+    return false;
+  }
   const live = steps.filter((s) => document.querySelector(s.sel));
   if (!live.length) return false;
   let i = 0;
@@ -33,6 +57,7 @@ export function startTour(key, steps) {
     tip.querySelector("[data-tour=next]").focus();
   }
   function onKey(e) {
+    if (layer.style.visibility === "hidden") return;
     if (e.key === "Escape") { e.stopPropagation(); finish(); }
     else if (e.key === "Enter" || e.key === " ") { e.stopPropagation(); e.preventDefault(); tip.querySelector("[data-tour=next]")?.click(); }
   }
@@ -43,6 +68,7 @@ export function startTour(key, steps) {
   });
   window.addEventListener("resize", place);
   document.addEventListener("keydown", onKey, true);
+  const guard = setInterval(() => { if (!layer.isConnected) return clearInterval(guard); const b = tourBlocked(), wasHidden = layer.style.visibility === "hidden"; layer.style.visibility = b ? "hidden" : ""; if (!b && wasHidden) place(); }, 700);
   place();
   return true;
 }
