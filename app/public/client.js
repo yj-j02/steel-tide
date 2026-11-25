@@ -1,6 +1,7 @@
 import { commissionRoutes, contractFor, serviceStatus, noteServiceNotice, applyServiceAction } from "./js/service-rules.js";
 import { dutyHistory } from "./js/career-timeline.js";
 import { koreanPostName } from "./js/us-post-labels.js";
+import { isBadName } from "./js/name-filter.js";
 import { careerStorage, characters, activeCharacterId, createCharacter, selectCharacter, removeCharacter } from "./js/characters.js";
 import { calendarLabel, careerDate, careerMonths, rankMonths, serviceDuration } from "./js/service-calendar.js";
 import { openingEvent } from "./js/army-opening.js";
@@ -485,7 +486,7 @@ function renderCmdr() {
 }
 function openCmdr() { cmdrDraft = cmdr.face; $("#cmdrInput").value = cmdrSet || cmdr.name !== "무명" ? cmdr.name : ""; renderCmdr(); $("#cmdrErr").textContent = ""; $("#cmdrM").style.display = "grid"; setTimeout(() => $("#cmdrInput").focus(), 30); }
 async function saveCmdr() {
-  const n = $("#cmdrInput").value.trim(); if (!n) { $("#cmdrErr").textContent = "이름을 입력하세요"; return; } if (n.length > 12) { $("#cmdrErr").textContent = "12자 이내로 입력하세요"; return; }
+  const n = $("#cmdrInput").value.trim(); if (!n) { $("#cmdrErr").textContent = "이름을 입력하세요"; return; } if (n.length > 12) { $("#cmdrErr").textContent = "12자 이내로 입력하세요"; return; } if (isBadName(n)) { $("#cmdrErr").textContent = "욕설이나 성적인 표현이 들어간 이름은 쓸 수 없습니다"; return; }
   const okBtn = $("#cmdrOk");
   if (okBtn) okBtn.disabled = true;
   try {
@@ -2827,6 +2828,7 @@ $("#titleHub")?.addEventListener("click", async (e) => {
   if (a === "enlist") {
     const name = thName.replace(/[<>&"`]/g, "").trim();
     if (!name) { toast("지휘관 이름을 입력하세요", 2.5); $("#thName")?.focus(); return; }
+    if (isBadName(name)) { toast("욕설이나 성적인 표현이 들어간 이름은 쓸 수 없습니다", 3); $("#thName")?.focus(); return; }
     b.disabled = true;
     try {
       if (await isNameTaken(name, `${myId}:`)) {
