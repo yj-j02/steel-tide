@@ -520,3 +520,6 @@ body .dsr-page #duty-warroom.mn-paper button b { color: #fff !important; }
 body .dsr-page #duty-warroom.mn-paper button small { color: #ffcf9e !important; }
 /* 동기·스토리 아크 카드: 종이 위에서 노란 글씨가 안 보이던 문제 */
 .dsr-page #duty-arc.mn-paper small[style] { color: var(--ds-hiink) !important; }
+/* 한직 발령 카드: 경고 톤 */
+.dsr-page #duty-reassign.rs-back .dt small { color: var(--ds-red) !important; font-weight: 700; }
+.dsr-page #duty-reassign.rs-back { border-left: 4px solid var(--ds-red) !important; }
