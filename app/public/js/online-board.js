@@ -117,6 +117,7 @@ export async function isNameTaken(name, myPlayerId = "") {
 
 export async function syncLeaderboardScore(entry, { force = false } = {}) {
   if (typeof window === "undefined" || !entry?.player_id || isExcludedLeaderboardName(entry?.name)) return false;
+  if (entry.easy_run) return false; /* 쉬운 모드로 진행한 캐릭터는 랭킹에 올리지 않는다 (서버에는 이 칸을 보내지 않음) */
   if (await isNameTaken(entry.name, `${String(entry.player_id).split(":")[0]}:`)) return false;
   const hash = JSON.stringify([
     entry.player_id, entry.nation, entry.service, entry.name,
@@ -148,6 +149,8 @@ export async function syncLeaderboardScore(entry, { force = false } = {}) {
     if (sb) {
       const { error } = await sb.from("leaderboard").upsert(payload, { onConflict: "player_id" });
       if (!error) return true;
+      /* 서버 표에 심사평균·도달연차 등 칸이 없으면 여기서 실패하고 기본 정보만 저장된다 → docs/supabase_leaderboard_columns.md */
+      console.warn("[leaderboard] 전체 정보 저장 실패, 기본 정보만 저장합니다:", error.message || error);
       const { error: err2 } = await sb.from("leaderboard").upsert(basePayload, { onConflict: "player_id" });
       if (!err2) return true;
     }
