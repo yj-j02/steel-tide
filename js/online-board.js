@@ -11,6 +11,8 @@ let onlinePlayers = [];
 let cachedRows = [];
 let lastFetchAt = 0;
 let lastSyncHash = "";
+let sdkError = "";
+export const getSdkError = () => sdkError;
 let lastSyncInfo = { level: "none", msg: "" };
 export const getSyncInfo = () => lastSyncInfo;
 const listeners = new Set();
@@ -36,16 +38,22 @@ async function getClient() {
   if (sbInitPromise) return sbInitPromise;
   if (typeof window === "undefined") return null;
   sbInitPromise = (async () => {
-    try {
-      const mod = await import("https://esm.sh/@supabase/supabase-js@2");
-      sbClient = mod.createClient(SUPABASE_URL, SUPABASE_KEY, {
-        realtime: { params: { eventsPerSecond: 4 } },
-      });
-      return sbClient;
-    } catch (err) {
-      console.warn("Supabase SDK load failed, using REST fallback:", err);
-      return null;
+    /* 1순위: 게임에 포함된 사본(외부 CDN 장애와 무관) → 2순위: CDN 두 곳 */
+    const sources = ["./vendor-supabase.js", "https://esm.sh/@supabase/supabase-js@2", "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm"];
+    for (const src of sources) {
+      try {
+        const mod = await import(src);
+        sbClient = mod.createClient(SUPABASE_URL, SUPABASE_KEY, {
+          realtime: { params: { eventsPerSecond: 4 } },
+        });
+        sdkError = "";
+        return sbClient;
+      } catch (err) {
+        sdkError = `${src}: ${err?.message || err}`;
+        console.warn("[leaderboard] Supabase SDK 불러오기 실패:", sdkError);
+      }
     }
+    return null;
   })();
   return sbInitPromise;
 }
@@ -176,6 +184,7 @@ export async function syncLeaderboardScore(entry, { force = false } = {}) {
     });
     const res = await post(payload);
     if (res.ok) { lastSyncInfo = { level: "full", msg: "" }; return true; }
+    lastSyncInfo = { level: "fail", msg: `REST ${res.status} ${(await res.text().catch(() => "")).slice(0, 160)}` };
     if (res.status === 400) {
       const resMid = await post(midPayload);
       if (resMid.ok) return true;
