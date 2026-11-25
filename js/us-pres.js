@@ -5,7 +5,7 @@ import { chapter } from "./us-story.js";
 import { civicMap } from "./civic-map.js";
 import { US_STATES } from "./geo-maps.js";
 // U.S. Presidential Election (538 Electoral College) & White House Chapter integrated into THE GENERAL (#hqP).
-import { tiles, electors } from "./content/us.js";
+import { tiles, electors, partners } from "./content/us.js";
 import { newCareer, decide, election } from "./us-career.js";
 import { unlockEnding } from "./endings.js";
 import { STATE_NAMES, SWING_STATES, WORLD_THEATERS, ensureGlobalState, worldMapHTML } from "./us-global.js";
@@ -153,7 +153,7 @@ export function usPresHTML() {
       (label, i) =>
         `<button class="us-ch" data-uspres="c:${i}" ${s.phase === "campaign" && !s.target ? "disabled" : ""}><b>${esc(label)}</b></button>`,
     )
-    .join("");
+    .join("") + (s.phase === "summit" ? `<button class="us-ch sm-open" data-ussummit="1"><b>🤝 협상 테이블에 앉기 (정상회담 미니게임)</b></button>` : "");
   const bgImg = inWH
     ? s.term === 1 && s.quarter === 1
       ? "img/bg/us_inauguration.jpg"
@@ -220,6 +220,35 @@ function usElectionCuts(kind, s) {
       { img: "us_capitol_hearing", who: "WASHINGTON, D.C.", text: "백악관 입성은 다음을 기약하게 되었지만, 군과 공직에서 쌓아 올린 명예와 경륜은 미국 안보의 큰 자산으로 남았습니다." },
     ],
   };
+  if (kind === "debate") {
+    const n = Math.max(1, Math.floor((s.turn || 3) / 3));
+    return {
+      cutTitle: `Presidential Debate ${n}/3`,
+      cutPlace: "Candidate forum · fictional series",
+      cuts: [
+        { img: "us_press_corps", flash: 1, who: `DEBATE NIGHT · ${n}/3`, text: `${nm} 후보가 무대에 오릅니다. 전국 생중계 — 사회자가 첫 질문을 준비합니다.` },
+        { img: "us_rally", who: "SPIN ROOM", text: "토론이 끝나면 양 캠프 대변인이 기자들 앞에서 해석 경쟁을 벌입니다. 답변 하나가 경합주 여론을 흔듭니다." },
+      ],
+    };
+  }
+  if (kind === "end") {
+    const E = {
+      "Successful presidency": ["성공한 대통령", "높은 지지율 속에 퇴임합니다. 역대 대통령 평가에서 상위권에 이름을 올립니다.", 3],
+      "Stable presidency": ["안정적인 임기", "큰 위기 없이 국정을 이끌고 질서 있게 정권을 넘깁니다.", 1],
+      "Mixed legacy": ["엇갈린 평가", "성과와 논란이 함께 남았습니다. 평가는 역사가들의 몫으로 남습니다.", 0],
+      "Lame-duck retirement": ["레임덕 퇴임", "지지율이 바닥인 채 백악관을 떠납니다. 후임 행정부가 정책 상당수를 되돌립니다.", 0],
+    };
+    const [t, d, fl] = E[s.ending] || ["임기 종료", "임기를 마쳤습니다.", 0];
+    return {
+      cutTitle: `Presidential Farewell · ${t}`,
+      cutPlace: "The White House · End of Term",
+      cuts: [
+        { img: "us_press_corps", who: "FINAL PRESS CONFERENCE", text: `마지막 기자회견. 기자단이 묻습니다. "임기를 한 단어로 평가한다면?" — ${t}.` },
+        { img: "us_oval_office", who: `${nm} · 퇴임 연설`, text: `${d} 오벌 오피스 책상 서랍에 후임 대통령을 위한 편지를 남깁니다.` },
+        { img: "us_inauguration", flash: fl, card: `<img src="img/us_potus_mark.png" alt="POTUS Seal" style="height:68px;display:block;margin:0 auto 8px"><b style="color:#ffd166">FORMER PRESIDENT OF THE UNITED STATES</b><br><small style="color:#fff">${t}</small>`, who: "WASHINGTON, D.C.", text: "취임식 날, 새 대통령이 선서하는 동안 조용히 의사당 계단을 내려갑니다." },
+      ],
+    };
+  }
   return {
     cutTitle: "Presidential Farewell",
     cutPlace: "The White House · End of Term",
@@ -230,6 +259,24 @@ function usElectionCuts(kind, s) {
   };
 }
 
+/** 정상회담 미니게임 (H): 미국 대통령 분기 정상회담 정보 */
+const PARTNER_KEY = { Japan: "jp", "Republic of Korea": "kr", Australia: "au", Philippines: "ph" };
+const PARTNER_KO = { Japan: "일본", "Republic of Korea": "대한민국", Australia: "호주", Philippines: "필리핀" };
+export function usSummitInfo() {
+  const s = rd(); if (!s || s.phase !== "summit") return null;
+  const p = partners[Math.max(0, Math.floor(s.quarter / 4) - 1)] || partners[0];
+  return { nation: PARTNER_KEY[p] || "jp", nationName: PARTNER_KO[p] || p, topic: "공동 재난 지원 협정 · 역내 협력", rel: s.world ?? 60, us: true };
+}
+/** 결과 반영 후 기존 결재 흐름(c:0 서명 / c:1 보류)으로 넘긴다 */
+export function usSummitResult(level) {
+  const s = rd(); if (!s || s.phase !== "summit") return {};
+  const cl = (v) => Math.max(0, Math.min(100, v));
+  s.world = cl((s.world ?? 68) + [-4, 0, 2, 5][level]);
+  s.trust = cl(s.trust + [-2, 0, 1, 2][level]);
+  (s.journal ??= []).unshift(`[정상회담] ${usSummitInfo()?.nationName || ""} — ${["결렬", "공동성명", "부분 합의", "포괄 합의"][level]}`);
+  wr(s);
+  return usPresClick(`c:${level >= 2 ? 0 : 1}`);
+}
 export function usPresClick(act) {
   const s = rd();
   if (!s) return {};
@@ -346,7 +393,8 @@ export function usPresClick(act) {
     const lostElection = before !== "end" && s.phase === "end" && s.term === 0;
     const retiredPres = before !== "end" && s.phase === "end" && s.term > 0;
     if (inaugurated) unlockEnding("us_potus");
-    const cutPack = inaugurated ? usElectionCuts("win", s) : lostElection ? usElectionCuts("loss", s) : retiredPres ? usElectionCuts("end", s) : {};
+    const debateIn = before !== "debate" && s.phase === "debate";
+    const cutPack = inaugurated ? usElectionCuts("win", s) : lostElection ? usElectionCuts("loss", s) : retiredPres ? usElectionCuts("end", s) : debateIn ? usElectionCuts("debate", s) : {};
     return {
       redraw: true,
       inaugurated,
