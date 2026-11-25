@@ -1,7 +1,7 @@
 import { career } from "./career.js";
 
 // Realistic average time-in-grade (months) matched to KR/US officer promotion ages (23 O-1 -> 24 O-2 -> 26 O-3 -> 33 O-4 -> 39 O-5 -> 45 O-6 -> 49 O-7 -> 52 O-8 -> 55 O-9 -> 58 O-10)
-const monthsPerRank = [12, 30, 78, 72, 72, 48, 30, 30, 27, 36, 36]; /* 장성: 10주 ≈ 2년 3개월~2년 6개월 (실제 장성 진급 간격 2~3년) */
+const monthsPerRank = [12, 30, 78, 72, 72, 48, 24, 24, 24, 24, 36]; /* 장성(준장~대장): 계급당 2년 */
 const juniorMonths = [0, 0, 1, 2, 3, 5, 6, 7, 9, 10];
 
 export function rankMonths(grade, steps) {
