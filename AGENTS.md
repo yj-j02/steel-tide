@@ -45,6 +45,7 @@
 | `js/hearing.js` | 장관 인사청문회(국회) / 상원 인준 청문회 |
 | `js/summit.js` | 정상회담 협상 미니게임 (한국·미국 대통령) |
 | `js/sfx.js` | 합성 효과음(도장·서류·경보·업적) |
+| `js/us-alt-posts.js` | 미군(BETA) 같은 병과 대체 보직·한직 목록 [영문, 한국어] |
 | `js/admin-balance.js` | 관리자 밸런스 시험 표 (저장소를 쓰지 않는 계산만) |
 | `manifest.webmanifest`, `sw.js`, `img/icons/` | PWA (실제 배포 주소에서만 서비스 워커 등록) |
 | `js/korea.js` | 한반도 해안선 (Natural Earth 50m, 퍼블릭 도메인) + `kxy(경도, 위도)` |
