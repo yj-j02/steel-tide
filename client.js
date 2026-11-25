@@ -1871,6 +1871,26 @@ function hardcoreValid() {
   return !!career.hardcore && !career.hardcoreVoid && !profile.admin;
 }
 
+/** 랭킹에 보여줄 내 루트 요약: "임관구분 | 병과 → 병과 | 전역 진로". 서버에는 짧은 텍스트로만 저장한다. */
+function careerRouteSummary() {
+  try {
+    const parts = [];
+    const ct = career.serviceContract?.title;
+    if (ct) parts.push(String(ct).split(" · ")[0].replace(/\s*\(.*$/, "").trim());
+    const seq = [];
+    for (const e of career.log || []) { const b = e.b && postLabel(e.b); if (b && seq[seq.length - 1] !== b) seq.push(b); }
+    const cur = postLabel((curBranches()[staff.branch] || {}).n || "");
+    if (cur && seq[seq.length - 1] !== cur) seq.push(cur);
+    if (seq.length) parts.push(seq.slice(-4).join(" → "));
+    const dc = career.discharged;
+    if (dc?.routeConfirmed) {
+      const rr = resolveRetireRoute(dc.routeId, dc.branch || staff.branch, dc.g ?? myGrade(), isUS());
+      if (rr?.short || rr?.title) parts.push(`전역: ${rr.short || rr.title}`);
+    }
+    return parts.join(" | ").slice(0, 140);
+  } catch { return ""; }
+}
+
 function currentOnlineRecord() {
   const svk = serviceOf(staff.branch);
   const g = career.discharged?.g ?? myGrade();
@@ -1898,6 +1918,7 @@ function currentOnlineRecord() {
     approval: presidentApproval(),
     hardcore: hardcoreValid(),
     easy_run: !!career.easyRun,
+    route_info: careerRouteSummary(),
   };
 }
 
@@ -1948,7 +1969,7 @@ function globalRankHTML() {
     return `<tr style="background:${isMe ? "rgba(242,202,92,.14)" : idx % 2 ? "rgba(255,255,255,.02)" : "transparent"};${isMe ? "outline:1px solid rgba(242,202,92,.6);" : ""}">
       <td style="padding:7px 8px;text-align:center;font-weight:800;color:${idx < 3 ? "#fde68a" : "#cbd5e1"}">${medalRank}</td>
       <td style="padding:7px 8px">${r.nation === "us" ? "🇺🇸" : "🇰🇷"} <span style="font-size:10.5px;color:#93c5fd">${svcBadge(r.service)}</span></td>
-      <td style="padding:7px 8px;font-weight:700;color:${isMe ? "#fff4c2" : "#f1f5f9"}">${escapeTitle(r.name)}${isMe ? " <small style='color:#fde68a'>(나)</small>" : ""}${tags}</td>
+      <td style="padding:7px 8px;font-weight:700;color:${isMe ? "#fff4c2" : "#f1f5f9"}">${escapeTitle(r.name)}${isMe ? " <small style='color:#fde68a'>(나)</small>" : ""}${tags}${r.route_info ? `<div title="${escapeTitle(r.route_info)}" style="font-size:10.5px;font-weight:500;color:#8ea4b8;margin-top:2px;max-width:340px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">🧭 ${escapeTitle(r.route_info)}</div>` : ""}</td>
       <td style="padding:7px 8px;color:#e2e8f0">${escapeTitle(r.rank_name)}${r.post_name ? `<div style="font-size:10.5px;color:#93c5fd;margin-top:1px">${escapeTitle(r.post_name)}</div>` : ""}</td>
       <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums;${hi("board")}">${Number(r.board_avg || 0) > 0 ? `${Number(r.board_avg).toFixed(1)}점` : "—"}</td>
       <td style="padding:7px 8px;text-align:right;font-variant-numeric:tabular-nums;${hi("speed")}">${speed}</td>
