@@ -57,7 +57,7 @@ const withMin = (m) => { const F = minFx(); return { ...m, outK: m.outK * F.outK
 const ngFlags = () => { const L = legacy(); if (!L?.medal) return {}; const g = myGrade(); return { ...(g <= 2 ? { ngPay: 1 } : {}), ...(L.minister && g >= 8 ? { ngXp: 1 } : {}) }; };
 let usPresPreview = false;
 let hqView = "duty", minDirect = false, minDirect3d = false, dutyDirect = false, returnToHQ = false, svcDraft = null;
-import { FOCUS, PASS, minBattles, scoreBattle, recordEval, evalOf, board, marshalQuest, setCap, deferNote } from "./js/service.js";
+import { FOCUS, PASS, minBattles, minWeeks, weeksOf, scoreBattle, recordEval, evalOf, board, marshalQuest, setCap, deferNote } from "./js/service.js";
 import { openMarshalWar } from "./js/marshal-war.js";
 import { availableRetireRoutes, resolveRetireRoute, RETIRE_SCENARIOS, retireScenarioHTML } from "./js/retire-routes.js";
 import { getOverseasTour, overseasCardHTML, HEARING_CASES, hearingCardHTML, FAMILY_STAGES, familyCardHTML } from "./js/phase5-chapters.js";
@@ -1012,7 +1012,7 @@ function renderPostPick(g) {
     const allowed = Object.keys(BR).filter((k) => k === br0 || (k === org && BR[k].svc === sv) || (g >= 3 && BR[k].svc === "joint"));
     const seen = new Set([BR[br0].t[g]]), others = [];
     for (const k of allowed.filter((k) => k !== br0)) { const t = BR[k].t[g]; if (!seen.has(t)) { seen.add(t); others.push(k); } }
-    const alts = altPostsFor(br0, g).filter((t) => !seen.has(t)).map((t) => `alt:${t}`);
+    const alts = isUS() ? [] : altPostsFor(br0, g).filter((t) => !seen.has(t)).map((t) => `alt:${t}`); /* 대체 보직 목록은 한국군 직제 — 미군 모드에서는 쓰지 않는다 */
     pmPostOpts = [br0, ...alts, ...others]; pmPostSel = career.post?.g === g && alts.includes(`alt:${career.post.t}`) ? `alt:${career.post.t}` : br0;
   }
   if (typeof pmPostOpts[0] === "object") { el.innerHTML = `<div class="pk-h">장성 보직 선택 · ${svName} 및 합동 ${rankLabel(g, sv)} 보직</div><div class="pst-row">${pmPostOpts.map(p => `<button class="pst${p.t === pmPostSel ? " on" : ""}" data-fpost="${p.t}"><i>${p.b === br0 ? "현 병과 계속" : p.svc === "joint" ? "합동 보직" : "보직 전환"}</i><b>${postLabel(p.t)}</b><small>${hint(p.t)}</small><span>평정 중점: ${FOCUS[p.b].f}</span></button>`).join("")}</div>`; return; }
@@ -2276,7 +2276,8 @@ function renderDutyDesk() {
   const serviceTerms = currentServiceStatus(g, d);
   noteServiceNotice(serviceTerms);
   if (serviceTerms.due) {
-    $("#hqP").innerHTML = `<div class="mn dm-shell"><div class="mn-card"><h2>현역 복무 종료 안내</h2><p>${postLabel(postOf(g))} · ${rankLabel(g, svk)}</p></div>${serviceRulesCard(serviceTerms)}</div>`;
+    const last = boardPreview(g, xpGrade(), postOf(g), br, svk, d), lastOk = last.ready && last.seats;
+    $("#hqP").innerHTML = `<div class="mn dm-shell"><div class="mn-card"><h2>현역 복무 종료 안내</h2><p>${postLabel(postOf(g))} · ${rankLabel(g, svk)}</p>${lastOk ? `<p>진급 요건(복무기간·경험치·평정)을 모두 갖춰 전역 전에 마지막 정기 진급심사를 받을 수 있습니다.</p><button data-duty="review">마지막 진급심사 받기</button>` : ""}</div>${serviceRulesCard(serviceTerms)}</div>`;
     return;
   }
   const reviewCard = boardCard(g, xpGrade(), postOf(g), br, svk, d, profile.xp);
@@ -3340,6 +3341,7 @@ $("#hqP").addEventListener("click", (e) => {
     if (a === "next") {
       const d = nextDutyWeek(svk, g, postOf(g)), status = currentServiceStatus(g, d);
       noteServiceNotice(status);
+      const tenure = tenureXp(g, status);
       if (d.recentRivalRetire) {
         const ret = d.recentRivalRetire;
         delete d.recentRivalRetire;
@@ -3364,10 +3366,18 @@ $("#hqP").addEventListener("click", (e) => {
         if (c) emergencyAlert({ key: `cr:${myId}:${d.week}:${c.id}`, level: "crisis", title: `${c.tag} — ${c.title}`, sub: c.desc || "", when: careerDate(d.week), us: isUS() });
       }
       if (status.due && !(status.extension && status.qualifies)) {
+        /* 정년 도래 시점에 진급 요건을 모두 갖췄으면 전역 전에 마지막 정기 심사를 한 번 연다 */
+        const last = boardPreview(g, xpGrade(), postOf(g), br, svk, d), key = `${g}:${status.limit.month}`;
+        if (last.ready && last.seats && career.lastBoard !== key) {
+          career.lastBoard = key; saveCareer();
+          toast("정년 도래 전 마지막 진급 심사가 열립니다", 4);
+          renderDutyDesk(); openPromotionBoard(g, br, svk);
+          return;
+        }
         finishOfficerService(g, status.limit.title, status.limit.month);
         return;
       }
-      toast(`${careerDate(d.week)} · 새 안건이 도착했습니다`, 2.5);
+      toast(`${careerDate(d.week)} · 새 안건이 도착했습니다${tenure ? ` · 근속 경험치 +${fmt(tenure)}` : ""}`, 2.5);
       renderDutyDesk();
       return;
     }
@@ -4192,6 +4202,19 @@ $("#pauseBtn").addEventListener("click", (e) => { e.stopPropagation(); setPause(
 $("#resumeBtn").addEventListener("click", () => { const o = $("#pause"); if (o.classList.contains("menuset")) { o.style.display = "none"; o.classList.remove("menuset"); } else setPause(false); });
 function openSettings() { if (G.state === "playing" || G.state === "ending") { setPause(true); return; } const o = $("#pause"); o.classList.add("menuset"); o.querySelector("h1").textContent = "설정"; $("#resumeBtn").textContent = "닫기"; o.style.display = "grid"; }
 /** 순환 보직 인사명령 (2026-11-25): 같은 계급에서 26주 이상 근무하면 가끔 다른 보직 이동이 내정된다. */
+/* 근속 경험치: 계급에 머문 기간만큼 경험치가 쌓인다. 최소 복무기간을 채운 뒤에는
+   경험치가 진급의 걸림돌이 되지 않도록 다음 계급 요구치까지 보정한다 (평정·심사는 그대로). */
+function tenureXp(g, status) {
+  if (g >= 9 || career.minister || career.discharged) return 0;
+  const lo = ECON_RANK_XP[g], hi = ECON_RANK_XP[g + 1], cur = Math.max(profile.xp || 0, lo);
+  if (!hi || cur >= hi) return 0;
+  const w = weeksOf(g), need = minWeeks(g), nearLimit = status?.remaining != null && status.remaining <= 24;
+  let gain = Math.ceil((hi - lo) / 14);
+  if (w >= need && (w >= need + 2 || nearLimit)) gain = hi - cur;
+  gain = Math.min(gain, hi - cur);
+  profile.xp = cur + gain; saveProfile();
+  return gain;
+}
 function maybeReassign(d) {
   const g = myGrade();
   if (!d || career.minister || career.discharged || g < 1 || g > 8 || d.warroom || d.reassign) return;
@@ -4202,6 +4225,7 @@ function maybeReassign(d) {
   const good = !poor && e.n >= 2 && e.avg >= 80 && (d.rep ?? 55) >= 55;
   const br = normBranch(staff.branch), sv = serviceOf(br), cur = postOf(g);
   const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  if (isUS() && (poor || g < 6)) return; /* 한직·대체 보직 목록은 한국군 직제 전용 */
   if (poor) {
     /* 성과가 나쁘면: 한직 발령 내정 (선택권 없음 — 수용 또는 재심 청구) */
     if (weeksIn < 12 || Math.random() > 0.15) return;
