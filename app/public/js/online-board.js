@@ -118,9 +118,10 @@ export async function isNameTaken(name, myPlayerId = "") {
 }
 
 export async function syncLeaderboardScore(entry, { force = false } = {}) {
-  if (typeof window === "undefined" || !entry?.player_id || isExcludedLeaderboardName(entry?.name)) return false;
-  if (entry.easy_run) return false; /* 쉬운 모드로 진행한 캐릭터는 랭킹에 올리지 않는다 (서버에는 이 칸을 보내지 않음) */
-  if (await isNameTaken(entry.name, `${String(entry.player_id).split(":")[0]}:`)) return false;
+  if (typeof window === "undefined" || !entry?.player_id) return false;
+  if (isExcludedLeaderboardName(entry?.name)) { lastSyncInfo = { level: "skip", msg: "이 이름은 랭킹에 올릴 수 없는 이름입니다. 이름을 바꿔 주세요." }; return false; }
+  if (entry.easy_run) { lastSyncInfo = { level: "skip", msg: "쉬운 모드로 진행한 캐릭터라 랭킹에 등록되지 않습니다. (다른 캐릭터를 만들어 일반 모드로 진행하세요)" }; return false; } /* 쉬운 모드로 진행한 캐릭터는 랭킹에 올리지 않는다 (서버에는 이 칸을 보내지 않음) */
+  if (await isNameTaken(entry.name, `${String(entry.player_id).split(":")[0]}:`)) { lastSyncInfo = { level: "skip", msg: "같은 이름을 쓰는 다른 플레이어가 이미 있어 등록되지 않았습니다. 이름을 바꿔 보세요." }; return false; }
   const hash = JSON.stringify([
     entry.player_id, entry.nation, entry.service, entry.name,
     entry.grade, entry.xp, entry.wins, entry.battles, entry.medals,
@@ -129,6 +130,7 @@ export async function syncLeaderboardScore(entry, { force = false } = {}) {
   ]);
   if (!force && hash === lastSyncHash) return true;
   lastSyncHash = hash;
+  lastSyncInfo = { level: "pending", msg: "" };
 
   const { easy_run: _er, ...serverEntry } = entry; /* easy_run은 서버 칸이 없으므로 보내지 않는다 */
   const payload = { ...serverEntry, updated_at: new Date().toISOString() };
