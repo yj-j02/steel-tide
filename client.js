@@ -24,7 +24,7 @@ import { MODERN, TRANSPORT, Ship, solve, leadPoint, brain, escort, mkBrain, upda
 import { air, dirFrom, clearAir, updateAir } from "./js/air.js";
 import { aaGun, updateAAGun, jetPit, updateJetPit } from "./js/interior.js";
 import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, updateMG } from "./js/infantry.js";
-import { altPostsFor, originBranch } from "./js/staff.js";
+import { altPostsFor, originBranch, hardPostsFor } from "./js/staff.js";
 import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, candidates, roleTitle, ECH, echOf, staffFor, FLAG_POSTS, FLEET_CDR, SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, setService, setBranch, POST_RANK, holds, saveStaff, isUS, setNation, curServices, curBranches, curFlagPosts, flagPostsForTrack } from "./js/staff.js";
 import { koreanUsRanks, toggleUsRankLanguage, insigniaUS, US_PAY, US_BRANCHES, US_SERVICES, usRankName, usRankFull, US_SVC_ORG, usNpcName, usDischargeEndingOf } from "./js/us-ranks.js";
 import { emergencyAlert, crisisLog } from "./js/alert.js";
@@ -2364,7 +2364,8 @@ function renderDutyDesk() {
   if (arcCard) dutyQueue.push({ key: "arc", label: "📖 계급 스토리", urgent: true, html: `<span class="dm-pri-badge">📖 계급 시그니처 스토리</span>${arcCard}` });
   if (rvEvCard) dutyQueue.push({ key: "rival", label: "🤝 동기 요청", html: rvEvCard });
   const ra = d.reassign && d.reassign.g === myGrade() ? d.reassign : null;
-  if (ra) dutyQueue.push({ key: "reassign", label: "📨 인사명령", html: `<div id="duty-reassign" class="mn-card mn-dk mn-paper"><div class="dh"><div class="dt"><small>📨 ${isUS() ? "Personnel Orders" : "인사명령"} · ${isUS() ? "Reassignment" : "보직 이동 내정"}</small><b>${isUS() ? "새 보직으로 이동 명령이 내려왔습니다" : "같은 계급, 다른 보직으로 이동 내정"}</b><span>현 보직: ${postLabel(postOf(ra.g))} · ${rankLabel(ra.g)}</span></div></div><p>${isUS() ? "Personnel command has slated you for a new billet at the same grade. Pick one, or ask to stay." : "인사사령부가 같은 계급의 다른 보직으로 이동을 내정했습니다. 희망 보직을 고르거나 현 보직 유임을 요청할 수 있습니다."}</p>${ra.opts.map((t, i) => `<button data-reassign="${i}"><b>${postLabel(t)}</b><small>${hint(t)}</small></button>`).join("")}<button data-reassign="stay"><b>${isUS() ? "Request to stay in current billet" : "현 보직 유임 요청"}</b><small>이동 없음 · 다음 인사명령까지 최소 26주</small></button></div>` });
+  if (ra && ra.kind === "back") dutyQueue.push({ key: "reassign", label: "📨 한직 발령", urgent: true, html: `<div id="duty-reassign" class="mn-card mn-dk mn-paper rs-back"><div class="dh"><div class="dt"><small>📨 인사명령 · 한직 발령 내정</small><b>${postLabel(ra.opts[0])}(으)로 전보 내정</b><span>현 보직: ${postLabel(postOf(ra.g))} · ${rankLabel(ra.g)} · 사유: ${escapeTitle(ra.why || "인사 실적 부진")}</span></div></div><p>인사 실적이 기준에 못 미쳐 주요 보직에서 빠지게 됐습니다. 한직은 진급 심사에서 불리하게 작용합니다. 평정과 평판을 회복하면 다음 인사에서 좋은 보직을 다시 노릴 수 있습니다.</p><button data-reassign="0"><b>명령을 수용한다</b><small>${postLabel(ra.opts[0])} 부임 · 진급 심사 보직 평가 하락</small></button><button data-reassign="appeal"><b>인사 재심을 청구한다</b><small>30% 확률로 철회 · 기각되면 그대로 발령 + 군내 평판 −3</small></button></div>` });
+  else if (ra) dutyQueue.push({ key: "reassign", label: "📨 인사명령", html: `<div id="duty-reassign" class="mn-card mn-dk mn-paper"><div class="dh"><div class="dt"><small>📨 ${isUS() ? "Personnel Orders" : "인사명령"} · ${isUS() ? "Reassignment" : "희망 보직 이동 내정"}</small><b>${isUS() ? "새 보직으로 이동 명령이 내려왔습니다" : "우수 인사 실적 — 희망 보직을 고르세요"}</b><span>현 보직: ${postLabel(postOf(ra.g))} · ${rankLabel(ra.g)}</span></div></div><p>${isUS() ? "Personnel command has slated you for a new billet at the same grade. Pick one, or ask to stay." : "평정과 평판이 우수해 인사사령부가 같은 계급의 다른 보직으로 이동을 내정했습니다. 희망 보직을 고르거나 현 보직 유임을 요청할 수 있습니다."}</p>${ra.opts.map((t, i) => `<button data-reassign="${i}"><b>${postLabel(t)}</b><small>${hint(t)}</small></button>`).join("")}<button data-reassign="stay"><b>${isUS() ? "Request to stay in current billet" : "현 보직 유임 요청"}</b><small>이동 없음 · 다음 인사명령까지 최소 26주</small></button></div>` });
   evCardItems.forEach((ev, idx) => {
     const shortT = ev.title.length > 14 ? `${ev.title.slice(0, 14)}…` : ev.title;
     dutyQueue.push({ key: `ev:${ev.id}`, label: `📋 안건 ${idx + 1} · ${shortT}`, html: ev.html });
@@ -4195,32 +4196,51 @@ function maybeReassign(d) {
   const g = myGrade();
   if (!d || career.minister || career.discharged || g < 1 || g > 8 || d.warroom || d.reassign) return;
   if (d.postG !== g) { d.postG = g; d.postSince = d.week; saveDuty(d); return; }
-  if ((d.week - (d.postSince ?? d.week)) < 26 || Math.random() > 0.12) return;
-  const br = normBranch(staff.branch), cur = postOf(g);
-  let pool;
-  if (g >= 6) {
-    const occupied = new Set((d.rivals || []).filter((r) => r.g === g && !r.retired).map((r) => r.post));
-    pool = flagPostsForTrack(g, br, serviceOf(br)).map((p) => p.t).filter((t) => !occupied.has(t));
-  } else {
-    pool = [careerTitle(g, br), ...altPostsFor(br, g)];
-    if (g >= 3) for (const k of ["pol", "acq"]) pool.push(...altPostsFor(k, g).slice(0, 1));
-  }
-  pool = [...new Set(pool)].filter((t) => t && t !== cur);
-  if (!pool.length) return;
-  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
-  d.reassign = { g, opts: pool.slice(0, 3), week: d.week };
+  const weeksIn = d.week - (d.postSince ?? d.week), e = evalOf(g);
+  /* 인사 실적: 평정 평균·군내 평판·감사 지적으로 판단 */
+  const poor = (e.n >= 3 && e.avg < 60) || (d.rep ?? 55) < 35 || (d.auditByGrade?.[g] || 0) >= 2;
+  const good = !poor && e.n >= 2 && e.avg >= 80 && (d.rep ?? 55) >= 55;
+  const br = normBranch(staff.branch), sv = serviceOf(br), cur = postOf(g);
+  const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+  if (poor) {
+    /* 성과가 나쁘면: 한직 발령 내정 (선택권 없음 — 수용 또는 재심 청구) */
+    if (weeksIn < 12 || Math.random() > 0.15) return;
+    const pool = hardPostsFor(sv, g).filter((t) => t !== cur);
+    if (!pool.length) return;
+    d.reassign = { g, kind: "back", opts: [shuffle([...pool])[0]], week: d.week, why: e.n >= 3 && e.avg < 60 ? `근무평정 평균 ${e.avg}점` : (d.rep ?? 55) < 35 ? `군내 평판 ${d.rep}` : "감사 지적 누적" };
+  } else if (good) {
+    /* 성과가 좋으면: 희망 보직을 고를 수 있는 이동 내정 */
+    if (weeksIn < 26 || Math.random() > 0.12) return;
+    let pool;
+    if (g >= 6) {
+      const occupied = new Set((d.rivals || []).filter((r) => r.g === g && !r.retired).map((r) => r.post));
+      pool = flagPostsForTrack(g, br, sv).map((p) => p.t).filter((t) => !occupied.has(t));
+    } else {
+      pool = [careerTitle(g, br), ...altPostsFor(br, g)];
+      if (g >= 3) for (const k of ["pol", "acq"]) pool.push(...altPostsFor(k, g).slice(0, 1));
+    }
+    pool = shuffle([...new Set(pool)].filter((t) => t && t !== cur));
+    if (!pool.length) return;
+    d.reassign = { g, kind: "good", opts: pool.slice(0, 3), week: d.week };
+  } else return;
   dutyFocusKey = "reassign";
   saveDuty(d);
 }
 document.addEventListener("click", (e) => {
   const b = e.target.closest?.("[data-reassign]"); if (!b) return;
   const d = dutyState(), ra = d.reassign; if (!ra) return;
+  if (b.dataset.reassign === "appeal") {
+    if (Math.random() < 0.3) { (d.headlines ||= []).unshift(`${careerDate(d.week)} · [인사] ${rankLabel(ra.g)} ${cmdr.name} 재심 청구 인용 — 한직 발령 철회`); d.reassign = null; d.postSince = d.week; saveDuty(d); sfxChime(); renderDutyDesk(); return; }
+    d.rep = Math.max(0, (d.rep ?? 55) - 3);
+    (d.headlines ||= []).unshift(`${careerDate(d.week)} · [인사] 재심 청구 기각 — 원 발령대로 시행 (군내 평판 −3)`);
+    b.dataset.reassign = "0";
+  }
   if (b.dataset.reassign !== "stay") {
     const t = ra.opts[Number(b.dataset.reassign)];
     if (t) {
       career.post = { g: ra.g, t };
       logPromotion({ g: ra.g, t, b: curBranches()[normBranch(staff.branch)]?.n || "", why: "보직 이동" });
-      (d.headlines ||= []).unshift(`${careerDate(d.week)} · [인사명령] ${rankLabel(ra.g)} ${cmdr.name}, ${postLabel(t)}에 보함`);
+      (d.headlines ||= []).unshift(`${careerDate(d.week)} · [인사명령] ${rankLabel(ra.g)} ${cmdr.name}, ${postLabel(t)}에 보함${ra.kind === "back" ? " (한직)" : ""}`);
       d.headlines = d.headlines.slice(0, 12);
     }
   }

@@ -128,9 +128,17 @@ export const ALT_POSTS = {
   acq: [[], [], [], ["국방부 전력정책 실무장교", "방위사업청 사업관리 실무장교"], ["방위사업청 사업팀장", "국방기술품질원 파견 팀장"], ["합참 전력기획과장", "방위사업청 사업부 차장"]],
   pol: [[], [], [], ["합참 작전부 실무장교", "국방부 국제정책 실무장교"], ["합참 전략기획 담당", "국방부 대북정책 담당"], ["국방부 정책기획과장", "한미연합사 기획참모부 과장"]],
 };
+/** 한직 (인사 실적이 나쁠 때 내정되는 자리) — 계급(0~8)별. 게임용 단순화. */
+export const HARD_POSTS = {
+  army: [["신병교육대 소대장", "예비군 훈련대 교관"], ["부대 행정장교", "신병교육대 교관"], ["예비군 훈련대장", "동원지원단 중대장"], ["동원사단 대대 작전과장", "예비군 지역대장"], ["동원사단 대대장", "예비군 지역연대 작전과장"], ["동원사단 참모장", "향토사단 부사단장"], ["교육사령부 처장", "동원전력사령부 참모장"], ["향토사단장", "교육사령부 부사령관"], ["육군교육사령관"]],
+  navy: [["해군 교육사 교관", "기지 행정장교"], ["함정 수리창 감독관", "기지 행정장교"], ["해군 교육사 교관", "기지 경비대 중대장"], ["해군 교육사 교관대장", "기지 경비대대 작전과장"], ["기지 경비대대장", "정비창 감독관"], ["해군 교육사 참모장", "기지전대장"], ["해군 교육사 부사령관"], ["해군 교육사령관"], ["해군사관학교장"]],
+  air: [["기지 경비대대 행정장교", "공군 교육사 교관"], ["기상단 예보장교", "기지 행정장교"], ["공군 교육사 교관", "기지 경비중대장"], ["기지 경비대대 작전과장", "공군 교육사 교관대장"], ["기지 경비대대장", "군수사 정비창 감독관"], ["공군 교육사 참모장", "기지전대장"], ["공군 교육사 부사령관"], ["군수사 부사령관"], ["공군교육사령관"]],
+};
+export const hardPostsFor = (service, grade) => (HARD_POSTS[service] || HARD_POSTS.army)[Math.max(0, Math.min(8, grade))] || [];
+const HARD_SET = new Set(Object.values(HARD_POSTS).flat(2));
 export const altPostsFor = (branch, grade) => (ALT_POSTS[normBranch(branch)]?.[grade] || []).filter((t) => !lockedOut(t));
 
-export const postTier = (title) => (KEY_POSTS.has(title) || /Commander|Commanding Officer|^CG,|Chief of Staff|Joint Staff|Platoon Leader/i.test(title) ? "key" : BACK_POSTS.has(title) || /School|Instructor|Academy/i.test(title) ? "back" : "std");
+export const postTier = (title) => (KEY_POSTS.has(title) || /Commander|Commanding Officer|^CG,|Chief of Staff|Joint Staff|Platoon Leader/i.test(title) ? "key" : BACK_POSTS.has(title) || HARD_SET.has(title) || /School|Instructor|Academy/i.test(title) ? "back" : "std");
 export const isUS = () => staff.nation === "us";
 export const curServices = () => (isUS() ? US_SERVICES : SERVICES);
 export const curBranches = () => (isUS() ? US_BRANCHES : BRANCHES);
