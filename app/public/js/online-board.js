@@ -128,7 +128,8 @@ export async function syncLeaderboardScore(entry, { force = false } = {}) {
   if (!force && hash === lastSyncHash) return true;
   lastSyncHash = hash;
 
-  const payload = { ...entry, updated_at: new Date().toISOString() };
+  const { easy_run: _er, ...serverEntry } = entry; /* easy_run은 서버 칸이 없으므로 보내지 않는다 */
+  const payload = { ...serverEntry, updated_at: new Date().toISOString() };
   const { route_info: _ri, ...midPayload } = payload; /* route_info 칸이 아직 없는 서버용 */
   const basePayload = {
     player_id: entry.player_id,
