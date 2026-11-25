@@ -799,7 +799,7 @@ function refreshMenus() {
   const rl = rankLine(), u = perkMods().upg;
   const tbMoneyEl = $("#tbMoney");
   if (tbMoneyEl) tbMoneyEl.textContent = profile.admin ? "∞ CR (관리자)" : `${fmt(profile.money)} CR`;
-  $("#tbRank").textContent = usIsPotus() ? usPresTitle() : civil() ? presTitle() : career.minister ? (isUS() ? `미 국방장관 · 예비역 ${rl.name}` : `국방부장관 · 예비역 ${rl.name}`) : `${rl.name} ${isUS() ? US_PAY[rl.r] : `${payStep(profile.xp, rl.r, ECON_RANK_XP).step}호봉`} · ${postLabel(postOf(rl.r))}`; $("#tbIns").innerHTML = badge(rl.r, 24);
+  $("#tbRank").textContent = usIsPotus() ? usPresTitle() : civil() ? presTitle() : career.minister ? (isUS() ? `미 국방장관 · 예비역 ${rl.name}` : `국방부장관 · 예비역 ${rl.name}`) : `${rl.name} ${isUS() ? US_PAY[rl.r] : `${payStep(profile.xp, rl.r, ECON_RANK_XP).step}호봉`} · ${postLabel(postOf(rl.r))}`; $("#tbIns").innerHTML = badge(rl.r, 24); const tbBeta = $("#tbBeta"); if (tbBeta) tbBeta.hidden = !isUS();
   $("#rankBar").style.width = rl.pct * 100 + "%";
   document.body.classList.toggle("us-nat", isUS());
   const langButton = $("#rankLang");
@@ -1012,7 +1012,7 @@ function renderPostPick(g) {
     const allowed = Object.keys(BR).filter((k) => k === br0 || (k === org && BR[k].svc === sv) || (g >= 3 && BR[k].svc === "joint"));
     const seen = new Set([BR[br0].t[g]]), others = [];
     for (const k of allowed.filter((k) => k !== br0)) { const t = BR[k].t[g]; if (!seen.has(t)) { seen.add(t); others.push(k); } }
-    const alts = isUS() ? [] : altPostsFor(br0, g).filter((t) => !seen.has(t)).map((t) => `alt:${t}`); /* 대체 보직 목록은 한국군 직제 — 미군 모드에서는 쓰지 않는다 */
+    const alts = altPostsFor(br0, g).filter((t) => !seen.has(t)).map((t) => `alt:${t}`); /* altPostsFor가 국적별 목록을 고른다 (미군은 BETA) */
     pmPostOpts = [br0, ...alts, ...others]; pmPostSel = career.post?.g === g && alts.includes(`alt:${career.post.t}`) ? `alt:${career.post.t}` : br0;
   }
   if (typeof pmPostOpts[0] === "object") { el.innerHTML = `<div class="pk-h">장성 보직 선택 · ${svName} 및 합동 ${rankLabel(g, sv)} 보직</div><div class="pst-row">${pmPostOpts.map(p => `<button class="pst${p.t === pmPostSel ? " on" : ""}" data-fpost="${p.t}"><i>${p.b === br0 ? "현 병과 계속" : p.svc === "joint" ? "합동 보직" : "보직 전환"}</i><b>${postLabel(p.t)}</b><small>${hint(p.t)}</small><span>평정 중점: ${FOCUS[p.b].f}</span></button>`).join("")}</div>`; return; }
@@ -2748,7 +2748,7 @@ function renderTitleHub() {
     <div class="th-kicker">${us ? "OFFICER COMMISSIONING · SELECT YOUR SERVICE" : "신임 장교 임관 · 군종 및 병과 선택"}</div>
     <h1 class="th-title">THE GENERAL</h1>
     <p class="th-sub">${us ? "Choose your nation, service branch, and officer profile to begin your command." : "국가·군종·병과와 지휘관 프로필을 선택하고 소위로 임관하십시오."}</p>
-    <div class="th-nat"><button data-th="nat:kr" class="${!us ? "on" : ""}">🇰🇷 대한민국 국군</button><button data-th="nat:us" class="${us ? "on" : ""}">🇺🇸 U.S. Armed Forces</button></div>
+    <div class="th-nat"><button data-th="nat:kr" class="${!us ? "on" : ""}">🇰🇷 대한민국 국군</button><button data-th="nat:us" class="${us ? "on" : ""}">🇺🇸 U.S. Armed Forces <span class="beta-tag">BETA</span></button></div>${us ? `<p class="beta-note"><span class="beta-tag">BETA</span> 미군 편은 한국군 편보다 보직·제도 고증이 덜 정밀합니다. 직위 이름과 계급 대응이 실제와 다를 수 있습니다.</p>` : ""}
     <div class="th-svcs" role="group" aria-label="군종 선택">${["army", "navy", "air"].map((k) => `<button class="th-svc${thSvc === k ? " on" : ""}" data-th="svc:${k}" aria-pressed="${thSvc === k}">${serviceEmblem(k, us)} <span>${SV[k].n}</span><small>${SV[k].d.split("·")[0]}</small></button>`).join("")}</div>
     <div class="th-brs">${svBrs.map(([k, B]) => `<button class="th-br${thBr === k ? " on" : ""}" data-th="br:${k}"><b>${postLabel(B.n, us)}</b><small>${postLabel(B.t[0], us)} → ${postLabel(B.t[9], us)}</small></button>`).join("")}</div>
     <label class="th-service-contract">임관 구분 <select id="thCommission">${routes.map(route => `<option value="${route.id}" ${route.id === thRoute ? "selected" : ""}>${route.title} · 의무 현역 ${route.years}년</option>`).join("")}</select></label>
@@ -4225,7 +4225,6 @@ function maybeReassign(d) {
   const good = !poor && e.n >= 2 && e.avg >= 80 && (d.rep ?? 55) >= 55;
   const br = normBranch(staff.branch), sv = serviceOf(br), cur = postOf(g);
   const shuffle = (a) => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
-  if (isUS() && (poor || g < 6)) return; /* 한직·대체 보직 목록은 한국군 직제 전용 */
   if (poor) {
     /* 성과가 나쁘면: 한직 발령 내정 (선택권 없음 — 수용 또는 재심 청구) */
     if (weeksIn < 12 || Math.random() > 0.15) return;

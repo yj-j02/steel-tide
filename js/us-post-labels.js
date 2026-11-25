@@ -1,4 +1,5 @@
 import { US_BRANCHES } from "./us-ranks.js";
+import { US_ALT_POSTS, US_HARD_POSTS } from "./us-alt-posts.js";
 
 const localized = {
   inf: ["보병·공수", "제82공수사단 소총소대장", "중대 부중대장", "레인저 중대장", "대대 작전과장", "보병대대장", "여단전투단장", "부사단장", "제82공수사단장", "제18공수군단장", "육군참모총장", "육군원수"],
@@ -41,4 +42,5 @@ for (const [id, [name, ...posts]] of Object.entries(localized)) {
   translations.set(branch.n, name);
   branch.t.forEach((post, grade) => translations.set(post, posts[grade]));
 }
+for (const table of [US_ALT_POSTS, US_HARD_POSTS]) for (const rows of Object.values(table)) for (const pairs of rows) for (const [en, ko] of pairs) translations.set(en, ko);
 export const koreanPostName = title => translations.get(title) ?? title;

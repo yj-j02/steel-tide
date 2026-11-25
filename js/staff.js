@@ -1,6 +1,7 @@
 import { careerStorage } from "./characters.js";
 // Fleet headquarters staff (modern era). Appointments shape every modern battle, auto battles included,
 // through a handful of multipliers the battle code already exposes: hull damage in/out, gun reload, repair crews, jets.
+import { US_ALT_POSTS, US_HARD_POSTS } from "./us-alt-posts.js";
 import { US_SERVICES, US_BRANCHES, US_FLAG_POSTS, usNpcName, koreanUsRanks, usRankName } from "./us-ranks.js";
 
 const clamp01 = (v, a, b) => Math.min(b, Math.max(a, v));
@@ -134,11 +135,15 @@ export const HARD_POSTS = {
   navy: [["해군 교육사 교관", "기지 행정장교"], ["함정 수리창 감독관", "기지 행정장교"], ["해군 교육사 교관", "기지 경비대 중대장"], ["해군 교육사 교관대장", "기지 경비대대 작전과장"], ["기지 경비대대장", "정비창 감독관"], ["해군 교육사 참모장", "기지전대장"], ["해군 교육사 부사령관"], ["해군 교육사령관"], ["해군사관학교장"]],
   air: [["기지 경비대대 행정장교", "공군 교육사 교관"], ["기상단 예보장교", "기지 행정장교"], ["공군 교육사 교관", "기지 경비중대장"], ["기지 경비대대 작전과장", "공군 교육사 교관대장"], ["기지 경비대대장", "군수사 정비창 감독관"], ["공군 교육사 참모장", "기지전대장"], ["공군 교육사 부사령관"], ["군수사 부사령관"], ["공군교육사령관"]],
 };
-export const hardPostsFor = (service, grade) => (HARD_POSTS[service] || HARD_POSTS.army)[Math.max(0, Math.min(8, grade))] || [];
-const HARD_SET = new Set(Object.values(HARD_POSTS).flat(2));
-export const altPostsFor = (branch, grade) => (ALT_POSTS[normBranch(branch)]?.[grade] || []).filter((t) => !lockedOut(t));
+const enTitles = (rows) => rows.map((pairs) => pairs.map(([en]) => en));
+const US_HARD = Object.fromEntries(Object.entries(US_HARD_POSTS).map(([k, rows]) => [k, enTitles(rows)]));
+const US_ALT = Object.fromEntries(Object.entries(US_ALT_POSTS).map(([k, rows]) => [k, enTitles(rows)]));
+/* 미군 모드(BETA)는 미군 목록, 한국군은 한국군 목록을 쓴다 */
+export const hardPostsFor = (service, grade) => { const T = isUS() ? US_HARD : HARD_POSTS; return (T[service] || T.army)[Math.max(0, Math.min(8, grade))] || []; };
+const HARD_SET = new Set([...Object.values(HARD_POSTS).flat(2), ...Object.values(US_HARD).flat(2)]);
+export const altPostsFor = (branch, grade) => isUS() ? (US_ALT[normBranch(branch)]?.[grade] || []) : (ALT_POSTS[normBranch(branch)]?.[grade] || []).filter((t) => !lockedOut(t));
 
-export const postTier = (title) => (KEY_POSTS.has(title) || /Commander|Commanding Officer|^CG,|Chief of Staff|Joint Staff|Platoon Leader/i.test(title) ? "key" : BACK_POSTS.has(title) || HARD_SET.has(title) || /School|Instructor|Academy/i.test(title) ? "back" : "std");
+export const postTier = (title) => HARD_SET.has(title) ? "back" : (KEY_POSTS.has(title) || /Commander|Commanding Officer|^CG,|Chief of Staff|Joint Staff|Platoon Leader/i.test(title) ? "key" : BACK_POSTS.has(title) || HARD_SET.has(title) || /School|Instructor|Academy/i.test(title) ? "back" : "std");
 export const isUS = () => staff.nation === "us";
 export const curServices = () => (isUS() ? US_SERVICES : SERVICES);
 export const curBranches = () => (isUS() ? US_BRANCHES : BRANCHES);
