@@ -556,3 +556,27 @@ body .dsr-page #duty-warroom.mn-paper button small { color: #ffcf9e !important; 
 /* 내 서명 버튼: 밝은 종이 바탕에서 읽히게 */
 .my-sign-btn { color: var(--ds-hiink) !important; background: var(--ds-hi) !important; border: 1px solid var(--ds-gold) !important; }
 .my-sign-btn:hover { background: #f3e2ad !important; }
+
+/* ── 글자 위 그림자·번짐 제거 ──
+   전역 .g(유리 패널)·.y·.r 클래스가 '초록/노랑/빨강 글자 표시'로 쓰인 b·small·em·span까지 유리 배경·그림자를 입혀서 글자가 번져 보였다. */
+:where(.dsr-page, #recordP, #hqP) :is(b, small, em, span, i, strong).g,
+:where(.dsr-page, #recordP, #hqP) :is(b, small, em, span, i, strong).y,
+:where(.dsr-page, #recordP, #hqP) :is(b, small, em, span, i, strong).r {
+  box-shadow: none !important; text-shadow: none !important; backdrop-filter: none !important; -webkit-backdrop-filter: none !important;
+  border: 0 !important; background-color: transparent !important; border-radius: 0; padding: 0;
+}
+/* 칩(효과 태그)은 연한 바탕 + 진한 글자 */
+.dsr-page .mn-doc em { padding: 1px 6px !important; border-radius: 4px !important; font-weight: 700; }
+.dsr-page .mn-doc em:not(.r) { background-color: var(--ds-greenbg) !important; color: var(--ds-green) !important; }
+.dsr-page .mn-doc em.r { background-color: var(--ds-redbg) !important; color: var(--ds-red) !important; }
+/* 핵심 우군 등 관계 표시: 진한 초록 글자 */
+.dsr-page b.g { color: var(--ds-green) !important; font-weight: 800; }
+.dsr-page b.y { color: var(--ds-amber) !important; font-weight: 800; }
+.dsr-page b.r { color: var(--ds-red) !important; font-weight: 800; }
+/* 임기 목표: 줄바꿈이 사라져 한 줄로 붙던 문제 */
+.dsr-page .dm-goals { display: flex; flex-direction: column; gap: 3px; padding: 8px 4px; }
+.dsr-page .dm-goals b { display: block; margin-bottom: 2px; }
+.dsr-page .dm-goals small { display: block !important; font-size: 12.5px !important; line-height: 1.5; }
+/* 페이지 전체 글자: 번짐 없이 선명하게 */
+.dsr-page, #recordP { text-shadow: none; -webkit-font-smoothing: antialiased; }
+.dsr-page :where(.mn-card, .mn-doc, .dm-tab, button) :where(*) { text-shadow: none !important; }
