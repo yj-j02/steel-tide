@@ -1151,7 +1151,7 @@ function portraitHTML(g, snapshot = null) {
     + rack
     + `<rect x="80" y="250" width="40" height="11" rx="1.5" fill="#1c2430"/><text x="100" y="258.5" font-size="7.5" fill="#fff" text-anchor="middle" font-family="Noto Sans KR, sans-serif">${escapeTitle(snapshot?.name ?? cmdr.name)}</text>`
     + `<g transform="translate(35 30) scale(2.3)">${face(F, 100).replace(/^<svg /, "<svg x=\"0\" y=\"0\" ")}</g>`
-    + `<circle cx="255" cy="257" r="23" fill="#111a27" stroke="#e5c77c" stroke-width="1.3"/><image class="portrait-service-emblem" href="${serviceEmblemPath(svk)}" x="237" y="239" width="36" height="36"/></svg>`;
+    + `<g class="portrait-unit-patch" transform="translate(266 268) rotate(14)"><path d="M-9 -10 H9 V3 Q9 9 0 12 Q-9 9 -9 3Z" fill="#111a27" stroke="#c9ad6a" stroke-width=".8"/><image class="portrait-service-emblem" href="${serviceEmblemPath(svk)}" x="-7" y="-8" width="14" height="14"/></g></svg>`; /* 부대마크: 견장과 겹치지 않게 왼팔 윗소매에 작게 (실제 부착 위치) */
 }
 function ministerPortraitHTML(snapshot = null, square = false) {
   initLiveActorStyles();
