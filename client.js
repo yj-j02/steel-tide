@@ -4984,6 +4984,7 @@ function tutStep(dt) {
   txt(`튜토리얼 ${Math.min(tut.i + 1, L.length)}/${L.length} — ${L[tut.i][0]}`, W / 2, y + 16, "#ffd166", "bold 12.5px 'Noto Sans KR', sans-serif", "center");
   txt("Esc: 튜토리얼 건너뛰기", W / 2, y + 33, "#cfd8dc", "11px 'Noto Sans KR', sans-serif", "center");
 }
+$("#mySignBtn")?.addEventListener("click", () => { sfx.click(); promptCustomSignature(() => { if (screen === "record") renderRecord(); }); });
 $("#tutReset").addEventListener("click", () => { try { careerStorage.removeItem("steeltide:tut:modern"); } catch {} resetTour("minister"); toast("다음 전투에서 튜토리얼이 다시 나옵니다"); });
 function drawAlerts(dt) {
   const W = hud.width, cx = W / 2; hx.textBaseline = "middle";
