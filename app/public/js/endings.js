@@ -27,6 +27,13 @@ export const ACHIEVEMENTS = [
   { id: "ach_overseas_vet", ic: "🌍", n: "해외파병 베테랑", sub: "해외 실전 파병 · 연합원정군 3단계 파견 임무 완수", headline: "아덴만에서 중동까지 — 해외 실전 파병 임무 완벽 완수 금의환향" },
   { id: "ach_hearing_hero", ic: "⚖️", n: "청문회 역전의 명수", sub: "특별감찰 · 국회/상원 청문회 위기를 정면 돌파해 신뢰 회복", headline: "청문회 정면 돌파! 원칙과 소신 증언으로 여론을 단숨에 뒤집다" },
   { id: "ach_military_dynasty", ic: "🗡️", n: "대를 잇는 호국 명문가", sub: "선대 지휘관의 가문·삼정검을 계승해 2대 장교로 임관", headline: "아버지의 삼정검을 물려받다 — 대를 잇는 호국 군인 명문가 탄생" },
+  { id: "ach_crisis_vet", ic: "🚨", n: "비상 대응 베테랑", sub: "비상사태 경보(워룸·합동 위기·긴급 NSC) 3회 대응", headline: "세 번의 비상사태를 지휘한 위기관리 전문가" },
+  { id: "ach_arc_all", ic: "📖", n: "다섯 동기의 이야기", sub: "임관 동기 5명의 이야기를 모두 결말까지 보기", headline: "동기 다섯의 엇갈린 운명 — 한 기수의 연대기 완성" },
+  { id: "ach_arc_allies", ic: "🫂", n: "끝까지 함께", sub: "동기 이야기 결말 3개 이상을 관계도 75 이상으로 마무리", headline: "끝까지 등을 맡긴 전우들 — 동기애의 표본" },
+  { id: "ach_summit_full", ic: "🤝", n: "포괄 합의", sub: "정상회담 미니게임에서 포괄 합의 달성", headline: "정상회담 포괄 합의문 서명 — 외교 성과 호평" },
+  { id: "ach_hearing_ace", ic: "📜", n: "청문회 만점", sub: "장관 인사청문회·상원 인준 청문회 만점 통과", headline: "흠잡을 데 없는 청문회 — 여야 모두 '준비된 장관' 평가" },
+  { id: "ach_us_best_potus", ic: "🦅", n: "Successful Presidency", sub: "미국 대통령 임기를 '성공한 대통령'으로 마무리", headline: "높은 지지 속 퇴임 — 역대 대통령 평가 상위권" },
+  { id: "ach_record_card", ic: "🪪", n: "기록은 남는다", sub: "인사기록 카드 이미지를 처음 저장", headline: "한 장의 인사기록 카드에 담긴 군 생활" },
 ];
 
 export function unlockedAchievements() {

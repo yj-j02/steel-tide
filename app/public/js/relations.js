@@ -296,8 +296,8 @@ export function rivalEpilogues(rivals = [], rankLabelFn) {
     const rel = r.rel ?? 50;
     const post = r.retired ? (r.retiredPost || "예비역 · 방산·안보 자문위원") : fmtPost(r.post || careerTitle(r.g, r.br));
     const rk = r.retired ? `예비역 ${rankLabelFn(r.g)}` : rankLabelFn(r.g);
-    const routeTag = r.style || "야전 지휘관";
-    const bond = r.retired
+    const routeTag = r.fate?.arc ? `「${r.fate.arc}」` : r.style || "야전 지휘관";
+    const bond = r.fate?.note ? r.fate.note : r.retired
       ? (r.retiredNote || (rel >= 75
           ? "전역 후 방산·안보 연구계로 진출해 국방 개혁의 든든한 민간 후원자가 되었습니다."
           : "중견 장교로 명예 전역한 뒤 민간 산업계에서 제2의 인생을 개척했습니다."))
@@ -473,7 +473,7 @@ export function chronicleHTML({ cmdrName, grade, rankName, post, svcName, branch
   return `<div class="mn-card" style="text-align:left;border-color:#f2ca5c;background:rgba(16,22,30,.92);padding:18px 20px;min-width:0;max-width:100%;box-sizing:border-box;overflow:hidden">
     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(242,202,92,.35);padding-bottom:10px;margin-bottom:12px">
       <div><small style="color:#f2ca5c;letter-spacing:.14em;font-weight:700">THE GENERAL · CAREER CHRONICLE</small><h3 style="margin:3px 0 0;color:#fff;font-size:19px">📜 ${cmdrName} 회고록</h3></div>
-      <button class="mn-go" data-chron="png" style="width:auto;padding:8px 14px;font-size:12px">🖼 전체 회고록 PNG 저장</button>
+      <span style="display:flex;gap:6px;flex-wrap:wrap"><button class="mn-go" data-chron="card" style="width:auto;padding:8px 14px;font-size:12px">🪪 ${isUS() ? "기록 카드 저장" : "인사기록 카드 저장"}</button><button class="mn-go" data-chron="png" style="width:auto;padding:8px 14px;font-size:12px">🖼 전체 회고록 PNG 저장</button></span>
     </div>
     <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;font-size:12px">
       <div style="padding:8px;background:rgba(255,255,255,.04);border-radius:6px"><small style="color:#8faec0;display:block">최종 계급·직책</small><b>${rankName} · ${post}</b></div>

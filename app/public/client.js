@@ -26,6 +26,13 @@ import { aaGun, updateAAGun, jetPit, updateJetPit } from "./js/interior.js";
 import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, updateMG } from "./js/infantry.js";
 import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, candidates, roleTitle, ECH, echOf, staffFor, FLAG_POSTS, FLEET_CDR, SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, setService, setBranch, POST_RANK, holds, saveStaff, isUS, setNation, curServices, curBranches, curFlagPosts, flagPostsForTrack } from "./js/staff.js";
 import { koreanUsRanks, toggleUsRankLanguage, insigniaUS, US_PAY, US_BRANCHES, US_SERVICES, usRankName, usRankFull, US_SVC_ORG, usNpcName, usDischargeEndingOf } from "./js/us-ranks.js";
+import { emergencyAlert, crisisLog } from "./js/alert.js";
+import { startTour, resetTour } from "./js/tutorial.js";
+import { ARC_EVENTS, RIVAL_ARCS } from "./js/rival-arcs.js";
+import { saveRecordCard } from "./js/record-card.js";
+import { openConfirmationHearing } from "./js/hearing.js";
+import { FONT_SIZES, uiPrefs, applyUiPrefs, setUiPref } from "./js/ui-prefs.js";
+import { sfxStamp, sfxFlip, sfxChime, sfxAchieve, sfxFail, uiSfxOn, setUiSfx } from "./js/sfx.js";
 import { openingCarryover, dutyState, ensureDuty, dutyEventById, dutyCrisisById, dutyOptionHint, resolveDuty, resolveReport, resolveCrisisDelegate, resolveCrisisDirect, nextDutyWeek, STANCES, setStance, resolveRivalEvent, activeRankArc, resolveRankArc, resolveWarroom } from "./js/duty.js";
 import { bossFor, RIVAL_EVENTS, relLabel, allyBonus, careerPathHTML, chronicleHTML, downloadChroniclePNG, classmateCabinetHTML, buildClassmateAppointment } from "./js/relations.js";
 import { warroomById } from "./js/warroom.js";
@@ -34,12 +41,14 @@ const curMedals = () => (isUS() ? US_MEDALS : MEDALS);
 import { openOpMap, opMapAdvance, opMapState, opMapAir } from "./js/opmap.js";
 import { openScene, playCuts, setTheme } from "./js/scene.js";
 import { adminBar } from "./js/career-rules.js";
-import { potusState, potusStart, potusHTML, potusClick, potusTitle, potusAdmin } from "./js/potus.js";
+import { potusState, potusStart, potusHTML, potusClick, potusTitle, potusAdmin, potusSummitInfo, potusSummitResult } from "./js/potus.js";
+import { openSummitGame } from "./js/summit.js";
+import { openBalancePanel } from "./js/admin-balance.js";
 import { presState, presStart, presHTML, presClick, presAdmin, presTheme, PARTIES } from "./js/president.js";
-import { usPresState, usPresStart, usPresHTML, usPresClick, usPresAdmin } from "./js/us-pres.js";
-import { unlockEnding, unlockAchievement, endingsHTML, trophyShelfHTML } from "./js/endings.js";
+import { usPresState, usPresStart, usPresHTML, usPresClick, usSummitInfo, usSummitResult, usPresAdmin } from "./js/us-pres.js";
+import { unlockEnding, unlockAchievement, unlockedAchievements, endingsHTML, trophyShelfHTML } from "./js/endings.js";
 import { galleryHTML, minAdminEnd } from "./js/ministry.js";
-import { minFx, minHTML, minClick, minStart, minOpResult, minState, legacy, NG_RESET } from "./js/ministry.js";
+import { minFx, minHTML, minClick, minStart, minHearingResult, minOpResult, minState, legacy, NG_RESET } from "./js/ministry.js";
 /** 국방부장관 교리·사업·2회차 특전을 전투 보정치에 곱한다 */
 const withMin = (m) => { const F = minFx(); return { ...m, outK: m.outK * F.outK, inK: m.inK * F.inK, icptK: m.icptK * F.icptK, reloadK: (m.reloadK || 1) * F.reloadK }; };
 /** 2회차 특전: 초반(소위~대위) 봉급 +50%, 중장부터 원수 승진 경험치 ×1.43 */
@@ -1328,6 +1337,10 @@ function ministerHTML(rl) {
   const e = evalOf(rl.r), ok = ministerOk(rl.r) && !!career.discharged;
   return `<div class="mi-min"><b>${mTitle} 지명 오퍼</b><small>${!career.discharged ? "문민통제 원칙에 따라 대장 이상으로 전역하면 대통령실에서 지명 오퍼가 도착합니다." : `${isUS() ? "예비역 대장(O-10)" : "예비역 대장"} 이상 · 평정 ${e.avg}점 (70점+)`}</small><button data-act="minister"${ok ? "" : " disabled"}>${ok ? "지명 오퍼 수락 — 국방부 입성" : !career.discharged ? "전역 후 오퍼 도착" : "조건 미충족"}</button></div>`;
 }
+/** 장관 지명 수락 → 인사청문회 → 임명 (G) */
+function withHearing(after) {
+  openConfirmationHearing({ us: isUS(), name: cmdr.name, onDone: (r) => { after(); if (r.score >= 9) grantAch("ach_hearing_ace"); if (r.label) { minHearingResult(r.delta, r.label); if (hqView === "min") renderMin(); } } });
+}
 function ministerOrder(preview = false) {
   const g = preview ? Math.max(myGrade(), 9) : myGrade();
   if (!preview) {
@@ -1682,7 +1695,7 @@ function checkCareerAchievements(grade = myGrade(), d = dutyState()) {
   const trigger = (id, showPaper = false) => {
     const meta = unlockAchievement(id, { charId: activeCharacterId() || cmdr.name || "default", name: cmdr.name || "지휘관" });
     if (!meta) return;
-    toast(`🏅 업적 달성: ${meta.ic} ${meta.n} (${meta.count}회차)!`, 4.5);
+    achBanner(meta);
     if (showPaper) {
       showBreakingPaper({
         nation: isUS() ? "us" : "kr",
@@ -1715,6 +1728,30 @@ function checkCareerAchievements(grade = myGrade(), d = dutyState()) {
   if (career.hearingCleared) trigger("ach_hearing_hero", true);
   if (career.heritageParent) trigger("ach_military_dynasty", false);
   if (grade >= 10 || career.warVictory) trigger("ach_5star_war", false);
+  if (crisisLog().length >= 3) trigger("ach_crisis_vet", false);
+  const fated = (d.rivals || []).filter((r) => r.fate);
+  if (fated.length >= 5) trigger("ach_arc_all", true);
+  if (fated.filter((r) => (r.rel ?? 50) >= 75).length >= 3) trigger("ach_arc_allies", false);
+  if (isUS() && usPresState()?.ending === "Successful presidency") trigger("ach_us_best_potus", true);
+}
+/** 업적 달성 알림: 화면 위쪽 가운데에 잠깐 (오른쪽 아래 팝업은 사용자 요청으로 쓰지 않음) */
+function achBanner(meta) {
+  try { sfxAchieve(); } catch { /* 소리 실패 무시 */ }
+  document.querySelector("#achBanner")?.remove();
+  const el = document.createElement("div");
+  el.id = "achBanner"; el.setAttribute("role", "status");
+  el.innerHTML = `<span>${meta.ic}</span><div><small>업적 달성${meta.count > 1 ? ` · ${meta.count}회차` : ""}</small><b>${escapeTitle(meta.n)}</b></div>`;
+  document.body.appendChild(el);
+  setTimeout(() => el.classList.add("out"), 3200);
+  setTimeout(() => el.remove(), 3700);
+}
+function grantAch(id) {
+  const meta = unlockAchievement(id, { charId: activeCharacterId() || cmdr.name || "default", name: cmdr.name || "지휘관" });
+  if (meta) achBanner(meta);
+}
+function achievementCount() {
+  const me = activeCharacterId() || cmdr.name || "default", A = unlockedAchievements();
+  return Object.values(A).filter((list) => Array.isArray(list) && list.some((x) => x.charId === me)).length;
 }
 
 function cameoBannerHTML() {
@@ -1797,7 +1834,7 @@ function hallOfFameHTML() {
 
 let recTab = "log";
 let globalFilter = "all";
-let globalSort = "total";
+let globalSort = "total", globalSeason = "all";
 let globalHardcoreOnly = false;
 
 function boardAverage() {
@@ -1881,7 +1918,8 @@ function globalRankHTML() {
   const onlineList = onlinePlayers.length
     ? onlinePlayers.map((p) => `<span style="display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:999px;background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.35);color:#a7f3d0;font-size:11px">${p.nation === "us" ? "🇺🇸" : "🇰🇷"} <b>${escapeTitle(p.name || "지휘관")}</b> <small style="opacity:.8">${escapeTitle(p.rank_name || "")}</small></span>`).join("")
     : `<span style="font-size:11.5px;color:#8ea4b8">실시간 접속 정보를 불러오는 중...</span>`;
-  const list = rankSorted(rows);
+  const seasonKey = new Date().toISOString().slice(0, 7);
+  const list = rankSorted(globalSeason === "season" ? rows.filter((r) => String(r.updated_at || "").slice(0, 7) === seasonKey) : rows);
   const myRankIdx = list.findIndex((r) => r.player_id === myPid);
   const svcBadge = (s) => (s === "army" ? "육군" : s === "air" ? "공군" : "해군");
   const hi = (k) => (globalSort === k ? "color:#fde68a;font-weight:800" : "color:#cbd5e1");
@@ -1916,6 +1954,7 @@ function globalRankHTML() {
       <div style="display:flex;flex-wrap:wrap;gap:6px">${onlineList}</div>
     </div>
     ${hcBox}
+    <div style="display:flex;gap:6px;flex-wrap:wrap">${btn("data-gseason", "all", "🗂 전체 기간", globalSeason === "all", "#72ace8")}${btn("data-gseason", "season", `📅 ${seasonKey.replace("-", "년 ")}월 시즌`, globalSeason === "season", "#72ace8")}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">${RANK_CATS.map(([k, l]) => btn("data-gsort", k, l, globalSort === k, "#f2ca5c")).join("")}</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;justify-content:space-between">
       <div style="display:flex;gap:5px;flex-wrap:wrap">
@@ -1946,6 +1985,12 @@ function globalRankHTML() {
       </table>
     </div>
   </div>`;
+}
+function crisisLogHTML() {
+  const L = crisisLog();
+  if (!L.length) return "";
+  const lv = { defcon: "합동 워룸", crisis: "합동 위기", nsc: "긴급 NSC" };
+  return `<h3>🚨 위기 대응 기록</h3><div class="crisis-log">${L.slice(0, 20).map((x) => `<div class="cr"><span class="d">${escapeTitle(x.when || new Date(x.t).toLocaleDateString())}</span><span class="ins">🚨</span><div><b>${escapeTitle(x.title)}</b><span class="sub">${lv[x.level] || "위기"}${x.who ? ` · ${escapeTitle(x.who)}` : ""}</span></div></div>`).join("")}</div>`;
 }
 function renderRecord() { /* 인사기록: 좌측 고정 프로필 + 우측 4개 서브탭 (약력 / 계급 로드맵 / 훈장 / 엔딩 도감) */
   const rl = rankLine(), acc = profile.shots ? ((profile.hits / profile.shots) * 100).toFixed(1) : "0.0", best = profile.bestSeconds ? `${Math.floor(profile.bestSeconds / 60)}분 ${profile.bestSeconds % 60}초` : "—";
@@ -1984,7 +2029,7 @@ function renderRecord() { /* 인사기록: 좌측 고정 프로필 + 우측 4개
   };
   const rBody = recTab === "ladder"
     ? `${careerPathHTML({ log: career.log || [], grade: rl.r, initBranchName: career.log?.[0]?.b || postLabel((BR[br] || BRANCHES.sea).n), curBranchName: postLabel((BR[br] || BRANCHES.sea).n), rankLabelFn: (r) => rankLabel(r, svk), tours: career.tours || {} })}<h3>${(SV[svk] || SV.navy).n} 계급 로드맵 — 누적 ${fmt(profile.xp)} XP</h3><div class="ladder">${ladderRows}</div>`
-    : recTab === "timeline" ? `<h3>복무 연표</h3>${renderCareerTimeline(career, dd, isUS(), svk)}`
+    : recTab === "timeline" ? `<h3>복무 연표</h3>${renderCareerTimeline(career, dd, isUS(), svk)}${crisisLogHTML()}`
     : recTab === "medals" ? medalsHTML
     : recTab === "endings" ? endingsHTML(hallOfFameHTML())
     : recTab === "chron" ? chronicleHTML(chronCtx())
@@ -2252,7 +2297,7 @@ function renderDutyDesk() {
   const crFmRec = cr && cr.domain !== "navy";
   const crCard = cr ? `<div id="duty-crisis" class="mn-card mn-dk mn-nsc"><b>🚨 ${cr.tag} — ${cr.title}</b><p>${cr.desc}</p><div class="dm-ops"><button class="dm-op" data-duty="del">① 자동 위임</button><button class="dm-op fm" data-duty="fm">② FM 합동 작전 지휘${crFmRec ? " ★추천" : ""}</button><button class="dm-op d3" data-duty="3d">③ 3D 직접 개입${!crFmRec ? " ★추천" : ""}</button></div></div>` : "";
   const minBtn = g >= 9 ? `<div class="mn-card" style="border-color:rgba(255,209,102,.45)"><b>🏛️ ${isUS() ? "미 국방장관 (SecDef) 지명 안내" : "국방부장관 지명 안내"}</b><p style="font-size:11.5px;color:#d6e2ec">문민통제 원칙에 따라 현역 대장 복무를 마치고 <b>전역 신청</b>하면 대통령실로부터 공식 국방부장관 지명 오퍼가 도착합니다.</p></div>` : "";
-  const admDuty = profile.admin ? `<div class="adm-bar"><b>관리자 시험</b><button data-duty="admrank">+1계급 진급</button><button data-duty="tomin">→ ${isUS() ? "미 국방장관 취임" : "국방부장관 취임"}</button>${isUS() ? `<button data-uspres="preview">→ 미국 대선 시험 (538)</button>` : `<button data-adm="topres">→ 대선 시작</button><button data-adm="topotus">→ 대통령 취임</button>`}<button data-adm="reset0">↺ 소위부터 다시 시작</button></div>` : "";
+  const admDuty = profile.admin ? `<div class="adm-bar"><b>관리자 시험</b><button data-baltest="1">📊 밸런스 시험</button><button data-duty="admrank">+1계급 진급</button><button data-duty="tomin">→ ${isUS() ? "미 국방장관 취임" : "국방부장관 취임"}</button>${isUS() ? `<button data-uspres="preview">→ 미국 대선 시험 (538)</button>` : `<button data-adm="topres">→ 대선 시작</button><button data-adm="topotus">→ 대통령 취임</button>`}<button data-adm="reset0">↺ 소위부터 다시 시작</button></div>` : "";
   const wrObj = d.warroom ? warroomById(d.warroom.id) : null;
   const wrStg = wrObj?.stages?.[d.warroom?.stage || 0];
   const warroomCard = wrObj && wrStg ? `<div id="duty-warroom" class="mn-card mn-dk mn-paper" style="border-color:#ff6b57;background:linear-gradient(rgba(18,10,12,.84),rgba(10,14,22,.94)),url(${wrObj.bg}) center/cover;box-shadow:0 0 22px rgba(255,107,87,.2)"><div class="dh"><div class="dt"><small style="color:#ff9485;font-weight:700">🚨 ${wrObj.tag} · ${wrObj.defcon} (${(d.warroom.stage || 0) + 1}/${wrObj.stages.length}단계 · 누적 통제력 ${d.warroom.score || 0}/250+)</small><b>${wrStg.title}</b><span>장성급 3단계 워룸 위기 · 250점 이상 완벽 제압 시 원수(5성) 특별진급 공적 획득</span></div></div><p>${wrStg.desc}</p>${wrStg.opts.map((o, oi) => `<button data-duty="wr:${oi}"><b>${o.l}</b><small>${o.d}</small></button>`).join("")}</div>` : "";
@@ -2260,11 +2305,11 @@ function renderDutyDesk() {
   const arcCard = arc ? `<div id="duty-arc" class="mn-card mn-dk mn-paper" style="border-color:#ffd166;box-shadow:0 0 18px rgba(255,209,102,.14)"><div class="dh"><div class="dt"><small style="color:#ffd166;font-weight:700">📖 ${arc.tag} · ${arc.name} (${arc.step + 1}/${arc.total}화)</small><b>${arc.ep.title}</b><span>계급 전용 연속 스토리 · 선택이 다음 화와 복무 연표에 반영됩니다</span></div></div><p>${arc.ep.desc}</p>${arc.carryover ? `<p style="color:#d8ecff;font-size:11.5px;background:rgba(40,80,120,.28);padding:6px 9px;border-radius:6px"><b>이전 화 결과 이어받기</b> · ${arc.carryover.text} <strong>(평정 ${arc.carryover.pts >= 0 ? "+" : ""}${arc.carryover.pts}점)</strong></p>` : ""}${arc.ep.opts.map((o, oi) => `<button data-duty="arc:${oi}"><b>${o.l}</b><small>${o.d}</small></button>`).join("")}</div>` : "";
   const boss = bossFor(g, svk);
   const bossCard = `<div class="mn-card dm-news" style="border-left:3px solid ${boss.style.color}"><div class="mn-h">🎖️ 직속 상관 · 평정권자</div><div style="font-size:11.5px;display:flex;justify-content:space-between;align-items:center;margin-bottom:3px"><b>${boss.name}</b><span style="padding:1px 6px;border-radius:4px;font-size:10px;font-weight:700;background:rgba(255,255,255,.08);color:${boss.style.color}">${isUS() ? `${boss.style.n} (${boss.style.en})` : boss.style.n}</span></div><small style="border:0;padding:0;color:#9bb6c6">${boss.title}</small><small style="border:0;padding:2px 0 0;color:#b8d4e4">${boss.style.hint}</small>${lastBossQuote ? `<div class="fx-bubble"><b>💬 ${boss.name} 반응</b>${lastBossQuote}</div>` : ""}</div>`;
-  const rvEvObj = d.rivalEvent ? RIVAL_EVENTS.find((x) => x.id === d.rivalEvent.evId) : null;
+  const rvEvObj = d.rivalEvent ? (RIVAL_EVENTS.find((x) => x.id === d.rivalEvent.evId) || ARC_EVENTS.find((x) => x.id === d.rivalEvent.evId)) : null;
   const rvEvTarget = d.rivalEvent ? d.rivals?.[d.rivalEvent.ri ?? 0] : null;
   const rvEvNm = rvEvTarget ? (isUS() ? usNpcName(rvEvTarget.name + (d.rivalEvent.ri ?? 0)) : rvEvTarget.name) : "";
   const rvEvPost = rvEvTarget ? (rvEvTarget.retired ? (rvEvTarget.retiredPost || "예비역 · 민간 전문가") : postLabel(rvEvTarget.post || careerTitle(rvEvTarget.g, rvEvTarget.br))) : "";
-  const rvEvCard = rvEvObj && rvEvTarget ? `<div id="duty-rival" class="mn-card mn-dk mn-paper" style="border-color:#72ace8"><div class="dh"><div class="dt"><small>🤝 ${isUS() ? "Academy Classmate Request" : "임관 동기 인맥 이벤트"} · ${rvEvNm} (관계도 ${rvEvTarget.rel ?? 50})</small><b>${rvEvObj.title}</b><span>선택에 따라 동기 관계도·군내 평판·후반 참모 시너지가 달라집니다</span></div></div><p>${rvEvObj.desc(rvEvNm, rvEvPost)}</p>${rvEvObj.opts.map((o, oi) => `<button data-duty="rvev:${oi}"><b>${o.l}</b><small>${o.d}</small></button>`).join("")}</div>` : "";
+  const rvEvCard = rvEvObj && rvEvTarget ? `<div id="duty-rival" class="mn-card mn-dk mn-paper" style="border-color:#72ace8"><div class="dh"><div class="dt"><small>🤝 ${rvEvObj.arc ? `동기 이야기 「${rvEvObj.arcName}」 ${rvEvObj.step + 1}/3화${rvEvObj.last ? " · 결말" : ""}` : isUS() ? "Academy Classmate Request" : "임관 동기 인맥 이벤트"} · ${rvEvNm} (관계도 ${rvEvTarget.rel ?? 50})</small><b>${rvEvObj.title}</b><span>${rvEvObj.last ? "이 선택과 지금까지의 관계도로 동기의 결말이 정해집니다" : "선택에 따라 동기 관계도·군내 평판·후반 참모 시너지가 달라집니다"}</span></div></div><p>${rvEvObj.desc(rvEvNm, rvEvPost)}</p>${rvEvObj.opts.map((o, oi) => `<button data-duty="rvev:${oi}"><b>${o.l}</b><small>${o.d}</small></button>`).join("")}</div>` : "";
   const ab = allyBonus(d.rivals, g);
   const rivalsHTML = d.rivals?.length ? `<div class="mn-card dm-news"><div class="mn-h">👥 ${isUS() ? "사관학교 동기 동향" : "임관 동기 동향"} (${d.rivals.length}명)${ab.allies ? ` <small style="color:#8ef07a;font-weight:700">우군 시너지 +${ab.crisisWinBonus}%</small>` : ""}</div>${d.rivals.map((r, ri) => {
     const diff = r.retired ? `<b style="color:#9eb2c4">예비역</b>` : r.g > g ? `<b class="r">선진급</b>` : r.g === g ? `<b class="y">동급</b>` : `<b class="g">추월</b>`;
@@ -2360,6 +2405,12 @@ function renderDutyDesk() {
       </div>
     </div></div>`;
   setAmbienceMood(d.tension >= 70 || d.warroom ? "defcon" : "office");
+  setTimeout(() => startTour("desk", [
+    { sel: "#hqP .dsr-page .mn-paper .dh", title: "이번 주 결재 서류", text: "매주 서류가 올라옵니다. 제목과 상황을 읽고 아래 선택지 중 하나로 결재합니다." },
+    { sel: "#hqP .dsr-page .mn-paper button", title: "선택지 고르기", text: "선택지마다 근무평정·부대 사기·긴장도에 주는 효과가 다릅니다. 결과는 결재 직후 초록 결과 줄에 나옵니다." },
+    { sel: "#hqP .dsr-page .dm-top", title: "부대 상태", text: "근무평정과 사기, 긴장도가 진급심사에 쓰입니다. 긴장도가 높으면 비상사태가 생길 수 있습니다." },
+    { sel: "#hqP .dsr-page .mn-next", title: "다음 주로", text: "서류를 모두 처리하면 이 버튼으로 다음 주를 시작합니다. 키보드 단축키도 그대로 쓸 수 있습니다." },
+  ]), 400);
   openPromotionBoard(g, br, svk, true);
 }
 function renderTrackView() {
@@ -2470,7 +2521,7 @@ function renderDischarged() {
       nation: isUS() ? "us" : "kr",
       rankName: rankLabel(g, svk),
       cmdrName: cmdr.name,
-      onAccept: () => { career.minister = true; openHQ("min"); ministerOrder(); },
+      onAccept: () => withHearing(() => { career.minister = true; openHQ("min"); ministerOrder(); }),
       onDecline: () => { toast("오퍼를 정중히 사양했습니다. 민간 제2의 인생을 선택하십시오.", 3); },
     });
   };
@@ -2815,6 +2866,7 @@ $("#recordP").addEventListener("click", (e) => {
   const rt = e.target.closest("[data-rectab]"); if (rt) { sfx.click(); recTab = rt.dataset.rectab; renderRecord(); if (recTab === "global") { syncLeaderboardScore(currentOnlineRecord()).then(() => fetchLeaderboard({ force: true })).then(() => renderRecord()); } return; }
   if (e.target.closest('[data-act="renamecmdr"]')) { sfx.click(); openCmdr(); return; }
   const gf = e.target.closest("[data-gfilter]"); if (gf) { sfx.click(); globalFilter = gf.dataset.gfilter; renderRecord(); return; }
+  const gse = e.target.closest("[data-gseason]"); if (gse) { sfx.click(); globalSeason = gse.dataset.gseason; renderRecord(); return; }
   const gs = e.target.closest("[data-gsort]"); if (gs) { sfx.click(); globalSort = gs.dataset.gsort; renderRecord(); return; }
   const gsync = e.target.closest("[data-gsync]"); if (gsync) { sfx.click(); toast("글로벌 랭킹 동기화 중..."); syncLeaderboardScore(currentOnlineRecord(), { force: true }).then(() => fetchLeaderboard({ force: true })).then(() => { renderRecord(); toast("글로벌 랭킹을 최신화했습니다."); }); return; }
   const uniBtn = e.target.closest("[data-uni-rank]");
@@ -2857,7 +2909,7 @@ $("#recordP").addEventListener("click", (e) => {
     checkCareerAchievements(g);
     refreshMenus(); renderRecord(); return;
   }
-  if (e.target.closest('[data-act="minister"]') && (myGrade() >= 9 || (career.discharged?.g ?? 0) >= 9) && ministerOk(career.discharged?.g ?? myGrade()) && !career.minister) { career.minister = true; openHQ("min"); ministerOrder(); return; }
+  if (e.target.closest('[data-act="minister"]') && (myGrade() >= 9 || (career.discharged?.g ?? 0) >= 9) && ministerOk(career.discharged?.g ?? myGrade()) && !career.minister) { withHearing(() => { career.minister = true; openHQ("min"); ministerOrder(); }); return; }
   if (e.target.closest('[data-act="pvcomm"]')) { commissionOrder(true); return; }
   if (e.target.closest('[data-act="pvlive"]')) {
     const rl = rankLine(), svk = serviceOf(staff.branch);
@@ -2964,7 +3016,7 @@ addEventListener("keydown", (e) => {
 $("#hqP").addEventListener("click", (e) => {
   if (e.target.closest('[data-act="opensig"]')) { sfx.click(); promptCustomSignature(() => { renderHQ(); }); return; }
   const ad = e.target.closest("[data-adm]"); if (ad && profile.admin) { sfx.click(); admRun(ad.dataset.adm); return; }
-  const pu = e.target.closest("[data-potus]"); if (pu) { if (pu.disabled) return; sfx.click(); if (pu.dataset.potus === "start") { if (!potusState()) potusStart(cmdr.name); hqView = "potus"; renderPotus(); refreshMenus(); presidentOrder(false); return; } potusResult(potusClick(pu.dataset.potus)); return; }
+  const pu = e.target.closest("[data-potus]"); if (pu) { if (pu.disabled) return; sfx.click(); if (pu.dataset.potus === "start") { if (!potusState()) potusStart(cmdr.name); hqView = "potus"; renderPotus(); refreshMenus(); presidentOrder(false); return; } if (pu.dataset.potus === "summit") { const si = potusSummitInfo(); if (si) { openSummitGame({ ...si, onDone: (r) => { (r.level >= 2 ? sfxChime : sfxFail)(); if (r.level === 3) grantAch("ach_summit_full"); potusResult(potusSummitResult(r.level, r.fx)); } }); return; } } potusResult(potusClick(pu.dataset.potus)); return; }
   const pz = e.target.closest("[data-pres]"); if (pz) { if (pz.disabled) return; sfx.click(); if (isUS()) { toast("미국 모드에서는 미국 대통령 선거(538 선거인단)로 출마합니다", 3); return; } if (pz.dataset.pres === "start") { if (!presState()) presStart(cmdr.name); hqView = "pres"; renderPres(); refreshMenus(); return; } const prevStage = presState()?.stage; const prRes = presClick(pz.dataset.pres); if (prevStage === "pri" && presState()?.stage === "nominee") playVO(47); if (presState()?.stage === "won") { unlockEnding("kr_pres"); checkCareerAchievements(); } presResult(prRes); return; }
   const up = e.target.closest("[data-uspres]"); if (up) { if (up.disabled) return; sfx.click(); const a = up.dataset.uspres; if (a === "start" || a === "preview") {
     const preview = a === "preview" && profile.admin && isUS();
@@ -2976,6 +3028,7 @@ $("#hqP").addEventListener("click", (e) => {
   } const r = usPresClick(a); if (a.startsWith("act:") || a.startsWith("cr:") || /nsc|crisis|strike|defcon/i.test(a)) playVO(65); if (r.inaugurated) { initAudio(); playPotusAnthem(); checkCareerAchievements(); setTimeout(() => presidentOrder(false), 300); } if (r.toast) toast(r.toast, 4); if (r.cuts) { renderUsPres(); refreshMenus(); playCuts({ title: r.cutTitle || "U.S. Presidential Election", place: r.cutPlace || "Washington, D.C.", cuts: r.cuts, onClose: () => { stopFanfare(); renderUsPres(); refreshMenus(); } }); return; } if (r.redraw) { renderUsPres(); refreshMenus(); } return; }
   const ust = e.target.closest("[data-usstate]"); if (ust && !ust.disabled) { sfx.click(); usPresClick(`state:${ust.dataset.usstate}`); renderUsPres(); return; }
   const uth = e.target.closest("[data-usth]"); if (uth) { sfx.click(); usPresClick(`th:${uth.dataset.usth}`); renderUsPres(); return; }
+  if (e.target.closest("[data-ussummit]")) { const si = usSummitInfo(); if (si) openSummitGame({ ...si, onDone: (r) => { (r.level >= 2 ? sfxChime : sfxFail)(); if (r.level === 3) grantAch("ach_summit_full"); const rr = usSummitResult(r.level); if (rr.toast) toast(rr.toast, 3); renderUsPres(); refreshMenus(); } }); return; }
   const uad = e.target.closest("[data-usadm]"); if (uad && profile.admin) { sfx.click(); const r = usPresAdmin(uad.dataset.usadm); if (uad.dataset.usadm === "win") playVO(63); if (r.inaugurated) { initAudio(); playPotusAnthem(); playVO(64, { delayMs: 260 }); checkCareerAchievements(); } if (r.toast) toast(r.toast, 4); if (r.cuts) { renderUsPres(); refreshMenus(); playCuts({ title: r.cutTitle || "U.S. Presidential Election", place: r.cutPlace || "Washington, D.C.", cuts: r.cuts, onClose: () => { stopFanfare(); renderUsPres(); refreshMenus(); } }); return; } renderUsPres(); refreshMenus(); return; }
   const hv = e.target.closest("[data-hqv]"); if (hv) { sfx.click(); hqView = hv.dataset.hqv; if (hqView !== "uspres") usPresPreview = false; setTab(hqView === "org" ? "org" : "hq"); renderHQ(); return; }
   const mn = e.target.closest("[data-min]"); if (mn) { if (mn.disabled) return; sfx.click();
@@ -3077,7 +3130,7 @@ $("#hqP").addEventListener("click", (e) => {
   const qf = e.target.closest("[data-qfocus]"); if (qf) { sfx.click(); dutyFocusKey = qf.dataset.qfocus; renderDutyDesk(); return; }
   const dy = e.target.closest("[data-duty]"); if (dy) { if (dy.disabled) return; sfx.click(); const a = dy.dataset.duty, g = myGrade(), br = normBranch(staff.branch), svk = serviceOf(br);
     if (a === "hideguide") { try { careerStorage.setItem("steeltide:onboard", "hide"); } catch {} renderDutyDesk(); return; }
-    if (a === "showguide") { try { const cur = careerStorage.getItem("steeltide:onboard"); careerStorage.setItem("steeltide:onboard", cur === "show" ? "hide" : "show"); } catch {} renderDutyDesk(); return; }
+    if (a === "showguide") { resetTour("desk"); try { const cur = careerStorage.getItem("steeltide:onboard"); careerStorage.setItem("steeltide:onboard", cur === "show" ? "hide" : "show"); } catch {} renderDutyDesk(); return; }
     if (a === "hearing") { launchSpecialHearing(false); return; }
     if (a.startsWith("overseas:")) {
       const idx = +a.slice(9), tour = getOverseasTour(svk, isUS());
@@ -3285,6 +3338,13 @@ $("#hqP").addEventListener("click", (e) => {
       } else if (d.crisis) {
         playVO(21);
       }
+      if (d.warroom && (d.warroom.stage || 0) === 0) {
+        const w = warroomById(d.warroom.id);
+        if (w) emergencyAlert({ key: `wr:${myId}:${d.week}:${w.id}`, level: "defcon", title: `${w.tag} — ${w.stages?.[0]?.title || "합동 작전"}`, sub: w.defcon || "", lines: [isUS() ? "All commands at heightened readiness" : "전 부대 대비태세 격상", isUS() ? "Joint war room activated — your orders are needed" : "합동 워룸 가동 — 지휘관 결심이 필요합니다"], when: careerDate(d.week), us: isUS() });
+      } else if (d.crisis) {
+        const c = dutyCrisisById(d.crisis);
+        if (c) emergencyAlert({ key: `cr:${myId}:${d.week}:${c.id}`, level: "crisis", title: `${c.tag} — ${c.title}`, sub: c.desc || "", when: careerDate(d.week), us: isUS() });
+      }
       if (status.due && !(status.extension && status.qualifies)) {
         finishOfficerService(g, status.limit.title, status.limit.month);
         return;
@@ -3335,7 +3395,7 @@ $("#hqP").addEventListener("click", (e) => {
         nation: isUS() ? "us" : "kr",
         rankName: rankLabel(gg, svk),
         cmdrName: cmdr.name,
-        onAccept: () => { career.minister = true; openHQ("min"); ministerOrder(); },
+        onAccept: () => withHearing(() => { career.minister = true; openHQ("min"); ministerOrder(); }),
         onDecline: () => {},
       });
       return;
@@ -4113,7 +4173,44 @@ window.addEventListener("blur", () => { keys.clear(); altMod = false; if (typeof
 $("#pauseBtn").addEventListener("click", (e) => { e.stopPropagation(); setPause(true); });
 $("#resumeBtn").addEventListener("click", () => { const o = $("#pause"); if (o.classList.contains("menuset")) { o.style.display = "none"; o.classList.remove("menuset"); } else setPause(false); });
 function openSettings() { if (G.state === "playing" || G.state === "ending") { setPause(true); return; } const o = $("#pause"); o.classList.add("menuset"); o.querySelector("h1").textContent = "설정"; $("#resumeBtn").textContent = "닫기"; o.style.display = "grid"; }
+function recordCardData() {
+  const g0 = career.discharged?.g ?? myGrade(), br0 = normBranch(staff.branch), sv0 = serviceOf(br0), SV0 = curServices(), BR0 = curBranches(), dd0 = dutyState();
+  const chap = career.discharged ? "예비역 전역" : (!isUS() && potusOn()) ? "대통령 재임" : (isUS() && usPresState()?.term > 0) ? "U.S. President" : career.minister ? (isUS() ? "SecDef" : "국방부장관") : "현역 복무";
+  return {
+    cmdrName: cmdr.name, rankName: rankLabel(g0, sv0), post: postLabel(career.discharged?.title || postOf(g0)), svcName: (SV0[sv0] || SV0.navy).n, branchName: postLabel((BR0[br0] || BR0.sea).n),
+    origin: originBadgeLabel(), week: dd0.week || 1, medalsCount: Object.keys(career.medals || {}).length, crisisCount: crisisLog().length, achCount: typeof achievementCount === "function" ? achievementCount() : 0,
+    chapterLabel: chap, log: (career.log || []).map((e) => ({ ...e, t: postLabel(e.t) })), us: isUS(), rankLabelFn: (r) => rankLabel(r, sv0),
+    rivals: (dd0.rivals || []).map((r, ri) => ({ ...r, name: isUS() ? usNpcName(r.name + ri) : r.name })),
+    portraitSvg: portraitHTML(g0, { face: cmdr.face, service: sv0, name: cmdr.name, medals: career.medals }),
+  };
+}
+document.addEventListener("click", (e) => { if (e.target.closest?.("[data-baltest]") && profile.admin) openBalancePanel(); });
+/* 결재 도장·서류 넘김 효과음 (K) — 기존 클릭 효과음 위에 얹는다 */
+document.addEventListener("click", (e) => {
+  const b = e.target.closest?.("button"); if (!b || b.disabled) return;
+  if (b.closest(".mn-paper") && !b.closest("#tourLayer")) sfxStamp();
+  else if (b.matches(".mn-next, [data-rectab], #topbar .tab, .dm-qtab, [data-min^='tab:']")) sfxFlip();
+}, true);
+document.addEventListener("click", (e) => {
+  if (!e.target.closest?.('[data-chron="card"]')) return;
+  sfxStamp();
+  saveRecordCard(recordCardData()).then((ok) => { if (ok) grantAch("ach_record_card"); }).catch(() => {});
+});
 $("#setBtn").addEventListener("click", openSettings);
+applyUiPrefs();
+/* PWA (L): 실제 배포 주소에서만 서비스 워커 등록 (로컬 개발 서버는 캐시 끔 유지) */
+if ("serviceWorker" in navigator && !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) navigator.serviceWorker.register("sw.js").catch(() => {});
+let pwaPrompt = null;
+window.addEventListener("beforeinstallprompt", (e) => { e.preventDefault(); pwaPrompt = e; const b = $("#pwaInstall"); if (b) b.hidden = false; });
+$("#pwaInstall")?.addEventListener("click", async () => { if (!pwaPrompt) return; pwaPrompt.prompt(); try { await pwaPrompt.userChoice; } catch { /* 취소 */ } pwaPrompt = null; $("#pwaInstall").hidden = true; });
+function renderUiSettings() {
+  const p = uiPrefs(), fsel = $("#uiFont"), sfxBox = $("#uiSfxOn");
+  if (fsel) fsel.innerHTML = FONT_SIZES.map(([k, n]) => `<option value="${k}"${p.fs === k ? " selected" : ""}>${n}</option>`).join("");
+  if (sfxBox) sfxBox.checked = uiSfxOn();
+}
+renderUiSettings();
+$("#uiFont")?.addEventListener("change", (e) => setUiPref("fs", e.target.value));
+$("#uiSfxOn")?.addEventListener("change", (e) => { setUiSfx(e.target.checked); if (e.target.checked) sfxStamp(); });
 $("#quitYardBtn").addEventListener("click", () => forfeit("yard")); $("#quitMenuBtn").addEventListener("click", () => forfeit("menu"));
 $("#goBtn").addEventListener("click", () => { campSel = null; start(false); }); $("#watchBtn").addEventListener("click", () => { campSel = null; start(true); }); $("#yardBtn")?.addEventListener("click", openYard);
 $("#againBtn").addEventListener("click", () => start(G.auto)); $("#endYardBtn").addEventListener("click", openYard); $("#menuBtn").addEventListener("click", () => { if (returnToHQ) { returnToHQ = false; openHQ("duty"); } else openMenu(); });

@@ -2,7 +2,13 @@
 <html lang="ko">
   <head>
     <meta charset="utf-8" />
-    <link rel="icon" href="data:,">
+    <link rel="icon" href="img/icons/icon-192.png">
+    <link rel="manifest" href="manifest.webmanifest">
+    <meta name="theme-color" content="#1d1b17">
+    <link rel="apple-touch-icon" href="img/icons/apple-180.png">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="THE GENERAL">
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>THE GENERAL — 3군 장교 커리어 & 국방 시뮬레이션</title>
     <meta property="og:title" content="THE GENERAL — 소위에서 대통령까지" />
@@ -1313,6 +1319,11 @@ html, body { -webkit-tap-highlight-color:transparent; overscroll-behavior-y:cont
             <label class="chk"><input id="killcamOn" type="checkbox" checked /> 격침 킬캠 (2.5초 슬로모션)</label>
             <label class="chk"><input id="trailsOn" type="checkbox" checked /> 미사일 궤적 선 표시 (현대전)</label>
             <label class="chk"><input id="postOn" type="checkbox" checked /> 고급 그래픽 (블룸·필름 톤·안티에일리어싱) — 느리면 끄세요</label>
+          </div>
+          <div class="pset-col pset-ui">
+            <label class="sens"><span>글자 크기</span><select id="uiFont"></select></label>
+            <label class="chk"><input id="uiSfxOn" type="checkbox" checked /> 결재 도장·서류 효과음</label>
+            <div class="pset-act"><button id="pwaInstall" class="go alt" type="button" hidden>📲 홈 화면에 앱으로 설치</button></div>
           </div>
         </div>
         <div class="pkeys" aria-label="조작키 요약">

@@ -37,6 +37,16 @@
 | `js/scene.js` | 실사 이미지 연출 엔진: `openScene`, `playCuts`, `setTheme`(정당 색), 없는 이미지는 `FB` 표로 대체, 초점 좌표 `SHOTS` |
 | `css/dossier.css` | B+ '결재 서류' 밝은 테마: 상단 바·모바일 하단 탭·집무실(.dsr-page)·인사기록·지휘 계통·임관·장관/대선/대통령(.dsr-state)·종이 질감(.mn-paper). 오른쪽 아래 장면 카드·메뉴 알림 숨김 |
 | `js/geo-maps.js` | 자동 생성 지도 데이터: 세계(Natural Earth 110m, 퍼블릭 도메인)·미국 50개 주(미 인구조사국 경계, 퍼블릭 도메인; world-atlas·us-atlas 패키지 경유). 백악관 상황실·미국 선거인단 지도에 사용 |
+| `js/alert.js` | 비상사태 전체화면 경보(워룸·합동 위기·긴급 NSC), 위기 대응 기록 |
+| `js/tutorial.js` | 첫 플레이 말풍선 튜토리얼(`startTour`, 1회만) |
+| `js/ui-prefs.js` | 글자 크기 설정 (UI 테마는 결재 서류 하나만 — 다른 테마는 시안으로만 검토) |
+| `js/record-card.js` | 공유용 인사기록 카드 PNG (1080×1350) |
+| `js/rival-arcs.js` | 동기 5명 × 3화 이야기와 결말 |
+| `js/hearing.js` | 장관 인사청문회(국회) / 상원 인준 청문회 |
+| `js/summit.js` | 정상회담 협상 미니게임 (한국·미국 대통령) |
+| `js/sfx.js` | 합성 효과음(도장·서류·경보·업적) |
+| `js/admin-balance.js` | 관리자 밸런스 시험 표 (저장소를 쓰지 않는 계산만) |
+| `manifest.webmanifest`, `sw.js`, `img/icons/` | PWA (실제 배포 주소에서만 서비스 워커 등록) |
 | `js/korea.js` | 한반도 해안선 (Natural Earth 50m, 퍼블릭 도메인) + `kxy(경도, 위도)` |
 | `img/bg/*.jpg` | 장면 배경 (AI 생성 가상 인물, 1376×768). 정당 색 사진은 `이름_blue/red.jpg` |
 | `img/potus_mark.png` | 한국 대통령 표장 |

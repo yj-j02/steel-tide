@@ -8,6 +8,7 @@ import { recordEval, evalOf, board, FOCUS, letter, addRankWeek, weeksOf, minWeek
 import { career, saveCareer, awardMedals } from "./career.js";
 import { ngBonuses } from "./endings.js";
 import { bossMod, RIVAL_EVENTS, pickRivalEvent, allyBonus } from "./relations.js";
+import { ARC_EVENTS, pickRivalArc, applyArcChoice } from "./rival-arcs.js";
 import { currentRankArc } from "./rank-arcs.js";
 import { warroomById, pickWarroom } from "./warroom.js";
 
@@ -386,7 +387,7 @@ function drawEvents(d, svc, grade) {
   d.tier = rankTier(gClamped);
   d.crisis = grade >= 2 && d.week >= 3 && (d.week % 8 === 0 || ((d.tension || 0) >= 70 && Math.random() < 0.25)) ? pick(crSrc).id : null; /* 합동 위기: 대위 이상, 8주마다 또는 긴장도 70 이상일 때만 */
   if (d.week >= 2 && d.week % 4 === 2 && d.rivals?.length && d.rivalEventWeek !== d.week) {
-    d.rivalEvent = pickRivalEvent(d.rivals, gClamped, d.week);
+    d.rivalEvent = pickRivalArc(d.rivals, gClamped) || pickRivalEvent(d.rivals, gClamped, d.week); /* 동기 이야기 화가 열려 있으면 우선 */
   }
   if (grade >= 6 && d.week >= 3 && !d.warroom && d.week - (d.warroomWeek || -99) >= 8 && ((d.tension || 0) >= 75 || Math.random() < 0.05)) { /* 합동 워룸: 긴장도 75 이상 비상사태 위주, 평시엔 드물게, 8주 쿨다운 */
     const wrs = pickWarroom(d.week);
@@ -492,7 +493,7 @@ export function resolveRankArc(choiceIdx, grade) {
 export function resolveRivalEvent(choiceIdx) {
   const d = dutyState();
   if (!d.rivalEvent) return null;
-  const ev = RIVAL_EVENTS.find((x) => x.id === d.rivalEvent.evId);
+  const ev = RIVAL_EVENTS.find((x) => x.id === d.rivalEvent.evId) || ARC_EVENTS.find((x) => x.id === d.rivalEvent.evId);
   const ri = d.rivalEvent.ri ?? 0, r = d.rivals?.[ri];
   if (!ev || !r) { d.rivalEvent = null; saveDuty(d); return null; }
   const opt = ev.opts[choiceIdx]; if (!opt) return null;
@@ -504,10 +505,12 @@ export function resolveRivalEvent(choiceIdx) {
   d.headlines.unshift(`${careerDate(d.week)} · [인맥] ${hl}`);
   d.headlines = d.headlines.slice(0, 12);
   d.last = `${ev.title} (${rNm}) → ${opt.l} (관계도 ${opt.rel >= 0 ? "+" : ""}${opt.rel} → ${r.rel})`;
+  const fate = ev.arc ? applyArcChoice(r, ev, opt) : null;
+  if (fate) { d.headlines.unshift(`${careerDate(d.week)} · [동기 결말] ${rNm} — ${fate.note}`); d.headlines = d.headlines.slice(0, 12); }
   d.rivalEvent = null;
   d.rivalEventWeek = d.week;
   saveDuty(d);
-  return { xpGain: opt.xp || 0, msg: `${rNm} 관계도 ${opt.rel >= 0 ? "+" : ""}${opt.rel} (현재 ${r.rel}) · ${opt.l}` };
+  return { xpGain: opt.xp || 0, fate, msg: `${fate ? `[${ev.arcName} 결말] ` : ""}${rNm} 관계도 ${opt.rel >= 0 ? "+" : ""}${opt.rel} (현재 ${r.rel}) · ${opt.l}` };
 }
 
 const ALT_RIVAL_POSTS = {
@@ -709,7 +712,7 @@ function tickRivals(d, playerGrade, svc = "navy", playerPost = "") {
     const lateSurge = (r.route === "policy" || r.route === "staff") && r.g >= 3;
 
     // Organic retirement across Captain / Field / Flag ranks (keep at least 1 active rival for competition)
-    const canRetire = activeCount > 1 && r.g >= 2 && (
+    const canRetire = activeCount > 1 && r.g >= 2 && !(r.arcStep && !r.fate) && ( /* 동기 이야기 진행 중엔 무작위 전역 없음 */
       (r.g === 9 && waitInRank >= 16) ||
       (r.g >= 6 && waitInRank >= 16) ||
       (r.g >= 3 && r.g <= 5 && waitInRank >= 13) ||

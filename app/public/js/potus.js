@@ -1,4 +1,5 @@
 import { careerStorage } from "./characters.js";
+import { emergencyAlert } from "./alert.js";
 // 대통령 (국군통수권자): 5년 임기 20분기. 국무회의 결재·국회 법안 표결·국정 과제·외교 정상회담·NSC 위기 대응·총선·임기 평가 엔딩.
 // 인물·정당은 가상이고 수치는 모두 게임용 값이다. 작전지도는 직접 지휘할 수 없고 상황도로 보고만 받는다.
 import { chamberVote } from "./career-rules.js";
@@ -34,7 +35,8 @@ function newQuarter(Q, first) {
   Q.act = { inv: false, dip: false }; const pool = DOCKET.filter((d) => !Q.seen.includes(d[0]) && (!d[4] || d[4](Q)));
   Q.docket = []; for (let i = 0; i < 2 && pool.length; i++) { const d = pool.splice((Math.random() * pool.length) | 0, 1)[0]; Q.docket.push(d[0]); Q.seen.push(d[0]); }
   if (Q.seen.length > DOCKET.length - 3) Q.seen = Q.seen.slice(-4);
-  Q.crisis = !first && Math.random() < 0.38 ? { id: pick(CRISES)[0], res: null } : null;
+  Q.crisis = !first && Math.random() < 0.2 ? { id: pick(CRISES)[0], res: null } : null; /* 비상사태는 드물게 (2026-11 사용자 요청) */
+  if (Q.crisis) { const c = CRISES.find((x) => x[0] === Q.crisis.id); if (c) emergencyAlert({ key: `potus:${Q.name || ""}:${Q.q ?? ""}:${Q.term ?? ""}:${c[0]}:${Date.now()}`, level: "nsc", title: c[1], sub: c[2], who: "대통령 주재 NSC", us: false }); }
   Q.summit = Q.q % 3 === 1 ? pick(Object.keys(SUMMIT)) : null;
 }
 function fx(Q, e) {
@@ -82,6 +84,18 @@ function trend(Q) {
   return `<div class="mn-card mn-trend"><div class="mn-h">국정 지지율 추이</div><svg viewBox="0 0 ${W} ${H}"><line x1="20" x2="${W - 8}" y1="${Y(50)}" y2="${Y(50)}" class="gl"/><path d="${S.map((v, i) => `${i ? "L" : "M"}${X(i).toFixed(1)},${Y(v).toFixed(1)}`).join("")}" class="sp"/></svg></div>`;
 }
 
+/** 정상회담 미니게임 결과 반영 (H) */
+export function potusSummitInfo() {
+  const Q = potusState(); if (!Q || !Q.summit || Q.act.dip) return null;
+  return { nation: Q.summit, nationName: NATIONS[Q.summit][0], topic: SUMMIT[Q.summit][0][0], rel: Q.rel[Q.summit] ?? 50 };
+}
+export function potusSummitResult(level, side = {}) {
+  const Q = potusState(); if (!Q || !Q.summit || Q.act.dip) return {};
+  const n = Q.summit, L = ["결렬", "공동성명", "부분 합의", "포괄 합의"][level] || "공동성명";
+  fx(Q, { [n]: [-6, 2, 6, 10][level] ?? 0, ap: [-2, 0, 1, 2][level] ?? 0, ...side });
+  Q.act.dip = true; note(Q, `${NATIONS[n][0]} 정상회담 — ${L}`); save(Q);
+  return { redraw: true, toast: `정상회담 — ${L}` };
+}
 export function potusClick(a) {
   const Q = potusState(); if (!Q || Q.done) return a === "replay" && Q?.done ? { cuts: endCuts(Q) } : {};
   const done = (t) => { save(Q); return { redraw: true, toast: t }; };
@@ -133,6 +147,7 @@ function hallAdd(Q) { const H = rd(HK, []); H.unshift({ name: Q.name, end: Q.end
 function endHTML(Q) {
   const [t, d] = ENDS[Q.end] || ENDS.plain, H = rd(HK, []);
   return `<div class="mn pr pt"><div class="mn-ret"><div class="mn-card big"><h3>${t}</h3><p>${Q.name} 대통령 · ${d}</p><div class="kv"><span>평균 국정 지지율</span><b>${avgAp(Q)}%</b></div><div class="kv"><span>국정 과제 달성</span><b>${legacy(Q)} / 25 단계</b></div><div class="kv"><span>경제 · 안보</span><b>${Math.round(Q.eco)} · ${Math.round(Q.sec)}</b></div><div class="kv"><span>외교 관계</span><b>${Object.entries(NATIONS).map(([k, [n]]) => `${n} ${Q.rel[k]}`).join(" · ")}</b></div><button class="mn-rp" data-potus="replay">🎬 퇴임 연출 다시 보기</button><small>국방부 집무실(퇴임 화면)에서 2회차를 시작할 수 있습니다.</small></div>
+    <button class="mn-go" data-chron="card" style="margin:6px 0">🪪 대통령 임기 인사기록 카드 저장</button>
     <div class="mn-card"><div class="mn-h">역대 대통령 기록</div>${H.map((h) => `<div class="hl ok"><b>${h.name}</b><span>${h.at}</span><small>${ENDS[h.end]?.[0] || ""} · 평균 지지율 ${h.ap}% · 과제 ${h.lg}단계</small></div>`).join("") || "<small>기록 없음</small>"}</div></div></div>`;
 }
 export function endCuts(Q) {
