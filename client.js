@@ -1990,7 +1990,7 @@ function globalRankHTML() {
       <div style="font-size:12.5px;font-weight:800;color:#6ee7b7;margin-bottom:6px">🟢 실시간 작전 중인 지휘관 (${Math.max(1, onlinePlayers.length)}명)</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px">${onlineList}</div>
     </div>
-    ${(() => { const si = getSyncInfo(); if (!si || si.level === "none" || si.level === "full") return ""; const t = si.level === "mid" ? "일부 칸 없이 저장됨" : si.level === "base" ? "기본 정보만 저장됨" : "서버 저장 실패"; return `<div style="padding:8px 12px;border-radius:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.45);font-size:11.5px;color:#fde68a">⚠️ 내 기록 ${t} · 서버 메시지: <code style="word-break:break-all">${escapeTitle(si.msg || "없음")}</code></div>`; })()}
+    ${(() => { const si = getSyncInfo(); if (!si || si.level === "none" || si.level === "full" || si.level === "pending") return ""; const t = si.level === "skip" ? "랭킹에 등록되지 않음" : si.level === "mid" ? "일부 칸 없이 저장됨" : si.level === "base" ? "기본 정보만 저장됨" : "서버 저장 실패"; return `<div style="padding:8px 12px;border-radius:8px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.45);font-size:11.5px;color:#fde68a">⚠️ 내 기록 ${t} · 서버 메시지: <code style="word-break:break-all">${escapeTitle(si.msg || "없음")}</code></div>`; })()}
     ${career.easyRun ? `<div style="padding:9px 12px;border-radius:8px;background:rgba(47,125,87,.14);border:1px solid #2f7d57;font-size:12px;color:#a7f3d0">🌱 <b>첫 접속 쉬운 모드로 진행한 캐릭터</b>는 글로벌 랭킹에 등록되지 않습니다. 새 캐릭터를 만들어 일반 규칙으로 도전해 보세요.</div>` : ""}
     ${hcBox}
     <div style="display:flex;gap:6px;flex-wrap:wrap">${btn("data-gseason", "all", "🗂 전체 기간", globalSeason === "all", "#72ace8")}${btn("data-gseason", "season", `📅 ${seasonKey.replace("-", "년 ")}월 시즌`, globalSeason === "season", "#72ace8")}</div>
