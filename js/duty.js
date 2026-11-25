@@ -513,44 +513,48 @@ export function resolveRivalEvent(choiceIdx) {
   return { xpGain: opt.xp || 0, fate, msg: `${fate ? `[${ev.arcName} 결말] ` : ""}${rNm} 관계도 ${opt.rel >= 0 ? "+" : ""}${opt.rel} (현재 ${r.rel}) · ${opt.l}` };
 }
 
+/* 동기 보직표. 계급(6=준장 … 9=대장)에 맞는 실제 보직만 둔다.
+   한국군 대장 보직: 합참의장·각 군 참모총장·한미연합사 부사령관·지상작전사령관·제2작전사령관 (합참차장도 대장 보직이나 관행상 중장이 맡음).
+   군단장·특수전사령관·수도방위사령관·미사일전략사령관·교육사령관·군수사령관·참모차장·합참 본부장은 중장급.
+   준장·소장 목록은 일반 지식 기반 단순화라 정밀하지 않다. TODO(확인 필요) */
 const ALT_RIVAL_POSTS = {
   kr: {
     army: {
       6: ["제11기동사단 부사단장", "육군본부 인사참모부 차장", "한미연합사 작전처장", "특수전사령부 참모장"],
-      7: ["제3보병사단장", "제7보병사단장", "제2신속대응사단장", "육군사관학교장"],
-      8: ["제3군단장", "제5군단장", "합참 작전본부장", "국방대학교 총장"],
-      9: ["한미연합사 작전참모부장", "지상작전사령부 부사령관", "국방개혁추진단장", "합참 전략자문위원"],
+      7: ["제3보병사단장", "제7보병사단장", "제2신속대응사단장", "제9보병사단장", "제30기계화보병사단장"],
+      8: ["제3군단장", "제5군단장", "합참 작전본부장", "특수전사령관", "수도방위사령관", "육군교육사령관"],
+      9: ["육군참모총장", "지상작전사령관", "제2작전사령관", "한미연합사 부사령관"],
     },
     navy: {
       6: ["제1함대 부사령관", "해군본부 기획관리참모부장", "특수전전단장", "진해기지사령관"],
       7: ["제1함대사령관", "제3함대사령관", "해군군수사령관", "해군교육사령관"],
-      8: ["합참 작전본부장", "국방대학교 총장", "해군본부 전력분석시험평가단장", "한미연합사 해군구성군 부사령관"],
-      9: ["합참 전략자문위원", "국방개혁추진단장", "해양안보전략위원장", "연합해상전력 자문관"],
+      8: ["해군참모차장", "해군작전사령관", "해군사관학교장", "합참 전략기획본부장", "합참 군사지원본부장"],
+      9: ["해군참모총장", "합동참모의장", "합동참모차장"],
     },
     air: {
       6: ["제11전투비행단장", "제17전투비행단장", "공군본부 정보작전참모부장", "공군사관학교 부교장"],
-      7: ["공중기동정찰사령관", "공군군수사령관", "공군사관학교장", "한미연합사 공군구성군 참모장"],
-      8: ["합참 작전본부장", "국방대학교 총장", "공군전력발전단장", "한미연합사 공군구성군 부사령관"],
-      9: ["합참 전략자문위원", "국방개혁추진단장", "항공우주전략위원장", "연합공군전력 자문관"],
+      7: ["공중기동정찰사령관", "공군사관학교장", "공중전투사령관", "방공유도탄사령관"],
+      8: ["공군참모차장", "공군작전사령관", "공군교육사령관", "국방정보본부장", "합참 군사지원본부장", "합참 전략기획본부장"],
+      9: ["공군참모총장", "합동참모의장", "합동참모차장"],
     },
   },
   us: {
     army: {
       6: ["Deputy CG, 101st Airborne Division", "Deputy Director for Operations (J-3)", "Commandant, Infantry School", "Assistant Division Commander, 4th ID"],
-      7: ["CG, 101st Airborne Division", "CG, 4th Infantry Division", "CG, 10th Mountain Division", "Superintendent, West Point"],
-      8: ["CG, V Corps", "Director for Operations (J-3)", "CG, U.S. Army Training & Doctrine", "Deputy Commander, USEUCOM"],
+      7: ["CG, 101st Airborne Division", "CG, 4th Infantry Division", "CG, 10th Mountain Division", "CG, 1st Armored Division"],
+      8: ["CG, V Corps", "Director for Operations (J-3)", "CG, III Corps", "Superintendent, West Point"],
       9: ["Commander, U.S. Central Command", "Commander, USEUCOM", "Commander, USSOUTHCOM", "Commander, U.S. Army Europe & Africa"],
     },
     navy: {
       6: ["Commander, Carrier Strike Group 9", "Director, Maritime Operations", "Commander, Navy Region Hawaii", "Deputy Director, J-3"],
-      7: ["Commander, U.S. 5th Fleet", "Commander, U.S. 6th Fleet", "Superintendent, U.S. Naval Academy", "Commander, Naval Surface Force Atlantic"],
-      8: ["Commander, U.S. Fleet Forces", "Director for Operations (J-3)", "Commander, U.S. 2nd Fleet", "Deputy Commander, USCENTCOM"],
+      7: ["Commander, Naval Special Warfare Command", "Commander, Carrier Strike Group 12", "Commander, Navy Recruiting Command"],
+      8: ["Commander, U.S. 5th Fleet", "Commander, U.S. 6th Fleet", "Superintendent, U.S. Naval Academy", "Commander, U.S. 2nd Fleet", "Commander, Naval Surface Force Atlantic"],
       9: ["Commander, U.S. Strategic Command", "Commander, U.S. Fleet Forces Command", "Commander, U.S. Naval Forces Europe", "Commander, USTRANSCOM"],
     },
     air: {
       6: ["Commander, 388th Fighter Wing", "Commander, 57th Wing (Nellis)", "Director of Operations, PACAF", "Deputy Director, J-3"],
-      7: ["Commander, 12th Air Force", "Commander, 9th Air Force", "Superintendent, USAF Academy", "Commander, Air Force Research Lab"],
-      8: ["Commander, 5th Air Force (Japan)", "Director for Operations (J-3)", "Commander, Air Education & Training", "Deputy Commander, USSTRATCOM"],
+      7: ["Commander, Air Force Research Lab", "Commander, USAF Warfare Center", "Commander, 19th Air Force"],
+      8: ["Commander, 5th Air Force (Japan)", "Commander, 12th Air Force", "Commander, 9th Air Force", "Superintendent, USAF Academy", "Deputy Commander, USSTRATCOM"],
       9: ["Commander, Air Mobility Command", "Commander, Air Force Global Strike", "Commander, USAFE-AFAFRICA", "Commander, U.S. Space Command"],
     },
   },
@@ -596,8 +600,11 @@ export function syncRivalPosts(d, svc, playerPost = "") {
             }
           }
         } else {
-          const alts = (altMap[Math.min(9, r.g)] || []).filter((t) => !used.has(t));
-          if (alts.length) picked = alts[(ri - 1) % alts.length];
+          /* 해당 계급 보직이 이미 다 찼으면(예: 해군 대장 자리는 몇 개 없음) 한 계급 낮은 보직으로 내려간다 */
+          for (let tryG = Math.min(9, r.g); tryG >= 6; tryG--) {
+            const alts = (altMap[tryG] || []).filter((t) => !used.has(t));
+            if (alts.length) { picked = alts[(ri - 1) % alts.length]; if (r.g !== tryG) r.g = tryG; break; }
+          }
         }
       }
       if (picked) {
