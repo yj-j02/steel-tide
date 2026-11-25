@@ -45,3 +45,14 @@ alter table public.leaderboard
 
 notify pgrst, 'reload schema';
 ```
+
+
+## 표를 새로 만든 뒤 "REST 401 / 42501 permission denied" 가 뜰 때
+
+새 표에는 익명(anon) 키로 읽기·쓰기할 권한(GRANT)이 자동으로 붙지 않는다. SQL Editor에서 한 번 실행:
+
+```sql
+grant usage on schema public to anon, authenticated;
+grant select, insert, update on public.leaderboard to anon, authenticated;
+notify pgrst, 'reload schema';
+```
