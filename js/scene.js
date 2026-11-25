@@ -7,6 +7,13 @@ THEMED.push(...["primary","rally","convention","election_night","victory","addre
 /* Add delivered US artwork here to enable it ahead of the fallback. */
 const availableUS = new Set(["us_war_room", "us_pentagon_office", "us_oval_office", "us_capitol_hearing", "us_press_secdef", "us_press_corps", "us_press_spokesperson", "us_ceremony"]);
 export const setTheme = (t) => { THEME = t || null; };
+/* '연출 건너뛰기' 옵션: 켜져 있고(설정) 장관·대통령 단계일 때(client가 판단) 영상 연출 없이 선택지만 보여 준다 */
+const QK = "steeltide:quickscenes";
+let quickCtx = () => false;
+export const setQuickSceneContext = (fn) => { quickCtx = fn; };
+export const quickScenesOn = () => { try { return localStorage.getItem(QK) === "on"; } catch { return false; } };
+export const setQuickScenes = (on) => { try { localStorage.setItem(QK, on ? "on" : "off"); } catch { /* 저장 불가 */ } };
+const quickNow = () => quickScenesOn() && !!quickCtx();
 const US_SWAP = { war_room: "us_war_room", nsc: "us_war_room", office: "us_pentagon_office", assembly: "us_capitol_hearing", president_office: "us_oval_office", press_minister: "us_press_secdef", press_journalist: "us_press_corps", press_spokesperson: "us_press_spokesperson", ceremony: "us_ceremony" };
 const IMG = (n) => {
   if (typeof document !== "undefined" && document.body?.classList.contains("us-nat") && US_SWAP[n]) return `img/bg/${US_SWAP[n]}.jpg`;
@@ -89,6 +96,7 @@ const inferEndVO = ({ kind, title = "" }) => {
 /** 나레이션 장면: cuts = [{ img, f: [x, y, 배율], who, text, card?, flash? }] 순서대로 재생 후 닫힘 */
 export function playCuts({ title = "", place = "", cuts = [], onClose }) {
   closeScene();
+  if (quickNow()) { setTimeout(() => onClose?.(), 0); return; }
   const isEn = document.documentElement.lang === "en";
   const el = document.createElement("div"); el.id = "scene2d"; el.className = "cuts";
   el.innerHTML = `<div class="sv"><div class="ly"></div><div class="ly"></div></div><div class="fl"></div><div class="vg"></div><div class="s3-bar t"></div><div class="s3-bar b"></div>
@@ -156,6 +164,7 @@ function fallbackSpeech(kind, label) {
 /** 장면 열기: questions = [{ who, q, opts: [[답변, 효과 설명, 대사?]] }], onPick(qi, ai), onClose(qi, skipped) */
 export function openScene({ kind = "press", title = "", questions = [], onPick, onClose, speaker = "장관", place = null }) {
   closeScene();
+  if (quickNow()) return openQuickScene({ title, questions, onPick, onClose, place });
   const K = SHOTS[kind] ? kind : "press", Sh = SHOTS[K];
   const isEn = document.documentElement.lang === "en";
   const el = document.createElement("div"); el.id = "scene2d"; el.className = K;
@@ -260,3 +269,26 @@ export function closeScene(fire = false) {
   if (fire) S.onClose?.(S.qi, S.skipped);
 }
 export const sceneOn = () => !!R;
+
+
+/** 연출 없는 간단 선택창: 질문과 선택지만 차례로 보여 주고, 선택하면 바로 다음 질문으로 넘어간다. */
+function openQuickScene({ title, questions, onPick, onClose, place }) {
+  const el = document.createElement("div"); el.id = "scene2d"; el.className = "quick";
+  el.style.cssText = "position:fixed;inset:0;z-index:300;display:flex;align-items:center;justify-content:center;background:rgba(10,12,16,.72);padding:16px";
+  el.innerHTML = `<div class="qs-box" style="background:#fffdf8;color:#1d1b17;border:1px solid #c8bc9f;border-radius:10px;width:min(640px,96vw);max-height:90vh;overflow:auto;padding:18px 20px;font-family:'Noto Sans KR',sans-serif">
+    <div style="font-size:11.5px;color:#51493c;letter-spacing:.06em">${place || ""}</div>
+    <h3 class="qs-t" style="margin:2px 0 10px;font-size:18px;color:#1f3a5f">${title}</h3>
+    <div class="qs-q"></div><div class="qs-o" style="display:flex;flex-direction:column;gap:8px;margin-top:10px"></div>
+    <div style="text-align:right;margin-top:12px"><button class="s3-skip" type="button" style="position:static;border:1px solid #c8bc9f;background:#f4f1ea;color:#38332a;border-radius:6px;padding:5px 12px;font-weight:700;cursor:pointer">건너뛰기 ✕</button></div></div>`;
+  document.body.appendChild(el);
+  const S = (R = { el, onClose, qi: 0, timers: [], cur: 0, typer: 0, skipped: false });
+  const qEl = el.querySelector(".qs-q"), oEl = el.querySelector(".qs-o");
+  const show = () => {
+    const Q = questions[S.qi]; if (!Q) return closeScene(true);
+    qEl.innerHTML = `<div style="font-size:12px;color:#51493c;font-weight:700">${Q.who || ""}</div><p style="margin:4px 0 0;line-height:1.55;font-size:14.5px">${Q.q}</p>`;
+    oEl.innerHTML = Q.opts.map(([n, e], i) => `<button type="button" data-a="${i}" style="text-align:left;background:#fffdf8;border:1px solid #c8bc9f;border-radius:8px;padding:9px 12px;cursor:pointer;color:#1d1b17;font:600 13.5px 'Noto Sans KR',sans-serif"><b>${n}</b>${e ? `<small style="display:block;margin-top:3px;color:#51493c;font-weight:500">${e}</small>` : ""}</button>`).join("");
+  };
+  oEl.addEventListener("click", (e) => { const b = e.target.closest("[data-a]"); if (!b) return; e.stopPropagation(); onPick?.(S.qi, +b.dataset.a); S.qi++; if (S.qi < questions.length) show(); else closeScene(true); });
+  el.querySelector(".s3-skip").addEventListener("click", (e) => { e.stopPropagation(); if (S.qi < questions.length) S.skipped = true; closeScene(true); });
+  show();
+}

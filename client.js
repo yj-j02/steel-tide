@@ -43,7 +43,7 @@ import { warroomById } from "./js/warroom.js";
 import { career, saveCareer, careerInit, logPromotion, perkMods, payStep, MEDALS, US_MEDALS, awardMedals } from "./js/career.js";
 const curMedals = () => (isUS() ? US_MEDALS : MEDALS);
 import { openOpMap, opMapAdvance, opMapState, opMapAir } from "./js/opmap.js";
-import { openScene, playCuts, setTheme } from "./js/scene.js";
+import { openScene, playCuts, setTheme, setQuickSceneContext, quickScenesOn, setQuickScenes } from "./js/scene.js";
 import { adminBar } from "./js/career-rules.js";
 import { potusState, potusStart, potusHTML, potusClick, potusTitle, potusAdmin, potusSummitInfo, potusSummitResult } from "./js/potus.js";
 import { openSummitGame } from "./js/summit.js";
@@ -4984,6 +4984,11 @@ function tutStep(dt) {
   txt(`튜토리얼 ${Math.min(tut.i + 1, L.length)}/${L.length} — ${L[tut.i][0]}`, W / 2, y + 16, "#ffd166", "bold 12.5px 'Noto Sans KR', sans-serif", "center");
   txt("Esc: 튜토리얼 건너뛰기", W / 2, y + 33, "#cfd8dc", "11px 'Noto Sans KR', sans-serif", "center");
 }
+/* 연출 건너뛰기: 장관·대통령 단계에서만 적용 (기자회견·청문회·NSC 등 영상 장면 대신 선택지 창) */
+setQuickSceneContext(() => !!(career.minister || usIsPotus() || (!isUS() && (isPotus() || potusOn())) || usPotusOn() || (!isUS() && presState())));
+const syncQuickBtn = () => { const b = $("#quickScenesBtn"); if (b) b.textContent = quickScenesOn() ? "🎬 장관·대통령 연출 건너뛰기: 켜짐" : "🎬 장관·대통령 연출 건너뛰기: 꺼짐"; };
+syncQuickBtn();
+$("#quickScenesBtn")?.addEventListener("click", () => { sfx.click(); setQuickScenes(!quickScenesOn()); syncQuickBtn(); toast(quickScenesOn() ? "장관·대통령 단계에서 영상 연출 없이 선택지만 표시합니다" : "영상 연출을 다시 재생합니다", 2.6); });
 $("#mySignBtn")?.addEventListener("click", () => { sfx.click(); promptCustomSignature(() => { if (screen === "record") renderRecord(); }); });
 $("#tutReset").addEventListener("click", () => { try { careerStorage.removeItem("steeltide:tut:modern"); } catch {} resetTour("minister"); toast("다음 전투에서 튜토리얼이 다시 나옵니다"); });
 function drawAlerts(dt) {
