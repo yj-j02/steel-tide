@@ -24,6 +24,7 @@ import { MODERN, TRANSPORT, Ship, solve, leadPoint, brain, escort, mkBrain, upda
 import { air, dirFrom, clearAir, updateAir } from "./js/air.js";
 import { aaGun, updateAAGun, jetPit, updateJetPit } from "./js/interior.js";
 import { soldier, animSoldier, fireSoldier, garandVM, mgVM, updateGarand, updateMG } from "./js/infantry.js";
+import { altPostsFor, originBranch } from "./js/staff.js";
 import { STAFF_ROLES, STAFF, TRAITS, staff, officer, skillOf, appoint, staffMods, staffServe, canAppoint, canFill, candidates, roleTitle, ECH, echOf, staffFor, FLAG_POSTS, FLEET_CDR, SERVICES, BRANCHES, normBranch, serviceOf, careerTitle, setService, setBranch, POST_RANK, holds, saveStaff, isUS, setNation, curServices, curBranches, curFlagPosts, flagPostsForTrack } from "./js/staff.js";
 import { koreanUsRanks, toggleUsRankLanguage, insigniaUS, US_PAY, US_BRANCHES, US_SERVICES, usRankName, usRankFull, US_SVC_ORG, usNpcName, usDischargeEndingOf } from "./js/us-ranks.js";
 import { emergencyAlert, crisisLog } from "./js/alert.js";
@@ -33,6 +34,7 @@ import { saveRecordCard } from "./js/record-card.js";
 import { openConfirmationHearing } from "./js/hearing.js";
 import { FONT_SIZES, uiPrefs, applyUiPrefs, setUiPref } from "./js/ui-prefs.js";
 import { sfxStamp, sfxFlip, sfxChime, sfxAchieve, sfxFail, uiSfxOn, setUiSfx } from "./js/sfx.js";
+import { saveDuty } from "./js/duty.js";
 import { openingCarryover, dutyState, ensureDuty, dutyEventById, dutyCrisisById, dutyOptionHint, resolveDuty, resolveReport, resolveCrisisDelegate, resolveCrisisDirect, nextDutyWeek, STANCES, setStance, resolveRivalEvent, activeRankArc, resolveRankArc, resolveWarroom } from "./js/duty.js";
 import { bossFor, RIVAL_EVENTS, relLabel, allyBonus, careerPathHTML, chronicleHTML, downloadChroniclePNG, classmateCabinetHTML, buildClassmateAppointment } from "./js/relations.js";
 import { warroomById } from "./js/warroom.js";
@@ -1005,13 +1007,19 @@ function renderPostPick(g) {
     }
   } else if (pmPostG !== g || !pmPostOpts.includes(br0)) {
     pmPostG = g;
-    const allowed = Object.keys(BR).filter((k) => { const bs = BR[k].svc; return bs === sv || (g >= 3 && bs === "joint"); }); /* 위관: 소속 군종 병과만 · 영관: +공통 융합 트랙 */
+    /* 2026-11-25 현실화: 다른 전투 병과로는 못 옮긴다. 갈 수 있는 곳 = 현 병과 · 임관 병과(복귀) · 영관부터 합동(정책·획득) 트랙 */
+    const org = originBranch();
+    const allowed = Object.keys(BR).filter((k) => k === br0 || (k === org && BR[k].svc === sv) || (g >= 3 && BR[k].svc === "joint"));
     const seen = new Set([BR[br0].t[g]]), others = [];
     for (const k of allowed.filter((k) => k !== br0)) { const t = BR[k].t[g]; if (!seen.has(t)) { seen.add(t); others.push(k); } }
-    pmPostOpts = [br0, ...others]; pmPostSel = br0;
+    const alts = altPostsFor(br0, g).filter((t) => !seen.has(t)).map((t) => `alt:${t}`);
+    pmPostOpts = [br0, ...alts, ...others]; pmPostSel = career.post?.g === g && alts.includes(`alt:${career.post.t}`) ? `alt:${career.post.t}` : br0;
   }
   if (typeof pmPostOpts[0] === "object") { el.innerHTML = `<div class="pk-h">장성 보직 선택 · ${svName} 및 합동 ${rankLabel(g, sv)} 보직</div><div class="pst-row">${pmPostOpts.map(p => `<button class="pst${p.t === pmPostSel ? " on" : ""}" data-fpost="${p.t}"><i>${p.b === br0 ? "현 병과 계속" : p.svc === "joint" ? "합동 보직" : "보직 전환"}</i><b>${postLabel(p.t)}</b><small>${hint(p.t)}</small><span>평정 중점: ${FOCUS[p.b].f}</span></button>`).join("")}</div>`; return; }
-  el.innerHTML = `<div class="pk-h">보직 선택 · ${svName}${g >= 3 ? " · 공통 융합" : ""} 트랙 (${rankLabel(g, sv)})</div><div class="pst-row">${pmPostOpts.map((k, i) => `<button class="pst${k === pmPostSel ? " on" : ""}" data-post="${k}"><i>${i === 0 ? "현 병과 계속" : BR[k].svc === "joint" ? "융합 전과" : "병과 전환"}</i><b>${postLabel(BR[k].t[g])}</b><small>${hint(BR[k].t[g])}</small><span>평정 중점: ${FOCUS[k].f}</span></button>`).join("")}</div>`;
+  el.innerHTML = `<div class="pk-h">보직 선택 · ${svName}${g >= 3 ? " · 공통 융합" : ""} 트랙 (${rankLabel(g, sv)})</div><div class="pst-row">${pmPostOpts.map((k, i) => {
+    if (k.startsWith("alt:")) { const t = k.slice(4); return `<button class="pst${k === pmPostSel ? " on" : ""}" data-post="${k}"><i>같은 병과 · 다른 보직</i><b>${postLabel(t)}</b><small>${hint(t)}</small><span>평정 중점: ${FOCUS[br0].f}</span></button>`; }
+    return `<button class="pst${k === pmPostSel ? " on" : ""}" data-post="${k}"><i>${i === 0 ? "현 병과 계속" : BR[k].svc === "joint" ? "융합 전과" : "임관 병과 복귀"}</i><b>${postLabel(BR[k].t[g])}</b><small>${hint(BR[k].t[g])}</small><span>평정 중점: ${FOCUS[k].f}</span></button>`;
+  }).join("")}</div>`;
 }
 let pmOpts = null;
 function flagHTML(g, before) { /* 장성기: KR red+wreath+mugunghwa / US Personal Colors (Army Scarlet+Gold Fringe, Navy Blue diamond/triangle, USAF Ultramarine) */
@@ -1712,7 +1720,7 @@ function checkCareerAchievements(grade = myGrade(), d = dutyState()) {
   /* 병과 업적은 '임관 병과'를 끝까지 지킨 경우만: 중간에 전과해 해당 보직을 받으면 해당 없음 */
   const firstB = (career.log || []).find((e) => e.b)?.b;
   const BRS = { ...BRANCHES, ...curBranches() };
-  const originBr = career.originBranch || Object.keys(BRS).find((k) => firstB && [BRS[k].n, postLabel(BRS[k].n)].includes(firstB)) || br;
+  const originBr = staff.origin || career.originBranch || Object.keys(BRS).find((k) => firstB && [BRS[k].n, postLabel(BRS[k].n)].includes(firstB)) || br;
   const keptOrigin = (k) => originBr === k && br === k;
   if (keptOrigin("eng") && grade >= 6) trigger("ach_eng_gen", true);
   if (keptOrigin("sub") && grade >= 6) trigger("ach_sub_commander", true);
@@ -2355,6 +2363,8 @@ function renderDutyDesk() {
   if (crCard) dutyQueue.push({ key: "crisis", label: "🚨 안보 위기", urgent: true, html: `<span class="dm-pri-badge">🔥 최우선 긴급 결재 · 안보 위기</span>${crCard}` });
   if (arcCard) dutyQueue.push({ key: "arc", label: "📖 계급 스토리", urgent: true, html: `<span class="dm-pri-badge">📖 계급 시그니처 스토리</span>${arcCard}` });
   if (rvEvCard) dutyQueue.push({ key: "rival", label: "🤝 동기 요청", html: rvEvCard });
+  const ra = d.reassign && d.reassign.g === myGrade() ? d.reassign : null;
+  if (ra) dutyQueue.push({ key: "reassign", label: "📨 인사명령", html: `<div id="duty-reassign" class="mn-card mn-dk mn-paper"><div class="dh"><div class="dt"><small>📨 ${isUS() ? "Personnel Orders" : "인사명령"} · ${isUS() ? "Reassignment" : "보직 이동 내정"}</small><b>${isUS() ? "새 보직으로 이동 명령이 내려왔습니다" : "같은 계급, 다른 보직으로 이동 내정"}</b><span>현 보직: ${postLabel(postOf(ra.g))} · ${rankLabel(ra.g)}</span></div></div><p>${isUS() ? "Personnel command has slated you for a new billet at the same grade. Pick one, or ask to stay." : "인사사령부가 같은 계급의 다른 보직으로 이동을 내정했습니다. 희망 보직을 고르거나 현 보직 유임을 요청할 수 있습니다."}</p>${ra.opts.map((t, i) => `<button data-reassign="${i}"><b>${postLabel(t)}</b><small>${hint(t)}</small></button>`).join("")}<button data-reassign="stay"><b>${isUS() ? "Request to stay in current billet" : "현 보직 유임 요청"}</b><small>이동 없음 · 다음 인사명령까지 최소 26주</small></button></div>` });
   evCardItems.forEach((ev, idx) => {
     const shortT = ev.title.length > 14 ? `${ev.title.slice(0, 14)}…` : ev.title;
     dutyQueue.push({ key: `ev:${ev.id}`, label: `📋 안건 ${idx + 1} · ${shortT}`, html: ev.html });
@@ -2832,7 +2842,7 @@ $("#titleHub")?.addEventListener("click", async (e) => {
       "steeltide:career": {log:[], serviceContract: contractFor(route), justCommissioned: true, originBranch: thBr, ...(hParent ? { heritageParent: hParent } : {})},
       [CACHE]: { ...econNewProfile(), admin: !!profile.admin },
       "steeltide:cmdr": { name: name.slice(0, 12), face: thFace },
-      "steeltide:staff": { branch: thBr, service: thSvc, nation: thNation, a: {}, byE: {}, x: {}, e: 0 },
+      "steeltide:staff": { branch: thBr, origin: thBr, service: thSvc, nation: thNation, a: {}, byE: {}, x: {}, e: 0 },
     });
     if (created) reloadCharacter(true);
     else toast("플레이 슬롯 10개가 모두 사용 중입니다");
@@ -3002,6 +3012,7 @@ $("#promoM").addEventListener("click", (e) => {
   if (e.target.closest('[data-act="opensig"]')) { sfx.click(); promptCustomSignature(); return; }
   const fp = e.target.closest("[data-fpost]"); if (fp) { const p = pmPostOpts.find((x) => x.t === fp.dataset.fpost && x.g === pmPostG); if (!p) return; pmPostSel = p.t; $("#pmPostT").textContent = postLabel(p.t); if (!pmPreview) { career.post = { g: p.g, t: p.t }; setBranch(p.b); const last = career.log[career.log.length - 1]; if (last && last.g === p.g) { last.t = p.t; last.b = (curBranches()[p.b] || BRANCHES[p.b]).n; } saveCareer(); refreshMenus(); } sfx.click(); renderPostPick(pmPostG); return; }
   const go = e.target.closest("[data-pmgo]"); if (go) { pmGo(+go.dataset.pmgo); return; }
+  const psa = e.target.closest('[data-post^="alt:"]'); if (psa) { const t = psa.dataset.post.slice(4); pmPostSel = psa.dataset.post; if (pmPreview) { $("#pmPostT").textContent = postLabel(t); sfx.click(); } else { const g = myGrade(); career.post = { g, t }; const last = career.log[career.log.length - 1]; if (last && last.g === g) last.t = t; saveCareer(); $("#pmPostT").textContent = postLabel(postOf(g)); refreshMenus(); sfx.click(); } renderPostPick(pmPostG); return; }
   const ps = e.target.closest("[data-post]"); if (ps) { const k = ps.dataset.post, BR = curBranches(); if (!BR[k]) return; pmPostSel = k; if (pmPreview) { $("#pmPostT").textContent = postLabel(BR[k].t[pmPostG]); sfx.click(); } else { career.post = null; setBranch(k); const g = myGrade(), last = career.log[career.log.length - 1]; if (last && last.g === g) { last.t = postOf(g); last.b = BR[normBranch(staff.branch)].n; } saveCareer(); $("#pmPostT").textContent = postLabel(postOf(g)); refreshMenus(); sfx.click(); } renderPostPick(pmPostG); return; }
   if (e.target.closest("#promoOk")) {
     sfx.click(); stopFanfare(); stopVO();
@@ -3343,6 +3354,7 @@ $("#hqP").addEventListener("click", (e) => {
       } else if (d.crisis) {
         playVO(21);
       }
+      maybeReassign(d);
       if (d.warroom && (d.warroom.stage || 0) === 0) {
         const w = warroomById(d.warroom.id);
         if (w) emergencyAlert({ key: `wr:${myId}:${d.week}:${w.id}`, level: "defcon", title: `${w.tag} — ${w.stages?.[0]?.title || "합동 작전"}`, sub: w.defcon || "", lines: [isUS() ? "All commands at heightened readiness" : "전 부대 대비태세 격상", isUS() ? "Joint war room activated — your orders are needed" : "합동 워룸 가동 — 지휘관 결심이 필요합니다"], when: careerDate(d.week), us: isUS() });
@@ -4178,6 +4190,43 @@ window.addEventListener("blur", () => { keys.clear(); altMod = false; if (typeof
 $("#pauseBtn").addEventListener("click", (e) => { e.stopPropagation(); setPause(true); });
 $("#resumeBtn").addEventListener("click", () => { const o = $("#pause"); if (o.classList.contains("menuset")) { o.style.display = "none"; o.classList.remove("menuset"); } else setPause(false); });
 function openSettings() { if (G.state === "playing" || G.state === "ending") { setPause(true); return; } const o = $("#pause"); o.classList.add("menuset"); o.querySelector("h1").textContent = "설정"; $("#resumeBtn").textContent = "닫기"; o.style.display = "grid"; }
+/** 순환 보직 인사명령 (2026-11-25): 같은 계급에서 26주 이상 근무하면 가끔 다른 보직 이동이 내정된다. */
+function maybeReassign(d) {
+  const g = myGrade();
+  if (!d || career.minister || career.discharged || g < 1 || g > 8 || d.warroom || d.reassign) return;
+  if (d.postG !== g) { d.postG = g; d.postSince = d.week; saveDuty(d); return; }
+  if ((d.week - (d.postSince ?? d.week)) < 26 || Math.random() > 0.12) return;
+  const br = normBranch(staff.branch), cur = postOf(g);
+  let pool;
+  if (g >= 6) {
+    const occupied = new Set((d.rivals || []).filter((r) => r.g === g && !r.retired).map((r) => r.post));
+    pool = flagPostsForTrack(g, br, serviceOf(br)).map((p) => p.t).filter((t) => !occupied.has(t));
+  } else {
+    pool = [careerTitle(g, br), ...altPostsFor(br, g)];
+    if (g >= 3) for (const k of ["pol", "acq"]) pool.push(...altPostsFor(k, g).slice(0, 1));
+  }
+  pool = [...new Set(pool)].filter((t) => t && t !== cur);
+  if (!pool.length) return;
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  d.reassign = { g, opts: pool.slice(0, 3), week: d.week };
+  dutyFocusKey = "reassign";
+  saveDuty(d);
+}
+document.addEventListener("click", (e) => {
+  const b = e.target.closest?.("[data-reassign]"); if (!b) return;
+  const d = dutyState(), ra = d.reassign; if (!ra) return;
+  if (b.dataset.reassign !== "stay") {
+    const t = ra.opts[Number(b.dataset.reassign)];
+    if (t) {
+      career.post = { g: ra.g, t };
+      logPromotion({ g: ra.g, t, b: curBranches()[normBranch(staff.branch)]?.n || "", why: "보직 이동" });
+      (d.headlines ||= []).unshift(`${careerDate(d.week)} · [인사명령] ${rankLabel(ra.g)} ${cmdr.name}, ${postLabel(t)}에 보함`);
+      d.headlines = d.headlines.slice(0, 12);
+    }
+  }
+  d.reassign = null; d.postSince = d.week; d.postG = ra.g;
+  saveDuty(d); saveCareer(); sfxStamp(); refreshMenus(); renderDutyDesk();
+});
 function recordCardData() {
   const g0 = career.discharged?.g ?? myGrade(), br0 = normBranch(staff.branch), sv0 = serviceOf(br0), SV0 = curServices(), BR0 = curBranches(), dd0 = dutyState();
   const chap = career.discharged ? "예비역 전역" : (!isUS() && potusOn()) ? "대통령 재임" : (isUS() && usPresState()?.term > 0) ? "U.S. President" : career.minister ? (isUS() ? "SecDef" : "국방부장관") : "현역 복무";
@@ -4203,6 +4252,12 @@ document.addEventListener("click", (e) => {
 });
 $("#setBtn").addEventListener("click", openSettings);
 applyUiPrefs();
+/* 임관 병과 복원 (옛 저장): 약력 첫 줄의 병과 이름으로 찾는다 */
+if (staff.branch && !staff.origin) {
+  const firstB = (career.log || []).find((e) => e.b)?.b, BRS = { ...BRANCHES, ...curBranches() };
+  staff.origin = career.originBranch || Object.keys(BRS).find((k) => firstB && [BRS[k].n, postLabel(BRS[k].n)].includes(firstB)) || normBranch(staff.branch);
+  saveStaff();
+}
 /* PWA (L): 실제 배포 주소에서만 서비스 워커 등록 (로컬 개발 서버는 캐시 끔 유지) */
 if ("serviceWorker" in navigator && !/^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname)) navigator.serviceWorker.register("sw.js").catch(() => {});
 let pwaPrompt = null;
