@@ -2,7 +2,7 @@ import { commissionRoutes, contractFor, serviceStatus, noteServiceNotice, applyS
 import { dutyHistory } from "./js/career-timeline.js";
 import { koreanPostName } from "./js/us-post-labels.js";
 import { isBadName } from "./js/name-filter.js";
-import { easy } from "./js/easy-mode.js";
+import { easy, easyOnCharacterCreated, easyCheckExisting } from "./js/easy-mode.js";
 import { careerStorage, characters, activeCharacterId, createCharacter, selectCharacter, removeCharacter } from "./js/characters.js";
 import { calendarLabel, careerDate, careerMonths, rankMonths, serviceDuration } from "./js/service-calendar.js";
 import { openingEvent } from "./js/army-opening.js";
@@ -66,6 +66,7 @@ import { getOverseasTour, overseasCardHTML, HEARING_CASES, hearingCardHTML, FAMI
 import { stampCard, floatStatDeltas, showEventScene, showBreakingPaper, bossReactionQuote, officeAmbienceLabel, showMinisterOfferModal } from "./js/fx-ui.js";
 import { openSignaturePad, playSignature } from "./js/signature-pad.js";
 import { ECON_RANKS, ECON_RANK_XP, econRank, econNewProfile, econReward, econCheck, econApply } from "./js/shop.js";
+try { easyCheckExisting(characters().filter((c) => !c.archived).length); } catch { /* 무시 */ }
 
 // ── profile + room connection ───────────────────────────────────────────────
 const CACHE = "steeltide:profile";
@@ -2900,7 +2901,7 @@ $("#titleHub")?.addEventListener("click", async (e) => {
       "steeltide:cmdr": { name: name.slice(0, 12), face: thFace },
       "steeltide:staff": { branch: thBr, origin: thBr, service: thSvc, nation: thNation, a: {}, byE: {}, x: {}, e: 0 },
     });
-    if (created) reloadCharacter(true);
+    if (created) { easyOnCharacterCreated(); reloadCharacter(true); }
     else toast("플레이 슬롯 10개가 모두 사용 중입니다");
   }
 });
