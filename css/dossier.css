@@ -534,3 +534,25 @@ body .dsr-page #duty-warroom.mn-paper button small { color: #ffcf9e !important; 
 .easy-tag{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:3px;font:700 10px/1.5 system-ui,sans-serif;letter-spacing:.08em;color:#fff;background:#2f7d57;vertical-align:middle}
 .easy-tag[hidden]{display:none}
 .dsr-page .easy-chip{background:rgba(47,125,87,.14);border-color:#2f7d57;color:#1f5b3f}
+
+/* 내 서명: 초상화 아래 · 서명 만들기 버튼 */
+.my-sign-img { display:block; height:34px; max-width:170px; margin:4px auto 0; object-fit:contain; background:rgba(255,250,240,.88); border-radius:4px; padding:2px 10px; pointer-events:none; }
+.my-sign-btn { display:block; margin:6px auto 0; padding:4px 12px; border-radius:6px; border:1px solid rgba(138,106,34,.6); background:rgba(138,106,34,.16); color:#e9d28a; font:700 11.5px 'Noto Sans KR',sans-serif; cursor:pointer; }
+.my-sign-btn:hover { background:rgba(138,106,34,.3); }
+.pm-min-por-wrap .my-sign-img { margin-top:6px; }
+
+/* ── 가독성 보강 (밝은 종이 테마 전환 후 흐려진 글자 정리) ── */
+:root { --ds-mute: #51493c; --ds-ink2: #38332a; }
+/* 어두운 화면용으로 박혀 있던 회청색(#8…·#3…) 인라인 글자색도 잉크색으로 */
+#recordP [style*="color:#8"], #recordP [style*="color: #8"], #recordP [style*="color:#3"], #recordP [style*="color: #3"],
+.dsr-page [style*="color:#8"], .dsr-page [style*="color: #8"],
+#hqP:has(> .hq-head) [style*="color:#7"], #hqP:has(> .hq-head) [style*="color:#6"], #hqP:has(> .hq-head) [style*="color:#a"] { color: var(--ds-mute) !important; }
+/* 지휘 계통도: 계급 행 이름·별·보조 글자를 더 진하고 크게 */
+#hqP:has(> .hq-head) .hq-node :where(small, em, i) { font-size: 12px !important; color: var(--ds-ink2) !important; opacity: 1 !important; }
+#hqP:has(> .hq-head) .hq-nm b { font-size: 13.5px !important; color: var(--ds-ink) !important; }
+#hqP:has(> .hq-head) :where(.hq-star, .hq-stars, .stars, .st) { color: var(--ds-hiink) !important; opacity: 1 !important; }
+#hqP:has(> .hq-head) .hq-grid > :where(div:first-child, .hq-rk, .hq-rl) { color: var(--ds-ink) !important; font-weight: 800; }
+#hqP:has(> .hq-head) .hq-grid [class*="rk"], #hqP:has(> .hq-head) .hq-grid [class*="lbl"] { color: var(--ds-ink) !important; font-weight: 800 !important; }
+/* 내 서명 버튼: 밝은 종이 바탕에서 읽히게 */
+.my-sign-btn { color: var(--ds-hiink) !important; background: var(--ds-hi) !important; border: 1px solid var(--ds-gold) !important; }
+.my-sign-btn:hover { background: #f3e2ad !important; }
