@@ -39,8 +39,8 @@ const krEnd = status(2, { 0: 10, 1: 10, 2: 18 });
 assert.equal(krEnd.due, true);
 assert.equal(krEnd.limit.month, 180);
 assert.equal(status(3, { 0: 10, 1: 10, 2: 18 }).due, false);
-assert.equal(status(6, { 6: 20 }).extension.until, 84);
-assert.equal(status(6, { 6: 22 }, { serviceExtensions: { 6: { until: 84 } } }).due, false);
+assert.equal(status(6, { 6: 25 }).extension.until, 84);
+assert.equal(status(6, { 6: 27 }, { serviceExtensions: { 6: { until: 84 } } }).due, false);
 assert.deepEqual(commissionRoutes(false, "plt", "air").map(route => route.years), [15, 13]);
 
 const failures = (grade, first, second) => ({
