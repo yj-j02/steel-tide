@@ -11,6 +11,8 @@ let onlinePlayers = [];
 let cachedRows = [];
 let lastFetchAt = 0;
 let lastSyncHash = "";
+let lastSyncInfo = { level: "none", msg: "" };
+export const getSyncInfo = () => lastSyncInfo;
 const listeners = new Set();
 
 function notify() {
@@ -150,14 +152,15 @@ export async function syncLeaderboardScore(entry, { force = false } = {}) {
     const sb = await getClient();
     if (sb) {
       const { error } = await sb.from("leaderboard").upsert(payload, { onConflict: "player_id" });
-      if (!error) return true;
+      if (!error) { lastSyncInfo = { level: "full", msg: "" }; return true; }
       /* 서버 표에 심사평균·도달연차 등 칸이 없으면 여기서 실패하고 기본 정보만 저장된다 → docs/supabase_leaderboard_columns.md */
       console.warn("[leaderboard] 전체 정보 저장 실패, 일부 칸 없이 다시 저장합니다:", error.message || error);
       const { error: errMid } = await sb.from("leaderboard").upsert(midPayload, { onConflict: "player_id" });
-      if (!errMid) return true;
+      if (!errMid) { lastSyncInfo = { level: "mid", msg: String(error.message || error) }; return true; }
       console.warn("[leaderboard] 기본 정보만 저장합니다:", errMid.message || errMid);
       const { error: err2 } = await sb.from("leaderboard").upsert(basePayload, { onConflict: "player_id" });
-      if (!err2) return true;
+      if (!err2) { lastSyncInfo = { level: "base", msg: String(errMid.message || errMid) }; return true; }
+      lastSyncInfo = { level: "fail", msg: String(err2.message || err2) };
     }
     const post = (body) => fetch(`${SUPABASE_URL}/rest/v1/leaderboard?on_conflict=player_id`, {
       method: "POST",
@@ -170,7 +173,7 @@ export async function syncLeaderboardScore(entry, { force = false } = {}) {
       body: JSON.stringify(body),
     });
     const res = await post(payload);
-    if (res.ok) return true;
+    if (res.ok) { lastSyncInfo = { level: "full", msg: "" }; return true; }
     if (res.status === 400) {
       const resMid = await post(midPayload);
       if (resMid.ok) return true;
@@ -178,7 +181,8 @@ export async function syncLeaderboardScore(entry, { force = false } = {}) {
       return res2.ok;
     }
     return false;
-  } catch {
+  } catch (e) {
+    lastSyncInfo = { level: "fail", msg: String(e?.message || e) };
     return false;
   }
 }
