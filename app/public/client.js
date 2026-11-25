@@ -2,6 +2,7 @@ import { commissionRoutes, contractFor, serviceStatus, noteServiceNotice, applyS
 import { dutyHistory } from "./js/career-timeline.js";
 import { koreanPostName } from "./js/us-post-labels.js";
 import { isBadName } from "./js/name-filter.js";
+import { easy } from "./js/easy-mode.js";
 import { careerStorage, characters, activeCharacterId, createCharacter, selectCharacter, removeCharacter } from "./js/characters.js";
 import { calendarLabel, careerDate, careerMonths, rankMonths, serviceDuration } from "./js/service-calendar.js";
 import { openingEvent } from "./js/army-opening.js";
@@ -58,7 +59,7 @@ const withMin = (m) => { const F = minFx(); return { ...m, outK: m.outK * F.outK
 const ngFlags = () => { const L = legacy(); if (!L?.medal) return {}; const g = myGrade(); return { ...(g <= 2 ? { ngPay: 1 } : {}), ...(L.minister && g >= 8 ? { ngXp: 1 } : {}) }; };
 let usPresPreview = false;
 let hqView = "duty", minDirect = false, minDirect3d = false, dutyDirect = false, returnToHQ = false, svcDraft = null;
-import { FOCUS, PASS, minBattles, minWeeks, weeksOf, scoreBattle, recordEval, evalOf, board, marshalQuest, setCap, deferNote } from "./js/service.js";
+import { FOCUS, PASS, minBattles, needWeeks, weeksOf, scoreBattle, recordEval, evalOf, board, marshalQuest, setCap, deferNote } from "./js/service.js";
 import { openMarshalWar } from "./js/marshal-war.js";
 import { availableRetireRoutes, resolveRetireRoute, RETIRE_SCENARIOS, retireScenarioHTML } from "./js/retire-routes.js";
 import { getOverseasTour, overseasCardHTML, HEARING_CASES, hearingCardHTML, FAMILY_STAGES, familyCardHTML } from "./js/phase5-chapters.js";
@@ -800,7 +801,7 @@ function refreshMenus() {
   const rl = rankLine(), u = perkMods().upg;
   const tbMoneyEl = $("#tbMoney");
   if (tbMoneyEl) tbMoneyEl.textContent = profile.admin ? "∞ CR (관리자)" : `${fmt(profile.money)} CR`;
-  $("#tbRank").textContent = usIsPotus() ? usPresTitle() : civil() ? presTitle() : career.minister ? (isUS() ? `미 국방장관 · 예비역 ${rl.name}` : `국방부장관 · 예비역 ${rl.name}`) : `${rl.name} ${isUS() ? US_PAY[rl.r] : `${payStep(profile.xp, rl.r, ECON_RANK_XP).step}호봉`} · ${postLabel(postOf(rl.r))}`; $("#tbIns").innerHTML = badge(rl.r, 24); const tbBeta = $("#tbBeta"); if (tbBeta) tbBeta.hidden = !isUS();
+  $("#tbRank").textContent = usIsPotus() ? usPresTitle() : civil() ? presTitle() : career.minister ? (isUS() ? `미 국방장관 · 예비역 ${rl.name}` : `국방부장관 · 예비역 ${rl.name}`) : `${rl.name} ${isUS() ? US_PAY[rl.r] : `${payStep(profile.xp, rl.r, ECON_RANK_XP).step}호봉`} · ${postLabel(postOf(rl.r))}`; $("#tbIns").innerHTML = badge(rl.r, 24); const tbBeta = $("#tbBeta"); if (tbBeta) tbBeta.hidden = !isUS(); const tbEasy = $("#tbEasy"); if (tbEasy) tbEasy.hidden = !easy.on;
   $("#rankBar").style.width = rl.pct * 100 + "%";
   document.body.classList.toggle("us-nat", isUS());
   const langButton = $("#rankLang");
@@ -2396,6 +2397,7 @@ function renderDutyDesk() {
       <div class="dm-status-strip">
         <div class="dm-chips">
           <span class="dm-chip${agenda.length ? " hot" : ""}">📋 ${date} · ${agenda.length ? `결재 대기 ${agenda.length}건` : "이번 단계 결재 완료"}</span>
+          ${easy.on ? `<span class="dm-chip easy-chip" title="이번 접속 동안 계급 최소 복무 ${needWeeks()}주 · 필요 평정 횟수 절반 · 심사 커트라인 −6점 · 경험치 자동 보정. 다음 접속부터는 일반 규칙입니다">🌱 첫 접속 쉬운 모드 · 다음 접속부터 일반</span>` : ""}
           <a class="dm-chip" href="#duty-promotion">🎖️ ${promotionSummary}${!automaticCaptain(g) && g < 9 ? ` (${review.score}/${review.cutoff}점)` : ""}</a>
         </div>
         ${serviceTerms.obligationLeft ? `<span class="dm-chip" title="의무복무 잔여">⏳ ${serviceTerms.obligationLeft}</span>` : `<span class="dm-chip">✔ 장기/전역 가능</span>`}
@@ -4210,9 +4212,9 @@ function tenureXp(g, status) {
   if (g >= 9 || career.minister || career.discharged) return 0;
   const lo = ECON_RANK_XP[g], hi = ECON_RANK_XP[g + 1], cur = Math.max(profile.xp || 0, lo);
   if (!hi || cur >= hi) return 0;
-  const w = weeksOf(g), need = minWeeks(g), nearLimit = status?.remaining != null && status.remaining <= 24;
-  let gain = Math.ceil((hi - lo) / 14);
-  if (w >= need && (w >= need + 2 || nearLimit)) gain = hi - cur;
+  const w = weeksOf(g), need = needWeeks(), nearLimit = status?.remaining != null && status.remaining <= 24;
+  let gain = Math.ceil((hi - lo) / (easy.on ? 5 : 14));
+  if (w >= need && (easy.on || w >= need + 2 || nearLimit)) gain = hi - cur; /* 쉬운 모드: 최소 복무만 채우면 경험치는 바로 보정 */
   gain = Math.min(gain, hi - cur);
   profile.xp = cur + gain; saveProfile();
   return gain;

@@ -2,7 +2,8 @@ import { careerDate, careerMonths, rankMonths, serviceDuration } from "./service
 import { ECON_RANK_XP } from "./shop.js";
 import { usNpcName } from "./us-ranks.js";
 import { career, saveCareer } from "./career.js";
-import { board, minWeeks, weeksOf, recordEval } from "./service.js";
+import { board, needWeeks, weeksOf, recordEval } from "./service.js";
+import { easy, EASY } from "./easy-mode.js";
 import { flagPostsForTrack, curBranches, postTier, isUS } from "./staff.js";
 import { dutyState, saveDuty, rivalEligible, syncRivalPosts } from "./duty.js";
 
@@ -47,7 +48,7 @@ export function preview(g, xp, title, br, svc, d = dutyState()) {
     season =
       (career.boardHistory || []).filter((entry) => entry.grade === g).length +
       1,
-    cutoff = boardCutoffs[g] ?? 100;
+    cutoff = (boardCutoffs[g] ?? 100) - (easy.on ? EASY.cutoff : 0);
   const prior = career.boardHistory?.at(-1),
     tours = career.tours || {};
   // Legacy receipts stored a four-week season number instead of the actual review week.
@@ -324,7 +325,7 @@ export function boardCard(g, xp, title, br, svc, d, experience) {
     " · 현 계급 " +
     serviceDuration(rankMonths(g, weeksOf(g))) +
     " / " +
-    serviceDuration(rankMonths(g, minWeeks(g))) +
+    serviceDuration(rankMonths(g, needWeeks())) +
     "</p>" +
     requirements +
     routeNote +

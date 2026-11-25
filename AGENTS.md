@@ -47,6 +47,7 @@
 | `js/sfx.js` | 합성 효과음(도장·서류·경보·업적) |
 | `js/us-alt-posts.js` | 미군(BETA) 같은 병과 대체 보직·한직 목록 [영문, 한국어] |
 | `js/name-filter.js` | 지휘관 이름 욕설·성적 표현 차단(`isBadName`, `safeName`) — 임관·이름 변경·순위표 |
+| `js/easy-mode.js` | 첫 접속 쉬운 모드(`easy.on`): 처음 온 브라우저의 그 접속 동안만 진급 요건 완화. 다음 접속부터 일반 |
 | `js/admin-balance.js` | 관리자 밸런스 시험 표 (저장소를 쓰지 않는 계산만) |
 | `manifest.webmanifest`, `sw.js`, `img/icons/` | PWA (실제 배포 주소에서만 서비스 워커 등록) |
 | `js/korea.js` | 한반도 해안선 (Natural Earth 50m, 퍼블릭 도메인) + `kxy(경도, 위도)` |

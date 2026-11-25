@@ -4,6 +4,7 @@ import { careerStorage } from "./characters.js";
 // and the promotion board (진급 심사) then needs enough battles at this rank and a passing average.
 // Kept in the career store (careerStorage) — the economy server still owns XP and money.
 import { career, saveCareer } from "./career.js";
+import { easy, EASY } from "./easy-mode.js";
 
 /** What each branch's evaluation weighs most (shown on the posting cards and in 내 정보). */
 export const FOCUS = {
@@ -22,7 +23,10 @@ export const FOCUS = {
 };
 export const PASS = 55; /* B or better */
 export const minWeeks = () => 10;
-export const minBattles = (g) => (g <= 2 ? 10 : g <= 5 ? 12 : 14);
+const baseBattles = (g) => (g <= 2 ? 10 : g <= 5 ? 12 : 14);
+export const minBattles = (g) => (easy.on ? Math.ceil(baseBattles(g) * EASY.battleScale) : baseBattles(g));
+/** 플레이어 본인의 계급 최소 복무 주 (쉬운 모드에서 짧아짐). 동기·정년 계산은 minWeeks를 그대로 쓴다 */
+export const needWeeks = () => (easy.on ? EASY.weeks : minWeeks());
 export const letter = (s) => (s >= 85 ? "S" : s >= 70 ? "A" : s >= PASS ? "B" : s >= 40 ? "C" : "D");
 
 /** m: { won, hp (0–1), sunk, foes, lost, allies, secs, jetsOut }. Returns { s, parts }. */
@@ -49,7 +53,7 @@ export function addRankWeek(g, n = 1) { const c = st(); c.rankWeeks[g] = (c.rank
 
 /** The promotion board for the next rank. xpGrade: the rank your XP alone would give. */
 export function board(g, xpGrade) {
-  const e = evalOf(g), need = minBattles(g), needWk = minWeeks(g), weeks = weeksOf(g);
+  const e = evalOf(g), need = minBattles(g), needWk = needWeeks(), weeks = weeksOf(g);
   if (g >= 9) return { ok: false, xp: false, wk: weeks >= 10, needWk: 10, weeks, cnt: false, score: false, need: 5, e, special: true }; /* 원수(10)는 특별진급 퀘스트로만 진급 */
   const xp = xpGrade > g, wk = weeks >= needWk, cnt = e.n >= need, score = e.n > 0 && e.avg >= PASS;
   return { ok: xp && wk && cnt && score, xp, wk, needWk, weeks, cnt, score, need, e };
