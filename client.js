@@ -1897,6 +1897,7 @@ function currentOnlineRecord() {
     promo_week: promoEntry?.turn || dutyState().week || 1,
     approval: presidentApproval(),
     hardcore: hardcoreValid(),
+    easy_run: !!career.easyRun,
   };
 }
 
@@ -1968,6 +1969,7 @@ function globalRankHTML() {
       <div style="font-size:12.5px;font-weight:800;color:#6ee7b7;margin-bottom:6px">🟢 실시간 작전 중인 지휘관 (${Math.max(1, onlinePlayers.length)}명)</div>
       <div style="display:flex;flex-wrap:wrap;gap:6px">${onlineList}</div>
     </div>
+    ${career.easyRun ? `<div style="padding:9px 12px;border-radius:8px;background:rgba(47,125,87,.14);border:1px solid #2f7d57;font-size:12px;color:#a7f3d0">🌱 <b>첫 접속 쉬운 모드로 진행한 캐릭터</b>는 글로벌 랭킹에 등록되지 않습니다. 새 캐릭터를 만들어 일반 규칙으로 도전해 보세요.</div>` : ""}
     ${hcBox}
     <div style="display:flex;gap:6px;flex-wrap:wrap">${btn("data-gseason", "all", "🗂 전체 기간", globalSeason === "all", "#72ace8")}${btn("data-gseason", "season", `📅 ${seasonKey.replace("-", "년 ")}월 시즌`, globalSeason === "season", "#72ace8")}</div>
     <div style="display:flex;gap:6px;flex-wrap:wrap">${RANK_CATS.map(([k, l]) => btn("data-gsort", k, l, globalSort === k, "#f2ca5c")).join("")}</div>
@@ -3346,6 +3348,7 @@ $("#hqP").addEventListener("click", (e) => {
       const d = nextDutyWeek(svk, g, postOf(g)), status = currentServiceStatus(g, d);
       noteServiceNotice(status);
       const tenure = tenureXp(g, status);
+      if (easy.on && !career.easyRun) { career.easyRun = true; saveCareer(); } /* 쉬운 모드로 진행한 캐릭터는 랭킹 제외 */
       if (d.recentRivalRetire) {
         const ret = d.recentRivalRetire;
         delete d.recentRivalRetire;
