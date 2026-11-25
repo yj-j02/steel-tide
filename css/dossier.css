@@ -529,3 +529,8 @@ body .dsr-page #duty-warroom.mn-paper button small { color: #ffcf9e !important; 
 .beta-tag[hidden]{display:none}
 .beta-note{margin:8px 0 4px;padding:7px 10px;font-size:12px;line-height:1.5;color:var(--ds-ink,#2a2a2a);background:rgba(184,87,46,.08);border-left:3px solid #b8572e;border-radius:2px}
 .beta-note .beta-tag{margin:0 6px 0 0}
+
+/* 첫 접속 쉬운 모드 표시 */
+.easy-tag{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:3px;font:700 10px/1.5 system-ui,sans-serif;letter-spacing:.08em;color:#fff;background:#2f7d57;vertical-align:middle}
+.easy-tag[hidden]{display:none}
+.dsr-page .easy-chip{background:rgba(47,125,87,.14);border-color:#2f7d57;color:#1f5b3f}
