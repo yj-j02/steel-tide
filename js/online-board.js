@@ -1,4 +1,5 @@
 /* Supabase-backed global leaderboard & live concurrent-player presence */
+import { isBadName, safeName } from "./name-filter.js";
 
 const SUPABASE_URL = "https://yjxududnzimqlgroqjpz.supabase.co";
 const SUPABASE_KEY = "sb_publishable_9p1RoYd6uc8JjepQ6HOanA_VjSRFSPh";
@@ -24,7 +25,8 @@ export function onOnlineBoardUpdate(fn) {
 }
 
 export function getOnlineState() {
-  return { onlinePlayers, rows: cachedRows };
+  /* 욕설·성적 표현 이름은 순위표에서 빼고, 접속자 목록에서는 가린다 */
+  return { onlinePlayers: onlinePlayers.map((p) => (isBadName(p?.name) ? { ...p, name: safeName(p.name) } : p)), rows: cachedRows.filter((r) => !isBadName(r?.name)) };
 }
 
 async function getClient() {
@@ -86,7 +88,7 @@ const EXCLUDED_NAME_RE = /^(무명|테스트|test\d*|admin|관리자|익명|temp
 
 export function isExcludedLeaderboardName(name = "") {
   const n = String(name || "").trim();
-  return !n || EXCLUDED_NAME_RE.test(n);
+  return !n || EXCLUDED_NAME_RE.test(n) || isBadName(n);
 }
 
 /** 3초 안에 끝나지 않으면 null (느린 네트워크에서 임관·이름 변경이 멈추지 않게) */
