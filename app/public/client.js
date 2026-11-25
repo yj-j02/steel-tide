@@ -1709,9 +1709,14 @@ function checkCareerAchievements(grade = myGrade(), d = dutyState()) {
   if (isOcs && grade >= 6) trigger("ach_ocs_gen", true);
   if (is3sa && grade >= 6) trigger("ach_3sa_gen", true);
   if ((isOcs || is3sa) && grade >= 9) trigger("ach_nonacad_4star", true);
-  if (br === "eng" && grade >= 6) trigger("ach_eng_gen", true);
-  if (br === "sub" && grade >= 6) trigger("ach_sub_commander", true);
-  if (br === "mar" && grade >= 6) trigger("ach_marine_general", true);
+  /* 병과 업적은 '임관 병과'를 끝까지 지킨 경우만: 중간에 전과해 해당 보직을 받으면 해당 없음 */
+  const firstB = (career.log || []).find((e) => e.b)?.b;
+  const BRS = { ...BRANCHES, ...curBranches() };
+  const originBr = career.originBranch || Object.keys(BRS).find((k) => firstB && [BRS[k].n, postLabel(BRS[k].n)].includes(firstB)) || br;
+  const keptOrigin = (k) => originBr === k && br === k;
+  if (keptOrigin("eng") && grade >= 6) trigger("ach_eng_gen", true);
+  if (keptOrigin("sub") && grade >= 6) trigger("ach_sub_commander", true);
+  if (keptOrigin("mar") && grade >= 6) trigger("ach_marine_general", true);
   if (br === "plt" && grade >= 9) trigger("ach_topgun_chief", true);
   if ((br === "art" || br === "sam") && grade >= 6) trigger("ach_artillery_star", true);
   if (medalCnt >= 6) trigger("ach_medal_collector", false);
@@ -2300,7 +2305,7 @@ function renderDutyDesk() {
   const admDuty = profile.admin ? `<div class="adm-bar"><b>관리자 시험</b><button data-baltest="1">📊 밸런스 시험</button><button data-duty="admrank">+1계급 진급</button><button data-duty="tomin">→ ${isUS() ? "미 국방장관 취임" : "국방부장관 취임"}</button>${isUS() ? `<button data-uspres="preview">→ 미국 대선 시험 (538)</button>` : `<button data-adm="topres">→ 대선 시작</button><button data-adm="topotus">→ 대통령 취임</button>`}<button data-adm="reset0">↺ 소위부터 다시 시작</button></div>` : "";
   const wrObj = d.warroom ? warroomById(d.warroom.id) : null;
   const wrStg = wrObj?.stages?.[d.warroom?.stage || 0];
-  const warroomCard = wrObj && wrStg ? `<div id="duty-warroom" class="mn-card mn-dk mn-paper" style="border-color:#ff6b57;background:linear-gradient(rgba(18,10,12,.84),rgba(10,14,22,.94)),url(${wrObj.bg}) center/cover;box-shadow:0 0 22px rgba(255,107,87,.2)"><div class="dh"><div class="dt"><small style="color:#ff9485;font-weight:700">🚨 ${wrObj.tag} · ${wrObj.defcon} (${(d.warroom.stage || 0) + 1}/${wrObj.stages.length}단계 · 누적 통제력 ${d.warroom.score || 0}/250+)</small><b>${wrStg.title}</b><span>장성급 3단계 워룸 위기 · 250점 이상 완벽 제압 시 원수(5성) 특별진급 공적 획득</span></div></div><p>${wrStg.desc}</p>${wrStg.opts.map((o, oi) => `<button data-duty="wr:${oi}"><b>${o.l}</b><small>${o.d}</small></button>`).join("")}</div>` : "";
+  const warroomCard = wrObj && wrStg ? `<div id="duty-warroom" class="mn-card mn-dk mn-paper" style="--wrbg:url(${wrObj.bg});border-color:#ff6b57;box-shadow:0 0 22px rgba(255,107,87,.2)"><div class="dh"><div class="dt"><small style="color:#ff9485;font-weight:700">🚨 ${wrObj.tag} · ${wrObj.defcon} (${(d.warroom.stage || 0) + 1}/${wrObj.stages.length}단계 · 누적 통제력 ${d.warroom.score || 0}/250+)</small><b>${wrStg.title}</b><span>장성급 3단계 워룸 위기 · 250점 이상 완벽 제압 시 원수(5성) 특별진급 공적 획득</span></div></div><p>${wrStg.desc}</p>${wrStg.opts.map((o, oi) => `<button data-duty="wr:${oi}"><b>${o.l}</b><small>${o.d}</small></button>`).join("")}</div>` : "";
   const arc = activeRankArc(d, g);
   const arcCard = arc ? `<div id="duty-arc" class="mn-card mn-dk mn-paper" style="border-color:#ffd166;box-shadow:0 0 18px rgba(255,209,102,.14)"><div class="dh"><div class="dt"><small style="color:#ffd166;font-weight:700">📖 ${arc.tag} · ${arc.name} (${arc.step + 1}/${arc.total}화)</small><b>${arc.ep.title}</b><span>계급 전용 연속 스토리 · 선택이 다음 화와 복무 연표에 반영됩니다</span></div></div><p>${arc.ep.desc}</p>${arc.carryover ? `<p style="color:#d8ecff;font-size:11.5px;background:rgba(40,80,120,.28);padding:6px 9px;border-radius:6px"><b>이전 화 결과 이어받기</b> · ${arc.carryover.text} <strong>(평정 ${arc.carryover.pts >= 0 ? "+" : ""}${arc.carryover.pts}점)</strong></p>` : ""}${arc.ep.opts.map((o, oi) => `<button data-duty="arc:${oi}"><b>${o.l}</b><small>${o.d}</small></button>`).join("")}</div>` : "";
   const boss = bossFor(g, svk);
@@ -2824,7 +2829,7 @@ $("#titleHub")?.addEventListener("click", async (e) => {
     const route = routes.find(entry => entry.id === thRoute) ?? routes[0];
     const hParent = ($("#thHeritage")?.value || "").trim();
     const created = createCharacter(thNation, {
-      "steeltide:career": {log:[], serviceContract: contractFor(route), justCommissioned: true, ...(hParent ? { heritageParent: hParent } : {})},
+      "steeltide:career": {log:[], serviceContract: contractFor(route), justCommissioned: true, originBranch: thBr, ...(hParent ? { heritageParent: hParent } : {})},
       [CACHE]: { ...econNewProfile(), admin: !!profile.admin },
       "steeltide:cmdr": { name: name.slice(0, 12), face: thFace },
       "steeltide:staff": { branch: thBr, service: thSvc, nation: thNation, a: {}, byE: {}, x: {}, e: 0 },
@@ -3405,7 +3410,7 @@ $("#hqP").addEventListener("click", (e) => {
   const tk = e.target.closest("[data-take]");
   if (tk && !profile.admin && tk.dataset.take !== "reset") { const [, g, t] = tk.dataset.take.split(":"); sfx.click(); toast(+g > myGrade() ? `${t} — ${rankLabel(+g)} 보직입니다. 그 계급으로 진급할 때 인사명령의 보직 선택에서 고를 수 있습니다` : `${t} — 상부에서 임명하는 보직입니다`, 4); return; }
   if (tk && profile.admin) { sfx.click(); if (tk.dataset.take === "reset") staff.adminPost = null; else { const [k, g, t] = tk.dataset.take.split(":"), fp = curFlagPosts().find((p) => p.t === t && p.g === +g); staff.adminPost = { b: fp ? fp.b : BRANCHES[k] ? k : staff.branch, g: +g, t: fp ? t : null }; } saveStaff(); renderHQ(); return; }
-  const br = e.target.closest("[data-branch]"); if (br) { sfx.click(); const had = career.seen != null; if (!had) hqView = "duty"; setBranch(br.dataset.branch); svcDraft = null; showcase(flagshipId()); if (had) logPromotion({ g: myGrade(), t: careerTitle(myGrade()), b: BRANCHES[br.dataset.branch].n, why: "보직 변경" }); else careerInit(myGrade(), careerTitle(myGrade()), BRANCHES[br.dataset.branch].n); refreshMenus(); renderHQ(); toast(`${BRANCHES[br.dataset.branch].n} 보직 — ${careerTitle(myGrade())}`); return; } if (e.target.closest("[data-rebranch]")) { sfx.click(); staff.branch = null; hqView = "duty"; usPresPreview = false; renderHQ(); return; } const r = e.target.closest("[data-role]"); if (r) { sfx.click(); hqRole = r.dataset.role; renderHQ(); return; } const a = e.target.closest("[data-appoint]"); if (a) { sfx.click(); appoint(hqRole, a.dataset.appoint); renderHQ(); toast(`${STAFF_ROLES.find((x) => x.k === hqRole).n} 임명 — ${officer(a.dataset.appoint).rk} ${officer(a.dataset.appoint).nm}`); } });
+  const br = e.target.closest("[data-branch]"); if (br) { sfx.click(); const had = career.seen != null; if (!had) { hqView = "duty"; career.originBranch = br.dataset.branch; } setBranch(br.dataset.branch); svcDraft = null; showcase(flagshipId()); if (had) logPromotion({ g: myGrade(), t: careerTitle(myGrade()), b: BRANCHES[br.dataset.branch].n, why: "보직 변경" }); else careerInit(myGrade(), careerTitle(myGrade()), BRANCHES[br.dataset.branch].n); refreshMenus(); renderHQ(); toast(`${BRANCHES[br.dataset.branch].n} 보직 — ${careerTitle(myGrade())}`); return; } if (e.target.closest("[data-rebranch]")) { sfx.click(); staff.branch = null; hqView = "duty"; usPresPreview = false; renderHQ(); return; } const r = e.target.closest("[data-role]"); if (r) { sfx.click(); hqRole = r.dataset.role; renderHQ(); return; } const a = e.target.closest("[data-appoint]"); if (a) { sfx.click(); appoint(hqRole, a.dataset.appoint); renderHQ(); toast(`${STAFF_ROLES.find((x) => x.k === hqRole).n} 임명 — ${officer(a.dataset.appoint).rk} ${officer(a.dataset.appoint).nm}`); } });
 $("#tabPort").addEventListener("click", () => { sfx.click(); openMenu(); });
 function openRecord() { initAudio(); bgm((career.minister || (!isUS() && isPotus()) || usIsPotus()) ? "state" : "menu"); hideAll(); screen = "record"; G.state = "menu"; setTab("record"); $("#topbar").style.display = "flex"; renderRecord(); $("#recordP").style.display = "block"; showcase(flagshipId()); }
 $("#tabRecord").addEventListener("click", () => { sfx.click(); if (recTab === "global") recTab = "log"; openRecord(); });

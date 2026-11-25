@@ -325,7 +325,7 @@ body .mn-paper:not(#duty-warroom):not(#duty-arc) .kj th, body .mn-paper:not(#dut
 #hqP:has(> .hq-head) .hq-node :where(b, span, em, small) { color: var(--ds-ink) !important; }
 
 /* ── 장관·대선·대통령 화면 (.dsr-state) 보정 ── */
-.dsr-page [style*="url("]:not(:has(.mn-card, .mn-paper)), .dsr-page [style*="url("]:not(:has(.mn-card, .mn-paper)) * { color: #fff !important; text-shadow: 0 1px 3px rgba(0, 0, 0, .6); }
+.dsr-page [style*="url("]:not(:has(.mn-card, .mn-paper)):not(#duty-warroom), .dsr-page [style*="url("]:not(:has(.mn-card, .mn-paper)):not(#duty-warroom) * { color: #fff !important; text-shadow: 0 1px 3px rgba(0, 0, 0, .6); }
 .dsr-page .mn-top .mt span, .dsr-page .mn-top span { color: var(--ds-mute) !important; }
 .dsr-page .mn-top b { color: var(--ds-ink) !important; }
 .dsr-page .mn-top b.g { color: var(--ds-green) !important; } .dsr-page .mn-top b.y { color: var(--ds-amber) !important; } .dsr-page .mn-top b.r { color: var(--ds-red) !important; }
@@ -506,3 +506,17 @@ body.fs-xl .tour-tip, body.fs-xl .em-frame, body.fs-xl .hr-doc { zoom: 1.2; }
 .hr-ov .hr-doc .bal-act button { width: auto; display: inline-block; text-align: center; }
 .hr-ov .hr-doc .bal-act button.on { background: var(--ds-red) !important; color: #fff !important; }
 .sm-log em.sm-up { color: var(--ds-green); } .sm-log em.sm-dn { color: var(--ds-red); }
+
+/* ── 합참 워룸 카드: 일부러 어두운 비상 카드 — 글자는 밝게, 배경 사진은 --wrbg ── */
+body .dsr-page #duty-warroom.mn-paper { background: linear-gradient(rgba(18, 10, 12, .88), rgba(10, 14, 22, .95)), var(--wrbg, none) center / cover !important; border: 1.5px solid #ff6b57 !important; color: #f6ece9 !important; padding: 22px 26px !important; border-radius: 4px !important; }
+body .dsr-page #duty-warroom.mn-paper :where(b, span, p, div) { color: #f6ece9 !important; text-shadow: none !important; }
+body .dsr-page #duty-warroom.mn-paper .dt small { color: #ff9485 !important; }
+body .dsr-page #duty-warroom.mn-paper .dt b { font-size: 24px !important; color: #fff !important; }
+body .dsr-page #duty-warroom.mn-paper .dt span { color: #d9c3bf !important; }
+body .dsr-page #duty-warroom.mn-paper .dh { border-bottom: 2px solid #ff6b57 !important; }
+body .dsr-page #duty-warroom.mn-paper button { background: rgba(255, 255, 255, .06) !important; border: 1px solid rgba(255, 148, 133, .45) !important; color: #fff !important; box-shadow: none !important; }
+body .dsr-page #duty-warroom.mn-paper button:hover:not(:disabled) { background: rgba(255, 107, 87, .18) !important; border-color: #ff6b57 !important; }
+body .dsr-page #duty-warroom.mn-paper button b { color: #fff !important; }
+body .dsr-page #duty-warroom.mn-paper button small { color: #ffcf9e !important; }
+/* 동기·스토리 아크 카드: 종이 위에서 노란 글씨가 안 보이던 문제 */
+.dsr-page #duty-arc.mn-paper small[style] { color: var(--ds-hiink) !important; }
